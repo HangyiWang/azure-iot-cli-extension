@@ -93,12 +93,12 @@ class IoTLiveScenarioTest(CaptureOutputLiveScenarioTest):
                     )
                 sleep(ROLE_ASSIGNMENT_REFRESH_TIME)
 
-                target_hub = self.cmd(
-                    "iot hub show -n {} -g {}".format(self.entity_name, self.entity_rg)
-                ).get_output_in_json()
+        target_hub = self.cmd(
+            "iot hub show -n {} -g {}".format(self.entity_name, self.entity_rg)
+        ).get_output_in_json()
 
-                if add_data_contributor:
-                    self._add_data_contributor(target_hub)
+        if add_data_contributor:
+            self._add_data_contributor(target_hub)
 
         self.host_name = target_hub["properties"]["hostName"]
         self.region = self.get_region()

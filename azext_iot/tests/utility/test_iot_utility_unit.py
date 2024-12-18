@@ -11,6 +11,7 @@ import sys
 
 from unittest import mock
 from knack.util import CLIError
+from importlib.metadata import PackageNotFoundError
 from azure.cli.core.azclierror import CLIInternalError
 from azure.cli.core.extension import get_extension_path
 from azext_iot.common.utility import (
@@ -24,7 +25,7 @@ from azext_iot.common.utility import (
 )
 from azext_iot.operations.generic import _process_top
 from azext_iot.common.deps import ensure_uamqp
-from azext_iot.constants import EVENT_LIB, EXTENSION_NAME
+from azext_iot.constants import EXTENSION_NAME, UAMQP_DEP_NAME, UAMQP_COMPAT_VERSION
 from azext_iot._validators import mode2_iot_login_handler
 from azext_iot.common.embedded_cli import EmbeddedCLI
 
@@ -153,8 +154,8 @@ class TestEnsureUamqp(object):
             assert uamqp_scenario["exit"].call_args
         else:
             install_args = uamqp_scenario["installer"].call_args
-            assert install_args[0][0] == EVENT_LIB[0]
-            assert install_args[1]["compatible_version"] == EVENT_LIB[1]
+            assert install_args[0][0] == UAMQP_DEP_NAME
+            assert install_args[1]["compatible_version"] == UAMQP_COMPAT_VERSION
 
 
 class TestInstallPipPackage(object):
@@ -319,6 +320,35 @@ class TestVersionComparison(object):
             )
 
         assert ensure_iotdps_sdk_min_version(minimum) == expected
+
+    @pytest.mark.parametrize(
+        "installed, expected, result",
+        [
+            # nothing installed, check for compat version
+            (None, UAMQP_COMPAT_VERSION, False),
+            # 1.2, check for compat version
+            ("1.2", UAMQP_COMPAT_VERSION, False),
+            # 1.6.5, check for compat version,
+            ("1.6.5", UAMQP_COMPAT_VERSION, False),
+            # compat version installed
+            ("1.6.6", UAMQP_COMPAT_VERSION, True),
+            # compat++ version installed
+            ("1.6.7", UAMQP_COMPAT_VERSION, True),
+            # 1.9 installed, 1.10 expected
+            ("1.9.9", "1.10.0", False),
+        ]
+
+    )
+    def test_test_import_and_version(self, mocker, installed, expected, result):
+        from azext_iot.common.utility import test_import_and_version
+
+        mocked_version = mocker.patch("importlib.metadata.version")
+        if installed:
+            mocked_version.return_value = installed
+        else:
+            mocked_version.side_effect = [PackageNotFoundError]
+
+        assert test_import_and_version(package=UAMQP_DEP_NAME, expected_version=expected) == result
 
 
 class TestEmbeddedCli(object):

@@ -219,7 +219,7 @@ class DeviceMessagingProvider(IoTHubProvider):
                     payload["properties"]["system"] = sys_props
 
                 if result.content:
-                    target_encoding = result.headers.get("ContentEncoding", "utf-8")
+                    target_encoding = result.headers.get("content-encoding", "utf-8")
                     payload["data"] = NON_DECODABLE_PAYLOAD
                     if target_encoding in ["utf-8", "utf8", "utf-16", "utf16", "utf-32", "utf32"]:
                         logger.info(f"Decoding message data encoded with: {target_encoding}")

@@ -64,8 +64,8 @@ class TestIoTHubC2DMessages(IoTLiveScenarioTest):
 
             # Assert system properties
             received_system_props = c2d_receive_result["properties"]["system"]
-            assert received_system_props["ContentEncoding"] == test_ce
-            assert received_system_props["ContentType"] == test_ct
+            assert received_system_props["content-encoding"] == test_ce
+            assert received_system_props["content-type"] == test_ct
             assert received_system_props["iothub-correlationid"] == test_cid
             assert received_system_props["iothub-messageid"] == test_mid
             assert received_system_props["iothub-expiry"]

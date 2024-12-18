@@ -3,6 +3,23 @@
 Release History
 ===============
 
+0.26.0
++++++++++++++++
+
+**General updates**
+
+* We have dropped support for Python 3.8
+* This extension now supports Python 3.12 as the CLI core is packaging newer releases with this python version, 
+* **[Breaking Change]** Older versions of `uamqp` (below `1.6.6`) are not compatible with Python 3.12
+  * If you update your packaged AZ CLI version (`2.66.0` or later) or otherwise change your environment's Python version to 3.12, you will need to update your `uamqp` dependency to `1.6.6` or above in order to use commands like `az iot hub monitor-events`
+  * You can repair this dependency at command runtime by utilizing the `--repair` / `-r` argument in `az iot hub monitor-events`
+
+**IoT device updates**
+
+* **[Breaking Change]** Device c2d messages (`az iot device c2d-message`) have been updated to support the following service-side changes:
+  * `ContentEncoding` system property is now `content-encoding`
+  * `ContentType` system property is now `content-type`
+
 
 0.25.0
 +++++++++++++++

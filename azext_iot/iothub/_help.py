@@ -270,8 +270,8 @@ def load_iothub_help():
                       to `application/octet-stream`.
 
                       Note: The command only works for symmetric key auth (SAS) based devices.
-                      To enable querying on a message body in message routing, the contentType
-                      system property must be application/JSON and the contentEncoding system
+                      To enable querying on a message body in message routing, the content-type
+                      system property must be application/JSON and the content-encoding system
                       property must be one of the UTF encoding values supported by that system
                       property(UTF-8, UTF-16 or UTF-32). If the content encoding isn't set when
                       Azure Storage is used as routing endpoint, then IoT Hub writes the messages

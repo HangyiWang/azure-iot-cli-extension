@@ -366,9 +366,10 @@ def test_import_and_version(package, expected_version):
     that are installed without metadata.
     """
     from importlib import metadata
+    from packaging.version import parse
 
     try:
-        return metadata.version(package) >= expected_version
+        return parse(metadata.version(package)) >= parse(expected_version)
     except metadata.PackageNotFoundError:
         return False
 

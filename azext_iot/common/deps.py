@@ -8,17 +8,17 @@ import sys
 from os import linesep
 
 from azure.cli.core.azclierror import CLIInternalError
-from azext_iot.constants import EVENT_LIB, VERSION
+from azext_iot.constants import UAMQP_DEP_NAME, UAMQP_COMPAT_VERSION, VERSION
 from azext_iot.common.utility import test_import_and_version
 from azext_iot.common.pip import install
 from azext_iot.common._homebrew_patch import HomebrewPipPatch
 
 
 def ensure_uamqp(config, yes=False, repair=False):
-    if repair or not test_import_and_version(EVENT_LIB[0], EVENT_LIB[1]):
+    if repair or not test_import_and_version(UAMQP_DEP_NAME, UAMQP_COMPAT_VERSION):
         if not yes:
             input_txt = ('Dependency update ({} {}) required for IoT extension version: {}. {}'
-                         'Continue? (y/n) -> ').format(EVENT_LIB[0], EVENT_LIB[1], VERSION, linesep)
+                         'Continue? (y/n) -> ').format(UAMQP_DEP_NAME, UAMQP_COMPAT_VERSION, VERSION, linesep)
             i = input(input_txt)
             if i.lower() != 'y':
                 sys.exit('User has declined update...')
@@ -27,8 +27,8 @@ def ensure_uamqp(config, yes=False, repair=False):
         with HomebrewPipPatch():
             # The version range defined in this custom_version parameter should be stable
             try:
-                install(EVENT_LIB[0], compatible_version='{}'.format(EVENT_LIB[1]))
+                install(UAMQP_DEP_NAME, compatible_version=UAMQP_COMPAT_VERSION)
                 print('Update complete. Executing command...')
             except RuntimeError as e:
-                print('Failure updating {}. Aborting...'.format(EVENT_LIB[0]))
+                print('Failure updating {}. Aborting...'.format(UAMQP_DEP_NAME))
                 raise CLIInternalError(e)
