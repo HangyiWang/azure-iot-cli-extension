@@ -379,13 +379,15 @@ def test_route_fallback_lifecycle(provisioned_only_iot_hubs_module):
         )
     ).as_json()["routes"]
     assert len(test_result) == 1
-    assert test_result[0]["properties"]["name"] == fallback_name
+    route_name = test_result[0]["properties"]["name"]
+    assert route_name == fallback_name, f"route name {route_name} does not match {fallback_name}"
 
     test_result = cli.invoke(
         f"iot hub message-route test -n {iot_hub} -g {iot_rg}"
     ).as_json()["routes"]
     assert len(test_result) == 1
-    assert test_result[0]["properties"]["name"] == fallback_name
+    route_name = test_result[0]["properties"]["name"]
+    assert route_name == fallback_name, f"route name {route_name} does not match {fallback_name}"
 
     # Disable fallback route
     expected_fallback_route = build_expected_route(
