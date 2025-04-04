@@ -19,8 +19,6 @@ logger = get_logger(__name__)
 
 MOCK_RESOURCE_TAGS = "a=b c=d"
 MOCK_RESOURCE_TAGS_DICT = {"a": "b", "c": "d"}
-MOCK_DEAD_LETTER_ENDPOINT = "https://accountname.blob.core.windows.net/containerName"
-MOCK_DEAD_LETTER_SECRET = "{}?sasToken".format(MOCK_DEAD_LETTER_ENDPOINT)
 REGION_RESOURCE_LIMIT = 9  # Actual value is 10 but this is to limit race condition
 REGION_LIST = ["westus2", "westcentralus", "eastus2", "eastus", "eastus2euap"]
 MAX_ADX_RETRIES = 5
@@ -296,7 +294,9 @@ class DTLiveScenarioTest(LiveScenarioTest):
 
             if retries == MAX_ADX_RETRIES:
                 waited_min = retries * wait_time // 60
-                cluster_msg = f"Waited {waited_min} minutes and ADX cluster {ADX_CLUSTER} has not been created yet."
+                cluster_msg = (
+                    f"Waited {waited_min} minutes ({retries} retries) and ADX cluster {ADX_CLUSTER} has not been created yet."
+                )
                 logger.error(cluster_msg)
 
         if not settings.env.azext_dt_adx_database:

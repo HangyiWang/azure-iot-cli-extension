@@ -5,6 +5,7 @@
 # --------------------------------------------------------------------------------------------
 
 from azure.cli.core.azclierror import AzureResponseError
+from azext_iot.common.auth import IoTOAuth
 from azext_iot.digitaltwins.providers.resource import ResourceProvider
 from azext_iot.sdk.digitaltwins.dataplane import AzureDigitalTwinsAPI
 from azext_iot.sdk.digitaltwins.dataplane.models import ErrorResponseException
@@ -54,9 +55,9 @@ class DigitalTwinsProvider(object):
             cli_ctx=self.cmd.cli_ctx,
             client_or_resource_type=AzureDigitalTwinsAPI,
             base_url=self._get_endpoint(),
-            resource=self.resource_id,
             subscription_bound=False,
             base_url_bound=False,
+            credential=IoTOAuth(cli_ctx=self.cmd.cli_ctx, resource_id=self.resource_id),
         )
 
         client.config.add_user_agent(USER_AGENT)

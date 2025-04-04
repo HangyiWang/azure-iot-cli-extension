@@ -27,7 +27,7 @@ from msrest.serialization import Model
 from azext_iot.common.embedded_cli import EmbeddedCLI
 from azext_iot.common.utility import handle_service_exception
 from azext_iot.constants import USER_AGENT
-from azext_iot.deviceupdate.common import AUTH_RESOURCE_ID, SYSTEM_IDENTITY_ARG
+from azext_iot.deviceupdate.common import SYSTEM_IDENTITY_ARG
 from azext_iot.sdk.deviceupdate.controlplane import DeviceUpdate
 from azext_iot.sdk.deviceupdate.controlplane import models as DeviceUpdateMgmtModels
 from azext_iot.sdk.deviceupdate.dataplane import DeviceUpdateClient
@@ -80,7 +80,10 @@ class DeviceUpdateClientHandler(object):
         self.cmd = cmd
 
     def get_mgmt_client(self) -> DeviceUpdate:
-        client: DeviceUpdate = get_mgmt_service_client(self.cmd.cli_ctx, DeviceUpdate)
+        client: DeviceUpdate = get_mgmt_service_client(
+            cli_ctx=self.cmd.cli_ctx,
+            client_or_resource_type=DeviceUpdate,
+        )
         self._add_useragents(client)
         return client
 
@@ -90,7 +93,7 @@ class DeviceUpdateClientHandler(object):
 
         profile = Profile()
         client: DeviceUpdateClient = DeviceUpdateClient(
-            credential=profile.get_login_credentials(resource=AUTH_RESOURCE_ID)[0],
+            credential=profile.get_login_credentials()[0],
             endpoint=endpoint,
             instance_id=instance_id,
             **prepare_client_kwargs_track2(self.cmd.cli_ctx),
