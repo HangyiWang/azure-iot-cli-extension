@@ -1,14 +1,14 @@
 parameters:
-- name: rootCommand
-  type: string
+  - name: rootCommand
+    type: string
 
 steps:
-  - script: 'python ./scripts/dump_help.py ${{ parameters.rootCommand }}'
-    displayName: 'Generate help doc'
+  - script: "python ./scripts/dump_help.py ${{ parameters.rootCommand }}"
+    displayName: "Generate help doc"
 
   - task: PublishBuildArtifacts@1
-    displayName: 'Publish help contents'
+    displayName: "Publish help contents"
     inputs:
-      pathtoPublish: 'help.md'
-      artifactName: 'help-file'
-      publishLocation: 'Container'
+      pathtoPublish: "help.md"
+      artifactName: "help-file"
+      publishLocation: "Container"

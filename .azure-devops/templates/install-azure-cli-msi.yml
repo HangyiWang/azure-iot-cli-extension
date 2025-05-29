@@ -6,16 +6,16 @@ steps:
       script: |
         (Get-Command az).source
         az -v
-    displayName: 'Show AZ CLI version info'
+    displayName: "Show AZ CLI version info"
   - task: PowerShell@2
-    displayName: 'Set Windows MSI Python Executable PATH'
+    displayName: "Set Windows MSI Python Executable PATH"
     inputs:
-      targetType: 'inline'
+      targetType: "inline"
       script: |
         echo "##vso[task.prependPath]C:\Program Files\Microsoft SDKs\Azure\CLI2"
         echo "##vso[task.prependPath]C:\Program Files\Microsoft SDKs\Azure\CLI2\Scripts"
   - task: PowerShell@2
-    displayName: 'Install required packages for the MSI python'
+    displayName: "Install required packages for the MSI python"
     inputs:
       targetType: inline
       script: |

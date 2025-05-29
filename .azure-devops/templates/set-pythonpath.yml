@@ -1,9 +1,9 @@
 steps:
   - task: PythonScript@0
-    displayName : 'Set Extension Path'
-    name: 'setExtensionPath'
+    displayName: "Set Extension Path"
+    name: "setExtensionPath"
     inputs:
-      scriptSource: 'inline'
+      scriptSource: "inline"
       script: |
         from azure.cli.core.extension import get_extension_path
         extension_path = get_extension_path("azure-iot")

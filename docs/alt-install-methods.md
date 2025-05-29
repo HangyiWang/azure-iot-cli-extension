@@ -29,6 +29,6 @@ For example, to install version 0.3.2
 
 You can create a wheel package locally from source to be used in Azure CLI.
 
-To build the wheel locally, ensure you have the Python `wheel` package installed i.e. `pip install wheel`. Then run `python setup.py bdist_wheel` where the current directory is the extension root. The wheel (with .whl suffix) will be generated and available in the `dist` folder.
+To build the wheel locally, ensure you have the Python `wheel` package installed i.e. `pip install wheel`. Then run `python -m build` where the current directory is the extension root. The wheel (with .whl suffix) will be generated and available in the `dist` folder.
 
 Then, follow the local package installation method.

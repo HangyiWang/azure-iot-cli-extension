@@ -1,16 +1,16 @@
 steps:
-  - script: 'python setup.py sdist bdist_wheel'
-    displayName: 'Build wheel for Azure IoT CLI extension'
-    workingDirectory: '.'
+  - script: "python -m build"
+    displayName: "Build wheel for Azure IoT CLI extension"
+    workingDirectory: "."
 
   - task: AzureArtifacts.manifest-generator-task.manifest-generator-task.ManifestGeneratorTask@0
-    displayName: 'Generate Software Manifest'
+    displayName: "Generate Software Manifest"
     inputs:
-      BuildDropPath: 'dist'
+      BuildDropPath: "dist"
 
   - task: PublishBuildArtifacts@1
-    displayName: 'Publish Azure IoT CLI extension as build artifact'
+    displayName: "Publish Azure IoT CLI extension as build artifact"
     inputs:
-      pathtoPublish: 'dist' 
-      artifactName: 'azure-iot' 
-      publishLocation: 'Container'
+      pathtoPublish: "dist"
+      artifactName: "azure-iot"
+      publishLocation: "Container"

@@ -6,22 +6,20 @@ pr: none
 
 # Run daily at 5 am (Pacific).
 schedules:
-- cron: "0 13 * * *"
-  displayName: 'Daily Cleanup'
-  branches:
-    include:
-    - dev
-  always: true
-
+  - cron: "0 13 * * *"
+    displayName: "Daily Cleanup"
+    branches:
+      include:
+        - dev
+    always: true
 
 parameters:
-- name: resourceGroupVar
-  type: string
-  default: 'ResourceGroup'
-- name: exclusionsVar
-  type: string
-  default: 'Exclusions'
-
+  - name: resourceGroupVar
+    type: string
+    default: "ResourceGroup"
+  - name: exclusionsVar
+    type: string
+    default: "Exclusions"
 
 variables:
   - name: targetResourceGroup
@@ -29,29 +27,28 @@ variables:
   - name: deleteExclusions
     value: $[variables.${{ parameters.exclusionsVar }}]
 
-
 steps:
-- checkout: none
+  - checkout: none
 
-- task: AzureCLI@2
-  continueOnError: true
-  displayName: 'Delete Test resources'
-  inputs:
-    azureSubscription: $(AzureServiceConnection)
-    scriptType: bash
-    scriptLocation: inlineScript
-    inlineScript: |
-      set -x
+  - task: AzureCLI@2
+    continueOnError: true
+    displayName: "Delete Test resources"
+    inputs:
+      azureSubscription: $(AzureServiceConnection)
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -x
 
-      names=($EXCLUSIONS)
-      query=$(printf '[?name!='"'"%q"'"']|' "${names[@]}")
+        names=($EXCLUSIONS)
+        query=$(printf '[?name!='"'"%q"'"']|' "${names[@]}")
 
-      echo "Resources found to delete:"
-      resources=$(az resource list -g "$RESOURCEGROUP" --query "$query[*].id" -o tsv)
-      if [[ -n "$resources" ]]; then
-        echo "Deleting Resources"
-        az resource delete --ids $resources
-      fi
-  env:
-    RESOURCEGROUP: $(targetResourceGroup)
-    EXCLUSIONS: $(deleteExclusions)
+        echo "Resources found to delete:"
+        resources=$(az resource list -g "$RESOURCEGROUP" --query "$query[*].id" -o tsv)
+        if [[ -n "$resources" ]]; then
+          echo "Deleting Resources"
+          az resource delete --ids $resources
+        fi
+    env:
+      RESOURCEGROUP: $(targetResourceGroup)
+      EXCLUSIONS: $(deleteExclusions)
