@@ -938,6 +938,8 @@ class TestIoTHubMessaging(IoTLiveScenarioTest):
 
         assert result is not None
         for key in test_twin_props:
+            assert key in result["properties"]["desired"]
+            assert key in result["properties"]["reported"]
             assert result["properties"]["reported"][key] == result["properties"]["desired"][key]
 
         token.set()

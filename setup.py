@@ -56,7 +56,7 @@ DEPENDENCIES = [
     "tomli-w~=1.0",
     "tqdm~=4.62",
     "treelib~=1.6",
-    "packaging"
+    "packaging>=23.2"
 ]
 EXTRAS = {"uamqp": ["uamqp>=1.2,<=1.6.8"]}
 
@@ -71,6 +71,7 @@ CLASSIFIERS = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
 ]
 
