@@ -53,11 +53,11 @@ class ProvisioningServiceClient(SDKClient):
     :vartype config: ProvisioningServiceClientConfiguration
 
     :ivar individual_enrollment: IndividualEnrollment operations
-    :vartype individual_enrollment: dps.operations.IndividualEnrollmentOperations
+    :vartype individual_enrollment: dps.service.operations.IndividualEnrollmentOperations
     :ivar enrollment_group: EnrollmentGroup operations
-    :vartype enrollment_group: dps.operations.EnrollmentGroupOperations
+    :vartype enrollment_group: dps.service.operations.EnrollmentGroupOperations
     :ivar device_registration_state: DeviceRegistrationState operations
-    :vartype device_registration_state: dps.operations.DeviceRegistrationStateOperations
+    :vartype device_registration_state: dps.service.operations.DeviceRegistrationStateOperations
 
     :param credentials: Credentials needed for the client to connect to Azure.
     :type credentials: :mod:`A msrestazure Credentials
@@ -72,7 +72,7 @@ class ProvisioningServiceClient(SDKClient):
         super(ProvisioningServiceClient, self).__init__(self.config.credentials, self.config)
 
         client_models = {k: v for k, v in models.__dict__.items() if isinstance(v, type)}
-        self.api_version = '2021-10-01'
+        self.api_version = '2025-07-01-preview'
         self._serialize = Serializer(client_models)
         self._deserialize = Deserializer(client_models)
 

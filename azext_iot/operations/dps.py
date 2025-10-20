@@ -50,6 +50,10 @@ from azext_iot.sdk.dps.service.models import (
 logger = get_logger(__name__)
 
 
+def _get_dps_resource_group(dps):
+    return getattr(dps, "resourcegroup", None) or dps.additional_properties.get("resourcegroup")
+
+
 # DPS Enrollments
 
 
@@ -146,6 +150,7 @@ def iot_dps_device_enrollment_create(
     edge_enabled=False,
     webhook_url=None,
     device_information=None,
+    credential_policy_name=None,
     api_version=None,
     login=None,
     auth_type_dataplane=None,
@@ -207,7 +212,8 @@ def iot_dps_device_enrollment_create(
             allocation_policy=allocation_policy,
             iot_hubs=iot_hub_list,
             custom_allocation_definition=custom_allocation_definition,
-            optional_device_information=_get_twin_collection(device_information)
+            optional_device_information=_get_twin_collection(device_information),
+            credential_policy_name=credential_policy_name
         )
         return sdk.individual_enrollment.create_or_update(enrollment_id, enrollment)
     except ProvisioningServiceErrorDetailsException as e:
@@ -238,6 +244,7 @@ def iot_dps_device_enrollment_update(
     edge_enabled=None,
     webhook_url=None,
     device_information=None,
+    credential_policy_name=None,
     api_version=None,
     login=None,
     auth_type_dataplane=None,
@@ -329,6 +336,10 @@ def iot_dps_device_enrollment_update(
             enrollment_record.capabilities = DeviceCapabilities(iot_edge=edge_enabled)
         if device_information:
             enrollment_record.optional_device_information = _get_twin_collection(device_information)
+
+        # ADR credential policy name
+        if credential_policy_name is not None:
+            enrollment_record.credential_policy_name = credential_policy_name
 
         return sdk.individual_enrollment.create_or_update(
             enrollment_id, enrollment_record, if_match=(etag if etag else "*")
@@ -450,6 +461,7 @@ def iot_dps_device_enrollment_group_create(
     iot_hubs=None,
     edge_enabled=False,
     webhook_url=None,
+    credential_policy_name=None,
     api_version=None,
     login=None,
     auth_type_dataplane=None,
@@ -517,6 +529,7 @@ def iot_dps_device_enrollment_group_create(
             allocation_policy=allocation_policy,
             iot_hubs=iot_hub_list,
             custom_allocation_definition=custom_allocation_definition,
+            credential_policy_name=credential_policy_name
         )
         return sdk.enrollment_group.create_or_update(enrollment_id, group_enrollment)
     except ProvisioningServiceErrorDetailsException as e:
@@ -546,6 +559,7 @@ def iot_dps_device_enrollment_group_update(
     iot_hubs=None,
     edge_enabled=None,
     webhook_url=None,
+    credential_policy_name=None,
     api_version=None,
     login=None,
     auth_type_dataplane=None,
@@ -655,6 +669,8 @@ def iot_dps_device_enrollment_group_update(
             )
         if edge_enabled is not None:
             enrollment_record.capabilities = DeviceCapabilities(iot_edge=edge_enabled)
+        if credential_policy_name is not None:
+            enrollment_record.credential_policy_name = credential_policy_name
         return sdk.enrollment_group.create_or_update(
             enrollment_id, enrollment_record, if_match=(etag if etag else "*")
         )
@@ -761,6 +777,7 @@ def iot_dps_connection_string_show(
         for dps in dps:
             if dps.properties.state == IoTDPSStateType.Active.value:
                 try:
+                    dps_resource_group = _get_dps_resource_group(dps)
                     connection_strings.append(
                         {
                             "name": dps.name,
@@ -772,13 +789,14 @@ def iot_dps_connection_string_show(
                 except Exception:
                     logger.warning(
                         f"Warning: The DPS {dps.name} in resource group "
-                        + f"{dps.additional_properties['resourcegroup']} does "
+                        + f"{dps_resource_group} does "
                         + f"not have the target policy {policy_name}."
                     )
             else:
+                dps_resource_group = _get_dps_resource_group(dps)
                 logger.warning(
                     f"Warning: The DPS {dps.name} in resource group "
-                    + f"{dps.additional_properties['resourcegroup']} is skipped "
+                    + f"{dps_resource_group} is skipped "
                     + "because the DPS is not active."
                 )
         return connection_strings
@@ -795,14 +813,15 @@ def _get_dps_connection_string(
     discovery, dps, policy_name, key_type, show_all
 ):
     policies = []
+    dps_resource_group = _get_dps_resource_group(dps)
     if show_all:
         policies.extend(
-            discovery.get_policies(dps.name, dps.additional_properties["resourcegroup"])
+            discovery.get_policies(dps.name, dps_resource_group)
         )
     else:
         policies.append(
             discovery.find_policy(
-                dps.name, dps.additional_properties["resourcegroup"], policy_name
+                dps.name, dps_resource_group, policy_name
             )
         )
 

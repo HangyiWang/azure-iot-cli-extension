@@ -48,7 +48,7 @@ class MessageRoute(IoTHubProvider):
                 resource_group_name=self.hub_resource.additional_properties['resourcegroup'],
                 resource_name=self.hub_resource.name,
                 iot_hub_description=self.hub_resource,
-                if_match=self.hub_resource.etag
+                etag=self.hub_resource.etag
             )
         except HttpResponseError as e:
             handle_service_exception(e)
@@ -72,7 +72,7 @@ class MessageRoute(IoTHubProvider):
                 resource_group_name=self.hub_resource.additional_properties['resourcegroup'],
                 resource_name=self.hub_resource.name,
                 iot_hub_description=self.hub_resource,
-                if_match=self.hub_resource.etag
+                etag=self.hub_resource.etag
             )
         except HttpResponseError as e:
             handle_service_exception(e)
@@ -104,7 +104,7 @@ class MessageRoute(IoTHubProvider):
                 resource_group_name=self.hub_resource.additional_properties['resourcegroup'],
                 resource_name=self.hub_resource.name,
                 iot_hub_description=self.hub_resource,
-                if_match=self.hub_resource.etag
+                etag=self.hub_resource.etag
             )
         except HttpResponseError as e:
             handle_service_exception(e)
@@ -189,6 +189,6 @@ class MessageRoute(IoTHubProvider):
             resource_group_name=self.hub_resource.additional_properties['resourcegroup'],
             resource_name=self.hub_resource.name,
             iot_hub_description=self.hub_resource,
-            if_match=self.hub_resource.etag
+            etag=self.hub_resource.etag
         )
         return self.show_fallback()

@@ -19,12 +19,12 @@ class Metadata(Model):
     :type last_updated: datetime
     :param last_updated_version: This is null for reported properties metadata
      and is not null for desired properties metadata.
-    :type last_updated_version: long
+    :type last_updated_version: int
     """
 
     _attribute_map = {
         'last_updated': {'key': 'lastUpdated', 'type': 'iso-8601'},
-        'last_updated_version': {'key': 'lastUpdatedVersion', 'type': 'long'},
+        'last_updated_version': {'key': 'lastUpdatedVersion', 'type': 'int'},
     }
 
     def __init__(self, *, last_updated=None, last_updated_version: int=None, **kwargs) -> None:

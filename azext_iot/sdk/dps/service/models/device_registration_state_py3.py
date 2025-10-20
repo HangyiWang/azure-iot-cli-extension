@@ -32,7 +32,7 @@ class DeviceRegistrationState(Model):
     :vartype device_id: str
     :ivar status: Enrollment status. Possible values include: 'unassigned',
      'assigning', 'assigned', 'failed', 'disabled'
-    :vartype status: str or ~dps.models.enum
+    :vartype status: str or ~dps.service.models.EnrollmentStatus
     :ivar substatus: Substatus for 'Assigned' devices. Possible values include
      - 'initialAssignment': Device has been assigned to an IoT hub for the
      first time, 'deviceDataMigrated': Device has been assigned to a different
@@ -45,7 +45,7 @@ class DeviceRegistrationState(Model):
      previously assigned IoT hub. Possible values include: 'initialAssignment',
      'deviceDataMigrated', 'deviceDataReset',
      'reprovisionedToInitialAssignment'
-    :vartype substatus: str or ~dps.models.enum
+    :vartype substatus: str or ~dps.service.models.AssignedDeviceSubstatus
     :ivar error_code: Error code.
     :vartype error_code: int
     :ivar error_message: Error message.
@@ -54,8 +54,7 @@ class DeviceRegistrationState(Model):
     :vartype last_updated_date_time_utc: datetime
     :ivar etag: The entity tag associated with the resource.
     :vartype etag: str
-    :ivar payload: Custom allocation payload returned from the webhook to the
-     device.
+    :ivar payload:
     :vartype payload: object
     """
 

@@ -976,9 +976,10 @@ def load_arguments(self, _):
             "Required if --dps-name is not provided.",
             arg_group="Device Provisioning Service Identifier"
         )
+        # TODO - CMS Preview - Hack to quiet the linter
         context.argument(
             "dps_name",
-            options_list=["--dps-name", "-n"],
+            options_list=["--dps-name", "--name", "-n"],
             help="Name or hostname of the Azure IoT Hub Device Provisioning Service. Required if --login is not provided.",
             arg_group="Device Provisioning Service Identifier"
         )
@@ -1091,6 +1092,11 @@ def load_arguments(self, _):
 
     with self.argument_context("iot dps connection-string") as context:
         context.argument(
+            "dps_name",
+            options_list=["--dps-name", "--name", "-n"],
+            help="IoT Hub Device Provisioning Service name."
+        )
+        context.argument(
             "show_all",
             options_list=["--show-all", "--all"],
             help="Show all shared access policies for the respective DPS.",
@@ -1119,6 +1125,12 @@ def load_arguments(self, _):
             "device_information",
             options_list=["--device-information", "--info"],
             help="Optional device information.",
+        )
+        context.argument(
+            "credential_policy_name",
+            options_list=["--credential-policy-name", "--cpn"],
+            help="ADR Namespace Credential Policy Name.",
+            arg_group="ADR Credential Policy"
         )
 
     with self.argument_context("iot dps enrollment create") as context:
@@ -1225,6 +1237,12 @@ def load_arguments(self, _):
             "registration_id",
             options_list=["--registration-id", "--rid"],
             help="ID of device registration."
+        )
+        context.argument(
+            "credential_policy_name",
+            options_list=["--credential-policy-name", "--cpn"],
+            help="ADR Namespace Credential Policy Name.",
+            arg_group="ADR Credential Policy"
         )
 
     with self.argument_context("iot dps enrollment-group show") as context:

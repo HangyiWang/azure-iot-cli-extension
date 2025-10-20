@@ -15,8 +15,8 @@ from msrest.serialization import Model
 class InitialTwinProperties(Model):
     """Represents the initial properties that will be set on the device twin.
 
-    :param desired: Gets and sets the InitialTwin desired properties.
-    :type desired: ~dps.models.TwinCollection
+    :param desired:
+    :type desired: ~dps.service.models.TwinCollection
     """
 
     _attribute_map = {

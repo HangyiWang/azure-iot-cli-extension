@@ -22,7 +22,7 @@ class DeviceRegistrationStateOperations(object):
     :param config: Configuration of service client.
     :param serializer: An object model serializer.
     :param deserializer: An object model deserializer.
-    :ivar api_version: The API version to use for the request. Supported versions include: 2021-10-01. Constant value: "2021-10-01".
+    :ivar api_version: The API version to use for the request. Supported versions include: 2021-10-01, 2025-07-01-preview. Constant value: "2025-07-01-preview".
     """
 
     models = models
@@ -32,9 +32,65 @@ class DeviceRegistrationStateOperations(object):
         self._client = client
         self._serialize = serializer
         self._deserialize = deserializer
-        self.api_version = "2021-10-01"
+        self.api_version = "2025-07-01-preview"
 
         self.config = config
+
+    def delete(
+            self, id, if_match=None, custom_headers=None, raw=False, **operation_config):
+        """Deletes the device registration.
+
+        :param id: Registration ID.
+        :type id: str
+        :param if_match: The ETag of the registration status record.
+        :type if_match: str
+        :param dict custom_headers: headers that will be added to the request
+        :param bool raw: returns the direct response alongside the
+         deserialized response
+        :param operation_config: :ref:`Operation configuration
+         overrides<msrest:optionsforoperations>`.
+        :return: None or ClientRawResponse if raw=true
+        :rtype: None or ~msrest.pipeline.ClientRawResponse
+        :raises:
+         :class:`ProvisioningServiceErrorDetailsException<dps.service.models.ProvisioningServiceErrorDetailsException>`
+        """
+        # Construct URL
+        url = self.delete.metadata['url']
+        path_format_arguments = {
+            'id': self._serialize.url("id", id, 'str')
+        }
+        url = self._client.format_url(url, **path_format_arguments)
+
+        # Construct parameters
+        query_parameters = {}
+        query_parameters['api-version'] = self._serialize.query("self.api_version", self.api_version, 'str')
+
+        # Construct headers
+        header_parameters = {}
+        header_parameters['Content-Type'] = 'application/json; charset=utf-8'
+        if self.config.generate_client_request_id:
+            header_parameters['x-ms-client-request-id'] = str(uuid.uuid1())
+        if custom_headers:
+            header_parameters.update(custom_headers)
+        if if_match is not None:
+            header_parameters['If-Match'] = self._serialize.header("if_match", if_match, 'str')
+        if self.config.accept_language is not None:
+            header_parameters['accept-language'] = self._serialize.header("self.config.accept_language", self.config.accept_language, 'str')
+
+        # Construct and send request
+        request = self._client.delete(url, query_parameters)
+        response = self._client.send(request, header_parameters, stream=False, **operation_config)
+
+        if response.status_code not in [204]:
+            raise models.ProvisioningServiceErrorDetailsException(self._deserialize, response)
+
+        if raw:
+            client_raw_response = ClientRawResponse(None, response)
+            client_raw_response.add_headers({
+                'x-ms-error-code': 'str',
+            })
+            return client_raw_response
+    delete.metadata = {'url': '/registrations/{id}'}
 
     def get(
             self, id, custom_headers=None, raw=False, **operation_config):
@@ -48,10 +104,10 @@ class DeviceRegistrationStateOperations(object):
         :param operation_config: :ref:`Operation configuration
          overrides<msrest:optionsforoperations>`.
         :return: DeviceRegistrationState or ClientRawResponse if raw=true
-        :rtype: ~dps.models.DeviceRegistrationState or
+        :rtype: ~dps.service.models.DeviceRegistrationState or
          ~msrest.pipeline.ClientRawResponse
         :raises:
-         :class:`ProvisioningServiceErrorDetailsException<dps.models.ProvisioningServiceErrorDetailsException>`
+         :class:`ProvisioningServiceErrorDetailsException<dps.service.models.ProvisioningServiceErrorDetailsException>`
         """
         # Construct URL
         url = self.get.metadata['url']
@@ -98,62 +154,6 @@ class DeviceRegistrationStateOperations(object):
         return deserialized
     get.metadata = {'url': '/registrations/{id}'}
 
-    def delete(
-            self, id, if_match=None, custom_headers=None, raw=False, **operation_config):
-        """Deletes the device registration.
-
-        :param id: Registration ID.
-        :type id: str
-        :param if_match: The ETag of the registration status record.
-        :type if_match: str
-        :param dict custom_headers: headers that will be added to the request
-        :param bool raw: returns the direct response alongside the
-         deserialized response
-        :param operation_config: :ref:`Operation configuration
-         overrides<msrest:optionsforoperations>`.
-        :return: None or ClientRawResponse if raw=true
-        :rtype: None or ~msrest.pipeline.ClientRawResponse
-        :raises:
-         :class:`ProvisioningServiceErrorDetailsException<dps.models.ProvisioningServiceErrorDetailsException>`
-        """
-        # Construct URL
-        url = self.delete.metadata['url']
-        path_format_arguments = {
-            'id': self._serialize.url("id", id, 'str')
-        }
-        url = self._client.format_url(url, **path_format_arguments)
-
-        # Construct parameters
-        query_parameters = {}
-        query_parameters['api-version'] = self._serialize.query("self.api_version", self.api_version, 'str')
-
-        # Construct headers
-        header_parameters = {}
-        header_parameters['Content-Type'] = 'application/json; charset=utf-8'
-        if self.config.generate_client_request_id:
-            header_parameters['x-ms-client-request-id'] = str(uuid.uuid1())
-        if custom_headers:
-            header_parameters.update(custom_headers)
-        if if_match is not None:
-            header_parameters['If-Match'] = self._serialize.header("if_match", if_match, 'str')
-        if self.config.accept_language is not None:
-            header_parameters['accept-language'] = self._serialize.header("self.config.accept_language", self.config.accept_language, 'str')
-
-        # Construct and send request
-        request = self._client.delete(url, query_parameters)
-        response = self._client.send(request, header_parameters, stream=False, **operation_config)
-
-        if response.status_code not in [204]:
-            raise models.ProvisioningServiceErrorDetailsException(self._deserialize, response)
-
-        if raw:
-            client_raw_response = ClientRawResponse(None, response)
-            client_raw_response.add_headers({
-                'x-ms-error-code': 'str',
-            })
-            return client_raw_response
-    delete.metadata = {'url': '/registrations/{id}'}
-
     def query(
             self, id, x_ms_max_item_count=None, x_ms_continuation=None, custom_headers=None, raw=False, **operation_config):
         """Gets the registration state of devices in this enrollmentGroup.
@@ -170,10 +170,10 @@ class DeviceRegistrationStateOperations(object):
         :param operation_config: :ref:`Operation configuration
          overrides<msrest:optionsforoperations>`.
         :return: list or ClientRawResponse if raw=true
-        :rtype: list[~dps.models.DeviceRegistrationState] or
+        :rtype: list[~dps.service.models.DeviceRegistrationState] or
          ~msrest.pipeline.ClientRawResponse
         :raises:
-         :class:`ProvisioningServiceErrorDetailsException<dps.models.ProvisioningServiceErrorDetailsException>`
+         :class:`ProvisioningServiceErrorDetailsException<dps.service.models.ProvisioningServiceErrorDetailsException>`
         """
         # Construct URL
         url = self.query.metadata['url']

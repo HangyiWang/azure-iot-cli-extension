@@ -28,26 +28,28 @@ class IndividualEnrollment(Model):
     :type registration_id: str
     :param device_id: Desired IoT Hub device ID (optional).
     :type device_id: str
-    :ivar registration_state: Current registration status.
-    :vartype registration_state: ~dps.models.DeviceRegistrationState
-    :param optional_device_information: Optional Device Information.
-    :type optional_device_information: ~dps.models.TwinCollection
-    :param attestation: Required. Attestation method used by the device.
-    :type attestation: ~dps.models.AttestationMechanism
-    :param capabilities: Capabilities of the device.
-    :type capabilities: ~dps.models.DeviceCapabilities
+    :param credential_policy_name: Linked Azure Device Registry credential
+     policy name (optional).
+    :type credential_policy_name: str
+    :param registration_state:
+    :type registration_state: ~dps.service.models.DeviceRegistrationState
+    :param optional_device_information:
+    :type optional_device_information: ~dps.service.models.TwinCollection
+    :param attestation: Required.
+    :type attestation: ~dps.service.models.AttestationMechanism
+    :param capabilities:
+    :type capabilities: ~dps.service.models.DeviceCapabilities
     :param iot_hub_host_name: The Iot Hub host name.
     :type iot_hub_host_name: str
-    :param initial_twin: Initial device twin.
-    :type initial_twin: ~dps.models.InitialTwin
+    :param initial_twin:
+    :type initial_twin: ~dps.service.models.InitialTwin
     :param etag: The entity tag associated with the resource.
     :type etag: str
     :param provisioning_status: The provisioning status. Possible values
      include: 'enabled', 'disabled'. Default value: "enabled" .
-    :type provisioning_status: str or ~dps.models.enum
-    :param reprovision_policy: The behavior when a device is re-provisioned to
-     an IoT hub.
-    :type reprovision_policy: ~dps.models.ReprovisionPolicy
+    :type provisioning_status: str or ~dps.service.models.ProvisioningStatus
+    :param reprovision_policy:
+    :type reprovision_policy: ~dps.service.models.ReprovisionPolicy
     :ivar created_date_time_utc: The DateTime this resource was created.
     :vartype created_date_time_utc: datetime
     :ivar last_updated_date_time_utc: The DateTime this resource was last
@@ -67,19 +69,18 @@ class IndividualEnrollment(Model):
      the logic returns the desired IoT hub as well as the desired initial
      configuration. We recommend using Azure Functions to host your logic.
      Possible values include: 'hashed', 'geoLatency', 'static', 'custom'
-    :type allocation_policy: str or ~dps.models.enum
+    :type allocation_policy: str or ~dps.service.models.AllocationPolicy
     :param iot_hubs: The list of IoT Hub hostnames the device(s) in this
      resource can be allocated to. Must be a subset of tenant level list of IoT
      hubs.
     :type iot_hubs: list[str]
-    :param custom_allocation_definition: This tells DPS which webhook to call
-     when using custom allocation.
-    :type custom_allocation_definition: ~dps.models.CustomAllocationDefinition
+    :param custom_allocation_definition:
+    :type custom_allocation_definition:
+     ~dps.service.models.CustomAllocationDefinition
     """
 
     _validation = {
-        'registration_id': {'required': True},
-        'registration_state': {'readonly': True},
+        'registration_id': {'required': True, 'min_length': 1},
         'attestation': {'required': True},
         'created_date_time_utc': {'readonly': True},
         'last_updated_date_time_utc': {'readonly': True},
@@ -88,6 +89,7 @@ class IndividualEnrollment(Model):
     _attribute_map = {
         'registration_id': {'key': 'registrationId', 'type': 'str'},
         'device_id': {'key': 'deviceId', 'type': 'str'},
+        'credential_policy_name': {'key': 'credentialPolicyName', 'type': 'str'},
         'registration_state': {'key': 'registrationState', 'type': 'DeviceRegistrationState'},
         'optional_device_information': {'key': 'optionalDeviceInformation', 'type': 'TwinCollection'},
         'attestation': {'key': 'attestation', 'type': 'AttestationMechanism'},
@@ -104,11 +106,12 @@ class IndividualEnrollment(Model):
         'custom_allocation_definition': {'key': 'customAllocationDefinition', 'type': 'CustomAllocationDefinition'},
     }
 
-    def __init__(self, *, registration_id: str, attestation, device_id: str=None, optional_device_information=None, capabilities=None, iot_hub_host_name: str=None, initial_twin=None, etag: str=None, provisioning_status="enabled", reprovision_policy=None, allocation_policy=None, iot_hubs=None, custom_allocation_definition=None, **kwargs) -> None:
+    def __init__(self, *, registration_id: str, attestation, device_id: str=None, credential_policy_name: str=None, registration_state=None, optional_device_information=None, capabilities=None, iot_hub_host_name: str=None, initial_twin=None, etag: str=None, provisioning_status="enabled", reprovision_policy=None, allocation_policy=None, iot_hubs=None, custom_allocation_definition=None, **kwargs) -> None:
         super(IndividualEnrollment, self).__init__(**kwargs)
         self.registration_id = registration_id
         self.device_id = device_id
-        self.registration_state = None
+        self.credential_policy_name = credential_policy_name
+        self.registration_state = registration_state
         self.optional_device_information = optional_device_information
         self.attestation = attestation
         self.capabilities = capabilities

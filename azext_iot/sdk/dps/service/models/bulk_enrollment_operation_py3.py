@@ -18,10 +18,10 @@ class BulkEnrollmentOperation(Model):
     All required parameters must be populated in order to send to Azure.
 
     :param enrollments: Required. Enrollment items
-    :type enrollments: list[~dps.models.IndividualEnrollment]
+    :type enrollments: list[~dps.service.models.IndividualEnrollment]
     :param mode: Required. Operation mode. Possible values include: 'create',
      'update', 'updateIfMatchETag', 'delete'
-    :type mode: str or ~dps.models.enum
+    :type mode: str or ~dps.service.models.BulkEnrollmentMode
     """
 
     _validation = {

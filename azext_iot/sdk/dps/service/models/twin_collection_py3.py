@@ -19,16 +19,16 @@ class TwinCollection(Model):
      deserialized this collection
     :type additional_properties: dict[str, object]
     :param version: Version of the TwinCollection
-    :type version: long
+    :type version: int
     :param count: Number of properties in the TwinCollection
     :type count: int
-    :param metadata: Metadata for the TwinCollection
-    :type metadata: ~dps.models.Metadata
+    :param metadata:
+    :type metadata: ~dps.service.models.Metadata
     """
 
     _attribute_map = {
         'additional_properties': {'key': '', 'type': '{object}'},
-        'version': {'key': 'version', 'type': 'object'},  # TODO 'long' -> 'object': rest API spec is not accurate. More than int is supported.
+        'version': {'key': 'version', 'type': 'int'},
         'count': {'key': 'count', 'type': 'int'},
         'metadata': {'key': 'metadata', 'type': 'Metadata'},
     }

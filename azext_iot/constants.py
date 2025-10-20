@@ -7,7 +7,7 @@
 
 import os
 
-VERSION = "0.27.0"
+VERSION = "0.30.0b1"
 EXTENSION_NAME = "azure-iot"
 EXTENSION_ROOT = os.path.dirname(os.path.abspath(__file__))
 EXTENSION_CONFIG_ROOT_KEY = "iotext"
@@ -50,3 +50,5 @@ IOTHUB_RENEW_KEY_BATCH_SIZE = 100
 UAMQP_DEP_NAME = "uamqp"
 UAMQP_COMPAT_VERSION = "1.6.6"
 PNP_DTDLV2_COMPONENT_MARKER = "__t"
+LRO_POLL_WAIT_SEC = 30
+LRO_POLL_RETRIES = 10
