@@ -1,7 +1,21 @@
 steps:
+  - task: PowerShell@2
+    displayName: "Set Extension Path (Windows)"
+    condition: eq(variables['Agent.OS'], 'Windows_NT')
+    inputs:
+      targetType: "inline"
+      script: |
+        $extensionPath = az extension show -n azure-iot --query path -o tsv
+        if ($extensionPath) {
+          Write-Host "Extension path is $extensionPath"
+          Write-Host "##vso[task.setvariable variable=PYTHONPATH;]$extensionPath"
+        } else {
+          Write-Host "##vso[task.logissue type=warning]Extension path not found"
+        }
+
   - task: PythonScript@0
-    displayName: "Set Extension Path"
-    name: "setExtensionPath"
+    displayName: "Set Extension Path (Linux/macOS)"
+    condition: ne(variables['Agent.OS'], 'Windows_NT')
     inputs:
       scriptSource: "inline"
       script: |
