@@ -7,9 +7,6 @@
 # --------------------------------------------------------------------------
 
 from ._microsoft_device_registry_management_service import MicrosoftDeviceRegistryManagementService
-from ._version import VERSION
-
-__version__ = VERSION
 
 try:
     from ._patch import __all__ as _patch_all
