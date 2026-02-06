@@ -37,6 +37,7 @@ class PolicyProvider(ADRProvider):
         certificate_key_type: Optional[str] = None,
         certificate_subject: Optional[str] = None,
         certificate_validity_days: Optional[int] = None,
+        enable_byor: Optional[bool] = None,
         **kwargs,
     ):
 
@@ -74,6 +75,12 @@ class PolicyProvider(ADRProvider):
             certificate_config["certificateAuthorityConfiguration"] = ca_config
             certificate_config["leafCertificateConfiguration"] = {"validityPeriodInDays": certificate_validity_days}
             properties["certificate"] = certificate_config
+
+        # Enable Bring Your Own Root if requested
+        if enable_byor:
+            if "certificate" not in properties:
+                properties["certificate"] = {}
+            properties["certificate"]["bringYourOwnRoot"] = {"enabled": True}
 
         policy_resource["properties"] = properties
 
@@ -162,5 +169,35 @@ class PolicyProvider(ADRProvider):
                 namespace_name=namespace_name,
                 policy_name=policy_name,
                 resource=resource,
+            )
+            return wait_for_terminal_state(poller, **kwargs)
+
+    def revoke_issuer(self, policy_name: str, namespace_name: str, resource_group_name: str, **kwargs):
+        """Revoke the CA certificate for a policy, triggering regeneration of a new CA."""
+        with console.status(f"Revoking issuer certificate for policy '{policy_name}' in namespace {namespace_name}..."):
+            poller = self.client.policies.begin_revoke_issuer(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                policy_name=policy_name,
+            )
+            return wait_for_terminal_state(poller, **kwargs)
+
+    def activate_byor(
+        self,
+        policy_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+        certificate_chain: str,
+        **kwargs,
+    ):
+        """Activate or renew a Bring Your Own Root policy with a signed certificate chain."""
+        with console.status(
+            f"Activating BYOR certificate for policy '{policy_name}' in namespace {namespace_name}..."
+        ):
+            poller = self.client.policies.begin_activate_bring_your_own_root(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                policy_name=policy_name,
+                certificate_chain=certificate_chain,
             )
             return wait_for_terminal_state(poller, **kwargs)

@@ -47,3 +47,5 @@ def load_adr_commands(self, _):
         cmd_group.command("list", "adr_policy_list")
         cmd_group.command("delete", "adr_policy_delete", confirmation=True)
         cmd_group.command("update", "adr_policy_update")
+        cmd_group.command("revoke-issuer", "adr_policy_revoke_issuer", confirmation=True)
+        cmd_group.command("activate-byor", "adr_policy_activate_byor")

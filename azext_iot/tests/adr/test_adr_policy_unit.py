@@ -469,3 +469,113 @@ def _test_namespace_or_credential_not_found_error(
     # For update, also verify that begin_create_or_update wasn't called
     if operation_method == "update":
         fixture_policy_provider.client.policies.begin_create_or_update.assert_not_called()
+
+
+def test_revoke_issuer(fixture_policy_provider, mock_poller):
+    """Test successful policy issuer revocation."""
+    mock_revoke_result = Mock()
+    poller = mock_poller(mock_revoke_result)
+    fixture_policy_provider.client.policies.begin_revoke_issuer.return_value = poller
+
+    result = fixture_policy_provider.revoke_issuer(
+        policy_name="test-policy",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+    )
+
+    assert result == mock_revoke_result
+    fixture_policy_provider.client.policies.begin_revoke_issuer.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        policy_name="test-policy",
+    )
+
+
+def test_activate_byor(fixture_policy_provider, mock_poller):
+    """Test successful BYOR activation with certificate chain."""
+    mock_activate_result = Mock()
+    poller = mock_poller(mock_activate_result)
+    fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.return_value = poller
+
+    certificate_chain = "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+
+    result = fixture_policy_provider.activate_byor(
+        policy_name="test-policy",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        certificate_chain=certificate_chain,
+    )
+
+    assert result == mock_activate_result
+    fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        policy_name="test-policy",
+        certificate_chain=certificate_chain,
+    )
+
+
+def test_create_policy_with_enable_byor(fixture_policy_provider, mock_poller):
+    """Test policy creation with BYOR enabled."""
+    mock_policy_result = Mock()
+    poller = mock_poller(mock_policy_result)
+    fixture_policy_provider.client.policies.begin_create_or_update.return_value = poller
+
+    # Mock namespace.get to return location
+    mock_namespace = {"location": "eastus"}
+    fixture_policy_provider.client.namespaces.get.return_value = mock_namespace
+
+    result = fixture_policy_provider.create(
+        policy_name="byor-policy",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        enable_byor=True,
+    )
+
+    assert result == mock_policy_result
+
+    call_args = fixture_policy_provider.client.policies.begin_create_or_update.call_args
+    resource = call_args[1]["resource"]
+
+    # Verify BYOR is enabled in the certificate configuration
+    assert "properties" in resource
+    assert "certificate" in resource["properties"]
+    assert "bringYourOwnRoot" in resource["properties"]["certificate"]
+    assert resource["properties"]["certificate"]["bringYourOwnRoot"]["enabled"] is True
+
+
+def test_create_policy_with_enable_byor_and_cert_options(fixture_policy_provider, mock_poller):
+    """Test policy creation with BYOR enabled alongside certificate options."""
+    mock_policy_result = Mock()
+    poller = mock_poller(mock_policy_result)
+    fixture_policy_provider.client.policies.begin_create_or_update.return_value = poller
+
+    # Mock namespace.get to return location
+    mock_namespace = {"location": "eastus"}
+    fixture_policy_provider.client.namespaces.get.return_value = mock_namespace
+
+    result = fixture_policy_provider.create(
+        policy_name="byor-policy",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        certificate_validity_days=60,
+        enable_byor=True,
+    )
+
+    assert result == mock_policy_result
+
+    call_args = fixture_policy_provider.client.policies.begin_create_or_update.call_args
+    resource = call_args[1]["resource"]
+
+    # Verify both BYOR and certificate options are set
+    assert "properties" in resource
+    assert "certificate" in resource["properties"]
+    cert_config = resource["properties"]["certificate"]
+
+    # BYOR enabled
+    assert "bringYourOwnRoot" in cert_config
+    assert cert_config["bringYourOwnRoot"]["enabled"] is True
+
+    # Certificate options also present
+    assert "leafCertificateConfiguration" in cert_config
+    assert cert_config["leafCertificateConfiguration"]["validityPeriodInDays"] == 60
