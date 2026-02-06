@@ -100,3 +100,26 @@ def load_adr_management_arguments(self, _):
                 arg_group="Policy Certificate",
                 help="Policy certificate validity period in days.",
             )
+
+    # Device arguments
+    with self.argument_context("iot adr ns device") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "device_name",
+            options_list=["--device-name", "--dn", "--name", "-n"],
+            help="Name of the device.",
+        )
+
+    # Device revoke arguments
+    with self.argument_context("iot adr ns device revoke") as context:
+        context.argument(
+            "disable",
+            options_list=["--disable"],
+            arg_type=get_three_state_flag(),
+            help="Disable the device after revoking credentials. "
+                 "Prevents new credentials from being issued.",
+        )

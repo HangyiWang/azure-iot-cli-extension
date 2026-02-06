@@ -194,3 +194,26 @@ def load_adr_help():
     - name: Update certificate validity period
       text: az iot adr ns policy update -n myPolicy --cert-validity-days 10 --ns myNamespace -g myResourceGroup
   """
+
+    helps[
+        "iot adr ns device"
+    ] = """
+    type: group
+    short-summary: Manage Device Registry namespace devices.
+  """
+
+    helps[
+        "iot adr ns device revoke"
+    ] = """
+  type: command
+  short-summary: Revoke credentials for a device in a Device Registry namespace.
+  long-summary: |
+    This command revokes all active credentials for the specified device.
+    The device will need to re-authenticate and obtain new credentials.
+    Use --disable to also prevent the device from obtaining new credentials.
+  examples:
+    - name: Revoke device credentials
+      text: az iot adr ns device revoke -n myDevice --ns myNamespace -g myResourceGroup
+    - name: Revoke credentials and disable the device
+      text: az iot adr ns device revoke -n myDevice --ns myNamespace -g myResourceGroup --disable
+  """

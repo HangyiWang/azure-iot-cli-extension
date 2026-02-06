@@ -10,6 +10,7 @@ import pytest
 
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.adr.providers.credential import CredentialProvider
+from azext_iot.adr.providers.device import DeviceProvider
 from azext_iot.adr.providers.namespace import NamespaceProvider
 from azext_iot.adr.providers.policy import PolicyProvider
 from azext_iot.tests.generators import generate_generic_id
@@ -41,6 +42,7 @@ def mock_wait_for_terminal_state(monkeypatch):
     monkeypatch.setattr("azext_iot.adr.providers.namespace.wait_for_terminal_state", fast_wait)
     monkeypatch.setattr("azext_iot.adr.providers.credential.wait_for_terminal_state", fast_wait)
     monkeypatch.setattr("azext_iot.adr.providers.policy.wait_for_terminal_state", fast_wait)
+    monkeypatch.setattr("azext_iot.adr.providers.device.wait_for_terminal_state", fast_wait)
 
 
 @pytest.fixture()
@@ -95,6 +97,17 @@ def fixture_policy_provider(fixture_cmd):
         mock_client = Mock()
         mock_factory.return_value = mock_client
         provider = PolicyProvider(fixture_cmd)
+        provider.client = mock_client
+        return provider
+
+
+@pytest.fixture()
+def fixture_device_provider(fixture_cmd):
+    """Device provider fixture for testing."""
+    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
+        mock_client = Mock()
+        mock_factory.return_value = mock_client
+        provider = DeviceProvider(fixture_cmd)
         provider.client = mock_client
         return provider
 

@@ -23,6 +23,11 @@ adr_policy_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
+adr_device_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_device#{}",
+    client_factory=adr_service_factory,
+)
+
 
 def load_adr_commands(self, _):
     # Namespace commands
@@ -47,3 +52,7 @@ def load_adr_commands(self, _):
         cmd_group.command("list", "adr_policy_list")
         cmd_group.command("delete", "adr_policy_delete", confirmation=True)
         cmd_group.command("update", "adr_policy_update")
+
+    # Device commands
+    with self.command_group("iot adr ns device", command_type=adr_device_ops) as cmd_group:
+        cmd_group.command("revoke", "adr_device_revoke", confirmation=True)
