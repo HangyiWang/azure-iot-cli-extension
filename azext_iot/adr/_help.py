@@ -203,6 +203,38 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns device show"
+    ] = """
+  type: command
+  short-summary: Show a device in a Device Registry namespace.
+  examples:
+    - name: Show device details
+      text: az iot adr ns device show -n myDevice --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns device list"
+    ] = """
+  type: command
+  short-summary: List devices in a Device Registry namespace.
+  examples:
+    - name: List all devices in a namespace
+      text: az iot adr ns device list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns device update"
+    ] = """
+  type: command
+  short-summary: Update a device in a Device Registry namespace.
+  examples:
+    - name: Disable a device
+      text: az iot adr ns device update -n myDevice --ns myNamespace -g myResourceGroup --enabled false
+    - name: Update device OS version
+      text: az iot adr ns device update -n myDevice --ns myNamespace -g myResourceGroup --os-version "2.0.1"
+  """
+
+    helps[
         "iot adr ns device revoke"
     ] = """
   type: command

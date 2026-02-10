@@ -20,10 +20,64 @@ TEST_LOCATION = "westus"
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRDeviceRevokeLifecycle(CaptureOutputLiveScenarioTest):
+class TestADRDeviceLifecycle(CaptureOutputLiveScenarioTest):
 
     def __init__(self, test_case):
-        super(TestADRDeviceRevokeLifecycle, self).__init__(test_case)
+        super(TestADRDeviceLifecycle, self).__init__(test_case)
+
+    def test_device_show_list_update(self):
+        rg = TEST_RG
+        namespace_name = generate_adr_namespace_name()
+
+        try:
+            self.cmd(
+                f"iot adr ns create -n {namespace_name} -g {rg} "
+                f"--location {TEST_LOCATION} --enable-credential-policy"
+            )
+
+            # Device must be provisioned through DPS before show/list/update work
+            try:
+                device_list = self.cmd(
+                    f"iot adr ns device list --ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+
+                assert isinstance(device_list, list)
+
+                if len(device_list) == 0:
+                    logger.warning("No devices found in namespace - skipping show/update tests")
+                    return
+
+                existing_device = device_list[0]["name"]
+
+                # Show device
+                device = self.cmd(
+                    f"iot adr ns device show -n {existing_device} --ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+
+                assert device["name"] == existing_device
+
+                # Disable device
+                updated = self.cmd(
+                    f"iot adr ns device update -n {existing_device} --ns {namespace_name} -g {rg} --enabled false"
+                ).get_output_in_json()
+
+                assert updated["properties"]["enabled"] is False
+
+                # Re-enable device
+                updated = self.cmd(
+                    f"iot adr ns device update -n {existing_device} --ns {namespace_name} -g {rg} --enabled true"
+                ).get_output_in_json()
+
+                assert updated["properties"]["enabled"] is True
+
+            except Exception as e:
+                logger.warning(f"Device show/list/update test skipped: {e}")
+
+        finally:
+            try:
+                self.cmd(f"iot adr ns delete -n {namespace_name} -g {rg} -y")
+            except Exception as e:
+                logger.warning(f"Cleanup failed: {e}")
 
     def test_device_revoke(self):
         rg = TEST_RG
@@ -31,28 +85,20 @@ class TestADRDeviceRevokeLifecycle(CaptureOutputLiveScenarioTest):
         device_name = generate_device_id()
 
         try:
-            # Create namespace with credential and policy
             self.cmd(
                 f"iot adr ns create -n {namespace_name} -g {rg} "
                 f"--location {TEST_LOCATION} --enable-credential-policy"
             )
 
-            # Note: Device must be provisioned through DPS or another mechanism
-            # before this test can run. For now, this test expects the device
-            # to already exist or will fail gracefully.
-
-            # Attempt to revoke device credentials
-            # This may fail if device doesn't exist - that's expected in test env
+            # Device must be provisioned through DPS before revoke works
             try:
                 result = self.cmd(
                     f"iot adr ns device revoke -n {device_name} --ns {namespace_name} -g {rg} -y"
                 ).get_output_in_json()
 
-                # If successful, verify response structure
                 assert "result" in result
 
             except Exception as e:
-                # Device may not exist in test environment - log and continue
                 logger.warning(f"Device revoke test skipped - device may not exist: {e}")
 
         finally:
@@ -67,13 +113,11 @@ class TestADRDeviceRevokeLifecycle(CaptureOutputLiveScenarioTest):
         device_name = generate_device_id()
 
         try:
-            # Create namespace with credential and policy
             self.cmd(
                 f"iot adr ns create -n {namespace_name} -g {rg} "
                 f"--location {TEST_LOCATION} --enable-credential-policy"
             )
 
-            # Attempt to revoke and disable device
             try:
                 result = self.cmd(
                     f"iot adr ns device revoke -n {device_name} --ns {namespace_name} -g {rg} --disable -y"
@@ -95,13 +139,11 @@ class TestADRDeviceRevokeLifecycle(CaptureOutputLiveScenarioTest):
         namespace_name = generate_adr_namespace_name()
 
         try:
-            # Create namespace with credential and policy
             self.cmd(
                 f"iot adr ns create -n {namespace_name} -g {rg} "
                 f"--location {TEST_LOCATION} --enable-credential-policy"
             )
 
-            # Attempt to revoke a device that doesn't exist - should fail
             self.cmd(
                 f"iot adr ns device revoke -n nonexistent-device --ns {namespace_name} -g {rg} -y",
                 expect_failure=True

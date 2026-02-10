@@ -114,6 +114,31 @@ def load_adr_management_arguments(self, _):
             help="Name of the device.",
         )
 
+    # Device update arguments
+    with self.argument_context("iot adr ns device update") as context:
+        context.argument("tags", arg_type=tags_type)
+        context.argument(
+            "enabled",
+            options_list=["--enabled"],
+            arg_type=get_three_state_flag(),
+            help="Enable or disable the device. A disabled device cannot authenticate with Microsoft Entra ID.",
+        )
+        context.argument(
+            "operating_system_version",
+            options_list=["--os-version"],
+            help="Operating system version of the device.",
+        )
+        context.argument(
+            "attributes",
+            options_list=["--attributes"],
+            help="Device attributes in JSON format.",
+        )
+        context.argument(
+            "policy_resource_id",
+            options_list=["--policy-resource-id"],
+            help="Resource ID of the credential policy to associate with the device.",
+        )
+
     # Device revoke arguments
     with self.argument_context("iot adr ns device revoke") as context:
         context.argument(

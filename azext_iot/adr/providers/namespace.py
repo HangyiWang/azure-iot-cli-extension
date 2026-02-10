@@ -142,6 +142,13 @@ class NamespaceProvider(ADRProvider):
             return list(self.client.namespaces.list_by_subscription())
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
+        logger.warning(
+            "All child resources (credentials, policies, devices) under namespace '%s' will be deleted.",
+            namespace_name,
+        )
+        logger.warning(
+            "Deletion may fail if there are DPS or IoT Hub instances linked to this namespace. Unlink them first."
+        )
         with console.status(f"Deleting namespace {namespace_name}..."):
             poller = self.client.namespaces.begin_delete(
                 resource_group_name=resource_group_name, namespace_name=namespace_name

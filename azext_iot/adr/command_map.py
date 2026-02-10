@@ -55,4 +55,7 @@ def load_adr_commands(self, _):
 
     # Device commands
     with self.command_group("iot adr ns device", command_type=adr_device_ops) as cmd_group:
+        cmd_group.show_command("show", "adr_device_show")
+        cmd_group.command("list", "adr_device_list")
+        cmd_group.command("update", "adr_device_update")
         cmd_group.command("revoke", "adr_device_revoke", confirmation=True)

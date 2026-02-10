@@ -9,9 +9,100 @@ from unittest.mock import Mock
 import pytest
 
 
+def test_device_show(fixture_device_provider):
+    mock_device = Mock()
+    fixture_device_provider.client.namespace_devices.get.return_value = mock_device
+
+    result = fixture_device_provider.show(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.get.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+    )
+
+
+def test_device_list(fixture_device_provider):
+    mock_devices = [Mock(), Mock()]
+    fixture_device_provider.client.namespace_devices.list_by_resource_group.return_value = mock_devices
+
+    result = fixture_device_provider.list(
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+    )
+
+    assert len(result) == 2
+    fixture_device_provider.client.namespace_devices.list_by_resource_group.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+    )
+
+
+@pytest.mark.parametrize("enabled", [None, True, False])
+def test_device_update_enabled(fixture_device_provider, mock_poller, enabled):
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        enabled=enabled,
+    )
+
+    assert result == mock_device
+    expected_props = {}
+    if enabled is not None:
+        expected_props["enabled"] = enabled
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties=expected_props,
+    )
+
+
+def test_device_update_all_fields(fixture_device_provider, mock_poller):
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        enabled=False,
+        tags={"env": "test"},
+        operating_system_version="2.0.1",
+        attributes={"key": "value"},
+        policy_resource_id="/subscriptions/sub/resourceGroups/rg/providers/Microsoft.DeviceRegistry/namespaces/ns/credentials/default/policies/p1",
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={
+            "enabled": False,
+            "tags": {"env": "test"},
+            "operating_system_version": "2.0.1",
+            "attributes": {"key": "value"},
+            "policy": {
+                "resource_id": "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.DeviceRegistry/namespaces/ns/credentials/default/policies/p1"
+            },
+        },
+    )
+
+
 @pytest.mark.parametrize("disable", [None, True, False])
 def test_device_revoke(fixture_device_provider, mock_poller, disable):
-    """Test device credential revocation with various disable options."""
     mock_revoke_result = Mock()
     mock_revoke_result.result = "Succeeded"
     poller = mock_poller(mock_revoke_result)
@@ -34,7 +125,6 @@ def test_device_revoke(fixture_device_provider, mock_poller, disable):
 
 
 def test_device_revoke_response_with_error(fixture_device_provider, mock_poller):
-    """Test device revoke when response contains an error."""
     mock_revoke_result = Mock()
     mock_revoke_result.result = "Failed"
     mock_revoke_result.error = Mock()
