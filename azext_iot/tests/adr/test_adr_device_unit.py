@@ -81,7 +81,10 @@ def test_device_update_all_fields(fixture_device_provider, mock_poller):
         tags={"env": "test"},
         operating_system_version="2.0.1",
         attributes={"key": "value"},
-        policy_resource_id="/subscriptions/sub/resourceGroups/rg/providers/Microsoft.DeviceRegistry/namespaces/ns/credentials/default/policies/p1",
+        policy_resource_id=(
+            "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.DeviceRegistry/"
+            "namespaces/ns/credentials/default/policies/p1"
+        ),
     )
 
     assert result == mock_device
@@ -95,7 +98,10 @@ def test_device_update_all_fields(fixture_device_provider, mock_poller):
             "operating_system_version": "2.0.1",
             "attributes": {"key": "value"},
             "policy": {
-                "resource_id": "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.DeviceRegistry/namespaces/ns/credentials/default/policies/p1"
+                "resource_id": (
+                    "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.DeviceRegistry/"
+                    "namespaces/ns/credentials/default/policies/p1"
+                )
             },
         },
     )
