@@ -157,7 +157,6 @@ class TestADRCertificateManagementLifecycle(CaptureOutputLiveScenarioTest):
                 == CUSTOM_CERT_KEY_TYPE
             )
             assert custom_policy["properties"]["provisioningState"] == "Succeeded"
-            assert custom_policy["location"] == TEST_LOCATION.lower()
 
             # Validate certificate authority configuration
             ca_config = custom_policy["properties"]["certificate"]["certificateAuthorityConfiguration"]

@@ -87,6 +87,10 @@ class NamespaceProvider(ADRProvider):
             )
             namespace_result = wait_for_terminal_state(poller, **kwargs)
 
+        # Convert model object to REST API wire format for CLI output compatibility
+        namespace_result = namespace_result.serialize(keep_readonly=True)
+        logger.warning("DEBUG namespace create result: %s", namespace_result)
+
         # TODO - CMS Preview - create response does not include resource group
         if not namespace_result.get("resourceGroup"):
             namespace_result["resourceGroup"] = resource_group_name
@@ -133,13 +137,15 @@ class NamespaceProvider(ADRProvider):
         return namespace_result
 
     def show(self, namespace_name: str, resource_group_name: str):
-        return self.client.namespaces.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
+        result = self.client.namespaces.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
+        return result.serialize(keep_readonly=True)
 
     def list(self, resource_group_name: Optional[str] = None):
         if resource_group_name:
-            return list(self.client.namespaces.list_by_resource_group(resource_group_name=resource_group_name))
+            results = self.client.namespaces.list_by_resource_group(resource_group_name=resource_group_name)
         else:
-            return list(self.client.namespaces.list_by_subscription())
+            results = self.client.namespaces.list_by_subscription()
+        return [item.serialize(keep_readonly=True) for item in results]
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
         with console.status(f"Deleting namespace {namespace_name}..."):
@@ -161,4 +167,5 @@ class NamespaceProvider(ADRProvider):
                 namespace_name=namespace_name,
                 properties=properties,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            result = wait_for_terminal_state(poller, **kwargs)
+            return result.serialize(keep_readonly=True) if result else result
