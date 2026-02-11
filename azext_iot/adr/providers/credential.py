@@ -53,9 +53,7 @@ class CredentialProvider(ADRProvider):
                 tags=tags,
             )
             result = wait_for_terminal_state(poller, **kwargs)
-            serialized = result.serialize(keep_readonly=True) if result else result
-            logger.warning("DEBUG credential create result: %s", serialized)
-            return serialized
+            return result.serialize(keep_readonly=True) if result else result
 
     def show(self, namespace_name: str, resource_group_name: str):
         # Check if parent namespace exists, will 404 if not

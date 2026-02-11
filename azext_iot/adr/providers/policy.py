@@ -19,6 +19,7 @@ from azext_iot.adr.common import (
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.common.utility import wait_for_terminal_state
 from azext_iot.sdk.deviceregistry.mgmt.models import (
+    BringYourOwnRoot,
     CertificateAuthorityConfiguration,
     CertificateConfiguration,
     CertificateConfigurationUpdate,
@@ -59,31 +60,24 @@ class PolicyProvider(ADRProvider):
                     "Namespace does not contain a location property."
                 )
 
-        # Build certificate configuration model
+        # Build certificate configuration when any cert parameter or BYOR is specified
         certificate_config = None
+        has_cert_params = any([enable_byor, certificate_key_type, certificate_subject, certificate_validity_days])
 
-        # If user provides custom values, create custom policy cert object
-        if certificate_key_type or certificate_subject or certificate_validity_days:
-            # Set defaults for required parameters if not provided
-            if certificate_key_type is None:
-                certificate_key_type = DEFAULT_NS_POLICY_CERT_KEY_TYPE
-            if certificate_validity_days is None:
-                certificate_validity_days = DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
+        if has_cert_params:
+            key_type = certificate_key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE
+            validity_days = certificate_validity_days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
 
-            ca_config = {"keyType": certificate_key_type}
-            if certificate_subject:
-                ca_config["subject"] = certificate_subject
-            certificate_config["certificateAuthorityConfiguration"] = ca_config
-            certificate_config["leafCertificateConfiguration"] = {"validityPeriodInDays": certificate_validity_days}
-            properties["certificate"] = certificate_config
-
-        # Enable Bring Your Own Root if requested
-        if enable_byor:
-            if "certificate" not in properties:
-                properties["certificate"] = {}
-            properties["certificate"]["bringYourOwnRoot"] = {"enabled": True}
-
-        policy_resource["properties"] = properties
+            ca_config = CertificateAuthorityConfiguration(
+                key_type=key_type,
+                bring_your_own_root=BringYourOwnRoot(enabled=True) if enable_byor else None,
+            )
+            certificate_config = CertificateConfiguration(
+                certificate_authority_configuration=ca_config,
+                leaf_certificate_configuration=LeafCertificateConfiguration(
+                    validity_period_in_days=validity_days
+                ),
+            )
 
         with console.status(f"Creating policy '{policy_name}' for namespace {namespace_name}..."):
             poller = self.client.policies.begin_create_or_update(
@@ -93,9 +87,7 @@ class PolicyProvider(ADRProvider):
                 certificate=certificate_config,
             )
             result = wait_for_terminal_state(poller, **kwargs)
-            serialized = result.serialize(keep_readonly=True) if result else result
-            logger.warning("DEBUG policy create result: %s", serialized)
-            return serialized
+            return result.serialize(keep_readonly=True) if result else result
 
     def show(self, policy_name: str, namespace_name: str, resource_group_name: str):
         # Ensure namespace exists
@@ -172,8 +164,12 @@ class PolicyProvider(ADRProvider):
                 policy_name=policy_name,
                 certificate=cert_update,
             )
-<<<<<<< HEAD
-            return wait_for_terminal_state(poller, **kwargs)
+            wait_for_terminal_state(poller, **kwargs)
+
+        # LRO update may return incomplete object; always fetch updated resource
+        return self.show(
+            policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
+        )
 
     def revoke_issuer(self, policy_name: str, namespace_name: str, resource_group_name: str, **kwargs):
         """Revoke the CA certificate for a policy, triggering regeneration of a new CA."""
@@ -183,7 +179,12 @@ class PolicyProvider(ADRProvider):
                 namespace_name=namespace_name,
                 policy_name=policy_name,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            wait_for_terminal_state(poller, **kwargs)
+
+        # Fetch updated resource after revocation
+        return self.show(
+            policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
+        )
 
     def activate_byor(
         self,
@@ -203,12 +204,9 @@ class PolicyProvider(ADRProvider):
                 policy_name=policy_name,
                 certificate_chain=certificate_chain,
             )
-            return wait_for_terminal_state(poller, **kwargs)
-=======
             wait_for_terminal_state(poller, **kwargs)
 
-        # LRO update may return incomplete object; always fetch updated resource
+        # Fetch updated resource after activation
         return self.show(
             policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
         )
->>>>>>> users/hangyiwang/update-new-adr-sdk

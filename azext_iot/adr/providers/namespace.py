@@ -89,7 +89,6 @@ class NamespaceProvider(ADRProvider):
 
         # Convert model object to REST API wire format for CLI output compatibility
         namespace_result = namespace_result.serialize(keep_readonly=True)
-        logger.warning("DEBUG namespace create result: %s", namespace_result)
 
         # TODO - CMS Preview - create response does not include resource group
         if not namespace_result.get("resourceGroup"):

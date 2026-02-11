@@ -25,7 +25,7 @@ from azext_iot.tests.adr.conftest import (
 
 logger = get_logger(__name__)
 
-TEST_LOCATION = "westus"
+TEST_LOCATION = "centraluseuap"
 
 
 @pytest.mark.usefixtures("set_cwd")
