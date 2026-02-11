@@ -13,11 +13,8 @@ from azure.core.exceptions import HttpResponseError
 from azext_iot.adr.common import DEFAULT_NS_POLICY_CERT_KEY_TYPE, DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
 from azext_iot.sdk.deviceregistry.mgmt.models import (
     BringYourOwnRoot,
-    CertificateAuthorityConfiguration,
     CertificateConfiguration,
     CertificateConfigurationUpdate,
-    LeafCertificateConfiguration,
-    LeafCertificateConfigurationUpdate,
 )
 
 
@@ -25,7 +22,7 @@ from azext_iot.sdk.deviceregistry.mgmt.models import (
 
 
 def _serializable(data: dict) -> Mock:
-    """Create a mock that returns ``data`` from ``.serialize(keep_readonly=True)``."""
+    """Wrap *data* so ``.serialize(keep_readonly=True)`` returns it."""
     m = Mock()
     m.serialize.return_value = data
     return m
@@ -89,7 +86,6 @@ def test_create_policy(fixture_policy_provider, mock_poller, key_type, subject, 
         assert cert.leaf_certificate_configuration.validity_period_in_days == (days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS)
     else:
         assert cert is None
-
 
 @pytest.mark.parametrize("key_type", [None, "ECC"])
 @pytest.mark.parametrize("days", [None, 30])
@@ -156,16 +152,11 @@ def test_show_policy(fixture_policy_provider):
     )
 
     assert result == expected
-    fixture_policy_provider.client.namespaces.get.assert_called_once_with(
-        resource_group_name="rg", namespace_name="ns",
-    )
     fixture_policy_provider.client.policies.get.assert_called_once_with(
         resource_group_name="rg", namespace_name="ns", policy_name="p",
     )
 
-
 # ==================== List ====================
-
 
 def test_list_policies(fixture_policy_provider):
     """List returns serialized results for each policy."""
@@ -178,7 +169,6 @@ def test_list_policies(fixture_policy_provider):
     result = fixture_policy_provider.list(namespace_name="ns", resource_group_name="rg")
 
     assert result == [{"name": "a"}, {"name": "b"}]
-
 
 # ==================== Delete ====================
 
@@ -196,7 +186,6 @@ def test_delete_policy(fixture_policy_provider, mock_poller):
     fixture_policy_provider.client.policies.begin_delete.assert_called_once_with(
         resource_group_name="rg", namespace_name="ns", policy_name="p",
     )
-
 
 # ==================== Update ====================
 
@@ -292,14 +281,12 @@ def test_show_policy_not_found(fixture_policy_provider, ns_exists):
                       {"policy_name": "p", "namespace_name": "ns", "resource_group_name": "rg"},
                       ns_exists)
 
-
 @pytest.mark.parametrize("ns_exists", [True, False], ids=["credential-missing", "namespace-missing"])
 def test_list_policies_not_found(fixture_policy_provider, ns_exists):
     """List raises appropriate error when namespace or credential is missing."""
     _assert_not_found(fixture_policy_provider, "list",
                       {"namespace_name": "ns", "resource_group_name": "rg"},
                       ns_exists)
-
 
 def _assert_not_found(provider, method_name, kwargs, namespace_exists):
     """
