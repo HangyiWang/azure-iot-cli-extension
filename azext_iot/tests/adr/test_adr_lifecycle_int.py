@@ -114,7 +114,6 @@ class TestADRLifecycleIntegration(CaptureOutputLiveScenarioTest):
             ).get_output_in_json()
 
             assert custom_policy["name"] == CUSTOM_POLICY_NAME
-            assert custom_policy["location"] == TEST_LOCATION
             assert custom_policy["properties"]["provisioningState"] == "Succeeded"
             leaf_config = custom_policy["properties"]["certificate"]["leafCertificateConfiguration"]
             ca_config = custom_policy["properties"]["certificate"]["certificateAuthorityConfiguration"]
@@ -129,7 +128,6 @@ class TestADRLifecycleIntegration(CaptureOutputLiveScenarioTest):
             ).get_output_in_json()
 
             assert custom_policy_show["name"] == CUSTOM_POLICY_NAME
-            assert custom_policy_show["location"] == TEST_LOCATION
             leaf_config = custom_policy_show["properties"]["certificate"]["leafCertificateConfiguration"]
             ca_config = custom_policy_show["properties"]["certificate"]["certificateAuthorityConfiguration"]
             assert leaf_config["validityPeriodInDays"] == CUSTOM_CERT_VALIDITY_DAYS

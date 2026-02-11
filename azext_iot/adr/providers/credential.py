@@ -38,25 +38,24 @@ class CredentialProvider(ADRProvider):
             namespace = self.client.namespaces.get(
                 resource_group_name=resource_group_name, namespace_name=namespace_name
             )
-            location = namespace.get("location")
+            location = namespace.location
             if not location:
                 raise AzureResponseError(
                     "Error attempting to determine location from parent Namespace: "
                     "Namespace does not contain a location property."
                 )
 
-        credentials_resource = {"location": location, "properties": {}}
-
-        if tags:
-            credentials_resource["tags"] = tags
-
         with console.status(f"Creating credentials for namespace {namespace_name}..."):
             poller = self.client.credentials.begin_create_or_update(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
-                resource=credentials_resource,
+                location=location,
+                tags=tags,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            result = wait_for_terminal_state(poller, **kwargs)
+            serialized = result.serialize(keep_readonly=True) if result else result
+            logger.warning("DEBUG credential create result: %s", serialized)
+            return serialized
 
     def show(self, namespace_name: str, resource_group_name: str):
         # Check if parent namespace exists, will 404 if not
@@ -64,7 +63,8 @@ class CredentialProvider(ADRProvider):
 
         # Show friendly error if credential doesn't exist
         try:
-            return self.client.credentials.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
+            result = self.client.credentials.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
+            return result.serialize(keep_readonly=True)
         except HttpResponseError as e:
             if e.status_code == 404:
                 raise ResourceNotFoundError(
