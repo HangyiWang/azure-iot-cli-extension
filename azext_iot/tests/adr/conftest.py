@@ -31,8 +31,13 @@ CUSTOM_CERT_SUBJECT = "CN=test-device"
 
 
 @pytest.fixture(autouse=True)
-def mock_wait_for_terminal_state(monkeypatch):
-    """Mock wait_for_terminal_state to avoid sleeping in tests."""
+def mock_wait_for_terminal_state(request, monkeypatch):
+    """Mock wait_for_terminal_state to avoid sleeping in unit tests.
+
+    Skipped for integration tests (_int.py) which need real polling delays.
+    """
+    if "_int" in request.node.nodeid:
+        return
 
     def fast_wait(poller, **kwargs):
         """Return poller result immediately without sleeping."""
