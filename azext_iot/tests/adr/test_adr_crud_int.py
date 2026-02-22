@@ -4,6 +4,13 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
+"""
+ADR namespace, credential, and policy CRUD integration tests.
+
+Exercises the full create/show/list/update/delete lifecycle for each resource
+type in a single test to minimise Azure resource creation overhead.
+"""
+
 import pytest
 from knack.log import get_logger
 
@@ -19,22 +26,19 @@ from azext_iot.tests.adr.conftest import (
     CUSTOM_CERT_UPDATE_VALIDITY_DAYS,
     CUSTOM_CERT_VALIDITY_DAYS,
     CUSTOM_POLICY_NAME,
+    TEST_LOCATION,
     TEST_RG,
     generate_adr_namespace_name,
 )
 
 logger = get_logger(__name__)
 
-TEST_LOCATION = "centraluseuap"
-
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRLifecycleIntegration(CaptureOutputLiveScenarioTest):
+class TestADRCrudLifecycle(CaptureOutputLiveScenarioTest):
+    """Namespace, credential, and policy CRUD lifecycle."""
 
-    def __init__(self, test_case):
-        super(TestADRLifecycleIntegration, self).__init__(test_case)
-
-    def test_adr_lifecycle(self):
+    def test_adr_crud_lifecycle(self):
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
@@ -54,6 +58,33 @@ class TestADRLifecycleIntegration(CaptureOutputLiveScenarioTest):
             assert namespace_show["name"] == namespace_name
             assert namespace_show["location"] == TEST_LOCATION
             assert namespace_show["properties"]["provisioningState"] == "Succeeded"
+
+            # List ADR namespaces in resource group
+            namespaces = self.cmd(f"iot adr ns list -g {rg}").get_output_in_json()
+
+            assert isinstance(namespaces, list)
+            ns_names = [ns["name"] for ns in namespaces]
+            assert namespace_name in ns_names, (
+                f"Namespace '{namespace_name}' not found in list: {ns_names}"
+            )
+
+            # Update ADR namespace tags
+            updated_ns = self.cmd(
+                f"iot adr ns update -n {namespace_name} -g {rg} --tags env=test purpose=ci"
+            ).get_output_in_json()
+
+            assert updated_ns["name"] == namespace_name
+            assert updated_ns["tags"]["env"] == "test"
+            assert updated_ns["tags"]["purpose"] == "ci"
+
+            # Update tags again (replace)
+            updated_ns2 = self.cmd(
+                f"iot adr ns update -n {namespace_name} -g {rg} --tags owner=adr-tests"
+            ).get_output_in_json()
+
+            assert updated_ns2["tags"]["owner"] == "adr-tests"
+            # Previous tags should be replaced (not merged)
+            assert "env" not in updated_ns2.get("tags", {})
 
             # Verify no credential exists
             self.cmd(f"iot adr ns credential show --ns {namespace_name} -g {rg}", expect_failure=True)
@@ -76,7 +107,7 @@ class TestADRLifecycleIntegration(CaptureOutputLiveScenarioTest):
             # TODO - once service issue is resolved, remove extra default inputs besides name
             default_policy = self.cmd(
                 f"iot adr ns policy create --ns {namespace_name} -g {rg} "
-                f"--name {DEFAULT_NS_POLICY_NAME} "
+                f"--policy-name {DEFAULT_NS_POLICY_NAME} "
                 f"--cert-validity-days {DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS} "
                 f"--cert-key-type {DEFAULT_NS_POLICY_CERT_KEY_TYPE}"
             ).get_output_in_json()
@@ -89,7 +120,8 @@ class TestADRLifecycleIntegration(CaptureOutputLiveScenarioTest):
 
             # Show default credential policy
             default_policy_show = self.cmd(
-                f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name default"
+                f"iot adr ns policy show --ns {namespace_name} -g {rg} "
+                f"--policy-name {DEFAULT_NS_POLICY_NAME}"
             ).get_output_in_json()
 
             assert default_policy_show["name"] == "default"
@@ -144,7 +176,6 @@ class TestADRLifecycleIntegration(CaptureOutputLiveScenarioTest):
             ).get_output_in_json()
             assert updated_policy["properties"]["provisioningState"] == "Succeeded"
             leaf_config = updated_policy["properties"]["certificate"]["leafCertificateConfiguration"]
-            ca_config = updated_policy["properties"]["certificate"]["certificateAuthorityConfiguration"]
             assert leaf_config["validityPeriodInDays"] == CUSTOM_CERT_UPDATE_VALIDITY_DAYS
 
             # List ADR credential policies
@@ -181,4 +212,4 @@ class TestADRLifecycleIntegration(CaptureOutputLiveScenarioTest):
             try:
                 self.cmd(f"iot adr ns delete -n {namespace_name} -g {rg} -y")
             except Exception as e:
-                logger.warning(f"Cleanup failed: {e}")
+                logger.warning("Cleanup failed: %s", e)

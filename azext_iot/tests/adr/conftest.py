@@ -4,7 +4,6 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-import time
 from typing import Optional
 from unittest.mock import Mock, patch
 
@@ -28,7 +27,6 @@ TEST_RG = settings.env.azext_iot_testrg
 CUSTOM_POLICY_NAME = "custompolicy"
 CUSTOM_CERT_VALIDITY_DAYS = 25
 CUSTOM_CERT_UPDATE_VALIDITY_DAYS = 20
-CUSTOM_CERT_UPDATE_KEYTYPE = "RSA"
 CUSTOM_CERT_KEY_TYPE = "ECC"
 CUSTOM_CERT_SUBJECT = "CN=test-device"
 
@@ -149,8 +147,8 @@ def generate_enrollment_group_id() -> str:
     return f"testgroup{generate_generic_id()[:8]}"
 
 
-class RoleAssignmentMixin:
-    """RBAC role-assignment and retryable-command helpers for ADR integration tests.
+class RoleAssignmentHelper:
+    """RBAC role-assignment helpers for ADR integration tests.
 
     Must be mixed into a class that provides ``self.cmd()``
     (e.g. ``CaptureOutputLiveScenarioTest``).
@@ -195,23 +193,3 @@ class RoleAssignmentMixin:
         """Assign ADR Contributor + Onboarding roles to a managed identity."""
         for role in ["Azure Device Registry Contributor", "Azure Device Registry Onboarding"]:
             self.assign_role(principal_id, role, scope)
-
-    def retry_cmd(
-        self, command: str, retries: int = 3, delay: int = 30, expect_failure: bool = False,
-    ):
-        """Execute a CLI command with retries for transient service failures."""
-        last_error = Exception("retry_cmd: no attempts made")
-        for attempt in range(1, retries + 1):
-            try:
-                return self.cmd(command, expect_failure=expect_failure)
-            except Exception as e:
-                last_error = e
-                if attempt < retries:
-                    logger.warning(
-                        "Attempt %d/%d failed: %s. Retrying in %ds...",
-                        attempt, retries, str(e)[:200], delay,
-                    )
-                    time.sleep(delay)
-                else:
-                    logger.warning("All %d attempts failed.", retries)
-        raise last_error
