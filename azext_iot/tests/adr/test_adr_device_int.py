@@ -10,8 +10,9 @@ ADR device lifecycle integration tests.
 Provisions a device via the preview azure-iot-device SDK with CSR support,
 then validates device list/show/update/revoke via CLI.
 
-Requires the preview azure-iot-device SDK (feature/dps-csr-preview) and
-ADR_PREVIEW_SDK=1 environment variable.  Run via ``tox -e ADR-device-int``.
+The lifecycle test requires the preview azure-iot-device SDK
+(feature/dps-csr-preview) and ``ADR_PREVIEW_SDK=1``.
+Run via ``tox -e ADR-device-int``.
 """
 
 import os
@@ -23,6 +24,7 @@ from knack.log import get_logger
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._helpers import ADRHubInfraHelper
 from azext_iot.tests.adr.conftest import (
+    TEST_LOCATION,
     TEST_RG,
     generate_adr_namespace_name,
     generate_device_id,
@@ -34,7 +36,6 @@ from azext_iot.tests.adr.conftest import (
 
 logger = get_logger(__name__)
 
-# DPS provisioning host -- canary endpoint for preview API features.
 DPS_PROVISIONING_HOST = "global.azure-devices-provisioning.net"
 
 
@@ -53,7 +54,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             "(feature/dps-csr-preview). Set ADR_PREVIEW_SDK=1 or run via tox -e ADR-device-int."
         ),
     )
-    def test_adr_device_certmgmt_lifecycle(self):
+    def test_adr_device_provision_crud_and_revoke(self):
         """Provision a device with CSR via preview SDK, then test list/show/update/revoke via CLI."""
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
@@ -62,11 +63,6 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         identity_name = generate_identity_name()
         device_id = generate_device_id()
         enrollment_group_id = generate_enrollment_group_id()
-
-        logger.warning(
-            "=== [device-lifecycle] ns=%s hub=%s dps=%s device=%s ===",
-            namespace_name, hub_name, dps_name, device_id,
-        )
 
         try:
             infra = self.setup_full_infra(
@@ -84,9 +80,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 enrollment_group_id=enrollment_group_id,
             )
 
-            # === Register device via preview SDK with CSR ===
-            logger.warning("[device] Provisioning device with CSR via preview SDK")
-
+            # Register device via preview SDK with CSR
             from cryptography import x509 as crypto_x509
             from cryptography.hazmat.primitives import hashes, serialization
             from cryptography.hazmat.primitives.asymmetric import ec
@@ -102,7 +96,6 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 .sign(private_key, hashes.SHA256())
             )
             csr_pem = csr.public_bytes(serialization.Encoding.PEM).decode()
-            logger.warning("  Generated CSR for device: %s", device_id)
 
             # Retrieve the individual enrollment's symmetric key
             enrollment_keys = self.cmd(
@@ -112,7 +105,6 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             sym_key = enrollment_keys["attestation"]["symmetricKey"]["primaryKey"]
             id_scope = infra["id_scope"]
 
-            # Register with the preview SDK (sets CSR on the client before .register())
             from azure.iot.device import ProvisioningDeviceClient
 
             client = ProvisioningDeviceClient.create_from_symmetric_key(
@@ -123,32 +115,21 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             )
             client.client_certificate_signing_request = csr_pem
             result = client.register()
-
-            logger.warning(
-                "  DPS registration: status=%s hub=%s",
-                result.status,
-                result.registration_state.assigned_hub if result.registration_state else "N/A",
-            )
             assert result.status == "assigned", (
                 f"DPS registration failed: status={result.status}"
             )
 
-            # === Device CRUD + revoke via CLI ===
-
             def device_cmd(action):
-                """Run an ``iot adr ns device <action>`` command against the test namespace."""
+                """Run ``iot adr ns device <action>`` against the test namespace."""
                 return self.cmd(f"iot adr ns device {action} --ns {namespace_name} -g {rg}")
 
-            # Device list/show -- poll until device appears (ZTP is async)
+            # Poll until device appears (ZTP provisioning is async)
             max_polls = 40
-            logger.warning("[device] Waiting for device in namespace (max %d polls)", max_polls)
             devices = []
-            for poll in range(1, max_polls + 1):
+            for _poll in range(1, max_polls + 1):
                 devices = device_cmd("list").get_output_in_json()
                 if devices:
-                    logger.warning("  Device appeared after %d poll(s)", poll)
                     break
-                logger.warning("  Poll %d/%d: empty, waiting 15s...", poll, max_polls)
                 time.sleep(15)
 
             assert len(devices) >= 1, (
@@ -158,68 +139,71 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
             device = device_cmd(f"show -n {device_id}").get_output_in_json()
             assert device["name"] == device_id
-            logger.warning(
-                "  Device show: enabled=%s policy=%s",
-                device.get("enabled"), device.get("policy"),
-            )
 
-            # Assign the credential policy to the device.
-            # DPS credentialPolicyName controls which CA signs the leaf cert, but the ADR device
-            # resource needs an explicit policy association for revoke to work.
-            logger.warning("  Assigning policy to device: %s", infra["policy_resource_id"])
+            # Assign the credential policy so revoke has a policy to act on
             updated_dev = device_cmd(
                 f"update -n {device_id} --policy-resource-id {infra['policy_resource_id']}"
             ).get_output_in_json()
             assert updated_dev.get("policy"), (
-                f"Policy assignment failed -- device has no policy after update: {updated_dev}"
+                f"Policy assignment failed: {updated_dev}"
             )
-            logger.warning("  Policy assigned: %s", updated_dev["policy"])
 
-            # Device update -- disable then re-enable
-            logger.warning("[device] Device update (disable/enable)")
+            # Disable then re-enable
             for val, expected in [("false", False), ("true", True)]:
                 updated = device_cmd(f"update -n {device_id} --enabled {val}").get_output_in_json()
-                logger.warning("  update --enabled %s -> enabled=%s", val, updated.get("enabled"))
                 assert updated.get("enabled") is expected
 
-            # Device revoke scenarios
-            logger.warning("[device] Device revoke scenarios")
+            # Update OS version
+            updated = device_cmd(f"update -n {device_id} --os-version 2.0.1").get_output_in_json()
+            assert updated.get("operatingSystemVersion") == "2.0.1", (
+                f"OS version not updated: {updated}"
+            )
 
-            def revoke_and_check(label, revoke_args, expected_enabled):
+            # Update multiple properties in one call
+            updated = device_cmd(
+                f"update -n {device_id} --enabled false --os-version 3.0.0 --tags env=test"
+            ).get_output_in_json()
+            assert updated.get("enabled") is False, f"Expected enabled=False, got {updated.get('enabled')}"
+            assert updated.get("operatingSystemVersion") == "3.0.0", (
+                f"OS version not updated in multi-prop call: {updated}"
+            )
+            assert updated.get("tags", {}).get("env") == "test", (
+                f"Tags not updated in multi-prop call: {updated.get('tags')}"
+            )
+            # Re-enable for revoke tests
+            device_cmd(f"update -n {device_id} --enabled true")
+
+            # Revoke scenarios
+            def revoke_and_check(revoke_args, expected_enabled):
                 """Revoke device credentials and verify enabled state."""
-                logger.warning("  %s", label)
                 device_cmd(f"revoke -n {device_id} {revoke_args} -y")
                 if expected_enabled is not None:
                     d = device_cmd(f"show -n {device_id}").get_output_in_json()
                     assert d.get("enabled") is expected_enabled, (
-                        f"{label}: expected enabled={expected_enabled}, got {d.get('enabled')}"
+                        f"expected enabled={expected_enabled}, got {d.get('enabled')}"
                     )
 
-            # 1/6 Basic revoke -- device stays enabled
-            revoke_and_check("[1/6] Basic revoke", "", expected_enabled=True)
+            # Basic revoke -- device stays enabled
+            revoke_and_check("", expected_enabled=True)
 
-            # 2/6 Revoke --disable -- device becomes disabled
-            revoke_and_check("[2/6] Revoke --disable", "--disable", expected_enabled=False)
+            # Revoke --disable -- device becomes disabled
+            revoke_and_check("--disable", expected_enabled=False)
 
-            # 3/6 Revoke already-disabled device -- should succeed (no state check needed)
-            revoke_and_check("[3/6] Revoke already-disabled", "", expected_enabled=None)
+            # Revoke already-disabled device -- should succeed
+            revoke_and_check("", expected_enabled=None)
 
-            # 4/6 Revoke --disable false -- device stays disabled
-            revoke_and_check("[4/6] Revoke --disable false", "--disable false", expected_enabled=False)
+            # Revoke --disable false -- device stays disabled
+            revoke_and_check("--disable false", expected_enabled=False)
 
-            # 5/6 Re-enable then revoke -- verify idempotency
-            logger.warning("  [5/6] Re-enable + revoke (idempotency)")
+            # Re-enable then revoke -- verify idempotency
             device_cmd(f"update -n {device_id} --enabled true")
-            revoke_and_check("[5/6] Revoke after re-enable", "", expected_enabled=True)
+            revoke_and_check("", expected_enabled=True)
 
-            # 6/6 Revoke nonexistent device -- expect failure
-            logger.warning("  [6/6] Revoke nonexistent device (expect failure)")
+            # Revoke nonexistent device -- expect failure
             self.cmd(
                 f"iot adr ns device revoke -n nonexistent-device --ns {namespace_name} -g {rg} -y",
                 expect_failure=True,
             )
-
-            logger.warning("=== Device lifecycle test PASSED ===")
 
         finally:
             self.cleanup_full_infra(
@@ -229,3 +213,48 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 identity_name=identity_name,
                 dps_name=dps_name,
             )
+
+
+@pytest.mark.usefixtures("set_cwd")
+class TestADRDeviceEdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+    """Negative and edge-case device tests that don't require DPS or the preview SDK."""
+
+    def test_adr_device_negative_and_edge_cases(self):
+        """Verify device command behavior for empty namespaces, nonexistent resources."""
+        rg = TEST_RG
+        namespace_name = generate_adr_namespace_name()
+
+        try:
+            self.cmd(
+                f"iot adr ns create -n {namespace_name} -g {rg} "
+                f"--location {TEST_LOCATION} --enable-credential-policy"
+            )
+
+            # Device list on empty namespace returns an empty list
+            devices = self.cmd(
+                f"iot adr ns device list --ns {namespace_name} -g {rg}"
+            ).get_output_in_json()
+            assert isinstance(devices, list)
+            assert len(devices) == 0, (
+                f"Expected empty device list on fresh namespace, got {len(devices)} devices"
+            )
+
+            # Show nonexistent device returns ResourceNotFound
+            self.cmd(
+                f"iot adr ns device show -n nonexistent-device --ns {namespace_name} -g {rg}",
+                expect_failure=True,
+            )
+
+        finally:
+            try:
+                self.cmd(f"iot adr ns delete -n {namespace_name} -g {rg} -y")
+            except Exception as e:
+                logger.warning("Cleanup failed: %s", e)
+
+        # Device list against a nonexistent namespace returns an empty list
+        # (the ARM list API does not 404 for a missing parent resource).
+        devices = self.cmd(
+            f"iot adr ns device list --ns nonexistent-ns-{namespace_name} -g {rg}"
+        ).get_output_in_json()
+        assert isinstance(devices, list)
+        assert len(devices) == 0
