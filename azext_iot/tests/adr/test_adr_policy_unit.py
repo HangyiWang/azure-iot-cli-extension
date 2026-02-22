@@ -87,6 +87,7 @@ def test_create_policy(fixture_policy_provider, mock_poller, key_type, subject, 
     else:
         assert cert is None
 
+
 @pytest.mark.parametrize("key_type", [None, "ECC"])
 @pytest.mark.parametrize("days", [None, 30])
 @pytest.mark.parametrize("subject", [None, "test"])
@@ -156,7 +157,9 @@ def test_show_policy(fixture_policy_provider):
         resource_group_name="rg", namespace_name="ns", policy_name="p",
     )
 
+
 # ==================== List ====================
+
 
 def test_list_policies(fixture_policy_provider):
     """List returns serialized results for each policy."""
@@ -281,12 +284,14 @@ def test_show_policy_not_found(fixture_policy_provider, ns_exists):
                       {"policy_name": "p", "namespace_name": "ns", "resource_group_name": "rg"},
                       ns_exists)
 
+
 @pytest.mark.parametrize("ns_exists", [True, False], ids=["credential-missing", "namespace-missing"])
 def test_list_policies_not_found(fixture_policy_provider, ns_exists):
     """List raises appropriate error when namespace or credential is missing."""
     _assert_not_found(fixture_policy_provider, "list",
                       {"namespace_name": "ns", "resource_group_name": "rg"},
                       ns_exists)
+
 
 def _assert_not_found(provider, method_name, kwargs, namespace_exists):
     """

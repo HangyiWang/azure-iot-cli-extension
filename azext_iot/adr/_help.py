@@ -241,3 +241,58 @@ def load_adr_help():
     - name: Activate a BYOR policy with a signed certificate chain
       text: az iot adr ns policy activate-byor -n myPolicy --ns myNamespace -g myResourceGroup --certificate-chain-file ./signed-chain.pem
   """
+
+    helps[
+        "iot adr ns device"
+    ] = """
+    type: group
+    short-summary: Manage Device Registry namespace devices.
+  """
+
+    helps[
+        "iot adr ns device show"
+    ] = """
+  type: command
+  short-summary: Show a device in a Device Registry namespace.
+  examples:
+    - name: Show device details
+      text: az iot adr ns device show -n myDevice --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns device list"
+    ] = """
+  type: command
+  short-summary: List devices in a Device Registry namespace.
+  examples:
+    - name: List all devices in a namespace
+      text: az iot adr ns device list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns device update"
+    ] = """
+  type: command
+  short-summary: Update a device in a Device Registry namespace.
+  examples:
+    - name: Disable a device
+      text: az iot adr ns device update -n myDevice --ns myNamespace -g myResourceGroup --enabled false
+    - name: Update device OS version
+      text: az iot adr ns device update -n myDevice --ns myNamespace -g myResourceGroup --os-version "2.0.1"
+  """
+
+    helps[
+        "iot adr ns device revoke"
+    ] = """
+  type: command
+  short-summary: Revoke credentials for a device in a Device Registry namespace.
+  long-summary: |
+    This command revokes all active credentials for the specified device.
+    The device will need to re-authenticate and obtain new credentials.
+    Use --disable to also prevent the device from obtaining new credentials.
+  examples:
+    - name: Revoke device credentials
+      text: az iot adr ns device revoke -n myDevice --ns myNamespace -g myResourceGroup
+    - name: Revoke credentials and disable the device
+      text: az iot adr ns device revoke -n myDevice --ns myNamespace -g myResourceGroup --disable
+  """

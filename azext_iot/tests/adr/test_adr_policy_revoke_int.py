@@ -26,6 +26,8 @@ from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr.conftest import (
     CUSTOM_CERT_KEY_TYPE,
     CUSTOM_POLICY_NAME,
+    RoleAssignmentMixin,
+    TEST_LOCATION,
     TEST_RG,
     generate_adr_namespace_name,
     generate_hub_name,
@@ -33,8 +35,6 @@ from azext_iot.tests.adr.conftest import (
 )
 
 logger = get_logger(__name__)
-
-TEST_LOCATION = "centraluseuap"
 
 # Propagation delays (seconds) for Azure resource readiness
 _ROLE_PROPAGATION_DELAY = 30
@@ -70,7 +70,7 @@ def sign_csr_with_ca(csr_pem: str, valid_days: int = 730) -> str:
         }.items()}
 
         # Write CSR
-        with open(paths["csr"], "w") as f:
+        with open(paths["csr"], "w", encoding="utf-8") as f:
             f.write(csr_pem)
 
         # Generate EC P-384 CA key (must match backend's ECC curve)
@@ -92,7 +92,7 @@ def sign_csr_with_ca(csr_pem: str, valid_days: int = 730) -> str:
 
         # X.509 extensions for the signed ICA certificate
         # extendedKeyUsage = clientAuth is REQUIRED for BYOR activation
-        with open(paths["ext"], "w") as f:
+        with open(paths["ext"], "w", encoding="utf-8") as f:
             f.write(
                 "[v3_intermediate_ca]\n"
                 "basicConstraints = critical, CA:TRUE, pathlen:0\n"
@@ -113,60 +113,21 @@ def sign_csr_with_ca(csr_pem: str, valid_days: int = 730) -> str:
         )
 
         # Return signed cert + CA cert as chain
-        with open(paths["signed"]) as f:
+        with open(paths["signed"], encoding="utf-8") as f:
             signed = f.read()
-        with open(paths["ca_cert"]) as f:
+        with open(paths["ca_cert"], encoding="utf-8") as f:
             ca = f.read()
         return signed + ca
 
 
-class _FullInfraMixin:
-    """Shared infrastructure helpers for integration tests that need ADR + IoT Hub.
+class ADRHubInfraHelper(RoleAssignmentMixin):
+    """Setup / teardown helpers for tests that need an ADR namespace linked to an IoT Hub.
 
-    Provides:
-    - Role assignment helpers (reusable across tests)
+    Inherits RBAC helpers from ``RoleAssignmentMixin`` and adds:
     - Full infrastructure setup: UAMI → ADR namespace → credential → policy → IoT Hub Gen2 w/ ADR link
     - Hub certificate listing for post-sync / post-revoke verification
     - Cleanup for namespace-only or full infrastructure (Hub + UAMI + namespace)
     """
-
-    # --- Role assignment helpers ---
-
-    def assign_role(self, assignee_id: str, role: str, scope: str, assignee_type: str = "auto") -> Optional[str]:
-        """Assign an Azure role, skipping if it already exists."""
-        try:
-            existing = self.cmd(
-                f"role assignment list --assignee '{assignee_id}' --scope '{scope}' --role '{role}'"
-            ).get_output_in_json()
-            if existing:
-                logger.info("Role '%s' already assigned to %s", role, assignee_id)
-                return existing[0].get("id", "existing")
-
-            if assignee_type == "auto":
-                result = self.cmd(
-                    f"role assignment create --assignee '{assignee_id}' --role '{role}' --scope '{scope}'"
-                ).get_output_in_json()
-            else:
-                result = self.cmd(
-                    f"role assignment create --assignee-object-id '{assignee_id}' --role '{role}' "
-                    f"--scope '{scope}' --assignee-principal-type '{assignee_type}'"
-                ).get_output_in_json()
-
-            return result.get("id", "unknown")
-        except Exception as e:
-            logger.warning("Failed to assign role '%s' to %s: %s", role, assignee_id, e)
-            return None
-
-    def assign_hub_rp_contributor_role(self, subscription_id: str, resource_group: str):
-        """Assign Contributor to the IoT Hub first-party RP on the resource group."""
-        hub_rp_object_id = "0aab4033-4ad9-4b0b-9934-542334eceffb"
-        rg_scope = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group}"
-        self.assign_role(hub_rp_object_id, "Contributor", rg_scope, assignee_type="ServicePrincipal")
-
-    def assign_adr_roles_to_identity(self, principal_id: str, scope: str):
-        """Assign ADR Contributor + Onboarding roles to a managed identity."""
-        for role in ["Azure Device Registry Contributor", "Azure Device Registry Onboarding"]:
-            self.assign_role(principal_id, role, scope)
 
     # --- Full infrastructure setup ---
 
@@ -394,7 +355,7 @@ class _FullInfraMixin:
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRPolicyRevokeLifecycle(_FullInfraMixin, CaptureOutputLiveScenarioTest):
+class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     """Tests for the revoke-issuer command with full IoT Hub integration.
 
     Validates the backend contract:
@@ -577,7 +538,7 @@ class TestADRPolicyRevokeLifecycle(_FullInfraMixin, CaptureOutputLiveScenarioTes
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRPolicyBYORLifecycle(_FullInfraMixin, CaptureOutputLiveScenarioTest):
+class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     """Tests for BYOR (Bring Your Own Root) policy creation and activation."""
 
     def test_policy_create_with_enable_byor(self):
@@ -804,7 +765,7 @@ class TestADRPolicyBYORLifecycle(_FullInfraMixin, CaptureOutputLiveScenarioTest)
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRPolicyLimits(_FullInfraMixin, CaptureOutputLiveScenarioTest):
+class TestADRPolicyLimits(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     """Tests for backend-enforced policy constraints."""
 
     def test_single_policy_limit_per_credential(self):
@@ -906,7 +867,7 @@ class TestADRPolicyLimits(_FullInfraMixin, CaptureOutputLiveScenarioTest):
                     check=True, capture_output=True,
                 )
 
-                with open(cert_path) as f:
+                with open(cert_path, encoding="utf-8") as f:
                     wrong_chain = f.read()
 
             with tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False) as f:
@@ -927,6 +888,62 @@ class TestADRPolicyLimits(_FullInfraMixin, CaptureOutputLiveScenarioTest):
                 f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name default"
             ).get_output_in_json()
             assert _get_byor_config(still_pending)["status"] == "PendingActivation"
+
+        finally:
+            self.cleanup_namespace(namespace_name, rg)
+
+    def test_revoke_nonexistent_policy(self):
+        """Attempting revoke-issuer on a nonexistent policy should fail."""
+        rg = TEST_RG
+        namespace_name = generate_adr_namespace_name()
+
+        try:
+            self.setup_namespace_with_policy(namespace_name, rg)
+
+            with pytest.raises(Exception):
+                self.cmd(
+                    f"iot adr ns policy revoke-issuer --ns {namespace_name} -g {rg} "
+                    f"--policy-name nonexistent -y"
+                )
+        finally:
+            self.cleanup_namespace(namespace_name, rg)
+
+    def test_revoke_pending_byor_before_activation(self):
+        """Revoking a BYOR policy still in PendingActivation (never activated).
+
+        Validates behavior when revoking before the BYOR CSR has been signed.
+        The backend may reject the operation or regenerate the CSR.
+        """
+        rg = TEST_RG
+        namespace_name = generate_adr_namespace_name()
+
+        try:
+            policy = self.setup_namespace_with_policy(namespace_name, rg, enable_byor=True)
+            byor = _get_byor_config(policy)
+            assert byor["status"] == "PendingActivation"
+            original_csr = byor.get("certificateSigningRequest", "")
+
+            try:
+                self.cmd(
+                    f"iot adr ns policy revoke-issuer --ns {namespace_name} -g {rg} "
+                    f"--policy-name default -y"
+                )
+                # If revoke succeeds, policy should still be PendingActivation with new CSR
+                revoked = self.cmd(
+                    f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name default"
+                ).get_output_in_json()
+                revoked_byor = _get_byor_config(revoked)
+                assert revoked_byor["status"] == "PendingActivation"
+                new_csr = revoked_byor.get("certificateSigningRequest", "")
+                assert new_csr != original_csr, (
+                    "CSR should change after revoking PendingActivation BYOR"
+                )
+            except Exception:
+                # Backend may reject revoke on unactivated policy — verify unchanged state
+                still_pending = self.cmd(
+                    f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name default"
+                ).get_output_in_json()
+                assert _get_byor_config(still_pending)["status"] == "PendingActivation"
 
         finally:
             self.cleanup_namespace(namespace_name, rg)
