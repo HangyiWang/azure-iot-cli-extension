@@ -72,17 +72,17 @@ def test_create_namespace(
             _serializable(ns_result_data)
         )
 
-        create_kwargs = dict(
-            namespace_name=ns_name,
-            resource_group_name=rg,
-            location=location,
-            tags=None,
-            enable_credential_policy=enable_credential_policy,
-            policy_name=policy_name,
-            certificate_key_type=cert_key_type,
-            certificate_subject=cert_subject,
-            certificate_validity_days=cert_validity_days,
-        )
+        create_kwargs = {
+            "namespace_name": ns_name,
+            "resource_group_name": rg,
+            "location": location,
+            "tags": None,
+            "enable_credential_policy": enable_credential_policy,
+            "policy_name": policy_name,
+            "certificate_key_type": cert_key_type,
+            "certificate_subject": cert_subject,
+            "certificate_validity_days": cert_validity_days,
+        }
 
         # Mutually-exclusive validation
         if enable_credential_policy is False and any([
