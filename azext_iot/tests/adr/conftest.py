@@ -4,11 +4,11 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
+import os
 from typing import Optional
 from unittest.mock import Mock, patch
 
 import pytest
-from knack.log import get_logger
 
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.adr.providers.credential import CredentialProvider
@@ -30,10 +30,30 @@ CUSTOM_CERT_UPDATE_VALIDITY_DAYS = 20
 CUSTOM_CERT_KEY_TYPE = "ECC"
 CUSTOM_CERT_SUBJECT = "CN=test-device"
 
-# Shared integration test location (canary region for preview features)
 TEST_LOCATION = "centraluseuap"
 
-logger = get_logger(__name__)
+
+def pytest_runtest_logreport(report):
+    """In pretty mode, emit PASSED/FAILED via _log so colors work."""
+    if not os.environ.get("PRETTY_LOG"):
+        return
+    if report.when != "call":
+        return
+    from azext_iot.tests.adr._log import _log
+
+    test_name = report.nodeid.split("::")[-1]
+    if report.passed:
+        _log("_pass", "%s", test_name)
+    elif report.failed:
+        # Include the first line of the failure for context
+        short_reason = ""
+        if report.longreprtext:
+            for line in report.longreprtext.splitlines():
+                line = line.strip()
+                if line and not line.startswith("_"):
+                    short_reason = f" -- {line[:200]}"
+                    break
+        _log("_fail", "%s%s", test_name, short_reason)
 
 
 @pytest.fixture(autouse=True)
@@ -147,6 +167,22 @@ def generate_enrollment_group_id() -> str:
     return f"testgroup{generate_generic_id()[:8]}"
 
 
+# Shared test helpers for unit tests
+
+def _serializable(data: dict) -> Mock:
+    """Wrap *data* so ``.serialize(keep_readonly=True)`` returns it."""
+    m = Mock()
+    m.serialize.return_value = data
+    return m
+
+
+def _ns_mock(location: str = "eastus") -> Mock:
+    """Return a namespace mock with a ``.location`` attribute."""
+    ns = Mock()
+    ns.location = location
+    return ns
+
+
 class RoleAssignmentHelper:
     """RBAC role-assignment helpers for ADR integration tests.
 
@@ -160,27 +196,30 @@ class RoleAssignmentHelper:
         self, assignee_id: str, role: str, scope: str, assignee_type: str = "auto",
     ) -> Optional[str]:
         """Assign an Azure RBAC role, skipping if already assigned."""
+        from azext_iot.tests.adr._log import L, _log
+
         try:
-            existing = self.cmd(
-                f"role assignment list --assignee '{assignee_id}' --scope '{scope}' --role '{role}'"
-            ).get_output_in_json()
+            check_cmd = f"role assignment list --assignee '{assignee_id}' --scope '{scope}' --role '{role}'"
+            _log(L.CMD, "az %s", check_cmd)
+            existing = self.cmd(check_cmd).get_output_in_json()
             if existing:
-                logger.info("Role '%s' already assigned to %s", role, assignee_id)
+                _log(L.RESULT, "Role '%s' already assigned (skip)", role)
                 return existing[0].get("id", "existing")
 
             if assignee_type == "auto":
-                result = self.cmd(
-                    f"role assignment create --assignee '{assignee_id}' --role '{role}' --scope '{scope}'"
-                ).get_output_in_json()
+                create_cmd = f"role assignment create --assignee '{assignee_id}' --role '{role}' --scope '{scope}'"
             else:
-                result = self.cmd(
+                create_cmd = (
                     f"role assignment create --assignee-object-id '{assignee_id}' --role '{role}' "
                     f"--scope '{scope}' --assignee-principal-type '{assignee_type}'"
-                ).get_output_in_json()
+                )
+            _log(L.CMD, "az %s", create_cmd)
+            result = self.cmd(create_cmd).get_output_in_json()
+            _log(L.RESULT, "Role '%s' assigned", role)
 
             return result.get("id", "unknown")
         except Exception as e:
-            logger.warning("Failed to assign role '%s' to %s: %s", role, assignee_id, e)
+            _log(L.WARN, "Failed to assign role '%s': %s", role, e)
             return None
 
     def assign_hub_rp_contributor_role(self, subscription_id: str, resource_group: str):

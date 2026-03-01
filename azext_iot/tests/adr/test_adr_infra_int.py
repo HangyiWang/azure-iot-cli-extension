@@ -17,10 +17,10 @@ This is the only test in ADR-int that exercises DPS integration + credential syn
 """
 
 import pytest
-from knack.log import get_logger
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._helpers import ADRHubInfraHelper
+from azext_iot.tests.adr._log import L, _log
 from azext_iot.tests.adr.conftest import (
     TEST_RG,
     generate_adr_namespace_name,
@@ -31,8 +31,6 @@ from azext_iot.tests.adr.conftest import (
     generate_identity_name,
 )
 
-logger = get_logger(__name__)
-
 
 @pytest.mark.usefixtures("set_cwd")
 class TestADRInfrastructure(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
@@ -40,6 +38,7 @@ class TestADRInfrastructure(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_adr_infra_pipeline(self):
         """Validate ADR namespace, credential, policy, hub, DPS, enrollment, and sync."""
+        _log(L.TEST, "test_adr_infra_pipeline")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
         hub_name = generate_hub_name()
@@ -48,8 +47,8 @@ class TestADRInfrastructure(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         device_id = generate_device_id()
         enrollment_group_id = generate_enrollment_group_id()
 
-        logger.warning(
-            "=== [infrastructure] ns=%s hub=%s dps=%s ===",
+        _log(L.STEP, 
+            "Info ❯ ns=%s hub=%s dps=%s",
             namespace_name, hub_name, dps_name,
         )
 
@@ -68,7 +67,7 @@ class TestADRInfrastructure(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 device_id=device_id,
                 enrollment_group_id=enrollment_group_id,
             )
-            logger.warning("=== Infrastructure test PASSED ===")
+            _log(L.OK, "Infrastructure test passed")
         finally:
             self.cleanup_full_infra(
                 resource_group=rg,

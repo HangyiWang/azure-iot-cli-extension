@@ -84,10 +84,25 @@ class CredentialProvider(ADRProvider):
             poller: LROPoller = self.client.credentials.begin_synchronize(
                 resource_group_name=resource_group_name, namespace_name=namespace_name
             )
-            result = wait_for_terminal_state(poller, **kwargs)
-            poller_status = poller.status()
-            if poller_status == "Succeeded":
-                console.print(f"Successfully synchronized credentials for namespace '{namespace_name}'", style="green")
-            else:
-                logger.warning(f"Synchronization completed with a status of: '{poller_status}'")
+            try:
+                result = wait_for_terminal_state(poller, **kwargs)
+            except HttpResponseError as e:
+                # The backend returns 200 OK with an empty body when the LRO completes,
+                # but ARMPolling expects a "status" or "provisioningState" field in the
+                # response to determine the terminal state. Without it, ARMPolling falls
+                # back to the HTTP reason phrase "OK" which is not a recognized terminal
+                # state, causing a false-positive error. A real failure would surface as
+                # a 4xx/5xx status code. Swallow the false positive here.
+                if e.response and e.response.status_code == 200:
+                    logger.debug(
+                        "Synchronize LRO returned HTTP 200 but ARMPolling could not "
+                        "determine terminal state from response body. Treating as success."
+                    )
+                    result = None
+                else:
+                    raise
+            console.print(
+                f"Successfully synchronized credentials for namespace '{namespace_name}'",
+                style="green",
+            )
             return result

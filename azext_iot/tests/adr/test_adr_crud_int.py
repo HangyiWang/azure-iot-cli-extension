@@ -12,7 +12,6 @@ type in a single test to minimise Azure resource creation overhead.
 """
 
 import pytest
-from knack.log import get_logger
 
 from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_KEY_TYPE,
@@ -20,6 +19,7 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_NAME,
 )
 from azext_iot.tests import CaptureOutputLiveScenarioTest
+from azext_iot.tests.adr._log import L, _log
 from azext_iot.tests.adr.conftest import (
     CUSTOM_CERT_KEY_TYPE,
     CUSTOM_CERT_SUBJECT,
@@ -31,7 +31,11 @@ from azext_iot.tests.adr.conftest import (
     generate_adr_namespace_name,
 )
 
-logger = get_logger(__name__)
+
+def _cert_config(policy: dict):
+    """Extract (leaf_config, ca_config) from a policy JSON response."""
+    cert = policy["properties"]["certificate"]
+    return cert["leafCertificateConfiguration"], cert["certificateAuthorityConfiguration"]
 
 
 @pytest.mark.usefixtures("set_cwd")
@@ -39,177 +43,235 @@ class TestADRCrudLifecycle(CaptureOutputLiveScenarioTest):
     """Namespace, credential, and policy CRUD lifecycle."""
 
     def test_adr_crud_lifecycle(self):
+        _log(L.TEST, "test_adr_crud_lifecycle")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
         try:
             # Create ADR namespace with no credentials
-            namespace = self.cmd(
-                f"iot adr ns create -n {namespace_name} -g {rg} --location {TEST_LOCATION}"
-            ).get_output_in_json()
+            _log(L.STEP, "Step 1 ❯ Create ADR Namespace")
+            ns_cmd = f"iot adr ns create -n {namespace_name} -g {rg} --location {TEST_LOCATION}"
+            _log(L.CMD, "az %s", ns_cmd)
+            namespace = self.cmd(ns_cmd).get_output_in_json()
 
             assert namespace["name"] == namespace_name
             assert namespace["location"] == TEST_LOCATION
             assert namespace["properties"]["provisioningState"] == "Succeeded"
+            _log(L.RESULT, "name=%s, provisioningState=Succeeded", namespace_name)
 
             # Show ADR namespace
-            namespace_show = self.cmd(f"iot adr ns show -n {namespace_name} -g {rg}").get_output_in_json()
+            _log(L.STEP, "Step 2 ❯ Show & List Namespace")
+            show_cmd = f"iot adr ns show -n {namespace_name} -g {rg}"
+            _log(L.CMD, "az %s", show_cmd)
+            namespace_show = self.cmd(show_cmd).get_output_in_json()
 
             assert namespace_show["name"] == namespace_name
             assert namespace_show["location"] == TEST_LOCATION
             assert namespace_show["properties"]["provisioningState"] == "Succeeded"
+            _log(L.OK, "Namespace show returned correctly")
 
             # List ADR namespaces in resource group
-            namespaces = self.cmd(f"iot adr ns list -g {rg}").get_output_in_json()
+            list_cmd = f"iot adr ns list -g {rg}"
+            _log(L.CMD, "az %s", list_cmd)
+            namespaces = self.cmd(list_cmd).get_output_in_json()
 
             assert isinstance(namespaces, list)
             ns_names = [ns["name"] for ns in namespaces]
             assert namespace_name in ns_names, (
                 f"Namespace '{namespace_name}' not found in list: {ns_names}"
             )
+            _log(L.OK, "Namespace found in list (%d total)", len(namespaces))
 
             # Update ADR namespace tags
-            updated_ns = self.cmd(
-                f"iot adr ns update -n {namespace_name} -g {rg} --tags env=test purpose=ci"
-            ).get_output_in_json()
+            _log(L.STEP, "Step 3 ❯ Update Namespace Tags")
+            update_cmd = f"iot adr ns update -n {namespace_name} -g {rg} --tags env=test purpose=ci"
+            _log(L.CMD, "az %s", update_cmd)
+            updated_ns = self.cmd(update_cmd).get_output_in_json()
 
             assert updated_ns["name"] == namespace_name
             assert updated_ns["tags"]["env"] == "test"
             assert updated_ns["tags"]["purpose"] == "ci"
+            _log(L.OK, "Tags set: env=test, purpose=ci")
 
             # Update tags again (replace)
-            updated_ns2 = self.cmd(
-                f"iot adr ns update -n {namespace_name} -g {rg} --tags owner=adr-tests"
-            ).get_output_in_json()
+            update2_cmd = f"iot adr ns update -n {namespace_name} -g {rg} --tags owner=adr-tests"
+            _log(L.CMD, "az %s", update2_cmd)
+            updated_ns2 = self.cmd(update2_cmd).get_output_in_json()
 
             assert updated_ns2["tags"]["owner"] == "adr-tests"
             # Previous tags should be replaced (not merged)
             assert "env" not in updated_ns2.get("tags", {})
+            _log(L.OK, "Tags replaced: owner=adr-tests (env removed)")
 
             # Verify no credential exists
-            self.cmd(f"iot adr ns credential show --ns {namespace_name} -g {rg}", expect_failure=True)
+            _log(L.STEP, "Step 4 ❯ Credential CRUD")
+            cred_show_cmd = f"iot adr ns credential show --ns {namespace_name} -g {rg}"
+            _log(L.CMD, "az %s  (expect failure)", cred_show_cmd)
+            self.cmd(cred_show_cmd, expect_failure=True)
+            _log(L.OK, "No credential exists (expected)")
 
             # Create credential for the namespace
-            credential = self.cmd(f"iot adr ns credential create --ns {namespace_name} -g {rg}").get_output_in_json()
+            cred_create_cmd = f"iot adr ns credential create --ns {namespace_name} -g {rg}"
+            _log(L.CMD, "az %s", cred_create_cmd)
+            credential = self.cmd(cred_create_cmd).get_output_in_json()
 
             assert credential["name"] == "default"
             assert credential["location"] == TEST_LOCATION
             assert credential["properties"]["provisioningState"] == "Succeeded"
+            _log(L.RESULT, "credential created: name=default, provisioningState=Succeeded")
 
             # Show credential
-            credential_show = self.cmd(f"iot adr ns credential show --ns {namespace_name} -g {rg}").get_output_in_json()
+            _log(L.CMD, "az %s", cred_show_cmd)
+            credential_show = self.cmd(cred_show_cmd).get_output_in_json()
 
             assert credential_show["name"] == "default"
             assert credential_show["location"] == TEST_LOCATION
             assert credential_show["properties"]["provisioningState"] == "Succeeded"
+            _log(L.OK, "Credential show returned correctly")
 
             # Create default credential policy
+            _log(L.STEP, "Step 5 ❯ Default Policy CRUD")
             # TODO - once service issue is resolved, remove extra default inputs besides name
-            default_policy = self.cmd(
+            policy_create_cmd = (
                 f"iot adr ns policy create --ns {namespace_name} -g {rg} "
                 f"--policy-name {DEFAULT_NS_POLICY_NAME} "
                 f"--cert-validity-days {DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS} "
                 f"--cert-key-type {DEFAULT_NS_POLICY_CERT_KEY_TYPE}"
-            ).get_output_in_json()
+            )
+            _log(L.CMD, "az %s", policy_create_cmd)
+            default_policy = self.cmd(policy_create_cmd).get_output_in_json()
             assert default_policy["name"] == DEFAULT_NS_POLICY_NAME
             assert default_policy["properties"]["provisioningState"] == "Succeeded"
-            leaf_config = default_policy["properties"]["certificate"]["leafCertificateConfiguration"]
-            ca_config = default_policy["properties"]["certificate"]["certificateAuthorityConfiguration"]
-            assert leaf_config["validityPeriodInDays"] == DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
-            assert ca_config["keyType"] == DEFAULT_NS_POLICY_CERT_KEY_TYPE
+            leaf, ca = _cert_config(default_policy)
+            assert leaf["validityPeriodInDays"] == DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
+            assert ca["keyType"] == DEFAULT_NS_POLICY_CERT_KEY_TYPE
+            _log(L.RESULT, "policy=%s, keyType=%s, validityDays=%s",
+                           DEFAULT_NS_POLICY_NAME, DEFAULT_NS_POLICY_CERT_KEY_TYPE,
+                           DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS)
 
             # Show default credential policy
-            default_policy_show = self.cmd(
+            policy_show_cmd = (
                 f"iot adr ns policy show --ns {namespace_name} -g {rg} "
                 f"--policy-name {DEFAULT_NS_POLICY_NAME}"
-            ).get_output_in_json()
+            )
+            _log(L.CMD, "az %s", policy_show_cmd)
+            default_policy_show = self.cmd(policy_show_cmd).get_output_in_json()
 
             assert default_policy_show["name"] == "default"
             assert default_policy_show["properties"]["provisioningState"] == "Succeeded"
-            leaf_config = default_policy_show["properties"]["certificate"]["leafCertificateConfiguration"]
-            ca_config = default_policy_show["properties"]["certificate"]["certificateAuthorityConfiguration"]
-            assert leaf_config["validityPeriodInDays"] == DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
-            assert ca_config["keyType"] == DEFAULT_NS_POLICY_CERT_KEY_TYPE
+            leaf, ca = _cert_config(default_policy_show)
+            assert leaf["validityPeriodInDays"] == DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
+            assert ca["keyType"] == DEFAULT_NS_POLICY_CERT_KEY_TYPE
+            _log(L.OK, "Default policy show returned correctly")
 
             # Delete default policy
-            self.cmd(
-                f"iot adr ns policy delete --ns {namespace_name} -g {rg} --policy-name {DEFAULT_NS_POLICY_NAME} -y"
-            )
+            del_cmd = f"iot adr ns policy delete --ns {namespace_name} -g {rg} --policy-name {DEFAULT_NS_POLICY_NAME} -y"
+            _log(L.CMD, "az %s", del_cmd)
+            self.cmd(del_cmd)
+            _log(L.RESULT, "ok")
 
             # Create custom credential policy
-            custom_policy = self.cmd(
+            _log(L.STEP, "Step 6 ❯ Custom Policy CRUD")
+            custom_cmd = (
                 f"iot adr ns policy create --ns {namespace_name} -g {rg} "
                 f"--policy-name {CUSTOM_POLICY_NAME} "
                 f"--cert-subject '{CUSTOM_CERT_SUBJECT}' "
                 f"--cert-validity-days {CUSTOM_CERT_VALIDITY_DAYS} "
                 f"--cert-key-type {CUSTOM_CERT_KEY_TYPE}"
-            ).get_output_in_json()
+            )
+            _log(L.CMD, "az %s", custom_cmd)
+            custom_policy = self.cmd(custom_cmd).get_output_in_json()
 
             assert custom_policy["name"] == CUSTOM_POLICY_NAME
             assert custom_policy["properties"]["provisioningState"] == "Succeeded"
-            leaf_config = custom_policy["properties"]["certificate"]["leafCertificateConfiguration"]
-            ca_config = custom_policy["properties"]["certificate"]["certificateAuthorityConfiguration"]
-            assert leaf_config["validityPeriodInDays"] == CUSTOM_CERT_VALIDITY_DAYS
-            assert ca_config["keyType"] == CUSTOM_CERT_KEY_TYPE
+            leaf, ca = _cert_config(custom_policy)
+            assert leaf["validityPeriodInDays"] == CUSTOM_CERT_VALIDITY_DAYS
+            assert ca["keyType"] == CUSTOM_CERT_KEY_TYPE
             # TODO - cert subject not respected
-            # assert ca_config["subject"] == CUSTOM_CERT_SUBJECT
+            # assert ca["subject"] == CUSTOM_CERT_SUBJECT
+            _log(L.RESULT, "policy=%s, keyType=%s, validityDays=%s",
+                           CUSTOM_POLICY_NAME, CUSTOM_CERT_KEY_TYPE, CUSTOM_CERT_VALIDITY_DAYS)
 
             # Show custom credential policy
-            custom_policy_show = self.cmd(
-                f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name {CUSTOM_POLICY_NAME}"
-            ).get_output_in_json()
+            custom_show_cmd = f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name {CUSTOM_POLICY_NAME}"
+            _log(L.CMD, "az %s", custom_show_cmd)
+            custom_policy_show = self.cmd(custom_show_cmd).get_output_in_json()
 
             assert custom_policy_show["name"] == CUSTOM_POLICY_NAME
-            leaf_config = custom_policy_show["properties"]["certificate"]["leafCertificateConfiguration"]
-            ca_config = custom_policy_show["properties"]["certificate"]["certificateAuthorityConfiguration"]
-            assert leaf_config["validityPeriodInDays"] == CUSTOM_CERT_VALIDITY_DAYS
-            assert ca_config["keyType"] == CUSTOM_CERT_KEY_TYPE
+            leaf, ca = _cert_config(custom_policy_show)
+            assert leaf["validityPeriodInDays"] == CUSTOM_CERT_VALIDITY_DAYS
+            assert ca["keyType"] == CUSTOM_CERT_KEY_TYPE
             # TODO - cert subject not respected
-            # assert ca_config["subject"] == CUSTOM_CERT_SUBJECT
+            # assert ca["subject"] == CUSTOM_CERT_SUBJECT
+            _log(L.OK, "Custom policy show returned correctly")
 
             # TODO - service currently only supports validity period updates
             # Update custom credential policy
-            updated_policy = self.cmd(
+            _log(L.STEP, "Step 7 ❯ Update & List Policies")
+            update_policy_cmd = (
                 f"iot adr ns policy update --ns {namespace_name} -g {rg} "
                 f"--policy-name {CUSTOM_POLICY_NAME} "
                 f"--cert-validity-days {CUSTOM_CERT_UPDATE_VALIDITY_DAYS}"
-            ).get_output_in_json()
+            )
+            _log(L.CMD, "az %s", update_policy_cmd)
+            updated_policy = self.cmd(update_policy_cmd).get_output_in_json()
             assert updated_policy["properties"]["provisioningState"] == "Succeeded"
-            leaf_config = updated_policy["properties"]["certificate"]["leafCertificateConfiguration"]
-            assert leaf_config["validityPeriodInDays"] == CUSTOM_CERT_UPDATE_VALIDITY_DAYS
+            leaf, _ = _cert_config(updated_policy)
+            assert leaf["validityPeriodInDays"] == CUSTOM_CERT_UPDATE_VALIDITY_DAYS
+            _log(L.RESULT, "validityDays updated to %s", CUSTOM_CERT_UPDATE_VALIDITY_DAYS)
 
             # List ADR credential policies
-            policies = self.cmd(f"iot adr ns policy list --ns {namespace_name} -g {rg}").get_output_in_json()
+            list_policy_cmd = f"iot adr ns policy list --ns {namespace_name} -g {rg}"
+            _log(L.CMD, "az %s", list_policy_cmd)
+            policies = self.cmd(list_policy_cmd).get_output_in_json()
 
             assert isinstance(policies, list)
             assert len(policies) == 1
             policy_names = [p["name"] for p in policies]
             assert CUSTOM_POLICY_NAME in policy_names
+            _log(L.OK, "Policy list returned %d policy: %s", len(policies), policy_names)
 
             # Verify credential still exists
-            credentials = self.cmd(f"iot adr ns credential show --ns {namespace_name} -g {rg}").get_output_in_json()
+            _log(L.CMD, "az %s", cred_show_cmd)
+            credentials = self.cmd(cred_show_cmd).get_output_in_json()
 
             assert credentials["name"] == "default"
             assert credentials["properties"]["provisioningState"] == "Succeeded"
+            _log(L.OK, "Credential still exists after policy operations")
 
             # Delete policies
-            self.cmd(f"iot adr ns policy delete --ns {namespace_name} -g {rg} --policy-name {CUSTOM_POLICY_NAME} -y")
+            _log(L.STEP, "Step 8 ❯ Cleanup: Delete Policy & Credential")
+            del_policy_cmd = f"iot adr ns policy delete --ns {namespace_name} -g {rg} --policy-name {CUSTOM_POLICY_NAME} -y"
+            _log(L.CMD, "az %s", del_policy_cmd)
+            self.cmd(del_policy_cmd)
+            _log(L.RESULT, "ok")
 
             # Verify all policies were deleted
-            policies_after = self.cmd(f"iot adr ns policy list --ns {namespace_name} -g {rg}").get_output_in_json()
+            _log(L.CMD, "az %s", list_policy_cmd)
+            policies_after = self.cmd(list_policy_cmd).get_output_in_json()
 
             assert isinstance(policies_after, list)
             assert len(policies_after) == 0
+            _log(L.OK, "All policies deleted")
 
             # Delete the credential
-            self.cmd(f"iot adr ns credential delete --ns {namespace_name} -g {rg} -y")
+            cred_del_cmd = f"iot adr ns credential delete --ns {namespace_name} -g {rg} -y"
+            _log(L.CMD, "az %s", cred_del_cmd)
+            self.cmd(cred_del_cmd)
+            _log(L.RESULT, "ok")
 
             # Verify credentials are deleted (expect failure)
-            self.cmd(f"iot adr ns credential show --ns {namespace_name} -g {rg}", expect_failure=True)
+            _log(L.CMD, "az %s  (expect failure)", cred_show_cmd)
+            self.cmd(cred_show_cmd, expect_failure=True)
+            _log(L.OK, "Credential deleted successfully")
 
         finally:
             # Cleanup
+            _log(L.STEP, "Cleanup ❯ Delete Namespace")
             try:
-                self.cmd(f"iot adr ns delete -n {namespace_name} -g {rg} -y")
+                cleanup_cmd = f"iot adr ns delete -n {namespace_name} -g {rg} -y"
+                _log(L.CMD, "az %s", cleanup_cmd)
+                self.cmd(cleanup_cmd)
+                _log(L.RESULT, "ok")
             except Exception as e:
-                logger.warning("Cleanup failed: %s", e)
+                _log(L.WARN, "Cleanup failed: %s", e)

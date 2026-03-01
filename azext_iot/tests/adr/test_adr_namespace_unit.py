@@ -15,16 +15,7 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_NAME,
     IdentityType,
 )
-
-
-# ==================== Helpers ====================
-
-
-def _serializable(data: dict) -> Mock:
-    """Wrap *data* so ``.serialize(keep_readonly=True)`` returns it."""
-    m = Mock()
-    m.serialize.return_value = data
-    return m
+from azext_iot.tests.adr.conftest import _serializable
 
 
 # ==================== Create ====================

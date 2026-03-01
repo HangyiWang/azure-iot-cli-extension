@@ -16,16 +16,10 @@ from azext_iot.sdk.deviceregistry.mgmt.models import (
     CertificateConfiguration,
     CertificateConfigurationUpdate,
 )
+from azext_iot.tests.adr.conftest import _serializable
 
 
 # ==================== Helpers ====================
-
-
-def _serializable(data: dict) -> Mock:
-    """Wrap *data* so ``.serialize(keep_readonly=True)`` returns it."""
-    m = Mock()
-    m.serialize.return_value = data
-    return m
 
 
 def _setup_create(provider, mock_poller, serialized: dict, ns_location: str = "eastus"):

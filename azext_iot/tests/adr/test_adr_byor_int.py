@@ -7,10 +7,7 @@
 """
 Integration tests for ADR BYOR (Bring Your Own Root) policy lifecycle.
 
-Requirements:
-- Azure subscription with appropriate permissions
-- Resource group specified in azext_iot_testrg environment variable
-- openssl CLI available on PATH (used for ECDSA certificate signing)
+Requires openssl CLI on PATH for ECDSA certificate signing.
 """
 
 import os
@@ -19,7 +16,6 @@ import tempfile
 import time
 
 import pytest
-from knack.log import get_logger
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._helpers import (
@@ -28,6 +24,7 @@ from azext_iot.tests.adr._helpers import (
     get_byor_config,
     get_ca_config,
 )
+from azext_iot.tests.adr._log import L, _log, timed_step
 from azext_iot.tests.adr.conftest import (
     CUSTOM_POLICY_NAME,
     TEST_RG,
@@ -36,8 +33,6 @@ from azext_iot.tests.adr.conftest import (
     generate_identity_name,
 )
 
-logger = get_logger(__name__)
-
 
 @pytest.mark.usefixtures("set_cwd")
 class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
@@ -45,6 +40,7 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
 
     def test_policy_create_with_enable_byor(self):
         """Create a BYOR policy and verify CSR generation with PendingActivation status."""
+        _log(L.TEST, "test_policy_create_with_enable_byor")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
@@ -62,6 +58,7 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
 
     def test_policy_activate_byor_full_lifecycle(self):
         """Create BYOR policy, sign its CSR with a test CA, activate, and verify Active status."""
+        _log(L.TEST, "test_policy_activate_byor_full_lifecycle")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
@@ -86,6 +83,7 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
 
     def test_byor_activate_and_sync_to_hub(self):
         """BYOR E2E: create infra with BYOR -> sign CSR -> activate -> sync -> verify ICA on hub."""
+        _log(L.TEST, "test_byor_activate_and_sync_to_hub")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
         hub_name = generate_hub_name()
@@ -153,15 +151,15 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
             )
 
     def test_byor_revoke_and_reactivate(self):
-        """BYOR rotation: activate -> sync -> revoke -> PendingActivation -> re-sign -> re-activate -> sync -> verify hub.
+        """BYOR rotation: activate -> sync -> revoke -> re-sign -> re-activate -> sync -> verify.
 
-        Validates the full BYOR certificate rotation lifecycle:
-        1. BYOR policy activated and ICA synced to hub (sync needed after BYOR activation)
-        2. Revoke issuer transitions back to PendingActivation with a new CSR
-           (revokeIssuer LRO removes old ICA from hub automatically)
-        3. Re-signing the new CSR and re-activating restores Active status
-        4. Explicit credential sync after re-activation pushes new ICA to hub
+        Validates:
+        1. BYOR policy activated and ICA synced to hub
+        2. Revoke transitions back to PendingActivation with a new CSR
+        3. Re-signing and re-activating restores Active status
+        4. Credential sync after re-activation pushes new ICA to hub
         """
+        _log(L.TEST, "test_byor_revoke_and_reactivate")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
         hub_name = generate_hub_name()
@@ -185,77 +183,139 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
             )
 
             # --- Step 2: First activation ---
-            policy = self.cmd(
-                f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name {policy_name}"
-            ).get_output_in_json()
-            byor = get_byor_config(policy)
-            assert byor["status"] == "PendingActivation"
+            policy_show_cmd = f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name {policy_name}"
+            with timed_step("Step 2 ❯ First BYOR Activation"):
+                _log(L.CMD, "az %s", policy_show_cmd)
+                policy = self.cmd(policy_show_cmd).get_output_in_json()
+                byor = get_byor_config(policy)
+                assert byor["status"] == "PendingActivation"
+                _log(L.OK, "BYOR status is PendingActivation")
 
-            # Brief delay for policy internal state to settle
-            time.sleep(POLICY_PROPAGATION_DELAY)
+                time.sleep(POLICY_PROPAGATION_DELAY)
 
-            first_csr = byor["certificateSigningRequest"]
-            activated = self.activate_byor_policy(namespace_name, rg, policy_name, first_csr)
-            first_byor = get_byor_config(activated)
-            assert first_byor["status"] == "Active"
-            first_thumbprint = first_byor.get("issuingCertificateThumbprint")
-            assert first_thumbprint is not None
+                first_csr = byor["certificateSigningRequest"]
+                _log(L.CMD, "Signing CSR and activating BYOR policy ...")
+                activated = self.activate_byor_policy(namespace_name, rg, policy_name, first_csr)
+                first_byor = get_byor_config(activated)
+                assert first_byor["status"] == "Active"
+                first_thumbprint = first_byor.get("issuingCertificateThumbprint")
+                assert first_thumbprint is not None
+                _log(L.OK, "BYOR activated, thumbprint=%s", first_thumbprint)
 
             # --- Step 3: Sync and record first ICA on hub ---
-            self.cmd(f"iot adr ns credential sync --ns {namespace_name} -g {rg}")
+            sync_cmd = f"iot adr ns credential sync --ns {namespace_name} -g {rg}"
+            with timed_step("Step 3 ❯ Credential Sync"):
+                _log(L.CMD, "az %s", sync_cmd)
+                self.cmd(sync_cmd)
+                _log(L.RESULT, "ok")
 
-            first_hub_cert = self.find_hub_cert_by_policy(hub_name, rg, policy_rid)
-            assert first_hub_cert is not None, "First BYOR ICA should be on hub after sync"
-            first_hub_cert_name = first_hub_cert["name"]
+                first_hub_cert = self.find_hub_cert_by_policy(hub_name, rg, policy_rid)
+                assert first_hub_cert is not None, "First BYOR ICA should be on hub after sync"
+                first_hub_cert_name = first_hub_cert["name"]
+                _log(L.OK, "First BYOR ICA found on hub: %s", first_hub_cert_name)
 
-            # --- Step 4: Revoke issuer -> expect PendingActivation with new CSR ---
-            # For BYOR, revokeIssuer transitions back to PendingActivation.
-            # The LRO also removes the old ICA from the hub automatically.
-            self.cmd(
+            # --- Step 4: Revoke issuer -> PendingActivation with new CSR ---
+            revoke_cmd = (
                 f"iot adr ns policy revoke-issuer --ns {namespace_name} -g {rg} "
                 f"--policy-name {policy_name} -y"
             )
+            with timed_step("Step 4 ❯ Revoke Issuer"):
+                _log(L.CMD, "az %s", revoke_cmd)
+                self.cmd(revoke_cmd)
+                _log(L.RESULT, "ok: revoke-issuer succeeded")
 
-            revoked = self.cmd(
-                f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name {policy_name}"
-            ).get_output_in_json()
+                _log(L.CMD, "az %s", policy_show_cmd)
+                revoked = self.cmd(policy_show_cmd).get_output_in_json()
 
-            revoked_byor = get_byor_config(revoked)
-            assert revoked_byor["status"] == "PendingActivation", (
-                f"After revoke, BYOR status should be PendingActivation, got '{revoked_byor['status']}'"
-            )
-            second_csr = revoked_byor.get("certificateSigningRequest", "")
-            assert "BEGIN CERTIFICATE REQUEST" in second_csr, "New CSR must be generated after revoke"
-            assert second_csr != first_csr, "New CSR should differ from the original CSR"
+                revoked_byor = get_byor_config(revoked)
+                assert revoked_byor["status"] == "PendingActivation", (
+                    f"After revoke, BYOR status should be PendingActivation, got '{revoked_byor['status']}'"
+                )
+                second_csr = revoked_byor.get("certificateSigningRequest", "")
+                assert "BEGIN CERTIFICATE REQUEST" in second_csr
+                assert second_csr != first_csr, "New CSR should differ from the original"
+                _log(L.OK, "After revoke: status=PendingActivation with new CSR")
 
-            # Brief delay for policy internal state to settle after revoke
-            time.sleep(POLICY_PROPAGATION_DELAY)
+                # 4b. Check if old ICA was auto-removed from hub after revoke (no manual sync)
+                post_revoke_certs = self.get_hub_certificates(hub_name, rg)
+                post_revoke_cert_names = [c["name"] for c in post_revoke_certs]
+                if first_hub_cert_name not in post_revoke_cert_names:
+                    _log(L.OK,
+                        "Old BYOR ICA '%s' auto-removed from hub after revoke",
+                        first_hub_cert_name,
+                    )
+                else:
+                    _log(L.WARN,
+                        "Old BYOR ICA '%s' still on hub after revoke (not auto-removed)",
+                        first_hub_cert_name,
+                    )
+
+                time.sleep(POLICY_PROPAGATION_DELAY)
 
             # --- Step 5: Re-sign new CSR and re-activate ---
-            reactivated = self.activate_byor_policy(namespace_name, rg, policy_name, second_csr)
-            reactivated_byor = get_byor_config(reactivated)
-            assert reactivated_byor["status"] == "Active", (
-                f"Expected Active after re-activation, got '{reactivated_byor['status']}'"
-            )
-            second_thumbprint = reactivated_byor.get("issuingCertificateThumbprint")
-            assert second_thumbprint is not None
-            assert second_thumbprint != first_thumbprint, (
-                "Thumbprint must change after revoke + re-activate"
-            )
+            with timed_step("Step 5 ❯ Re-sign & Re-activate"):
+                _log(L.CMD, "Re-signing new CSR and re-activating BYOR policy ...")
+                reactivated = self.activate_byor_policy(namespace_name, rg, policy_name, second_csr)
+                reactivated_byor = get_byor_config(reactivated)
+                assert reactivated_byor["status"] == "Active"
+                second_thumbprint = reactivated_byor.get("issuingCertificateThumbprint")
+                assert second_thumbprint is not None
+                assert second_thumbprint != first_thumbprint, (
+                    "Thumbprint must change after revoke + re-activate"
+                )
+                _log(L.OK,
+                    "Re-activated with new thumbprint=%s (was %s)",
+                    second_thumbprint, first_thumbprint,
+                )
 
-            # --- Step 6: Sync after re-activation to push new BYOR ICA to hub ---
-            # For BYOR, explicit sync IS needed after activation (confirmed by bugbash docs).
-            self.cmd(f"iot adr ns credential sync --ns {namespace_name} -g {rg}")
+                # 5b. Probe: did the backend auto-sync the new ICA to the hub?
+                auto_synced_cert = self.check_hub_cert_auto_synced(
+                    hub_name, rg, policy_rid, "post-reactivate",
+                )
 
-            post_certs = self.get_hub_certificates(hub_name, rg)
-            post_cert_names = [c["name"] for c in post_certs]
-            assert first_hub_cert_name not in post_cert_names, (
-                f"Old BYOR ICA '{first_hub_cert_name}' should be removed from hub after revoke cycle"
+            # --- Step 6: Ensure new ICA is on hub (sync if needed) + final verification ---
+            if auto_synced_cert is None:
+                with timed_step("Step 6 ❯ Sync After Re-activation (new ICA was NOT auto-synced)"):
+                    _log(L.WARN,
+                        "Backend did not auto-sync new BYOR ICA to hub after re-activate -- "
+                        "performing manual credential sync as workaround",
+                    )
+                    _log(L.CMD, "az %s", sync_cmd)
+                    self.cmd(sync_cmd)
+                    _log(L.RESULT, "ok")
+
+                    post_certs = self.get_hub_certificates(hub_name, rg)
+                    post_cert_names = [c["name"] for c in post_certs]
+                    assert first_hub_cert_name not in post_cert_names, (
+                        f"Old BYOR ICA '{first_hub_cert_name}' should be removed from hub"
+                    )
+                    _log(L.OK, "Old BYOR ICA '%s' removed from hub", first_hub_cert_name)
+
+                    new_hub_cert = self.find_hub_cert_by_policy(hub_name, rg, policy_rid)
+                    assert new_hub_cert is not None, (
+                        "New BYOR ICA should be on hub after re-activation + sync"
+                    )
+                    assert new_hub_cert["name"] != first_hub_cert_name
+                    _log(L.OK,
+                        "New BYOR ICA '%s' found on hub after manual sync (was '%s')",
+                        new_hub_cert["name"], first_hub_cert_name,
+                    )
+            else:
+                with timed_step("Step 6 ❯ Verify Auto-synced Cert"):
+                    _log(L.OK, "New BYOR ICA was auto-synced to hub -- no manual sync needed")
+                    new_hub_cert = auto_synced_cert
+                    assert new_hub_cert["name"] != first_hub_cert_name
+
+            # Verify PolicyResourceId on the final hub cert
+            new_cert_policy_rid = new_hub_cert.get("properties", {}).get("PolicyResourceId")
+            assert new_cert_policy_rid == policy_rid, (
+                f"New hub cert PolicyResourceId mismatch: "
+                f"expected={policy_rid}, got={new_cert_policy_rid}"
             )
-
-            new_hub_cert = self.find_hub_cert_by_policy(hub_name, rg, policy_rid)
-            assert new_hub_cert is not None, "New BYOR ICA should be on hub after re-activation + sync"
-            assert new_hub_cert["name"] != first_hub_cert_name
+            _log(L.OK,
+                "New hub cert '%s' has correct PolicyResourceId",
+                new_hub_cert["name"],
+            )
 
         finally:
             self.cleanup_full_infra(
@@ -272,6 +332,7 @@ class TestADRBYOREdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_byor_not_enabled_on_standard_policy(self):
         """Verify a standard (non-BYOR) policy does not have BYOR enabled."""
+        _log(L.TEST, "test_byor_not_enabled_on_standard_policy")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
@@ -291,6 +352,7 @@ class TestADRBYOREdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_activate_byor_on_standard_policy_fails(self):
         """Attempting activate-byor on a non-BYOR policy should fail."""
+        _log(L.TEST, "test_activate_byor_on_standard_policy_fails")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
@@ -316,6 +378,7 @@ class TestADRBYOREdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_activate_byor_with_mismatched_chain_fails(self):
         """Activating BYOR with a certificate that doesn't match the CSR should fail."""
+        _log(L.TEST, "test_activate_byor_with_mismatched_chain_fails")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
@@ -375,6 +438,7 @@ class TestADRBYOREdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         Validates behavior when revoking before the BYOR CSR has been signed.
         The backend may reject the operation or regenerate the CSR.
         """
+        _log(L.TEST, "test_revoke_pending_byor_before_activation")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 

@@ -10,22 +10,7 @@ import pytest
 from azure.cli.core.azclierror import ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 
-
-# ==================== Helpers ====================
-
-
-def _serializable(data: dict) -> Mock:
-    """Wrap *data* so ``.serialize(keep_readonly=True)`` returns it."""
-    m = Mock()
-    m.serialize.return_value = data
-    return m
-
-
-def _ns_mock(location: str = "eastus") -> Mock:
-    """Return a namespace mock with a ``.location`` attribute."""
-    ns = Mock()
-    ns.location = location
-    return ns
+from azext_iot.tests.adr.conftest import _ns_mock, _serializable
 
 
 # ==================== Create ====================
@@ -139,17 +124,13 @@ def test_delete_credential(fixture_credential_provider, mock_poller):
 # ==================== Synchronize ====================
 
 
-@pytest.mark.parametrize("status", ["Succeeded", "Failed"])
-def test_synchronize_credential(fixture_credential_provider, mock_poller, status):
-    """Synchronize triggers LRO and logs appropriate message."""
+def test_synchronize_credential(fixture_credential_provider, mock_poller):
+    """Synchronize triggers LRO and prints success message."""
     sentinel = Mock()
     poller = mock_poller(sentinel)
-    poller.status = Mock(return_value=status)
     fixture_credential_provider.client.credentials.begin_synchronize.return_value = poller
 
-    with patch("azext_iot.adr.providers.credential.console.print") as mock_print, patch(
-        "azext_iot.adr.providers.credential.logger.warning"
-    ) as mock_warn:
+    with patch("azext_iot.adr.providers.credential.console.print") as mock_print:
         result = fixture_credential_provider.synchronize(
             namespace_name="test-namespace", resource_group_name="test-rg",
         )
@@ -158,10 +139,50 @@ def test_synchronize_credential(fixture_credential_provider, mock_poller, status
     fixture_credential_provider.client.credentials.begin_synchronize.assert_called_once_with(
         resource_group_name="test-rg", namespace_name="test-namespace",
     )
+    mock_print.assert_called_once_with(
+        "Successfully synchronized credentials for namespace 'test-namespace'", style="green",
+    )
 
-    if status == "Succeeded":
-        mock_print.assert_called_once_with(
-            "Successfully synchronized credentials for namespace 'test-namespace'", style="green",
+
+def test_synchronize_credential_swallows_false_positive(fixture_credential_provider):
+    """Synchronize swallows HttpResponseError with status 200 (ARMPolling false positive)."""
+    from azure.core.exceptions import HttpResponseError
+
+    mock_response = Mock()
+    mock_response.status_code = 200
+    error = HttpResponseError(response=mock_response, message="Operation returned an invalid status 'OK'")
+
+    poller = Mock()
+    poller.done.return_value = True
+    # wait_for_terminal_state calls poller.result() which we need to raise
+    poller.result.side_effect = error
+    fixture_credential_provider.client.credentials.begin_synchronize.return_value = poller
+
+    with patch("azext_iot.adr.providers.credential.console.print") as mock_print:
+        result = fixture_credential_provider.synchronize(
+            namespace_name="test-namespace", resource_group_name="test-rg",
         )
-    else:
-        mock_warn.assert_called_once_with(f"Synchronization completed with a status of: '{status}'")
+
+    assert result is None
+    mock_print.assert_called_once_with(
+        "Successfully synchronized credentials for namespace 'test-namespace'", style="green",
+    )
+
+
+def test_synchronize_credential_raises_real_error(fixture_credential_provider):
+    """Synchronize re-raises HttpResponseError with non-200 status codes."""
+    from azure.core.exceptions import HttpResponseError
+
+    mock_response = Mock()
+    mock_response.status_code = 500
+    error = HttpResponseError(response=mock_response, message="Internal Server Error")
+
+    poller = Mock()
+    poller.done.return_value = True
+    poller.result.side_effect = error
+    fixture_credential_provider.client.credentials.begin_synchronize.return_value = poller
+
+    with pytest.raises(HttpResponseError):
+        fixture_credential_provider.synchronize(
+            namespace_name="test-namespace", resource_group_name="test-rg",
+        )

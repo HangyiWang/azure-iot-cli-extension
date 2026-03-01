@@ -94,17 +94,6 @@ class NamespaceProvider(ADRProvider):
         if not namespace_result.get("resourceGroup"):
             namespace_result["resourceGroup"] = resource_group_name
 
-        # Create credential and policy if requested or if policy parameters are provided
-        should_create_credential_policy = any(
-            [
-                enable_credential_policy,
-                policy_name,
-                certificate_key_type is not None,
-                certificate_subject,
-                certificate_validity_days is not None,
-            ]
-        )
-
         if should_create_credential_policy:
             try:
                 from azext_iot.adr.providers.credential import CredentialProvider

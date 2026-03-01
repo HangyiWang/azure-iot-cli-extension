@@ -4,15 +4,9 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-"""Integration tests for ADR policy revoke-issuer commands.
-
-Requirements:
-- Azure subscription with appropriate permissions
-- Resource group specified in azext_iot_testrg environment variable
-"""
+"""Integration tests for ADR policy revoke-issuer commands."""
 
 import pytest
-from knack.log import get_logger
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr.conftest import (
@@ -25,8 +19,7 @@ from azext_iot.tests.adr._helpers import (
     ADRHubInfraHelper,
     get_ca_config,
 )
-
-logger = get_logger(__name__)
+from azext_iot.tests.adr._log import L, _log, timed_step
 
 
 @pytest.mark.usefixtures("set_cwd")
@@ -40,13 +33,8 @@ class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioT
     """
 
     def test_policy_revoke_issuer_e2e(self):
-        """Full E2E: create infra -> sync -> revoke -> verify ICA rotation on policy and hub.
-
-        For standard (non-BYOR) policies, the revokeIssuer LRO should handle hub
-        cert rotation internally.  However, a known backend bug causes the hub
-        upload step to fail (NullReferenceException), so a follow-up credential
-        sync is used to push the newly generated ICA to the hub.
-        """
+        """Full E2E: create infra -> sync -> revoke -> verify ICA rotation on policy and hub."""
+        _log(L.TEST, "test_policy_revoke_issuer_e2e")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
         hub_name = generate_hub_name()
@@ -71,137 +59,113 @@ class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioT
                 subscription_id, rg, namespace_name, policy_name,
             )
 
-            # --- Step 2: Credential sync (pushes ICA cert to hub) ---
-            # With --enable-credential-policy, sync should succeed on first attempt.
-            logger.warning("[e2e] Running credential sync ...")
-            self.cmd(
-                f"iot adr ns credential sync --ns {namespace_name} -g {rg}"
-            )
-            logger.warning("[e2e] Credential sync succeeded")
+            # --- Step 2: Credential sync ---
+            sync_cmd = f"iot adr ns credential sync --ns {namespace_name} -g {rg}"
+            with timed_step("Step 2 ❯ Credential Sync"):
+                _log(L.CMD, "az %s", sync_cmd)
+                self.cmd(sync_cmd)
+                _log(L.RESULT, "ok")
 
-            # Verify the ICA cert arrived on the hub
-            pre_revoke_certs = self.get_hub_certificates(hub_name, rg)
-            pre_revoke_cert_names = [c["name"] for c in pre_revoke_certs]
-            logger.warning(
-                "[e2e] Hub certs after sync (before revoke): count=%d, names=%s",
-                len(pre_revoke_certs), pre_revoke_cert_names,
-            )
-            initial_hub_cert = self.find_hub_cert_by_policy(hub_name, rg, policy_rid)
-            assert initial_hub_cert is not None, (
-                "ICA certificate should be on hub after sync"
-            )
-            initial_hub_cert_name = initial_hub_cert["name"]
-            logger.warning("[e2e] Initial hub cert: %s", initial_hub_cert_name)
+                initial_hub_cert = self.find_hub_cert_by_policy(hub_name, rg, policy_rid)
+                assert initial_hub_cert is not None, "ICA certificate should be on hub after sync"
+                initial_hub_cert_name = initial_hub_cert["name"]
+                _log(L.OK, "Initial hub cert found: %s", initial_hub_cert_name)
 
-            # Snapshot the initial policy CA config for comparison after revoke
-            pre_policy = self.cmd(
-                f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name {policy_name}"
-            ).get_output_in_json()
-            pre_ca = get_ca_config(pre_policy)
-            logger.warning(
-                "[e2e] Pre-revoke policy CA: keyType=%s, subject=%s",
-                pre_ca.get("keyType"), pre_ca.get("subject"),
-            )
+                policy_show_cmd = f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name {policy_name}"
+                _log(L.CMD, "az %s", policy_show_cmd)
+                pre_policy = self.cmd(policy_show_cmd).get_output_in_json()
+                pre_ca = get_ca_config(pre_policy)
+                _log(L.RESULT,
+                    "Pre-revoke policy CA: keyType=%s, subject=%s",
+                    pre_ca.get("keyType"), pre_ca.get("subject"),
+                )
 
             # --- Step 3: Revoke issuer ---
-            # The revoke LRO internally: (a) generates new ICA, (b) deletes old
-            # hub cert, (c) uploads new cert to hub.  Currently step (c) fails
-            # with a NullReferenceException (GenericServerError), but (a) and (b)
-            # still succeed — the policy subject changes and the old hub cert is
-            # removed.  We detect this and run a follow-up sync to push the new
-            # ICA to the hub.
             pre_subject = pre_ca.get("subject")
-            logger.warning("[e2e] Calling revoke-issuer ...")
-            try:
-                self.cmd(
-                    f"iot adr ns policy revoke-issuer --ns {namespace_name} -g {rg} "
-                    f"--policy-name {policy_name} -y"
-                )
-                logger.warning("[e2e] revoke-issuer succeeded")
-            except Exception as exc:
-                # The LRO may report failure (GenericServerError) but still
-                # partially succeed — continue to verify policy + hub state.
-                logger.warning("[e2e] revoke-issuer LRO failed: %s", exc)
-
-            # Check whether the revoke actually took effect (new ICA generated)
-            post_policy = self.cmd(
-                f"iot adr ns policy show --ns {namespace_name} -g {rg} "
-                f"--policy-name {policy_name}"
-            ).get_output_in_json()
-            post_ca = get_ca_config(post_policy)
-            post_subject = post_ca.get("subject")
-            logger.warning(
-                "[e2e] Post-revoke policy: state=%s, subject=%s (was %s)",
-                post_policy["properties"]["provisioningState"],
-                post_subject, pre_subject,
+            revoke_cmd = (
+                f"iot adr ns policy revoke-issuer --ns {namespace_name} -g {rg} "
+                f"--policy-name {policy_name} -y"
             )
-            assert post_subject != pre_subject, (
-                f"Policy ICA subject should change after revoke: "
-                f"before={pre_subject}, after={post_subject}"
-            )
-            logger.warning("[e2e] Revoke confirmed: ICA regenerated (subject changed)")
+            with timed_step("Step 3 ❯ Revoke Issuer"):
+                _log(L.CMD, "az %s", revoke_cmd)
+                try:
+                    self.cmd(revoke_cmd)
+                    _log(L.RESULT, "ok: revoke-issuer succeeded")
+                except Exception as exc:
+                    # LRO may report failure but still partially succeed
+                    _log(L.WARN, "revoke-issuer LRO failed: %s", exc)
 
-            # Check hub certs — the revoke LRO deletes the old cert but may
-            # fail to upload the new one (GenericServerError).
-            post_hub_certs = self.get_hub_certificates(hub_name, rg)
-            post_hub_names = [c["name"] for c in post_hub_certs]
-            logger.warning(
-                "[e2e] Hub certs after revoke: count=%d, names=%s",
-                len(post_hub_certs), post_hub_names,
-            )
-            assert initial_hub_cert_name not in post_hub_names, (
-                f"Old hub cert '{initial_hub_cert_name}' should be removed after revoke"
-            )
+                # 3a. Verify policy ICA was regenerated
+                _log(L.CMD, "az %s", policy_show_cmd)
+                post_policy = self.cmd(policy_show_cmd).get_output_in_json()
+                post_ca = get_ca_config(post_policy)
+                post_subject = post_ca.get("subject")
+                _log(L.RESULT,
+                    "Post-revoke policy: state=%s, subject=%s (was %s)",
+                    post_policy["properties"]["provisioningState"],
+                    post_subject, pre_subject,
+                )
+                assert post_subject != pre_subject, (
+                    f"Policy ICA subject should change after revoke: "
+                    f"before={pre_subject}, after={post_subject}"
+                )
+                _log(L.OK, "ICA regenerated -- subject changed after revoke")
 
-            # --- Step 4: Follow-up sync to push the new ICA to hub ---
-            # The revoke LRO's hub-upload step is currently broken (backend bug),
-            # so run a credential sync to push the newly generated ICA.
-            if len(post_hub_certs) == 0:
-                logger.warning(
-                    "[e2e] Hub has 0 certs after revoke — running follow-up sync "
-                    "to push new ICA ..."
+                # 3b. Verify old hub cert was removed (revoke should at least delete it)
+                post_hub_certs = self.get_hub_certificates(hub_name, rg)
+                post_hub_names = [c["name"] for c in post_hub_certs]
+                assert initial_hub_cert_name not in post_hub_names, (
+                    f"Old hub cert '{initial_hub_cert_name}' should be removed after revoke"
                 )
-                self.cmd(
-                    f"iot adr ns credential sync --ns {namespace_name} -g {rg}"
-                )
-                logger.warning("[e2e] Follow-up sync succeeded")
+                _log(L.OK, "Old hub cert '%s' removed after revoke", initial_hub_cert_name)
 
-                # Verify new cert appeared on hub
-                final_certs = self.get_hub_certificates(hub_name, rg)
-                final_names = [c["name"] for c in final_certs]
-                logger.warning(
-                    "[e2e] Hub certs after follow-up sync: count=%d, names=%s",
-                    len(final_certs), final_names,
+                # 3c. Probe: did the backend auto-sync the NEW ICA to the hub?
+                auto_synced_cert = self.check_hub_cert_auto_synced(
+                    hub_name, rg, policy_rid, "post-revoke",
                 )
-                new_hub_cert = self.find_hub_cert_by_policy(hub_name, rg, policy_rid)
-                assert new_hub_cert is not None, (
-                    "New ICA certificate should be on hub after follow-up sync"
-                )
-                assert new_hub_cert["name"] != initial_hub_cert_name, (
-                    "Hub certificate name should differ after revoke"
-                )
-                logger.warning(
-                    "[e2e] New hub cert: %s (was %s)",
-                    new_hub_cert["name"], initial_hub_cert_name,
-                )
+
+            # --- Step 4: Ensure new ICA is on hub (follow-up sync if needed) ---
+            if auto_synced_cert is None:
+                with timed_step("Step 4 ❯ Follow-up Sync (new ICA was NOT auto-synced)"):
+                    _log(L.WARN,
+                        "Backend did not auto-sync new ICA to hub after revoke -- "
+                        "performing manual credential sync as workaround",
+                    )
+                    _log(L.CMD, "az %s", sync_cmd)
+                    self.cmd(sync_cmd)
+                    _log(L.RESULT, "ok: follow-up sync succeeded")
+
+                    new_hub_cert = self.find_hub_cert_by_policy(hub_name, rg, policy_rid)
+                    assert new_hub_cert is not None, (
+                        "New ICA certificate should be on hub after follow-up sync"
+                    )
+                    assert new_hub_cert["name"] != initial_hub_cert_name
+                    _log(L.OK,
+                        "New hub cert after manual sync: %s (was %s)",
+                        new_hub_cert["name"], initial_hub_cert_name,
+                    )
             else:
-                # LRO managed to upload the new cert — just verify it
-                new_hub_cert = self.find_hub_cert_by_policy(hub_name, rg, policy_rid)
-                assert new_hub_cert is not None, (
-                    "New ICA certificate should be on hub after revoke"
-                )
-                assert new_hub_cert["name"] != initial_hub_cert_name, (
-                    "Hub certificate name should differ after revoke"
-                )
+                _log(L.OK, "New ICA was auto-synced to hub -- no manual sync needed")
+                new_hub_cert = auto_synced_cert
+                assert new_hub_cert["name"] != initial_hub_cert_name
 
             # --- Step 5: Final verification ---
-            updated_policy = self.cmd(
-                f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name {policy_name}"
-            ).get_output_in_json()
-            assert updated_policy["properties"]["provisioningState"] == "Succeeded"
-            logger.warning(
-                "[e2e] PASS: revoke-issuer completed — ICA regenerated, hub cert rotated"
-            )
+            with timed_step("Step 5 ❯ Final Verification"):
+                # Verify PolicyResourceId on the new hub cert
+                new_cert_policy_rid = new_hub_cert.get("properties", {}).get("PolicyResourceId")
+                assert new_cert_policy_rid == policy_rid, (
+                    f"New hub cert PolicyResourceId mismatch: "
+                    f"expected={policy_rid}, got={new_cert_policy_rid}"
+                )
+                _log(L.OK,
+                    "New hub cert '%s' has correct PolicyResourceId",
+                    new_hub_cert["name"],
+                )
+
+                _log(L.CMD, "az %s", policy_show_cmd)
+                updated_policy = self.cmd(policy_show_cmd).get_output_in_json()
+                assert updated_policy["properties"]["provisioningState"] == "Succeeded"
+                _log(L.OK, "Policy revoke-issuer complete -- ICA regenerated, hub cert rotated")
 
         finally:
             self.cleanup_full_infra(
@@ -218,6 +182,7 @@ class TestADRPolicyLimits(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_single_policy_limit_per_credential(self):
         """Verify the backend rejects creating more than one policy per credential."""
+        _log(L.TEST, "test_single_policy_limit_per_credential")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
@@ -243,6 +208,7 @@ class TestADRPolicyLimits(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_revoke_nonexistent_policy(self):
         """Attempting revoke-issuer on a nonexistent policy should fail."""
+        _log(L.TEST, "test_revoke_nonexistent_policy")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
