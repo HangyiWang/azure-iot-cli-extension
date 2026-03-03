@@ -334,36 +334,49 @@ class TestADRDeviceEdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         namespace_name = generate_adr_namespace_name()
 
         try:
-            self.cmd(
+            _log(L.STEP, "Setup ❯ Create namespace with credential+policy")
+            ns_cmd = (
                 f"iot adr ns create -n {namespace_name} -g {rg} "
                 f"--location {TEST_LOCATION} --enable-credential-policy"
             )
+            _log(L.CMD, "az %s", ns_cmd)
+            self.cmd(ns_cmd)
+            _log(L.RESULT, "ok")
 
             # Device list on empty namespace returns an empty list
-            devices = self.cmd(
-                f"iot adr ns device list --ns {namespace_name} -g {rg}"
-            ).get_output_in_json()
+            _log(L.STEP, "Verify ❯ Device list on empty namespace returns empty")
+            list_cmd = f"iot adr ns device list --ns {namespace_name} -g {rg}"
+            _log(L.CMD, "az %s", list_cmd)
+            devices = self.cmd(list_cmd).get_output_in_json()
             assert isinstance(devices, list)
             assert len(devices) == 0, (
                 f"Expected empty device list on fresh namespace, got {len(devices)} devices"
             )
+            _log(L.OK, "Device list returned empty list (0 devices)")
 
             # Show nonexistent device returns ResourceNotFound
-            self.cmd(
-                f"iot adr ns device show -n nonexistent-device --ns {namespace_name} -g {rg}",
-                expect_failure=True,
-            )
+            _log(L.STEP, "Verify ❯ Show nonexistent device fails")
+            show_cmd = f"iot adr ns device show -n nonexistent-device --ns {namespace_name} -g {rg}"
+            _log(L.CMD, "az %s  (expect failure)", show_cmd)
+            self.cmd(show_cmd, expect_failure=True)
+            _log(L.OK, "Show nonexistent device correctly returned failure")
 
         finally:
+            _log(L.STEP, "Cleanup ❯ Delete Namespace")
             try:
-                self.cmd(f"iot adr ns delete -n {namespace_name} -g {rg} -y")
+                cleanup_cmd = f"iot adr ns delete -n {namespace_name} -g {rg} -y"
+                _log(L.CMD, "az %s", cleanup_cmd)
+                self.cmd(cleanup_cmd)
+                _log(L.RESULT, "ok")
             except Exception as e:
                 _log(L.WARN, "Cleanup failed: %s", e)
 
         # Device list against a nonexistent namespace returns an empty list
         # (the ARM list API does not 404 for a missing parent resource).
-        devices = self.cmd(
-            f"iot adr ns device list --ns nonexistent-ns-{namespace_name} -g {rg}"
-        ).get_output_in_json()
+        _log(L.STEP, "Verify ❯ Device list on nonexistent namespace returns empty")
+        nonexistent_list_cmd = f"iot adr ns device list --ns nonexistent-ns-{namespace_name} -g {rg}"
+        _log(L.CMD, "az %s", nonexistent_list_cmd)
+        devices = self.cmd(nonexistent_list_cmd).get_output_in_json()
         assert isinstance(devices, list)
         assert len(devices) == 0
+        _log(L.OK, "Device list on nonexistent namespace returned empty list")

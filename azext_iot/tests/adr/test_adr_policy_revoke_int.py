@@ -189,19 +189,26 @@ class TestADRPolicyLimits(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         try:
             default_policy = self.setup_namespace_with_policy(namespace_name, rg)
             assert default_policy["properties"]["provisioningState"] == "Succeeded"
+            _log(L.OK, "Default policy created with provisioningState=Succeeded")
 
             # Second policy should be rejected
+            _log(L.STEP, "Verify ❯ Second policy creation is rejected")
+            second_cmd = f"iot adr ns policy create --ns {namespace_name} -g {rg} --policy-name secondpolicy --cert-key-type ECC"
+            _log(L.CMD, "az %s  (expect failure)", second_cmd)
             with pytest.raises(Exception):
-                self.cmd(f"iot adr ns policy create --ns {namespace_name} -g {rg} --policy-name secondpolicy --cert-key-type ECC")
+                self.cmd(second_cmd)
+            _log(L.OK, "Backend correctly rejected second policy creation")
 
             # Only one Succeeded policy should exist
-            policies = self.cmd(
-                f"iot adr ns policy list --ns {namespace_name} -g {rg}"
-            ).get_output_in_json()
+            _log(L.STEP, "Verify ❯ Only one Succeeded policy exists")
+            list_cmd = f"iot adr ns policy list --ns {namespace_name} -g {rg}"
+            _log(L.CMD, "az %s", list_cmd)
+            policies = self.cmd(list_cmd).get_output_in_json()
 
             succeeded = [p for p in policies if p["properties"]["provisioningState"] == "Succeeded"]
             assert len(succeeded) == 1
             assert succeeded[0]["name"] == "default"
+            _log(L.OK, "Exactly 1 Succeeded policy: name=%s", succeeded[0]["name"])
 
         finally:
             self.cleanup_namespace(namespace_name, rg)
@@ -215,10 +222,14 @@ class TestADRPolicyLimits(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         try:
             self.setup_namespace_with_policy(namespace_name, rg)
 
+            _log(L.STEP, "Verify ❯ Revoke on nonexistent policy is rejected")
+            revoke_cmd = (
+                f"iot adr ns policy revoke-issuer --ns {namespace_name} -g {rg} "
+                f"--policy-name nonexistent -y"
+            )
+            _log(L.CMD, "az %s  (expect failure)", revoke_cmd)
             with pytest.raises(Exception):
-                self.cmd(
-                    f"iot adr ns policy revoke-issuer --ns {namespace_name} -g {rg} "
-                    f"--policy-name nonexistent -y"
-                )
+                self.cmd(revoke_cmd)
+            _log(L.OK, "Backend correctly rejected revoke on nonexistent policy")
         finally:
             self.cleanup_namespace(namespace_name, rg)
