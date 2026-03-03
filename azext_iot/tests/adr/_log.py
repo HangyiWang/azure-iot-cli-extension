@@ -33,11 +33,11 @@ _PRETTY_LOG = os.environ.get("PRETTY_LOG")
 
 _ANSI_RESET = "\033[0m"
 _ANSI = {
-    "gold":    "\033[38;2;202;157;100m",  # #CA9D64 Earthsong yellow – sandy gold
-    "sage":    "\033[38;2;153;166;103m",  # #99A667 Earthsong green – sage olive
-    "terra":   "\033[38;2;181;92;56m",    # #B55C38 Earthsong red – terracotta
-    "clay":    "\033[38;2;170;163;155m",  # #AAA39B Earthsong light warm gray – output
-    "dim":     "\033[38;2;84;74;70m",     # #544A46 Earthsong bright black – warm gray
+    "gold": "\033[38;2;202;157;100m",  # #CA9D64 Earthsong yellow – sandy gold
+    "sage": "\033[38;2;153;166;103m",  # #99A667 Earthsong green – sage olive
+    "terra": "\033[38;2;181;92;56m",    # #B55C38 Earthsong red – terracotta
+    "clay": "\033[38;2;170;163;155m",  # #AAA39B Earthsong light warm gray – output
+    "dim": "\033[38;2;84;74;70m",     # #544A46 Earthsong bright black – warm gray
 }
 
 
@@ -52,16 +52,16 @@ class L:
 
 
 _STYLES = {
-    L.TEST:   ("▶ TEST: ", "gold"),
-    L.STEP:   ("",          "gold"),
-    L.CMD:    ("  › ",      "sage"),
-    L.RESULT: ("  ↳ ",      "clay"),
-    L.OK:     ("  ✓ ",      "sage"),
-    L.WARN:   ("  ⚠ ",      "terra"),
+    L.TEST: ("▶ TEST: ", "gold"),
+    L.STEP: ("", "gold"),
+    L.CMD: ("  › ", "sage"),
+    L.RESULT: ("  ↳ ", "clay"),
+    L.OK: ("  ✓ ", "sage"),
+    L.WARN: ("  ⚠ ", "terra"),
     # internal-only styles (not exposed via L, used by helpers below)
-    "_pass":  ("✓ PASS ",   "sage"),
-    "_fail":  ("✗ FAIL ",   "terra"),
-    "_time":  ("  ⏱ ",      "dim"),
+    "_pass": ("✓ PASS ", "sage"),
+    "_fail": ("✗ FAIL ", "terra"),
+    "_time": ("  ⏱ ", "dim"),
 }
 
 

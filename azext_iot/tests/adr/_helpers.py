@@ -172,7 +172,8 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
             adr_resource_id = namespace["id"]
 
             assert namespace["properties"]["provisioningState"] == "Succeeded"
-            _log(L.RESULT, 
+            _log(
+                L.RESULT,
                 "id=%s, identity=%s",
                 adr_resource_id,
                 namespace.get("identity", {}).get("type"),
@@ -192,7 +193,8 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 )
                 _log(L.CMD, "az %s", policy_show_cmd)
                 policy = self.cmd(policy_show_cmd).get_output_in_json()
-                _log(L.RESULT, 
+                _log(
+                    L.RESULT,
                     "provisioningState=%s",
                     policy["properties"]["provisioningState"],
                 )
@@ -216,7 +218,8 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 _log(L.CMD, "az %s", create_cmd)
                 policy = self.cmd(create_cmd).get_output_in_json()
 
-                _log(L.RESULT, 
+                _log(
+                    L.RESULT,
                     "provisioningState=%s",
                     policy["properties"]["provisioningState"],
                 )
@@ -240,7 +243,8 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
             _log(L.CMD, "az %s", hub_show_cmd)
             hub_show = self.cmd(hub_show_cmd).get_output_in_json()
             adr_props = hub_show.get("properties", {}).get("deviceRegistry", {})
-            _log(L.RESULT, 
+            _log(
+                L.RESULT,
                 "ADR config: nsResourceId=%s",
                 adr_props.get("namespaceResourceId"),
             )
@@ -341,7 +345,8 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 sync_succeeded = True
                 _log(L.RESULT, "ok")
             except Exception as e:
-                _log(L.WARN,
+                _log(
+                    L.WARN,
                     "Sync LRO failed (may be false negative): %s",
                     str(e)[:300],
                 )
@@ -431,7 +436,8 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
         Returns the policy resource JSON.
         """
         mode = "BYOR" if enable_byor else f"standard (cert-key-type={CUSTOM_CERT_KEY_TYPE})"
-        _log(L.STEP, 
+        _log(
+            L.STEP,
             "Lightweight Setup ❯ Namespace + Credential + Policy (policy=%s, mode=%s)",
             policy_name, mode,
         )

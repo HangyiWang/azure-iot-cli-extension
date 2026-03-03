@@ -75,7 +75,8 @@ class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioT
                 _log(L.CMD, "az %s", policy_show_cmd)
                 pre_policy = self.cmd(policy_show_cmd).get_output_in_json()
                 pre_ca = get_ca_config(pre_policy)
-                _log(L.RESULT,
+                _log(
+                    L.RESULT,
                     "Pre-revoke policy CA: keyType=%s, subject=%s",
                     pre_ca.get("keyType"), pre_ca.get("subject"),
                 )
@@ -100,7 +101,8 @@ class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioT
                 post_policy = self.cmd(policy_show_cmd).get_output_in_json()
                 post_ca = get_ca_config(post_policy)
                 post_subject = post_ca.get("subject")
-                _log(L.RESULT,
+                _log(
+                    L.RESULT,
                     "Post-revoke policy: state=%s, subject=%s (was %s)",
                     post_policy["properties"]["provisioningState"],
                     post_subject, pre_subject,
@@ -127,7 +129,8 @@ class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioT
             # --- Step 4: Ensure new ICA is on hub (follow-up sync if needed) ---
             if auto_synced_cert is None:
                 with timed_step("Step 4 ❯ Follow-up Sync (new ICA was NOT auto-synced)"):
-                    _log(L.WARN,
+                    _log(
+                        L.WARN,
                         "Backend did not auto-sync new ICA to hub after revoke -- "
                         "performing manual credential sync as workaround",
                     )
@@ -140,7 +143,8 @@ class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioT
                         "New ICA certificate should be on hub after follow-up sync"
                     )
                     assert new_hub_cert["name"] != initial_hub_cert_name
-                    _log(L.OK,
+                    _log(
+                        L.OK,
                         "New hub cert after manual sync: %s (was %s)",
                         new_hub_cert["name"], initial_hub_cert_name,
                     )
@@ -157,7 +161,8 @@ class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioT
                     f"New hub cert PolicyResourceId mismatch: "
                     f"expected={policy_rid}, got={new_cert_policy_rid}"
                 )
-                _log(L.OK,
+                _log(
+                    L.OK,
                     "New hub cert '%s' has correct PolicyResourceId",
                     new_hub_cert["name"],
                 )

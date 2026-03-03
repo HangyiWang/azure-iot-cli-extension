@@ -47,7 +47,8 @@ class TestADRInfrastructure(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         device_id = generate_device_id()
         enrollment_group_id = generate_enrollment_group_id()
 
-        _log(L.STEP, 
+        _log(
+            L.STEP,
             "Info ❯ ns=%s hub=%s dps=%s",
             namespace_name, hub_name, dps_name,
         )

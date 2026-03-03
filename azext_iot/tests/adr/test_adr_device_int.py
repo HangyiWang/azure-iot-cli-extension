@@ -106,8 +106,11 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
                 from azure.iot.device import ProvisioningDeviceClient
 
-                _log(L.CMD, "[SDK] ProvisioningDeviceClient.register(host=%s, id=%s, scope=%s)",
-                               DPS_PROVISIONING_HOST, device_id, id_scope)
+                _log(
+                    L.CMD,
+                    "[SDK] ProvisioningDeviceClient.register(host=%s, id=%s, scope=%s)",
+                    DPS_PROVISIONING_HOST, device_id, id_scope,
+                )
                 client = ProvisioningDeviceClient.create_from_symmetric_key(
                     provisioning_host=DPS_PROVISIONING_HOST,
                     registration_id=device_id,
@@ -116,7 +119,8 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 client.client_certificate_signing_request = csr_pem
                 result = client.register()
-                _log(L.RESULT,
+                _log(
+                    L.RESULT,
                     "DPS registration: status=%s, device_id=%s, assigned_hub=%s",
                     result.status,
                     result.registration_state.device_id if result.registration_state else "N/A",
@@ -184,7 +188,8 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 baseline = device_cmd(f"show -n {device_id}").get_output_in_json()
                 prev_version = baseline.get("version")
                 prev_transition = baseline.get("lastTransitionTime")
-                _log(L.OK,
+                _log(
+                    L.OK,
                     "Baseline before revoke: version=%s, lastTransitionTime=%s",
                     prev_version, prev_transition,
                 )
@@ -209,7 +214,8 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                         revoke_result = device_cmd(
                             f"revoke -n {device_id} {revoke_args} -y"
                         ).get_output_in_json()
-                        _log(L.OK,
+                        _log(
+                            L.OK,
                             "[%s] Revoke response: result=%s, error=%s",
                             call_label,
                             revoke_result.get("result"),
@@ -220,7 +226,8 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                         )
                     except Exception as e:
                         if "get_output_in_json" in str(e) or "JSON" in str(e).upper():
-                            _log(L.WARN,
+                            _log(
+                                L.WARN,
                                 "[%s] Could not parse revoke response as JSON — "
                                 "command may not return structured output: %s",
                                 call_label, str(e)[:200],
@@ -249,7 +256,8 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                             f"[{call_label}] lastTransitionTime should change: "
                             f"prev={prev_transition}, cur={cur_transition}"
                         )
-                    _log(L.OK,
+                    _log(
+                        L.OK,
                         "[%s] ADR device: enabled=%s, version=%s→%s, transition=%s→%s",
                         call_label, d.get("enabled"),
                         prev_version, cur_version,
@@ -271,7 +279,8 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                         if new_hub_thumbprint != prev_hub_thumbprint:
                             break
                         if attempt < max_attempts:
-                            _log(L.WARN,
+                            _log(
+                                L.WARN,
                                 "[%s] Hub thumbprint unchanged (attempt %d/%d), "
                                 "retrying in 15s ...",
                                 call_label, attempt, max_attempts,
@@ -279,12 +288,14 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                             time.sleep(15)
 
                     if new_hub_thumbprint != prev_hub_thumbprint:
-                        _log(L.OK,
+                        _log(
+                            L.OK,
                             "[%s] Hub thumbprint changed: %s → %s",
                             call_label, prev_hub_thumbprint, new_hub_thumbprint,
                         )
                     else:
-                        _log(L.WARN,
+                        _log(
+                            L.WARN,
                             "[%s] Hub thumbprint did NOT change after %d attempts: %s",
                             call_label, max_attempts, prev_hub_thumbprint,
                         )

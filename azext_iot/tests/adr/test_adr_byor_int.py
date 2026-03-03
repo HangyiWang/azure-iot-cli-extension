@@ -240,12 +240,14 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
                 post_revoke_certs = self.get_hub_certificates(hub_name, rg)
                 post_revoke_cert_names = [c["name"] for c in post_revoke_certs]
                 if first_hub_cert_name not in post_revoke_cert_names:
-                    _log(L.OK,
+                    _log(
+                        L.OK,
                         "Old BYOR ICA '%s' auto-removed from hub after revoke",
                         first_hub_cert_name,
                     )
                 else:
-                    _log(L.WARN,
+                    _log(
+                        L.WARN,
                         "Old BYOR ICA '%s' still on hub after revoke (not auto-removed)",
                         first_hub_cert_name,
                     )
@@ -263,7 +265,8 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
                 assert second_thumbprint != first_thumbprint, (
                     "Thumbprint must change after revoke + re-activate"
                 )
-                _log(L.OK,
+                _log(
+                    L.OK,
                     "Re-activated with new thumbprint=%s (was %s)",
                     second_thumbprint, first_thumbprint,
                 )
@@ -276,7 +279,8 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
             # --- Step 6: Ensure new ICA is on hub (sync if needed) + final verification ---
             if auto_synced_cert is None:
                 with timed_step("Step 6 ❯ Sync After Re-activation (new ICA was NOT auto-synced)"):
-                    _log(L.WARN,
+                    _log(
+                        L.WARN,
                         "Backend did not auto-sync new BYOR ICA to hub after re-activate -- "
                         "performing manual credential sync as workaround",
                     )
@@ -296,7 +300,8 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
                         "New BYOR ICA should be on hub after re-activation + sync"
                     )
                     assert new_hub_cert["name"] != first_hub_cert_name
-                    _log(L.OK,
+                    _log(
+                        L.OK,
                         "New BYOR ICA '%s' found on hub after manual sync (was '%s')",
                         new_hub_cert["name"], first_hub_cert_name,
                     )
@@ -312,7 +317,8 @@ class TestADRPolicyBYORLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTes
                 f"New hub cert PolicyResourceId mismatch: "
                 f"expected={policy_rid}, got={new_cert_policy_rid}"
             )
-            _log(L.OK,
+            _log(
+                L.OK,
                 "New hub cert '%s' has correct PolicyResourceId",
                 new_hub_cert["name"],
             )
