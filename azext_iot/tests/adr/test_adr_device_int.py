@@ -181,6 +181,67 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 assert updated.get("operatingSystemVersion") == "3.0.0"
                 assert updated.get("tags", {}).get("env") == "test"
 
+            with timed_step("Step 4b ❯ Set & Clear Attributes"):
+                # Set attributes
+                updated = device_cmd(
+                    'update -n {device_id} --attributes \'{{"region": "us", "tier": 1}}\''.format(
+                        device_id=device_id
+                    )
+                ).get_output_in_json()
+                assert updated.get("attributes", {}).get("region") == "us"
+                assert updated.get("attributes", {}).get("tier") == 1
+                _log(L.OK, "Attributes set on device '%s'", device_id)
+
+                # Clear attributes
+                updated = device_cmd(
+                    "update -n {device_id} --attributes '{{}}'".format(device_id=device_id)
+                ).get_output_in_json()
+                assert updated.get("attributes") == {} or updated.get("attributes") is None
+                _log(L.OK, "Attributes cleared on device '%s'", device_id)
+
+            with timed_step("Step 4c ❯ Clear OS Version"):
+                # Ensure os-version is set
+                updated = device_cmd(
+                    f"update -n {device_id} --os-version 4.0.0"
+                ).get_output_in_json()
+                assert updated.get("operatingSystemVersion") == "4.0.0"
+
+                # Clear os-version
+                updated = device_cmd(
+                    f"update -n {device_id} --os-version ''"
+                ).get_output_in_json()
+                assert updated.get("operatingSystemVersion") in ("", None)
+                _log(L.OK, "OS version cleared on device '%s'", device_id)
+
+            with timed_step("Step 4d ❯ Clear Tags"):
+                # Ensure tags are set
+                updated = device_cmd(
+                    f"update -n {device_id} --tags env=staging"
+                ).get_output_in_json()
+                assert updated.get("tags", {}).get("env") == "staging"
+
+                # Clear all tags
+                updated = device_cmd(
+                    f"update -n {device_id} --tags ''"
+                ).get_output_in_json()
+                assert updated.get("tags") in ({}, None)
+                _log(L.OK, "Tags cleared on device '%s'", device_id)
+
+            with timed_step("Step 4e ❯ Clear Policy"):
+                # Ensure policy is assigned
+                updated = device_cmd(
+                    f"update -n {device_id} --policy-resource-id {infra['policy_resource_id']}"
+                ).get_output_in_json()
+                assert updated.get("policy")
+                _log(L.OK, "Policy re-assigned before clear test")
+
+                # Clear policy
+                updated = device_cmd(
+                    f"update -n {device_id} --policy-resource-id ''"
+                ).get_output_in_json()
+                assert not updated.get("policy") or not updated.get("policy", {}).get("resourceId")
+                _log(L.OK, "Policy cleared on device '%s'", device_id)
+
                 # Re-enable for revoke tests
                 device_cmd(f"update -n {device_id} --enabled true")
 

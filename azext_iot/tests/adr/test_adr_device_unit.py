@@ -147,3 +147,221 @@ def test_device_revoke_response_with_error(fixture_device_provider, mock_poller)
     assert result == mock_revoke_result
     assert result.result == "Failed"
     assert result.error.message == "Device not found"
+
+
+# --- Update: clearing / emptying property tests ---
+
+
+def test_device_update_clear_tags(fixture_device_provider, mock_poller):
+    """--tags '' sends an empty dict to clear all tags."""
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        tags={},
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={"tags": {}},
+    )
+
+
+def test_device_update_clear_attributes_empty_dict(fixture_device_provider, mock_poller):
+    """--attributes '{}' sends an empty dict to clear all attributes."""
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        attributes={},
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={"attributes": {}},
+    )
+
+
+def test_device_update_attributes_json_string(fixture_device_provider, mock_poller):
+    """attributes arriving as a JSON string are parsed into a dict."""
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        attributes='{"key": "value", "num": 42}',
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={"attributes": {"key": "value", "num": 42}},
+    )
+
+
+def test_device_update_clear_attributes_json_string(fixture_device_provider, mock_poller):
+    """attributes arriving as '{}' JSON string are parsed into an empty dict."""
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        attributes="{}",
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={"attributes": {}},
+    )
+
+
+def test_device_update_clear_os_version(fixture_device_provider, mock_poller):
+    """--os-version '' sends an empty string to clear the OS version."""
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        operating_system_version="",
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={"operating_system_version": ""},
+    )
+
+
+def test_device_update_clear_policy(fixture_device_provider, mock_poller):
+    """--policy-resource-id '' sends policy=None to dissociate the policy."""
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        policy_resource_id="",
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={"policy": None},
+    )
+
+
+def test_device_update_noop(fixture_device_provider, mock_poller):
+    """Calling update with all defaults sends an empty properties dict (no-op)."""
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={},
+    )
+
+
+def test_device_update_clear_all_clearable(fixture_device_provider, mock_poller):
+    """Clear all clearable properties in a single update call."""
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        tags={},
+        operating_system_version="",
+        attributes={},
+        policy_resource_id="",
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={
+            "tags": {},
+            "operating_system_version": "",
+            "attributes": {},
+            "policy": None,
+        },
+    )
+
+
+def test_device_update_set_and_clear_mixed(fixture_device_provider, mock_poller):
+    """Set some properties while clearing others in the same call."""
+    mock_device = Mock()
+    poller = mock_poller(mock_device)
+    fixture_device_provider.client.namespace_devices.begin_update.return_value = poller
+
+    result = fixture_device_provider.update(
+        device_name="test-device",
+        namespace_name="test-namespace",
+        resource_group_name="test-rg",
+        enabled=True,
+        tags={"env": "prod"},
+        operating_system_version="",
+        attributes={},
+        policy_resource_id="",
+    )
+
+    assert result == mock_device
+    fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        device_name="test-device",
+        properties={
+            "enabled": True,
+            "tags": {"env": "prod"},
+            "operating_system_version": "",
+            "attributes": {},
+            "policy": None,
+        },
+    )

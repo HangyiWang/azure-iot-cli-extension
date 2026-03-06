@@ -10,7 +10,7 @@ from knack.log import get_logger
 from rich.console import Console
 
 from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import wait_for_terminal_state
+from azext_iot.common.utility import shell_safe_json_parse, wait_for_terminal_state
 
 console = Console()
 logger = get_logger(__name__)
@@ -57,9 +57,14 @@ class DeviceProvider(ADRProvider):
         if operating_system_version is not None:
             properties["operating_system_version"] = operating_system_version
         if attributes is not None:
+            if isinstance(attributes, str):
+                attributes = shell_safe_json_parse(attributes)
             properties["attributes"] = attributes
         if policy_resource_id is not None:
-            properties["policy"] = {"resource_id": policy_resource_id}
+            if policy_resource_id == "":
+                properties["policy"] = None
+            else:
+                properties["policy"] = {"resource_id": policy_resource_id}
 
         with console.status(
             f"Updating device '{device_name}' in namespace {namespace_name}..."
