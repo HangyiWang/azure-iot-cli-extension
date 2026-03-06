@@ -57,11 +57,8 @@ DEPENDENCIES = [
     "tqdm~=4.62",
     "treelib~=1.6",
     "packaging>=23.2",
-<<<<<<< HEAD
     "rich>=13.6,<14.0"
-=======
     "azure-eventhub~=5.15.0",
->>>>>>> dev
 ]
 EXTRAS = {}
 
