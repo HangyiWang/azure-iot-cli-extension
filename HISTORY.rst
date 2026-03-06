@@ -3,45 +3,24 @@
 Release History
 ===============
 
-0.30.0b1 (Preview)
+0.28.1
 +++++++++++++++
 
 **General updates**
 
-* This is a preview release for IoT Hub Gen2 and Certificate Management using Azure Device Registry.
-* This release requires Azure CLI core version `2.67.0` or later.
-* To install preview extensions, you will need to add the `--allow-preview` argument to `az extension add/update` commands.
-* This release alters several existing IoT Hub and DPS commands from CLI core modules, namely control-plane create/update commands for Hub and DPS.
-* These commands will display the following expected warning when using this extension:
+* Updated ``azure-iot-device`` dependency to ``>=2.15.0rc1,<3.0.0dev0`` for Windows platform compatibility.
 
-  - `The behavior of this command has been altered by the following extension: azure-iot`
+0.28.0
++++++++++++++++
 
-**Azure Device Registry updates**
+**General updates**
 
-* New command group `az iot adr ns` to manage Azure Device Registry namespaces, policies and credentials
+* **[Breaking Change]** Replaced `uamqp` dependency with `azure-eventhub` (PyAMQP). This change removes the need to install the `uamqp` Cython package.
 
-  - `az iot adr ns` to manage Device Registry namespaces.
-  - `az iot adr ns credential` to manage namespace credentials.
-  - `az iot adr ns policy` to manage namespace policies.
+  * The `--repair` / `-r` argument for `az iot hub monitor-events` and related commands is now deprecated and has no effect.
+  * Commands affected: `az iot hub monitor-events`, `az iot hub monitor-feedback`, `az iot device c2d-message send`, `az iot central diagnostics monitor-events`
 
-* New management SDK using `2025-11-01-preview` API version.
-
-**IoT Hub updates**
-
-* New management SDK using `2025-08-01-preview` API version.
-* New Hub `Gen2` SKU to support ADR integration.
-* `Gen2` hub creation now supports linking an ADR namespace using `--ns-resource-id` and `--ns-identity-id` arguments.
-
-  - When linking an ADR namespace, our CLI will attempt to create role assignments for the ADR namespace to manage the Hub.
-  - `--skip-ns-ra` can be used to skip role assignment creation, or `--custom-ns-role-id` can be used to specify a custom role assignment.
-
-**DPS updates**
-
-* New management SDK using `2025-02-01-preview` and service SDK using `2025-07-01-preview` API versions.
-* DPS creation now supports linking an ADR namespace with `--ns-resource-id` and `--ns-identity-id` arguments.
-* Enrollment and enrollment-group commands now support configuring an ADR credential policy with the `--credential-policy-name` argument.
-* DPS now support both system and user assigned managed identities.
-
+* Added `azure-eventhub~=5.15.0` as a required dependency.
 
 0.27.0
 +++++++++++++++
