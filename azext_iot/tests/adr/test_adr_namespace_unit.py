@@ -15,7 +15,7 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_NAME,
     IdentityType,
 )
-from azext_iot.tests.adr.conftest import _serializable
+
 
 
 # ==================== Create ====================
@@ -60,7 +60,7 @@ def test_create_namespace(
             "resourceGroup": rg,
         }
         fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
-            _serializable(ns_result_data)
+            ns_result_data
         )
 
         create_kwargs = {
@@ -121,7 +121,7 @@ def test_create_namespace(
 def test_show_namespace(fixture_namespace_provider):
     """Show returns the serialized namespace."""
     expected = {"name": "test-namespace", "location": "eastus"}
-    fixture_namespace_provider.client.namespaces.get.return_value = _serializable(expected)
+    fixture_namespace_provider.client.namespaces.get.return_value = expected
 
     result = fixture_namespace_provider.show(namespace_name="test-namespace", resource_group_name="test-rg")
 
@@ -152,9 +152,7 @@ def test_delete_namespace(fixture_namespace_provider):
 def test_list_namespaces_by_resource_group(fixture_namespace_provider):
     """List by resource group returns serialized results."""
     expected = [{"name": "ns1", "location": "eastus"}, {"name": "ns2", "location": "westus"}]
-    fixture_namespace_provider.client.namespaces.list_by_resource_group.return_value = [
-        _serializable(ns) for ns in expected
-    ]
+    fixture_namespace_provider.client.namespaces.list_by_resource_group.return_value = expected
 
     assert fixture_namespace_provider.list(resource_group_name="test-rg") == expected
     fixture_namespace_provider.client.namespaces.list_by_resource_group.assert_called_once_with(
@@ -165,9 +163,7 @@ def test_list_namespaces_by_resource_group(fixture_namespace_provider):
 def test_list_namespaces_by_subscription(fixture_namespace_provider):
     """List by subscription returns serialized results."""
     expected = [{"name": "ns1", "location": "eastus"}, {"name": "ns2", "location": "westus"}]
-    fixture_namespace_provider.client.namespaces.list_by_subscription.return_value = [
-        _serializable(ns) for ns in expected
-    ]
+    fixture_namespace_provider.client.namespaces.list_by_subscription.return_value = expected
 
     assert fixture_namespace_provider.list() == expected
     fixture_namespace_provider.client.namespaces.list_by_subscription.assert_called_once()
@@ -187,7 +183,7 @@ def test_list_namespaces_by_subscription(fixture_namespace_provider):
 def test_update_namespace(fixture_namespace_provider, mock_poller, namespace_name, resource_group_name, tags):
     """Update triggers begin_update LRO and returns the serialized result."""
     expected = {"name": namespace_name, "location": "eastus"}
-    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(_serializable(expected))
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(expected)
 
     result = fixture_namespace_provider.update(
         namespace_name=namespace_name, resource_group_name=resource_group_name, tags=tags,

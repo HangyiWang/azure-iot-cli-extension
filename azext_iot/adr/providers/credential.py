@@ -38,7 +38,7 @@ class CredentialProvider(ADRProvider):
             namespace = self.client.namespaces.get(
                 resource_group_name=resource_group_name, namespace_name=namespace_name
             )
-            location = namespace.location
+            location = namespace["location"]
             if not location:
                 raise AzureResponseError(
                     "Error attempting to determine location from parent Namespace: "
@@ -46,14 +46,16 @@ class CredentialProvider(ADRProvider):
                 )
 
         with console.status(f"Creating credentials for namespace {namespace_name}..."):
+            resource = {"location": location}
+            if tags:
+                resource["tags"] = tags
             poller = self.client.credentials.begin_create_or_update(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
-                location=location,
-                tags=tags,
+                resource=resource,
             )
             result = wait_for_terminal_state(poller, **kwargs)
-            return result.serialize(keep_readonly=True) if result else result
+            return result if result else result
 
     def show(self, namespace_name: str, resource_group_name: str):
         # Check if parent namespace exists, will 404 if not
@@ -62,7 +64,7 @@ class CredentialProvider(ADRProvider):
         # Show friendly error if credential doesn't exist
         try:
             result = self.client.credentials.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
-            return result.serialize(keep_readonly=True)
+            return result
         except HttpResponseError as e:
             if e.status_code == 404:
                 raise ResourceNotFoundError(

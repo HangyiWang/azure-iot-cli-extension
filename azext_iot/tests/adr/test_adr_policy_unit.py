@@ -11,12 +11,6 @@ from azure.cli.core.azclierror import ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 
 from azext_iot.adr.common import DEFAULT_NS_POLICY_CERT_KEY_TYPE, DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
-from azext_iot.sdk.deviceregistry.mgmt.models import (
-    BringYourOwnRoot,
-    CertificateConfiguration,
-    CertificateConfigurationUpdate,
-)
-from azext_iot.tests.adr.conftest import _serializable
 
 
 # ==================== Helpers ====================
@@ -24,23 +18,20 @@ from azext_iot.tests.adr.conftest import _serializable
 
 def _setup_create(provider, mock_poller, serialized: dict, ns_location: str = "eastus"):
     """Wire up mocks needed for a ``create()`` call."""
-    provider.client.policies.begin_create_or_update.return_value = mock_poller(
-        _serializable(serialized)
-    )
-    ns = Mock()
-    ns.location = ns_location
-    provider.client.namespaces.get.return_value = ns
+    provider.client.policies.begin_create_or_update.return_value = mock_poller(serialized)
+    provider.client.namespaces.get.return_value = {"location": ns_location}
 
 
 def _setup_show(provider, serialized: dict):
     """Wire up mocks needed for a ``show()`` call (namespaces.get + policies.get)."""
-    provider.client.namespaces.get.return_value = Mock()
-    provider.client.policies.get.return_value = _serializable(serialized)
+    provider.client.namespaces.get.return_value = {}
+    provider.client.policies.get.return_value = serialized
 
 
-def _get_create_cert(provider) -> CertificateConfiguration:
-    """Extract the ``certificate`` kwarg from the last ``begin_create_or_update`` call."""
-    return provider.client.policies.begin_create_or_update.call_args[1]["certificate"]
+def _get_create_cert(provider) -> dict:
+    """Extract the certificate dict from the last ``begin_create_or_update`` resource body."""
+    resource = provider.client.policies.begin_create_or_update.call_args[1]["resource"]
+    return resource.get("properties", {}).get("certificate")
 
 
 # ==================== Create ====================
@@ -75,9 +66,9 @@ def test_create_policy(fixture_policy_provider, mock_poller, key_type, subject, 
 
     cert = _get_create_cert(fixture_policy_provider)
     if any([key_type, subject, days]):
-        assert isinstance(cert, CertificateConfiguration)
-        assert cert.certificate_authority_configuration.key_type == (key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE)
-        assert cert.leaf_certificate_configuration.validity_period_in_days == (days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS)
+        assert isinstance(cert, dict)
+        assert cert["certificateAuthorityConfiguration"]["keyType"] == (key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE)
+        assert cert["leafCertificateConfiguration"]["validityPeriodInDays"] == (days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS)
     else:
         assert cert is None
 
@@ -96,8 +87,8 @@ def test_create_policy_defaults(fixture_policy_provider, mock_poller, key_type, 
 
     cert = _get_create_cert(fixture_policy_provider)
     if any([key_type, subject, days]):
-        assert cert.certificate_authority_configuration.key_type == (key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE)
-        assert cert.leaf_certificate_configuration.validity_period_in_days == (days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS)
+        assert cert["certificateAuthorityConfiguration"]["keyType"] == (key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE)
+        assert cert["leafCertificateConfiguration"]["validityPeriodInDays"] == (days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS)
     else:
         assert cert is None
 
@@ -111,12 +102,11 @@ def test_create_byor(fixture_policy_provider, mock_poller):
     )
 
     cert = _get_create_cert(fixture_policy_provider)
-    assert isinstance(cert, CertificateConfiguration)
-    ca = cert.certificate_authority_configuration
-    assert isinstance(ca.bring_your_own_root, BringYourOwnRoot)
-    assert ca.bring_your_own_root.enabled is True
-    assert ca.key_type == DEFAULT_NS_POLICY_CERT_KEY_TYPE
-    assert cert.leaf_certificate_configuration.validity_period_in_days == DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
+    assert isinstance(cert, dict)
+    ca = cert["certificateAuthorityConfiguration"]
+    assert ca["bringYourOwnRoot"]["enabled"] is True
+    assert ca["keyType"] == DEFAULT_NS_POLICY_CERT_KEY_TYPE
+    assert cert["leafCertificateConfiguration"]["validityPeriodInDays"] == DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
 
 
 def test_create_byor_with_custom_options(fixture_policy_provider, mock_poller):
@@ -129,9 +119,9 @@ def test_create_byor_with_custom_options(fixture_policy_provider, mock_poller):
     )
 
     cert = _get_create_cert(fixture_policy_provider)
-    assert cert.certificate_authority_configuration.bring_your_own_root.enabled is True
-    assert cert.certificate_authority_configuration.key_type == "ECC"
-    assert cert.leaf_certificate_configuration.validity_period_in_days == 60
+    assert cert["certificateAuthorityConfiguration"]["bringYourOwnRoot"]["enabled"] is True
+    assert cert["certificateAuthorityConfiguration"]["keyType"] == "ECC"
+    assert cert["leafCertificateConfiguration"]["validityPeriodInDays"] == 60
 
 
 # ==================== Show ====================
@@ -159,8 +149,8 @@ def test_list_policies(fixture_policy_provider):
     """List returns serialized results for each policy."""
     fixture_policy_provider.client.namespaces.get.return_value = Mock()
     fixture_policy_provider.client.policies.list_by_resource_group.return_value = [
-        _serializable({"name": "a"}),
-        _serializable({"name": "b"}),
+        {"name": "a"},
+        {"name": "b"},
     ]
 
     result = fixture_policy_provider.list(namespace_name="ns", resource_group_name="rg")
@@ -200,12 +190,12 @@ def test_update_policy(fixture_policy_provider, mock_poller, days):
 
     assert result["name"] == "p"
 
-    cert_update = fixture_policy_provider.client.policies.begin_update.call_args[1]["certificate"]
+    resource = fixture_policy_provider.client.policies.begin_update.call_args[1]["properties"]
     if days is not None:
-        assert isinstance(cert_update, CertificateConfigurationUpdate)
-        assert cert_update.leaf_certificate_configuration.validity_period_in_days == days
+        cert_config = resource["properties"]["certificate"]
+        assert cert_config["leafCertificateConfiguration"]["validityPeriodInDays"] == days
     else:
-        assert cert_update is None
+        assert "certificate" not in resource.get("properties", {})
 
 
 # ==================== Revoke Issuer ====================
@@ -253,7 +243,7 @@ def test_activate_byor(fixture_policy_provider, mock_poller):
     assert result == show_data
     fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.assert_called_once_with(
         resource_group_name="rg", namespace_name="ns", policy_name="p",
-        certificate_chain=chain,
+        body={"certificateChain": chain},
     )
 
 

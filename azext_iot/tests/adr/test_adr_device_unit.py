@@ -57,9 +57,10 @@ def test_device_update_enabled(fixture_device_provider, mock_poller, enabled):
     )
 
     assert result == mock_device
-    expected_props = {}
     if enabled is not None:
-        expected_props["enabled"] = enabled
+        expected_props = {"properties": {"enabled": enabled}}
+    else:
+        expected_props = {}
     fixture_device_provider.client.namespace_devices.begin_update.assert_called_once_with(
         resource_group_name="test-rg",
         namespace_name="test-namespace",
@@ -93,16 +94,18 @@ def test_device_update_all_fields(fixture_device_provider, mock_poller):
         namespace_name="test-namespace",
         device_name="test-device",
         properties={
-            "enabled": False,
-            "tags": {"env": "test"},
-            "operating_system_version": "2.0.1",
-            "attributes": {"key": "value"},
-            "policy": {
-                "resource_id": (
-                    "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.DeviceRegistry/"
-                    "namespaces/ns/credentials/default/policies/p1"
-                )
+            "properties": {
+                "enabled": False,
+                "operatingSystemVersion": "2.0.1",
+                "attributes": {"key": "value"},
+                "policy": {
+                    "resourceId": (
+                        "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.DeviceRegistry/"
+                        "namespaces/ns/credentials/default/policies/p1"
+                    )
+                },
             },
+            "tags": {"env": "test"},
         },
     )
 
@@ -126,7 +129,7 @@ def test_device_revoke(fixture_device_provider, mock_poller, disable):
         resource_group_name="test-rg",
         namespace_name="test-namespace",
         device_name="test-device",
-        disable=disable,
+        body={"disable": disable},
     )
 
 
@@ -192,7 +195,7 @@ def test_device_update_clear_attributes_empty_dict(fixture_device_provider, mock
         resource_group_name="test-rg",
         namespace_name="test-namespace",
         device_name="test-device",
-        properties={"attributes": {}},
+        properties={"properties": {"attributes": {}}},
     )
 
 
@@ -214,7 +217,7 @@ def test_device_update_attributes_json_string(fixture_device_provider, mock_poll
         resource_group_name="test-rg",
         namespace_name="test-namespace",
         device_name="test-device",
-        properties={"attributes": {"key": "value", "num": 42}},
+        properties={"properties": {"attributes": {"key": "value", "num": 42}}},
     )
 
 
@@ -236,7 +239,7 @@ def test_device_update_clear_attributes_json_string(fixture_device_provider, moc
         resource_group_name="test-rg",
         namespace_name="test-namespace",
         device_name="test-device",
-        properties={"attributes": {}},
+        properties={"properties": {"attributes": {}}},
     )
 
 
@@ -258,7 +261,7 @@ def test_device_update_clear_os_version(fixture_device_provider, mock_poller):
         resource_group_name="test-rg",
         namespace_name="test-namespace",
         device_name="test-device",
-        properties={"operating_system_version": ""},
+        properties={"properties": {"operatingSystemVersion": ""}},
     )
 
 
@@ -280,7 +283,7 @@ def test_device_update_clear_policy(fixture_device_provider, mock_poller):
         resource_group_name="test-rg",
         namespace_name="test-namespace",
         device_name="test-device",
-        properties={"policy": None},
+        properties={"properties": {"policy": None}},
     )
 
 
@@ -327,10 +330,12 @@ def test_device_update_clear_all_clearable(fixture_device_provider, mock_poller)
         namespace_name="test-namespace",
         device_name="test-device",
         properties={
+            "properties": {
+                "operatingSystemVersion": "",
+                "attributes": {},
+                "policy": None,
+            },
             "tags": {},
-            "operating_system_version": "",
-            "attributes": {},
-            "policy": None,
         },
     )
 
@@ -358,10 +363,12 @@ def test_device_update_set_and_clear_mixed(fixture_device_provider, mock_poller)
         namespace_name="test-namespace",
         device_name="test-device",
         properties={
-            "enabled": True,
+            "properties": {
+                "enabled": True,
+                "operatingSystemVersion": "",
+                "attributes": {},
+                "policy": None,
+            },
             "tags": {"env": "prod"},
-            "operating_system_version": "",
-            "attributes": {},
-            "policy": None,
         },
     )

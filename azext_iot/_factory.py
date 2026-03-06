@@ -118,14 +118,14 @@ def adr_service_factory(cli_ctx, *_):
     """
     from azure.cli.core.commands.client_factory import get_subscription_id
 
-    from azext_iot.sdk.deviceregistry.mgmt import MicrosoftDeviceRegistryManagementService
+    from azext_iot.sdk.deviceregistry import MicrosoftDeviceRegistryManagementService
 
     subscription_id = get_subscription_id(cli_ctx)
 
     return MicrosoftDeviceRegistryManagementService(
         credential=AZURE_CLI_CREDENTIAL,
         subscription_id=subscription_id,
-        base_url="https://centraluseuap.management.azure.com/",
+        endpoint="https://centraluseuap.management.azure.com/",
         user_agent_policy=UserAgentPolicy(user_agent=USER_AGENT),
         http_logging_policy=_get_default_logging_policy(),
     )

@@ -48,23 +48,27 @@ class DeviceProvider(ADRProvider):
         **kwargs,
     ):
         """Update a device in the namespace."""
-        properties = {}
+        inner_props = {}
 
-        if tags is not None:
-            properties["tags"] = tags
         if enabled is not None:
-            properties["enabled"] = enabled
+            inner_props["enabled"] = enabled
         if operating_system_version is not None:
-            properties["operating_system_version"] = operating_system_version
+            inner_props["operatingSystemVersion"] = operating_system_version
         if attributes is not None:
             if isinstance(attributes, str):
                 attributes = shell_safe_json_parse(attributes)
-            properties["attributes"] = attributes
+            inner_props["attributes"] = attributes
         if policy_resource_id is not None:
             if policy_resource_id == "":
-                properties["policy"] = None
+                inner_props["policy"] = None
             else:
-                properties["policy"] = {"resource_id": policy_resource_id}
+                inner_props["policy"] = {"resourceId": policy_resource_id}
+
+        properties = {}
+        if inner_props:
+            properties["properties"] = inner_props
+        if tags is not None:
+            properties["tags"] = tags
 
         with console.status(
             f"Updating device '{device_name}' in namespace {namespace_name}..."
@@ -93,6 +97,6 @@ class DeviceProvider(ADRProvider):
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 device_name=device_name,
-                disable=disable,
+                body={"disable": disable},
             )
             return wait_for_terminal_state(poller, **kwargs)

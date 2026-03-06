@@ -10,7 +10,7 @@ import pytest
 from azure.cli.core.azclierror import ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 
-from azext_iot.tests.adr.conftest import _ns_mock, _serializable
+
 
 
 # ==================== Create ====================
@@ -33,9 +33,9 @@ def test_create_credential(
     expected = {"name": "default", "location": "eastus"}
     ns_location = "namespace_location"
     fixture_credential_provider.client.credentials.begin_create_or_update.return_value = mock_poller(
-        _serializable(expected)
+        expected
     )
-    fixture_credential_provider.client.namespaces.get.return_value = _ns_mock(ns_location)
+    fixture_credential_provider.client.namespaces.get.return_value = {"location": ns_location}
 
     result = fixture_credential_provider.create(
         namespace_name=namespace_name, resource_group_name=resource_group_name, location=location, tags=tags,
@@ -53,9 +53,9 @@ def test_create_credential(
     kw = fixture_credential_provider.client.credentials.begin_create_or_update.call_args[1]
     assert kw["resource_group_name"] == resource_group_name
     assert kw["namespace_name"] == namespace_name
-    assert kw["location"] == (location or ns_location)
+    assert kw["resource"]["location"] == (location or ns_location)
     if tags:
-        assert kw["tags"] == tags
+        assert kw["resource"]["tags"] == tags
 
 
 # ==================== Show ====================
@@ -65,7 +65,7 @@ def test_show_credential(fixture_credential_provider):
     """Show returns the serialized credential."""
     expected = {"name": "default", "location": "eastus", "properties": {"status": "active"}}
     fixture_credential_provider.client.namespaces.get.return_value = Mock()
-    fixture_credential_provider.client.credentials.get.return_value = _serializable(expected)
+    fixture_credential_provider.client.credentials.get.return_value = expected
 
     result = fixture_credential_provider.show(namespace_name="test-namespace", resource_group_name="test-rg")
 

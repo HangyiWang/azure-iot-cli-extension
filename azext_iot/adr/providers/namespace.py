@@ -87,8 +87,7 @@ class NamespaceProvider(ADRProvider):
             )
             namespace_result = wait_for_terminal_state(poller, **kwargs)
 
-        # Convert model object to REST API wire format for CLI output compatibility
-        namespace_result = namespace_result.serialize(keep_readonly=True)
+
 
         # TODO - CMS Preview - create response does not include resource group
         if not namespace_result.get("resourceGroup"):
@@ -126,14 +125,14 @@ class NamespaceProvider(ADRProvider):
 
     def show(self, namespace_name: str, resource_group_name: str):
         result = self.client.namespaces.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
-        return result.serialize(keep_readonly=True)
+        return result
 
     def list(self, resource_group_name: Optional[str] = None):
         if resource_group_name:
             results = self.client.namespaces.list_by_resource_group(resource_group_name=resource_group_name)
         else:
             results = self.client.namespaces.list_by_subscription()
-        return [item.serialize(keep_readonly=True) for item in results]
+        return list(results)
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
         logger.warning(
@@ -163,4 +162,4 @@ class NamespaceProvider(ADRProvider):
                 properties=properties,
             )
             result = wait_for_terminal_state(poller, **kwargs)
-            return result.serialize(keep_readonly=True) if result else result
+            return result if result else result

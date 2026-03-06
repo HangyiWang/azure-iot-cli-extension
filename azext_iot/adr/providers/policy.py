@@ -18,14 +18,6 @@ from azext_iot.adr.common import (
 )
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.common.utility import wait_for_terminal_state
-from azext_iot.sdk.deviceregistry.mgmt.models import (
-    BringYourOwnRoot,
-    CertificateAuthorityConfiguration,
-    CertificateConfiguration,
-    CertificateConfigurationUpdate,
-    LeafCertificateConfiguration,
-    LeafCertificateConfigurationUpdate,
-)
 
 console = Console()
 logger = get_logger(__name__)
@@ -53,7 +45,7 @@ class PolicyProvider(ADRProvider):
             namespace = self.client.namespaces.get(
                 resource_group_name=resource_group_name, namespace_name=namespace_name
             )
-            location = namespace.location
+            location = namespace["location"]
             if not location:
                 raise AzureResponseError(
                     "Error attempting to determine location from parent Namespace: "
@@ -68,26 +60,28 @@ class PolicyProvider(ADRProvider):
             key_type = certificate_key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE
             validity_days = certificate_validity_days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
 
-            ca_config = CertificateAuthorityConfiguration(
-                key_type=key_type,
-                bring_your_own_root=BringYourOwnRoot(enabled=True) if enable_byor else None,
-            )
-            certificate_config = CertificateConfiguration(
-                certificate_authority_configuration=ca_config,
-                leaf_certificate_configuration=LeafCertificateConfiguration(
-                    validity_period_in_days=validity_days
-                ),
-            )
+            ca_config = {"keyType": key_type}
+            if enable_byor:
+                ca_config["bringYourOwnRoot"] = {"enabled": True}
+
+            certificate_config = {
+                "certificateAuthorityConfiguration": ca_config,
+                "leafCertificateConfiguration": {"validityPeriodInDays": validity_days},
+            }
+
+        resource = {"properties": {}}
+        if certificate_config:
+            resource["properties"]["certificate"] = certificate_config
 
         with console.status(f"Creating policy '{policy_name}' for namespace {namespace_name}..."):
             poller = self.client.policies.begin_create_or_update(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,
-                certificate=certificate_config,
+                resource=resource,
             )
             result = wait_for_terminal_state(poller, **kwargs)
-            return result.serialize(keep_readonly=True) if result else result
+            return result if result else result
 
     def show(self, policy_name: str, namespace_name: str, resource_group_name: str):
         # Ensure namespace exists
@@ -99,7 +93,7 @@ class PolicyProvider(ADRProvider):
                 namespace_name=namespace_name,
                 policy_name=policy_name,
             )
-            return result.serialize(keep_readonly=True)
+            return result
         except HttpResponseError as e:
             if e.status_code == 404 and "ParentResourceNotFound" in str(e):
                 raise ResourceNotFoundError(
@@ -118,7 +112,7 @@ class PolicyProvider(ADRProvider):
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
             )
-            return [item.serialize(keep_readonly=True) for item in results]
+            return list(results)
         except HttpResponseError as e:
             if e.status_code == 404 and "ParentResourceNotFound" in str(e):
                 raise ResourceNotFoundError(
@@ -147,22 +141,21 @@ class PolicyProvider(ADRProvider):
         certificate_validity_days: Optional[int] = None,
         **kwargs,
     ):
-        # Build certificate update model if needed
-        cert_update = None
+        # Build certificate update dict if needed
+        resource = {"properties": {}}
+        if tags is not None:
+            resource["tags"] = tags
         if certificate_validity_days is not None:
-            leaf_update = LeafCertificateConfigurationUpdate(
-                validity_period_in_days=certificate_validity_days
-            )
-            cert_update = CertificateConfigurationUpdate(
-                leaf_certificate_configuration=leaf_update
-            )
+            resource["properties"]["certificate"] = {
+                "leafCertificateConfiguration": {"validityPeriodInDays": certificate_validity_days}
+            }
 
         with console.status(f"Updating policy '{policy_name}' for namespace {namespace_name}..."):
             poller = self.client.policies.begin_update(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,
-                certificate=cert_update,
+                properties=resource,
             )
             wait_for_terminal_state(poller, **kwargs)
 
@@ -216,7 +209,7 @@ class PolicyProvider(ADRProvider):
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,
-                certificate_chain=certificate_chain,
+                body={"certificateChain": certificate_chain},
             )
             try:
                 wait_for_terminal_state(poller, **kwargs)
