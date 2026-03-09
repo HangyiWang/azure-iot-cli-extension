@@ -10,18 +10,23 @@ Shared helpers for ADR integration tests that require Azure infrastructure.
 Contains:
 - ``ADRHubInfraHelper``: setup / teardown for tests needing an ADR namespace
   linked to an IoT Hub (UAMI, namespace, credential, policy, Hub Gen2).
-- ``sign_csr_with_ca``: sign a BYOR CSR with a freshly generated EC CA via openssl.
+- ``sign_csr_with_ca``: sign a BYOR CSR with a freshly generated EC CA.
 - Policy JSON extraction helpers (``get_byor_config``, ``get_ca_config``).
 """
 
+import datetime
 import os
-import subprocess
 import tempfile
 import time
 from typing import Dict, List, Optional
 
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+
 from azext_iot.tests.adr._log import (  # noqa: F401 – re-exported for back-compat
-    L,
+    LogKind,
     _fmt_duration,
     _log,
     timed_step,
@@ -53,69 +58,82 @@ def get_ca_config(policy: dict) -> dict:
 
 def sign_csr_with_ca(csr_pem: str, valid_days: int = 730) -> str:
     """
-    Sign a CSR with a freshly generated EC CA using openssl CLI.
+    Sign a CSR with a freshly generated EC CA using the cryptography library.
 
-    We use openssl rather than Python's cryptography library because the backend
-    generates ECDSA CSRs with explicit curve parameters, which cryptography
-    cannot parse. The backend also requires ECDSA signatures (rejects RSA).
+    The backend requires ECDSA signatures (rejects RSA), so we use P-384.
 
     Returns the certificate chain (signed cert + CA cert) as a PEM string.
     """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        paths = {k: os.path.join(tmpdir, v) for k, v in {
-            "csr": "csr.pem", "ca_key": "ca.key", "ca_cert": "ca.crt",
-            "signed": "signed.crt", "ext": "ext.cnf",
-        }.items()}
+    now = datetime.datetime.now(datetime.timezone.utc)
 
-        # Write CSR
-        with open(paths["csr"], "w", encoding="utf-8") as f:
-            f.write(csr_pem)
+    # Generate EC P-384 CA key
+    ca_key = ec.generate_private_key(ec.SECP384R1())
 
-        # Generate EC P-384 CA key (must match backend's ECC curve)
-        subprocess.run(
-            ["openssl", "ecparam", "-genkey", "-name", "secp384r1",
-             "-noout", "-out", paths["ca_key"]],
-            check=True, capture_output=True,
+    # Self-signed CA certificate
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Test BYOR Root CA")])
+    ca_cert = (
+        x509.CertificateBuilder()
+        .subject_name(ca_name)
+        .issuer_name(ca_name)
+        .public_key(ca_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now)
+        .not_valid_after(now + datetime.timedelta(days=3650))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                key_cert_sign=True, crl_sign=True,
+                digital_signature=False, content_commitment=False,
+                key_encipherment=False, data_encipherment=False,
+                key_agreement=False, encipher_only=False, decipher_only=False,
+            ),
+            critical=True,
         )
+        .sign(ca_key, hashes.SHA384())
+    )
 
-        # Self-signed CA certificate (use SHA-384 to match P-384 curve)
-        subprocess.run(
-            ["openssl", "req", "-x509", "-new", "-sha384",
-             "-key", paths["ca_key"], "-out", paths["ca_cert"],
-             "-days", "3650", "-subj", "/CN=Test BYOR Root CA",
-             "-addext", "basicConstraints=critical,CA:TRUE,pathlen:1",
-             "-addext", "keyUsage=critical,keyCertSign,cRLSign"],
-            check=True, capture_output=True,
+    # Parse the CSR
+    csr = x509.load_pem_x509_csr(csr_pem.encode())
+
+    # Sign the CSR — produce an intermediate CA certificate
+    # extendedKeyUsage = clientAuth is REQUIRED for BYOR activation
+    signed_cert = (
+        x509.CertificateBuilder()
+        .subject_name(csr.subject)
+        .issuer_name(ca_cert.subject)
+        .public_key(csr.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now)
+        .not_valid_after(now + datetime.timedelta(days=valid_days))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True, key_cert_sign=True, crl_sign=True,
+                content_commitment=False, key_encipherment=False,
+                data_encipherment=False, key_agreement=False,
+                encipher_only=False, decipher_only=False,
+            ),
+            critical=True,
         )
-
-        # X.509 extensions for the signed ICA certificate
-        # extendedKeyUsage = clientAuth is REQUIRED for BYOR activation
-        with open(paths["ext"], "w", encoding="utf-8") as f:
-            f.write(
-                "[v3_intermediate_ca]\n"
-                "basicConstraints = critical, CA:TRUE, pathlen:0\n"
-                "keyUsage = critical, digitalSignature, keyCertSign, cRLSign\n"
-                "extendedKeyUsage = clientAuth\n"
-                "subjectKeyIdentifier = hash\n"
-                "authorityKeyIdentifier = keyid:always, issuer:always\n"
-            )
-
-        # Sign the CSR (use SHA-384 to match P-384 curve)
-        subprocess.run(
-            ["openssl", "x509", "-req", "-sha384",
-             "-in", paths["csr"], "-CA", paths["ca_cert"], "-CAkey", paths["ca_key"],
-             "-CAcreateserial", "-out", paths["signed"],
-             "-days", str(valid_days), "-extfile", paths["ext"],
-             "-extensions", "v3_intermediate_ca"],
-            check=True, capture_output=True,
+        .add_extension(
+            x509.ExtendedKeyUsage([ExtendedKeyUsageOID.CLIENT_AUTH]),
+            critical=False,
         )
+        .add_extension(
+            x509.SubjectKeyIdentifier.from_public_key(csr.public_key()),
+            critical=False,
+        )
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
+            critical=False,
+        )
+        .sign(ca_key, hashes.SHA384())
+    )
 
-        # Return signed cert + CA cert as chain
-        with open(paths["signed"], encoding="utf-8") as f:
-            signed = f.read()
-        with open(paths["ca_cert"], encoding="utf-8") as f:
-            ca = f.read()
-        return signed + ca
+    # Return signed cert + CA cert as chain
+    signed_pem = signed_cert.public_bytes(serialization.Encoding.PEM).decode()
+    ca_pem = ca_cert.public_bytes(serialization.Encoding.PEM).decode()
+    return signed_pem + ca_pem
 
 
 class ADRHubInfraHelper(RoleAssignmentHelper):
@@ -147,15 +165,15 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
         # UAMI
         with timed_step("Setup 1/6 ❯ Create UAMI"):
             uami_cmd = f"identity create -n {identity_name} -g {resource_group} --location {TEST_LOCATION}"
-            _log(L.CMD, "az %s", uami_cmd)
+            _log(LogKind.CMD, "az %s", uami_cmd)
             identity = self.cmd(uami_cmd).get_output_in_json()
             identity_resource_id = identity["id"]
             identity_principal_id = identity["principalId"]
-            _log(L.RESULT, "principalId=%s", identity_principal_id)
+            _log(LogKind.RESULT, "principalId=%s", identity_principal_id)
 
-            _log(L.CMD, "az account show")
+            _log(LogKind.CMD, "az account show")
             subscription_id = self.cmd("account show").get_output_in_json()["id"]
-            _log(L.RESULT, "subscription=%s", subscription_id)
+            _log(LogKind.RESULT, "subscription=%s", subscription_id)
 
         # Hub RP Contributor on RG
         with timed_step("Setup 2/6 ❯ RBAC: Hub RP Contributor"):
@@ -167,13 +185,13 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 f"iot adr ns create -n {namespace_name} -g {resource_group} "
                 f"--location {TEST_LOCATION} --enable-credential-policy"
             )
-            _log(L.CMD, "az %s", ns_cmd)
+            _log(LogKind.CMD, "az %s", ns_cmd)
             namespace = self.cmd(ns_cmd).get_output_in_json()
             adr_resource_id = namespace["id"]
 
             assert namespace["properties"]["provisioningState"] == "Succeeded"
             _log(
-                L.RESULT,
+                LogKind.RESULT,
                 "id=%s, identity=%s",
                 adr_resource_id,
                 namespace.get("identity", {}).get("type"),
@@ -191,10 +209,10 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                     f"iot adr ns policy show --ns {namespace_name} -g {resource_group} "
                     f"--policy-name {policy_name}"
                 )
-                _log(L.CMD, "az %s", policy_show_cmd)
+                _log(LogKind.CMD, "az %s", policy_show_cmd)
                 policy = self.cmd(policy_show_cmd).get_output_in_json()
                 _log(
-                    L.RESULT,
+                    LogKind.RESULT,
                     "provisioningState=%s",
                     policy["properties"]["provisioningState"],
                 )
@@ -205,9 +223,9 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                     f"iot adr ns policy delete --ns {namespace_name} -g {resource_group} "
                     f"--policy-name default -y"
                 )
-                _log(L.CMD, "az %s", del_cmd)
+                _log(LogKind.CMD, "az %s", del_cmd)
                 self.cmd(del_cmd)
-                _log(L.RESULT, "ok")
+                _log(LogKind.RESULT, "ok")
 
                 byor_flag = " --enable-byor" if enable_byor else ""
                 cert_flag = "" if enable_byor else f" --cert-key-type {CUSTOM_CERT_KEY_TYPE}"
@@ -215,11 +233,11 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                     f"iot adr ns policy create --ns {namespace_name} -g {resource_group} "
                     f"--policy-name {policy_name}{byor_flag}{cert_flag}"
                 )
-                _log(L.CMD, "az %s", create_cmd)
+                _log(LogKind.CMD, "az %s", create_cmd)
                 policy = self.cmd(create_cmd).get_output_in_json()
 
                 _log(
-                    L.RESULT,
+                    LogKind.RESULT,
                     "provisioningState=%s",
                     policy["properties"]["provisioningState"],
                 )
@@ -232,25 +250,25 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 f"--ns-resource-id {adr_resource_id} "
                 f"--ns-identity-id {identity_resource_id}"
             )
-            _log(L.CMD, "az %s", hub_cmd)
-            _log(L.WARN, "Hub provisioning in progress -- this is the slowest step ...")
+            _log(LogKind.CMD, "az %s", hub_cmd)
+            _log(LogKind.WARN, "Hub provisioning in progress -- this is the slowest step ...")
             hub = self.cmd(hub_cmd).get_output_in_json()
 
             assert hub["properties"]["state"] == "Active"
-            _log(L.RESULT, "Hub state=Active")
+            _log(LogKind.RESULT, "Hub state=Active")
 
             hub_show_cmd = f"iot hub show -n {hub_name} -g {resource_group}"
-            _log(L.CMD, "az %s", hub_show_cmd)
+            _log(LogKind.CMD, "az %s", hub_show_cmd)
             hub_show = self.cmd(hub_show_cmd).get_output_in_json()
             adr_props = hub_show.get("properties", {}).get("deviceRegistry", {})
             _log(
-                L.RESULT,
+                LogKind.RESULT,
                 "ADR config: nsResourceId=%s",
                 adr_props.get("namespaceResourceId"),
             )
 
         # Allow time for role assignments and hub-ADR link to propagate
-        _log(L.WARN, "Waiting %ds for role/hub propagation ...", ROLE_PROPAGATION_DELAY)
+        _log(LogKind.WARN, "Waiting %ds for role/hub propagation ...", ROLE_PROPAGATION_DELAY)
         time.sleep(ROLE_PROPAGATION_DELAY)
 
         return {
@@ -292,10 +310,10 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 f"--ns-resource-id {adr_resource_id} "
                 f"--ns-identity-id {identity_resource_id}"
             )
-            _log(L.CMD, "az %s", dps_cmd)
+            _log(LogKind.CMD, "az %s", dps_cmd)
             dps = self.cmd(dps_cmd).get_output_in_json()
             assert dps["properties"]["state"] == "Active"
-            _log(L.RESULT, "DPS state=Active")
+            _log(LogKind.RESULT, "DPS state=Active")
 
         # Link hub to DPS
         with timed_step("Setup-DPS 2/4 ❯ Link Hub to DPS"):
@@ -303,15 +321,15 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 f"iot dps linked-hub create --dps-name {dps_name} -g {resource_group} "
                 f"--hub-name {hub_name}"
             )
-            _log(L.CMD, "az %s", link_cmd)
+            _log(LogKind.CMD, "az %s", link_cmd)
             self.cmd(link_cmd)
-            _log(L.RESULT, "ok")
+            _log(LogKind.RESULT, "ok")
 
             dps_show_cmd = f"iot dps show --name {dps_name} -g {resource_group}"
-            _log(L.CMD, "az %s", dps_show_cmd)
+            _log(LogKind.CMD, "az %s", dps_show_cmd)
             dps_show = self.cmd(dps_show_cmd).get_output_in_json()
             infra["id_scope"] = dps_show["properties"]["idScope"]
-            _log(L.RESULT, "idScope=%s", infra["id_scope"])
+            _log(LogKind.RESULT, "idScope=%s", infra["id_scope"])
 
         # Create enrollment group with credential policy
         with timed_step("Setup-DPS 3/4 ❯ Create Enrollments"):
@@ -320,9 +338,9 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 f"--enrollment-id {enrollment_group_id} "
                 f"--credential-policy-name {policy_name}"
             )
-            _log(L.CMD, "az %s", eg_cmd)
+            _log(LogKind.CMD, "az %s", eg_cmd)
             self.cmd(eg_cmd)
-            _log(L.RESULT, "Enrollment group '%s' created", enrollment_group_id)
+            _log(LogKind.RESULT, "Enrollment group '%s' created", enrollment_group_id)
 
             # Create individual enrollment with credential policy (symmetric key)
             ie_cmd = (
@@ -331,22 +349,22 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 f"--credential-policy-name {policy_name} "
                 f"--attestation-type symmetrickey"
             )
-            _log(L.CMD, "az %s", ie_cmd)
+            _log(LogKind.CMD, "az %s", ie_cmd)
             self.cmd(ie_cmd)
-            _log(L.RESULT, "Individual enrollment '%s' created", device_id)
+            _log(LogKind.RESULT, "Individual enrollment '%s' created", device_id)
 
         # Credential sync
         with timed_step("Setup-DPS 4/4 ❯ Credential Sync"):
             sync_cmd = f"iot adr ns credential sync --ns {namespace_name} -g {resource_group}"
-            _log(L.CMD, "az %s", sync_cmd)
+            _log(LogKind.CMD, "az %s", sync_cmd)
             sync_succeeded = False
             try:
                 self.cmd(sync_cmd)
                 sync_succeeded = True
-                _log(L.RESULT, "ok")
+                _log(LogKind.RESULT, "ok")
             except Exception as e:
                 _log(
-                    L.WARN,
+                    LogKind.WARN,
                     "Sync LRO failed (may be false negative): %s",
                     str(e)[:300],
                 )
@@ -356,7 +374,7 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
                 f"No certificates on hub after sync (LRO succeeded={sync_succeeded}). "
                 "This indicates a real sync failure."
             )
-            _log(L.OK, "Certificates synced to hub")
+            _log(LogKind.OK, "Certificates synced to hub")
 
         infra["policy_resource_id"] = self.build_policy_resource_id(
             subscription_id, resource_group, namespace_name, policy_name,
@@ -375,10 +393,10 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
     def get_hub_certificates(self, hub_name: str, resource_group: str) -> List[dict]:
         """Return the list of certificates on an IoT Hub."""
         cert_cmd = f"iot hub certificate list --hub-name {hub_name} -g {resource_group}"
-        _log(L.CMD, "az %s", cert_cmd)
+        _log(LogKind.CMD, "az %s", cert_cmd)
         certs = self.cmd(cert_cmd).get_output_in_json()
         result = certs.get("value", [])
-        _log(L.RESULT, "Certs: count=%d", len(result))
+        _log(LogKind.RESULT, "Certs: count=%d", len(result))
         return result
 
     def find_hub_cert_by_policy(
@@ -399,12 +417,12 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
         Does NOT call credential sync — only reads the current hub cert list.
         Returns the cert dict if found, else None.
         """
-        _log(L.STEP, "%s ❯ checking hub for cert (no manual sync)", context_label)
+        _log(LogKind.STEP, "%s ❯ checking hub for cert (no manual sync)", context_label)
         cert = self.find_hub_cert_by_policy(hub_name, resource_group, policy_resource_id)
         if cert:
-            _log(L.OK, "%s ❯ cert auto-synced to hub: %s", context_label, cert["name"])
+            _log(LogKind.OK, "%s ❯ cert auto-synced to hub: %s", context_label, cert["name"])
         else:
-            _log(L.WARN, "%s ❯ cert NOT auto-synced to hub (not found)", context_label)
+            _log(LogKind.WARN, "%s ❯ cert NOT auto-synced to hub (not found)", context_label)
         return cert
 
     def get_hub_device_identity(
@@ -412,9 +430,9 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
     ) -> dict:
         """Return the IoT Hub device identity for a given device."""
         cmd = f"iot hub device-identity show -n {hub_name} -g {resource_group} -d {device_id}"
-        _log(L.CMD, "az %s", cmd)
+        _log(LogKind.CMD, "az %s", cmd)
         result = self.cmd(cmd).get_output_in_json()
-        _log(L.RESULT, "Hub device auth type=%s", result.get("authentication", {}).get("type"))
+        _log(LogKind.RESULT, "Hub device auth type=%s", result.get("authentication", {}).get("type"))
         return result
 
     def build_policy_resource_id(
@@ -437,29 +455,29 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
         """
         mode = "BYOR" if enable_byor else f"standard (cert-key-type={CUSTOM_CERT_KEY_TYPE})"
         _log(
-            L.STEP,
+            LogKind.STEP,
             "Lightweight Setup ❯ Namespace + Credential + Policy (policy=%s, mode=%s)",
             policy_name, mode,
         )
         setup_start = time.monotonic()
         ns_cmd = f"iot adr ns create -n {namespace_name} -g {resource_group} --location {TEST_LOCATION}"
-        _log(L.CMD, "az %s", ns_cmd)
+        _log(LogKind.CMD, "az %s", ns_cmd)
         self.cmd(ns_cmd)
-        _log(L.RESULT, "ok")
+        _log(LogKind.RESULT, "ok")
 
         cred_cmd = f"iot adr ns credential create --ns {namespace_name} -g {resource_group}"
-        _log(L.CMD, "az %s", cred_cmd)
+        _log(LogKind.CMD, "az %s", cred_cmd)
         self.cmd(cred_cmd)
-        _log(L.RESULT, "ok")
+        _log(LogKind.RESULT, "ok")
 
         byor_flag = " --enable-byor" if enable_byor else f" --cert-key-type {CUSTOM_CERT_KEY_TYPE}"
         policy_cmd = (
             f"iot adr ns policy create --ns {namespace_name} -g {resource_group} "
             f"--policy-name {policy_name}{byor_flag}"
         )
-        _log(L.CMD, "az %s", policy_cmd)
+        _log(LogKind.CMD, "az %s", policy_cmd)
         result = self.cmd(policy_cmd).get_output_in_json()
-        _log(L.RESULT, "provisioningState=%s", result["properties"]["provisioningState"])
+        _log(LogKind.RESULT, "provisioningState=%s", result["properties"]["provisioningState"])
         _log("_time", "(%s)", _fmt_duration(time.monotonic() - setup_start))
         return result
 
@@ -469,29 +487,29 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
     ) -> dict:
         """Sign a BYOR CSR with a test CA, activate the policy, and return updated policy JSON."""
         activate_start = time.monotonic()
-        _log(L.CMD, "[local] Signing CSR with test CA via openssl ...")
+        _log(LogKind.CMD, "[local] Signing CSR with test CA via openssl ...")
         chain_pem = sign_csr_with_ca(csr_pem)
         with tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False) as f:
             f.write(chain_pem)
             cert_file = f.name
-        _log(L.RESULT, "Certificate chain written to %s", cert_file)
+        _log(LogKind.RESULT, "Certificate chain written to %s", cert_file)
         try:
             activate_cmd = (
                 f"iot adr ns policy activate-byor --ns {namespace_name} -g {resource_group} "
                 f"--policy-name {policy_name} --certificate-chain-file {cert_file}"
             )
-            _log(L.CMD, "az %s", activate_cmd)
+            _log(LogKind.CMD, "az %s", activate_cmd)
             self.cmd(activate_cmd)
-            _log(L.RESULT, "ok")
+            _log(LogKind.RESULT, "ok")
         finally:
             os.unlink(cert_file)
         show_cmd = (
             f"iot adr ns policy show --ns {namespace_name} -g {resource_group} "
             f"--policy-name {policy_name}"
         )
-        _log(L.CMD, "az %s", show_cmd)
+        _log(LogKind.CMD, "az %s", show_cmd)
         result = self.cmd(show_cmd).get_output_in_json()
-        _log(L.RESULT, "provisioningState=%s", result["properties"]["provisioningState"])
+        _log(LogKind.RESULT, "provisioningState=%s", result["properties"]["provisioningState"])
         _log("_time", "(%s)", _fmt_duration(time.monotonic() - activate_start))
         return result
 
@@ -499,12 +517,12 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
         """Delete just the ADR namespace (lightweight tests)."""
         with timed_step("Cleanup ❯ Delete Namespace"):
             cleanup_cmd = f"iot adr ns delete -n {namespace_name} -g {resource_group} -y"
-            _log(L.CMD, "az %s", cleanup_cmd)
+            _log(LogKind.CMD, "az %s", cleanup_cmd)
             try:
                 self.cmd(cleanup_cmd)
-                _log(L.RESULT, "ok")
+                _log(LogKind.RESULT, "ok")
             except Exception as e:
-                _log(L.WARN, "Cleanup failed: %s", e)
+                _log(LogKind.WARN, "Cleanup failed: %s", e)
 
     def cleanup_full_infra(
         self,
@@ -515,7 +533,7 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
         dps_name: Optional[str] = None,
     ):
         """Best-effort cleanup of all infrastructure resources."""
-        _log(L.STEP, "Cleanup ❯ Delete All Infrastructure")
+        _log(LogKind.STEP, "Cleanup ❯ Delete All Infrastructure")
         cleanup_start = time.monotonic()
         for label, cmd in [
             ("DPS", f"iot dps delete --name {dps_name} -g {resource_group}" if dps_name else None),
@@ -524,10 +542,10 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
             ("UAMI", f"identity delete -n {identity_name} -g {resource_group}" if identity_name else None),
         ]:
             if cmd:
-                _log(L.CMD, "az %s", cmd)
+                _log(LogKind.CMD, "az %s", cmd)
                 try:
                     self.cmd(cmd)
-                    _log(L.RESULT, "%s deleted", label)
+                    _log(LogKind.RESULT, "%s deleted", label)
                 except Exception as e:
-                    _log(L.WARN, "%s cleanup failed: %s", label, e)
+                    _log(LogKind.WARN, "%s cleanup failed: %s", label, e)
         _log("_time", "(%s)", _fmt_duration(time.monotonic() - cleanup_start))

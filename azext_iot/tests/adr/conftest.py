@@ -196,14 +196,14 @@ class RoleAssignmentHelper:
         self, assignee_id: str, role: str, scope: str, assignee_type: str = "auto",
     ) -> Optional[str]:
         """Assign an Azure RBAC role, skipping if already assigned."""
-        from azext_iot.tests.adr._log import L, _log
+        from azext_iot.tests.adr._log import LogKind, _log
 
         try:
             check_cmd = f"role assignment list --assignee '{assignee_id}' --scope '{scope}' --role '{role}'"
-            _log(L.CMD, "az %s", check_cmd)
+            _log(LogKind.CMD, "az %s", check_cmd)
             existing = self.cmd(check_cmd).get_output_in_json()
             if existing:
-                _log(L.RESULT, "Role '%s' already assigned (skip)", role)
+                _log(LogKind.RESULT, "Role '%s' already assigned (skip)", role)
                 return existing[0].get("id", "existing")
 
             if assignee_type == "auto":
@@ -213,13 +213,13 @@ class RoleAssignmentHelper:
                     f"role assignment create --assignee-object-id '{assignee_id}' --role '{role}' "
                     f"--scope '{scope}' --assignee-principal-type '{assignee_type}'"
                 )
-            _log(L.CMD, "az %s", create_cmd)
+            _log(LogKind.CMD, "az %s", create_cmd)
             result = self.cmd(create_cmd).get_output_in_json()
-            _log(L.RESULT, "Role '%s' assigned", role)
+            _log(LogKind.RESULT, "Role '%s' assigned", role)
 
             return result.get("id", "unknown")
         except Exception as e:
-            _log(L.WARN, "Failed to assign role '%s': %s", role, e)
+            _log(LogKind.WARN, "Failed to assign role '%s': %s", role, e)
             return None
 
     def assign_hub_rp_contributor_role(self, subscription_id: str, resource_group: str):

@@ -45,7 +45,7 @@ class PolicyProvider(ADRProvider):
             namespace = self.client.namespaces.get(
                 resource_group_name=resource_group_name, namespace_name=namespace_name
             )
-            location = namespace["location"]
+            location = namespace.get("location")
             if not location:
                 raise AzureResponseError(
                     "Error attempting to determine location from parent Namespace: "
@@ -81,19 +81,18 @@ class PolicyProvider(ADRProvider):
                 resource=resource,
             )
             result = wait_for_terminal_state(poller, **kwargs)
-            return result if result else result
+            return result
 
     def show(self, policy_name: str, namespace_name: str, resource_group_name: str):
         # Ensure namespace exists
         self.client.namespaces.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
 
         try:
-            result = self.client.policies.get(
+            return self.client.policies.get(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,
             )
-            return result
         except HttpResponseError as e:
             if e.status_code == 404 and "ParentResourceNotFound" in str(e):
                 raise ResourceNotFoundError(

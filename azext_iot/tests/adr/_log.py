@@ -41,7 +41,7 @@ _ANSI = {
 }
 
 
-class L:
+class LogKind:
     """Log-type constants for ``_log()``.  Use these instead of raw strings."""
     TEST = "test"
     STEP = "step"
@@ -52,12 +52,12 @@ class L:
 
 
 _STYLES = {
-    L.TEST: ("▶ TEST: ", "gold"),
-    L.STEP: ("", "gold"),
-    L.CMD: ("  › ", "sage"),
-    L.RESULT: ("  ↳ ", "clay"),
-    L.OK: ("  ✓ ", "sage"),
-    L.WARN: ("  ⚠ ", "terra"),
+    LogKind.TEST: ("▶ TEST: ", "gold"),
+    LogKind.STEP: ("", "gold"),
+    LogKind.CMD: ("  › ", "sage"),
+    LogKind.RESULT: ("  ↳ ", "clay"),
+    LogKind.OK: ("  ✓ ", "sage"),
+    LogKind.WARN: ("  ⚠ ", "terra"),
     # internal-only styles (not exposed via L, used by helpers below)
     "_pass": ("✓ PASS ", "sage"),
     "_fail": ("✗ FAIL ", "terra"),
@@ -94,9 +94,9 @@ def _log(kind: str, msg: str = "", *args):
     prefix, color = style
 
     # Special pre-processing per kind
-    if kind in (L.TEST, L.STEP):
+    if kind in (LogKind.TEST, LogKind.STEP):
         _raw_log("")  # blank separator line
-    if kind == L.STEP:
+    if kind == LogKind.STEP:
         text = msg % args if args else msg
         msg = f"{text} · {_ts()}"
         args = ()
@@ -129,7 +129,7 @@ def timed_step(label: str, *args):
         with timed_step("Step 3 ❯ Sync credentials"):
             cmd(...)
     """
-    _log(L.STEP, label, *args)
+    _log(LogKind.STEP, label, *args)
     start = time.monotonic()
     yield
     elapsed = time.monotonic() - start

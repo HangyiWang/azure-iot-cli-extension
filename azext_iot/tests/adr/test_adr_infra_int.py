@@ -20,7 +20,7 @@ import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._helpers import ADRHubInfraHelper
-from azext_iot.tests.adr._log import L, _log
+from azext_iot.tests.adr._log import LogKind, _log
 from azext_iot.tests.adr.conftest import (
     TEST_RG,
     generate_adr_namespace_name,
@@ -38,7 +38,7 @@ class TestADRInfrastructure(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_adr_infra_pipeline(self):
         """Validate ADR namespace, credential, policy, hub, DPS, enrollment, and sync."""
-        _log(L.TEST, "test_adr_infra_pipeline")
+        _log(LogKind.TEST, "test_adr_infra_pipeline")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
         hub_name = generate_hub_name()
@@ -48,7 +48,7 @@ class TestADRInfrastructure(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         enrollment_group_id = generate_enrollment_group_id()
 
         _log(
-            L.STEP,
+            LogKind.STEP,
             "Info ❯ ns=%s hub=%s dps=%s",
             namespace_name, hub_name, dps_name,
         )
@@ -68,7 +68,7 @@ class TestADRInfrastructure(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 device_id=device_id,
                 enrollment_group_id=enrollment_group_id,
             )
-            _log(L.OK, "Infrastructure test passed")
+            _log(LogKind.OK, "Infrastructure test passed")
         finally:
             self.cleanup_full_infra(
                 resource_group=rg,

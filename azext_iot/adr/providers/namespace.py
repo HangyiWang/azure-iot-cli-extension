@@ -124,8 +124,7 @@ class NamespaceProvider(ADRProvider):
         return namespace_result
 
     def show(self, namespace_name: str, resource_group_name: str):
-        result = self.client.namespaces.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
-        return result
+        return self.client.namespaces.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
 
     def list(self, resource_group_name: Optional[str] = None):
         if resource_group_name:
@@ -162,4 +161,4 @@ class NamespaceProvider(ADRProvider):
                 properties=properties,
             )
             result = wait_for_terminal_state(poller, **kwargs)
-            return result if result else result
+            return result

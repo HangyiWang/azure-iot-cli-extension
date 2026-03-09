@@ -18,7 +18,7 @@ import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._helpers import ADRHubInfraHelper
-from azext_iot.tests.adr._log import L, _log, timed_step
+from azext_iot.tests.adr._log import LogKind, _log, timed_step
 from azext_iot.tests.adr.conftest import (
     TEST_LOCATION,
     TEST_RG,
@@ -50,7 +50,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     )
     def test_adr_device_provision_crud_and_revoke(self):
         """Provision a device with CSR via preview SDK, then test list/show/update/revoke via CLI."""
-        _log(L.TEST, "test_adr_device_provision_crud_and_revoke")
+        _log(LogKind.TEST, "test_adr_device_provision_crud_and_revoke")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
         hub_name = generate_hub_name()
@@ -98,16 +98,16 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"iot dps enrollment show --dps-name {dps_name} -g {rg} "
                     f"--enrollment-id {device_id} --show-keys"
                 )
-                _log(L.CMD, "az %s", enroll_show_cmd)
+                _log(LogKind.CMD, "az %s", enroll_show_cmd)
                 enrollment_keys = self.cmd(enroll_show_cmd).get_output_in_json()
                 sym_key = enrollment_keys["attestation"]["symmetricKey"]["primaryKey"]
                 id_scope = infra["id_scope"]
-                _log(L.RESULT, "symmetricKey retrieved, idScope=%s", id_scope)
+                _log(LogKind.RESULT, "symmetricKey retrieved, idScope=%s", id_scope)
 
                 from azure.iot.device import ProvisioningDeviceClient
 
                 _log(
-                    L.CMD,
+                    LogKind.CMD,
                     "[SDK] ProvisioningDeviceClient.register(host=%s, id=%s, scope=%s)",
                     DPS_PROVISIONING_HOST, device_id, id_scope,
                 )
@@ -120,7 +120,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 client.client_certificate_signing_request = csr_pem
                 result = client.register()
                 _log(
-                    L.RESULT,
+                    LogKind.RESULT,
                     "DPS registration: status=%s, device_id=%s, assigned_hub=%s",
                     result.status,
                     result.registration_state.device_id if result.registration_state else "N/A",
@@ -129,12 +129,12 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 assert result.status == "assigned", (
                     f"DPS registration failed: status={result.status}"
                 )
-                _log(L.OK, "Device '%s' registered via DPS", device_id)
+                _log(LogKind.OK, "Device '%s' registered via DPS", device_id)
 
             def device_cmd(action):
                 """Run ``iot adr ns device <action>`` against the test namespace."""
                 cmd = f"iot adr ns device {action} --ns {namespace_name} -g {rg}"
-                _log(L.CMD, "az %s", cmd)
+                _log(LogKind.CMD, "az %s", cmd)
                 return self.cmd(cmd)
 
             # Poll until device appears (ZTP provisioning is async)
@@ -151,11 +151,11 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"Device '{device_id}' never appeared in namespace after provisioning."
                 )
                 assert device_id in [d["name"] for d in devices]
-                _log(L.OK, "Device '%s' found in namespace device list", device_id)
+                _log(LogKind.OK, "Device '%s' found in namespace device list", device_id)
 
                 device = device_cmd(f"show -n {device_id}").get_output_in_json()
                 assert device["name"] == device_id
-                _log(L.OK, "Device show returned correct device '%s'", device_id)
+                _log(LogKind.OK, "Device show returned correct device '%s'", device_id)
 
             with timed_step("Step 4 ❯ Assign Policy & Update Device"):
                 updated_dev = device_cmd(
@@ -164,12 +164,12 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 assert updated_dev.get("policy"), (
                     f"Policy assignment failed: {updated_dev}"
                 )
-                _log(L.OK, "Policy assigned to device '%s'", device_id)
+                _log(LogKind.OK, "Policy assigned to device '%s'", device_id)
 
                 for val, expected in [("false", False), ("true", True)]:
                     updated = device_cmd(f"update -n {device_id} --enabled {val}").get_output_in_json()
                     assert updated.get("enabled") is expected
-                    _log(L.OK, "Device enabled=%s after update --enabled %s", expected, val)
+                    _log(LogKind.OK, "Device enabled=%s after update --enabled %s", expected, val)
 
                 updated = device_cmd(f"update -n {device_id} --os-version 2.0.1").get_output_in_json()
                 assert updated.get("operatingSystemVersion") == "2.0.1"
@@ -190,14 +190,14 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 ).get_output_in_json()
                 assert updated.get("attributes", {}).get("region") == "us"
                 assert updated.get("attributes", {}).get("tier") == 1
-                _log(L.OK, "Attributes set on device '%s'", device_id)
+                _log(LogKind.OK, "Attributes set on device '%s'", device_id)
 
                 # Clear attributes
                 updated = device_cmd(
                     "update -n {device_id} --attributes '{{}}'".format(device_id=device_id)
                 ).get_output_in_json()
                 assert updated.get("attributes") == {} or updated.get("attributes") is None
-                _log(L.OK, "Attributes cleared on device '%s'", device_id)
+                _log(LogKind.OK, "Attributes cleared on device '%s'", device_id)
 
             with timed_step("Step 4c ❯ Clear OS Version"):
                 # Ensure os-version is set
@@ -211,7 +211,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"update -n {device_id} --os-version ''"
                 ).get_output_in_json()
                 assert updated.get("operatingSystemVersion") in ("", None)
-                _log(L.OK, "OS version cleared on device '%s'", device_id)
+                _log(LogKind.OK, "OS version cleared on device '%s'", device_id)
 
             with timed_step("Step 4d ❯ Clear Tags"):
                 # Ensure tags are set
@@ -225,7 +225,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"update -n {device_id} --tags ''"
                 ).get_output_in_json()
                 assert updated.get("tags") in ({}, None)
-                _log(L.OK, "Tags cleared on device '%s'", device_id)
+                _log(LogKind.OK, "Tags cleared on device '%s'", device_id)
 
             with timed_step("Step 4e ❯ Clear Policy"):
                 # Ensure policy is assigned
@@ -233,14 +233,14 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"update -n {device_id} --policy-resource-id {infra['policy_resource_id']}"
                 ).get_output_in_json()
                 assert updated.get("policy")
-                _log(L.OK, "Policy re-assigned before clear test")
+                _log(LogKind.OK, "Policy re-assigned before clear test")
 
                 # Clear policy
                 updated = device_cmd(
                     f"update -n {device_id} --policy-resource-id ''"
                 ).get_output_in_json()
                 assert not updated.get("policy") or not updated.get("policy", {}).get("resourceId")
-                _log(L.OK, "Policy cleared on device '%s'", device_id)
+                _log(LogKind.OK, "Policy cleared on device '%s'", device_id)
 
                 # Re-enable for revoke tests
                 device_cmd(f"update -n {device_id} --enabled true")
@@ -250,7 +250,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 prev_version = baseline.get("version")
                 prev_transition = baseline.get("lastTransitionTime")
                 _log(
-                    L.OK,
+                    LogKind.OK,
                     "Baseline before revoke: version=%s, lastTransitionTime=%s",
                     prev_version, prev_transition,
                 )
@@ -262,7 +262,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     .get("x509Thumbprint", {})
                     .get("primaryThumbprint")
                 )
-                _log(L.OK, "Baseline hub primaryThumbprint=%s", prev_hub_thumbprint)
+                _log(LogKind.OK, "Baseline hub primaryThumbprint=%s", prev_hub_thumbprint)
 
             with timed_step("Step 5 ❯ Device Revoke Scenarios"):
                 def revoke_and_check(revoke_args, expected_enabled, label=""):
@@ -276,7 +276,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                             f"revoke -n {device_id} {revoke_args} -y"
                         ).get_output_in_json()
                         _log(
-                            L.OK,
+                            LogKind.OK,
                             "[%s] Revoke response: result=%s, error=%s",
                             call_label,
                             revoke_result.get("result"),
@@ -288,7 +288,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     except Exception as e:
                         if "get_output_in_json" in str(e) or "JSON" in str(e).upper():
                             _log(
-                                L.WARN,
+                                LogKind.WARN,
                                 "[%s] Could not parse revoke response as JSON — "
                                 "command may not return structured output: %s",
                                 call_label, str(e)[:200],
@@ -318,7 +318,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                             f"prev={prev_transition}, cur={cur_transition}"
                         )
                     _log(
-                        L.OK,
+                        LogKind.OK,
                         "[%s] ADR device: enabled=%s, version=%s→%s, transition=%s→%s",
                         call_label, d.get("enabled"),
                         prev_version, cur_version,
@@ -341,7 +341,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                             break
                         if attempt < max_attempts:
                             _log(
-                                L.WARN,
+                                LogKind.WARN,
                                 "[%s] Hub thumbprint unchanged (attempt %d/%d), "
                                 "retrying in 15s ...",
                                 call_label, attempt, max_attempts,
@@ -350,13 +350,13 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
                     if new_hub_thumbprint != prev_hub_thumbprint:
                         _log(
-                            L.OK,
+                            LogKind.OK,
                             "[%s] Hub thumbprint changed: %s → %s",
                             call_label, prev_hub_thumbprint, new_hub_thumbprint,
                         )
                     else:
                         _log(
-                            L.WARN,
+                            LogKind.WARN,
                             "[%s] Hub thumbprint did NOT change after %d attempts: %s",
                             call_label, max_attempts, prev_hub_thumbprint,
                         )
@@ -368,7 +368,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 revoke_and_check("--disable false", expected_enabled=False, label="revoke-disable-false")
 
                 device_cmd(f"update -n {device_id} --enabled true")
-                _log(L.RESULT, "Device re-enabled for idempotency test")
+                _log(LogKind.RESULT, "Device re-enabled for idempotency test")
                 # Update baseline after re-enable (version/transition change from update)
                 re_enabled = device_cmd(f"show -n {device_id}").get_output_in_json()
                 prev_version = re_enabled.get("version")
@@ -376,14 +376,14 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 revoke_and_check("", expected_enabled=True, label="revoke-idempotency")
 
             # Revoke nonexistent device -- expect failure
-            _log(L.STEP, "Step 6 ❯ Negative: Revoke Nonexistent Device")
+            _log(LogKind.STEP, "Step 6 ❯ Negative: Revoke Nonexistent Device")
             nonexistent_revoke_cmd = f"iot adr ns device revoke -n nonexistent-device --ns {namespace_name} -g {rg} -y"
-            _log(L.CMD, "az %s  (expect failure)", nonexistent_revoke_cmd)
+            _log(LogKind.CMD, "az %s  (expect failure)", nonexistent_revoke_cmd)
             self.cmd(
                 nonexistent_revoke_cmd,
                 expect_failure=True,
             )
-            _log(L.OK, "Revoking nonexistent device correctly failed")
+            _log(LogKind.OK, "Revoking nonexistent device correctly failed")
 
         finally:
             self.cleanup_full_infra(
@@ -401,54 +401,54 @@ class TestADRDeviceEdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_adr_device_negative_and_edge_cases(self):
         """Verify device command behavior for empty namespaces, nonexistent resources."""
-        _log(L.TEST, "test_adr_device_negative_and_edge_cases")
+        _log(LogKind.TEST, "test_adr_device_negative_and_edge_cases")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
 
         try:
-            _log(L.STEP, "Setup ❯ Create namespace with credential+policy")
+            _log(LogKind.STEP, "Setup ❯ Create namespace with credential+policy")
             ns_cmd = (
                 f"iot adr ns create -n {namespace_name} -g {rg} "
                 f"--location {TEST_LOCATION} --enable-credential-policy"
             )
-            _log(L.CMD, "az %s", ns_cmd)
+            _log(LogKind.CMD, "az %s", ns_cmd)
             self.cmd(ns_cmd)
-            _log(L.RESULT, "ok")
+            _log(LogKind.RESULT, "ok")
 
             # Device list on empty namespace returns an empty list
-            _log(L.STEP, "Verify ❯ Device list on empty namespace returns empty")
+            _log(LogKind.STEP, "Verify ❯ Device list on empty namespace returns empty")
             list_cmd = f"iot adr ns device list --ns {namespace_name} -g {rg}"
-            _log(L.CMD, "az %s", list_cmd)
+            _log(LogKind.CMD, "az %s", list_cmd)
             devices = self.cmd(list_cmd).get_output_in_json()
             assert isinstance(devices, list)
             assert len(devices) == 0, (
                 f"Expected empty device list on fresh namespace, got {len(devices)} devices"
             )
-            _log(L.OK, "Device list returned empty list (0 devices)")
+            _log(LogKind.OK, "Device list returned empty list (0 devices)")
 
             # Show nonexistent device returns ResourceNotFound
-            _log(L.STEP, "Verify ❯ Show nonexistent device fails")
+            _log(LogKind.STEP, "Verify ❯ Show nonexistent device fails")
             show_cmd = f"iot adr ns device show -n nonexistent-device --ns {namespace_name} -g {rg}"
-            _log(L.CMD, "az %s  (expect failure)", show_cmd)
+            _log(LogKind.CMD, "az %s  (expect failure)", show_cmd)
             self.cmd(show_cmd, expect_failure=True)
-            _log(L.OK, "Show nonexistent device correctly returned failure")
+            _log(LogKind.OK, "Show nonexistent device correctly returned failure")
 
         finally:
-            _log(L.STEP, "Cleanup ❯ Delete Namespace")
+            _log(LogKind.STEP, "Cleanup ❯ Delete Namespace")
             try:
                 cleanup_cmd = f"iot adr ns delete -n {namespace_name} -g {rg} -y"
-                _log(L.CMD, "az %s", cleanup_cmd)
+                _log(LogKind.CMD, "az %s", cleanup_cmd)
                 self.cmd(cleanup_cmd)
-                _log(L.RESULT, "ok")
+                _log(LogKind.RESULT, "ok")
             except Exception as e:
-                _log(L.WARN, "Cleanup failed: %s", e)
+                _log(LogKind.WARN, "Cleanup failed: %s", e)
 
         # Device list against a nonexistent namespace returns an empty list
         # (the ARM list API does not 404 for a missing parent resource).
-        _log(L.STEP, "Verify ❯ Device list on nonexistent namespace returns empty")
+        _log(LogKind.STEP, "Verify ❯ Device list on nonexistent namespace returns empty")
         nonexistent_list_cmd = f"iot adr ns device list --ns nonexistent-ns-{namespace_name} -g {rg}"
-        _log(L.CMD, "az %s", nonexistent_list_cmd)
+        _log(LogKind.CMD, "az %s", nonexistent_list_cmd)
         devices = self.cmd(nonexistent_list_cmd).get_output_in_json()
         assert isinstance(devices, list)
         assert len(devices) == 0
-        _log(L.OK, "Device list on nonexistent namespace returned empty list")
+        _log(LogKind.OK, "Device list on nonexistent namespace returned empty list")
