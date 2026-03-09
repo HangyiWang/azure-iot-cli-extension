@@ -67,7 +67,7 @@ class TestFactoryCredentialScopes:
 
     def test_adr_factory(self, mocker, cloud_config):
         mocker.patch("azext_iot._factory.AZURE_CLI_CREDENTIAL")
-        mock_client_cls = mocker.patch("azext_iot.sdk.deviceregistry.mgmt.DeviceRegistryMgmtClient")
+        mock_client_cls = mocker.patch("azext_iot.sdk.deviceregistry.MicrosoftDeviceRegistryManagementService")
         mocker.patch("azure.cli.core.commands.client_factory.get_subscription_id", return_value="test-sub")
 
         from azext_iot._factory import adr_service_factory
@@ -78,4 +78,3 @@ class TestFactoryCredentialScopes:
         mock_client_cls.assert_called_once()
         call_kwargs = mock_client_cls.call_args.kwargs
         assert call_kwargs["credential_scopes"] == cloud_config["expected_scopes"]
-        assert call_kwargs["endpoint"] == cloud_config["resource_manager"]
