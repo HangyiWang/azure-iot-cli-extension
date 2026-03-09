@@ -128,10 +128,10 @@ class NamespaceProvider(ADRProvider):
 
     def list(self, resource_group_name: Optional[str] = None):
         if resource_group_name:
-            results = self.client.namespaces.list_by_resource_group(resource_group_name=resource_group_name)
+            result = self.client.namespaces.list_by_resource_group(resource_group_name=resource_group_name)
         else:
-            results = self.client.namespaces.list_by_subscription()
-        return list(results)
+            result = self.client.namespaces.list_by_subscription()
+        return list(result)
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
         logger.warning(
