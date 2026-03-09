@@ -145,9 +145,11 @@ class TestADRCrudLifecycle(CaptureOutputLiveScenarioTest):
             leaf, ca = _cert_config(default_policy)
             assert leaf["validityPeriodInDays"] == DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
             assert ca["keyType"] == DEFAULT_NS_POLICY_CERT_KEY_TYPE
-            _log(LogKind.RESULT, "policy=%s, keyType=%s, validityDays=%s",
-                           DEFAULT_NS_POLICY_NAME, DEFAULT_NS_POLICY_CERT_KEY_TYPE,
-                           DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS)
+            _log(
+                LogKind.RESULT, "policy=%s, keyType=%s, validityDays=%s",
+                DEFAULT_NS_POLICY_NAME, DEFAULT_NS_POLICY_CERT_KEY_TYPE,
+                DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
+            )
 
             # Show default credential policy
             policy_show_cmd = (
@@ -189,8 +191,10 @@ class TestADRCrudLifecycle(CaptureOutputLiveScenarioTest):
             assert ca["keyType"] == CUSTOM_CERT_KEY_TYPE
             # TODO - cert subject not respected
             # assert ca["subject"] == CUSTOM_CERT_SUBJECT
-            _log(LogKind.RESULT, "policy=%s, keyType=%s, validityDays=%s",
-                           CUSTOM_POLICY_NAME, CUSTOM_CERT_KEY_TYPE, CUSTOM_CERT_VALIDITY_DAYS)
+            _log(
+                LogKind.RESULT, "policy=%s, keyType=%s, validityDays=%s",
+                CUSTOM_POLICY_NAME, CUSTOM_CERT_KEY_TYPE, CUSTOM_CERT_VALIDITY_DAYS,
+            )
 
             # Show custom credential policy
             custom_show_cmd = f"iot adr ns policy show --ns {namespace_name} -g {rg} --policy-name {CUSTOM_POLICY_NAME}"

@@ -87,8 +87,6 @@ class NamespaceProvider(ADRProvider):
             )
             namespace_result = wait_for_terminal_state(poller, **kwargs)
 
-
-
         # TODO - CMS Preview - create response does not include resource group
         if not namespace_result.get("resourceGroup"):
             namespace_result["resourceGroup"] = resource_group_name

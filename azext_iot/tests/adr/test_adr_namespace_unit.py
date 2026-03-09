@@ -17,7 +17,6 @@ from azext_iot.adr.common import (
 )
 
 
-
 # ==================== Create ====================
 
 
