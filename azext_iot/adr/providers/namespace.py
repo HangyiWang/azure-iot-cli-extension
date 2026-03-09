@@ -139,7 +139,7 @@ class NamespaceProvider(ADRProvider):
             namespace_name,
         )
         logger.warning(
-            "Deletion may fail if there are DPS or IoT Hub instances linked to this namespace. Unlink them first."
+            "Deletion will fail if there are DPS or IoT Hub instances linked to this namespace. Unlink them first."
         )
         with console.status(f"Deleting namespace {namespace_name}..."):
             poller = self.client.namespaces.begin_delete(
