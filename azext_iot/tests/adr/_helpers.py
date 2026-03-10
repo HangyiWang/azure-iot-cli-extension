@@ -42,6 +42,8 @@ from azext_iot.tests.adr.conftest import (
 # Propagation delays (seconds)
 ROLE_PROPAGATION_DELAY = 30
 POLICY_PROPAGATION_DELAY = 15
+BYOR_ACTIVATION_POLL_INTERVAL = 15
+BYOR_ACTIVATION_MAX_POLLS = 12  # up to ~3 minutes
 
 
 def get_byor_config(policy: dict) -> dict:
@@ -510,6 +512,25 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
         _log(LogKind.CMD, "az %s", show_cmd)
         result = self.cmd(show_cmd).get_output_in_json()
         _log(LogKind.RESULT, "provisioningState=%s", result["properties"]["provisioningState"])
+
+        # Poll for BYOR status transition to Active (backend processing is async)
+        byor_cfg = result.get("properties", {}).get("certificate", {}).get(
+            "certificateAuthorityConfiguration", {}
+        ).get("bringYourOwnRoot", {})
+        if byor_cfg.get("status") != "Active":
+            _log(LogKind.WARN, "BYOR status not yet Active, polling ...")
+            for attempt in range(BYOR_ACTIVATION_MAX_POLLS):
+                time.sleep(BYOR_ACTIVATION_POLL_INTERVAL)
+                result = self.cmd(show_cmd).get_output_in_json()
+                byor_cfg = result.get("properties", {}).get("certificate", {}).get(
+                    "certificateAuthorityConfiguration", {}
+                ).get("bringYourOwnRoot", {})
+                if byor_cfg.get("status") == "Active":
+                    _log(LogKind.OK, "BYOR status transitioned to Active (poll %d)", attempt + 1)
+                    break
+            else:
+                _log(LogKind.WARN, "BYOR status still not Active after polling")
+
         _log("_time", "(%s)", _fmt_duration(time.monotonic() - activate_start))
         return result
 

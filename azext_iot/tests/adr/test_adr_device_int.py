@@ -443,12 +443,10 @@ class TestADRDeviceEdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             except Exception as e:
                 _log(LogKind.WARN, "Cleanup failed: %s", e)
 
-        # Device list against a nonexistent namespace returns an empty list
-        # (the ARM list API does not 404 for a missing parent resource).
-        _log(LogKind.STEP, "Verify ❯ Device list on nonexistent namespace returns empty")
+        # Device list against a nonexistent namespace returns a 404
+        # (ParentResourceNotFound) because the parent namespace does not exist.
+        _log(LogKind.STEP, "Verify ❯ Device list on nonexistent namespace fails with 404")
         nonexistent_list_cmd = f"iot adr ns device list --ns nonexistent-ns-{namespace_name} -g {rg}"
-        _log(LogKind.CMD, "az %s", nonexistent_list_cmd)
-        devices = self.cmd(nonexistent_list_cmd).get_output_in_json()
-        assert isinstance(devices, list)
-        assert len(devices) == 0
-        _log(LogKind.OK, "Device list on nonexistent namespace returned empty list")
+        _log(LogKind.CMD, "az %s  (expect failure)", nonexistent_list_cmd)
+        self.cmd(nonexistent_list_cmd, expect_failure=True)
+        _log(LogKind.OK, "Device list on nonexistent namespace correctly returned failure")
