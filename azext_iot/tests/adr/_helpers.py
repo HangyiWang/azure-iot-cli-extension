@@ -14,16 +14,11 @@ Contains:
 - Policy JSON extraction helpers (``get_byor_config``, ``get_ca_config``).
 """
 
-import datetime
 import os
+import subprocess
 import tempfile
 import time
 from typing import Dict, List, Optional
-
-from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 from azext_iot.tests.adr._log import (  # noqa: F401 – re-exported for back-compat
     LogKind,
@@ -60,82 +55,69 @@ def get_ca_config(policy: dict) -> dict:
 
 def sign_csr_with_ca(csr_pem: str, valid_days: int = 730) -> str:
     """
-    Sign a CSR with a freshly generated EC CA using the cryptography library.
+    Sign a CSR with a freshly generated EC CA using openssl CLI.
 
-    The backend requires ECDSA signatures (rejects RSA), so we use P-384.
+    We use openssl rather than Python's cryptography library because the backend
+    generates ECDSA CSRs with explicit curve parameters, which cryptography
+    cannot parse. The backend also requires ECDSA signatures (rejects RSA).
 
     Returns the certificate chain (signed cert + CA cert) as a PEM string.
     """
-    now = datetime.datetime.now(datetime.timezone.utc)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        paths = {k: os.path.join(tmpdir, v) for k, v in {
+            "csr": "csr.pem", "ca_key": "ca.key", "ca_cert": "ca.crt",
+            "signed": "signed.crt", "ext": "ext.cnf",
+        }.items()}
 
-    # Generate EC P-384 CA key
-    ca_key = ec.generate_private_key(ec.SECP384R1())
+        # Write CSR
+        with open(paths["csr"], "w", encoding="utf-8") as f:
+            f.write(csr_pem)
 
-    # Self-signed CA certificate
-    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Test BYOR Root CA")])
-    ca_cert = (
-        x509.CertificateBuilder()
-        .subject_name(ca_name)
-        .issuer_name(ca_name)
-        .public_key(ca_key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(now)
-        .not_valid_after(now + datetime.timedelta(days=3650))
-        .add_extension(x509.BasicConstraints(ca=True, path_length=1), critical=True)
-        .add_extension(
-            x509.KeyUsage(
-                key_cert_sign=True, crl_sign=True,
-                digital_signature=False, content_commitment=False,
-                key_encipherment=False, data_encipherment=False,
-                key_agreement=False, encipher_only=False, decipher_only=False,
-            ),
-            critical=True,
+        # Generate EC P-384 CA key (must match backend's ECC curve)
+        subprocess.run(
+            ["openssl", "ecparam", "-genkey", "-name", "secp384r1",
+             "-noout", "-out", paths["ca_key"]],
+            check=True, capture_output=True,
         )
-        .sign(ca_key, hashes.SHA384())
-    )
 
-    # Parse the CSR
-    csr = x509.load_pem_x509_csr(csr_pem.encode())
+        # Self-signed CA certificate (use SHA-384 to match P-384 curve)
+        subprocess.run(
+            ["openssl", "req", "-x509", "-new", "-sha384",
+             "-key", paths["ca_key"], "-out", paths["ca_cert"],
+             "-days", "3650", "-subj", "/CN=Test BYOR Root CA",
+             "-addext", "basicConstraints=critical,CA:TRUE,pathlen:1",
+             "-addext", "keyUsage=critical,keyCertSign,cRLSign"],
+            check=True, capture_output=True,
+        )
 
-    # Sign the CSR — produce an intermediate CA certificate
-    # extendedKeyUsage = clientAuth is REQUIRED for BYOR activation
-    signed_cert = (
-        x509.CertificateBuilder()
-        .subject_name(csr.subject)
-        .issuer_name(ca_cert.subject)
-        .public_key(csr.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(now)
-        .not_valid_after(now + datetime.timedelta(days=valid_days))
-        .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
-        .add_extension(
-            x509.KeyUsage(
-                digital_signature=True, key_cert_sign=True, crl_sign=True,
-                content_commitment=False, key_encipherment=False,
-                data_encipherment=False, key_agreement=False,
-                encipher_only=False, decipher_only=False,
-            ),
-            critical=True,
-        )
-        .add_extension(
-            x509.ExtendedKeyUsage([ExtendedKeyUsageOID.CLIENT_AUTH]),
-            critical=False,
-        )
-        .add_extension(
-            x509.SubjectKeyIdentifier.from_public_key(csr.public_key()),
-            critical=False,
-        )
-        .add_extension(
-            x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
-            critical=False,
-        )
-        .sign(ca_key, hashes.SHA384())
-    )
+        # X.509 extensions for the signed ICA certificate
+        # extendedKeyUsage = clientAuth is REQUIRED for BYOR activation
+        with open(paths["ext"], "w", encoding="utf-8") as f:
+            f.write(
+                "[v3_intermediate_ca]\n"
+                "basicConstraints = critical, CA:TRUE, pathlen:0\n"
+                "keyUsage = critical, digitalSignature, keyCertSign, cRLSign\n"
+                "extendedKeyUsage = clientAuth\n"
+                "subjectKeyIdentifier = hash\n"
+                "authorityKeyIdentifier = keyid:always, issuer:always\n"
+            )
 
-    # Return signed cert + CA cert as chain
-    signed_pem = signed_cert.public_bytes(serialization.Encoding.PEM).decode()
-    ca_pem = ca_cert.public_bytes(serialization.Encoding.PEM).decode()
-    return signed_pem + ca_pem
+        # Sign the CSR (use SHA-384 to match P-384 curve)
+        subprocess.run(
+            ["openssl", "x509", "-req", "-sha384",
+             "-in", paths["csr"], "-CA", paths["ca_cert"], "-CAkey", paths["ca_key"],
+             "-CAcreateserial", "-out", paths["signed"],
+             "-days", str(valid_days), "-extfile", paths["ext"],
+             "-extensions", "v3_intermediate_ca"],
+            check=True, capture_output=True,
+        )
+
+        # Return signed cert + CA cert as chain
+        with open(paths["signed"], encoding="utf-8") as f:
+            signed = f.read()
+        with open(paths["ca_cert"], encoding="utf-8") as f:
+            ca = f.read()
+        return signed + ca
 
 
 class ADRHubInfraHelper(RoleAssignmentHelper):
