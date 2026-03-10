@@ -91,17 +91,6 @@ class NamespaceProvider(ADRProvider):
         if not namespace_result.get("resourceGroup"):
             namespace_result["resourceGroup"] = resource_group_name
 
-        # Create credential and policy if requested or if policy parameters are provided
-        should_create_credential_policy = any(
-            [
-                enable_credential_policy,
-                policy_name,
-                certificate_key_type is not None,
-                certificate_subject,
-                certificate_validity_days is not None,
-            ]
-        )
-
         if should_create_credential_policy:
             try:
                 from azext_iot.adr.providers.credential import CredentialProvider
@@ -137,11 +126,19 @@ class NamespaceProvider(ADRProvider):
 
     def list(self, resource_group_name: Optional[str] = None):
         if resource_group_name:
-            return list(self.client.namespaces.list_by_resource_group(resource_group_name=resource_group_name))
+            result = self.client.namespaces.list_by_resource_group(resource_group_name=resource_group_name)
         else:
-            return list(self.client.namespaces.list_by_subscription())
+            result = self.client.namespaces.list_by_subscription()
+        return list(result)
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
+        logger.warning(
+            "All child resources (credentials, policies, devices) under namespace '%s' will be deleted.",
+            namespace_name,
+        )
+        logger.warning(
+            "Deletion will fail if there are DPS or IoT Hub instances linked to this namespace. Unlink them first."
+        )
         with console.status(f"Deleting namespace {namespace_name}..."):
             poller = self.client.namespaces.begin_delete(
                 resource_group_name=resource_group_name, namespace_name=namespace_name
@@ -161,4 +158,5 @@ class NamespaceProvider(ADRProvider):
                 namespace_name=namespace_name,
                 properties=properties,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            result = wait_for_terminal_state(poller, **kwargs)
+            return result

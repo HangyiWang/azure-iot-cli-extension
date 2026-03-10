@@ -37,6 +37,7 @@ class PolicyProvider(ADRProvider):
         certificate_key_type: Optional[str] = None,
         certificate_subject: Optional[str] = None,
         certificate_validity_days: Optional[int] = None,
+        enable_byor: Optional[bool] = None,
         **kwargs,
     ):
 
@@ -51,40 +52,36 @@ class PolicyProvider(ADRProvider):
                     "Namespace does not contain a location property."
                 )
 
-        policy_resource = {"location": location}
+        # Build certificate configuration when any cert parameter or BYOR is specified
+        certificate_config = None
+        has_cert_params = any([enable_byor, certificate_key_type, certificate_subject, certificate_validity_days])
 
-        if tags:
-            policy_resource["tags"] = tags
+        if has_cert_params:
+            key_type = certificate_key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE
+            validity_days = certificate_validity_days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
 
-        # Build certificate configuration, for service defaults MUST be empty object
-        properties = {}
+            ca_config = {"keyType": key_type}
+            if enable_byor:
+                ca_config["bringYourOwnRoot"] = {"enabled": True}
 
-        # If user provides custom values, create custom policy cert object
-        if certificate_key_type or certificate_subject or certificate_validity_days:
-            certificate_config = {}
-            # Set defaults for required parameters if not provided
-            if certificate_key_type is None:
-                certificate_key_type = DEFAULT_NS_POLICY_CERT_KEY_TYPE
-            if certificate_validity_days is None:
-                certificate_validity_days = DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
+            certificate_config = {
+                "certificateAuthorityConfiguration": ca_config,
+                "leafCertificateConfiguration": {"validityPeriodInDays": validity_days},
+            }
 
-            ca_config = {"keyType": certificate_key_type}
-            if certificate_subject:
-                ca_config["subject"] = certificate_subject
-            certificate_config["certificateAuthorityConfiguration"] = ca_config
-            certificate_config["leafCertificateConfiguration"] = {"validityPeriodInDays": certificate_validity_days}
-            properties["certificate"] = certificate_config
-
-        policy_resource["properties"] = properties
+        resource = {"properties": {}}
+        if certificate_config:
+            resource["properties"]["certificate"] = certificate_config
 
         with console.status(f"Creating policy '{policy_name}' for namespace {namespace_name}..."):
             poller = self.client.policies.begin_create_or_update(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,
-                resource=policy_resource,
+                resource=resource,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            result = wait_for_terminal_state(poller, **kwargs)
+            return result
 
     def show(self, policy_name: str, namespace_name: str, resource_group_name: str):
         # Ensure namespace exists
@@ -110,12 +107,11 @@ class PolicyProvider(ADRProvider):
         self.client.namespaces.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
 
         try:
-            return list(
-                self.client.policies.list_by_resource_group(
-                    resource_group_name=resource_group_name,
-                    namespace_name=namespace_name,
-                )
+            results = self.client.policies.list_by_resource_group(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
             )
+            return list(results)
         except HttpResponseError as e:
             if e.status_code == 404 and "ParentResourceNotFound" in str(e):
                 raise ResourceNotFoundError(
@@ -140,27 +136,97 @@ class PolicyProvider(ADRProvider):
         namespace_name: str,
         resource_group_name: str,
         tags: Optional[Dict[str, str]] = None,
+        certificate_key_type: Optional[str] = None,
         certificate_validity_days: Optional[int] = None,
         **kwargs,
     ):
-        resource = self.show(
-            policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
-        )
-        if tags:
+        # Build certificate update dict if needed
+        resource = {"properties": {}}
+        if tags is not None:
             resource["tags"] = tags
-
-        properties = resource["properties"]
-        if certificate_validity_days:
-            properties["certificate"]["leafCertificateConfiguration"][
-                "validityPeriodInDays"
-            ] = certificate_validity_days
-        resource["properties"] = properties
+        if certificate_validity_days is not None:
+            resource["properties"]["certificate"] = {
+                "leafCertificateConfiguration": {"validityPeriodInDays": certificate_validity_days}
+            }
 
         with console.status(f"Updating policy '{policy_name}' for namespace {namespace_name}..."):
-            poller = self.client.policies.begin_create_or_update(
+            poller = self.client.policies.begin_update(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,
-                resource=resource,
+                properties=resource,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            wait_for_terminal_state(poller, **kwargs)
+
+        # LRO update may return incomplete object; always fetch updated resource
+        return self.show(
+            policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
+        )
+
+    def revoke_issuer(self, policy_name: str, namespace_name: str, resource_group_name: str, **kwargs):
+        """Revoke the CA certificate for a policy, triggering regeneration of a new CA."""
+        with console.status(f"Revoking issuer certificate for policy '{policy_name}' in namespace {namespace_name}..."):
+            poller = self.client.policies.begin_revoke_issuer(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                policy_name=policy_name,
+            )
+            try:
+                wait_for_terminal_state(poller, **kwargs)
+            except HttpResponseError as e:
+                # The backend returns 200 OK with an empty body when the LRO completes,
+                # but ARMPolling expects a "status" or "provisioningState" field in the
+                # response to determine the terminal state. Without it, ARMPolling falls
+                # back to the HTTP reason phrase "OK" which is not a recognized terminal
+                # state, causing a false-positive error. A real failure would surface as
+                # a 4xx/5xx status code. Swallow the false positive here.
+                if not (e.response and e.response.status_code == 200):
+                    raise
+                logger.debug(
+                    "Revoke issuer LRO returned HTTP 200 but ARMPolling could not "
+                    "determine terminal state from response body. Treating as success."
+                )
+
+        # Fetch updated resource after revocation
+        return self.show(
+            policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
+        )
+
+    def activate_byor(
+        self,
+        policy_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+        certificate_chain: str,
+        **kwargs,
+    ):
+        """Activate or renew a Bring Your Own Root policy with a signed certificate chain."""
+        with console.status(
+            f"Activating BYOR certificate for policy '{policy_name}' in namespace {namespace_name}..."
+        ):
+            poller = self.client.policies.begin_activate_bring_your_own_root(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                policy_name=policy_name,
+                body={"certificateChain": certificate_chain},
+            )
+            try:
+                wait_for_terminal_state(poller, **kwargs)
+            except HttpResponseError as e:
+                # The backend returns 200 OK with an empty body when the LRO completes,
+                # but ARMPolling expects a "status" or "provisioningState" field in the
+                # response to determine the terminal state. Without it, ARMPolling falls
+                # back to the HTTP reason phrase "OK" which is not a recognized terminal
+                # state, causing a false-positive error. A real failure would surface as
+                # a 4xx/5xx status code. Swallow the false positive here.
+                if not (e.response and e.response.status_code == 200):
+                    raise
+                logger.debug(
+                    "Activate BYOR LRO returned HTTP 200 but ARMPolling could not "
+                    "determine terminal state from response body. Treating as success."
+                )
+
+        # Fetch updated resource after activation
+        return self.show(
+            policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
+        )

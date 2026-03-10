@@ -1,3 +1,4 @@
+# pylint: disable=line-too-long,useless-suppression
 # coding=utf-8
 # --------------------------------------------------------------------------
 # Copyright (c) Microsoft Corporation. All rights reserved.
@@ -14,12 +15,11 @@ from azure.mgmt.core.policies import ARMChallengeAuthenticationPolicy, ARMHttpLo
 from ._version import VERSION
 
 if TYPE_CHECKING:
-    # pylint: disable=unused-import,ungrouped-imports
     from azure.core.credentials import TokenCredential
 
 
-class DeviceRegistryMgmtClientConfiguration:  # pylint: disable=too-many-instance-attributes,name-too-long
-    """Configuration for DeviceRegistryMgmtClient.
+class MicrosoftDeviceRegistryManagementServiceConfiguration:  # pylint: disable=too-many-instance-attributes,name-too-long
+    """Configuration for MicrosoftDeviceRegistryManagementService.
 
     Note that all parameters used to create this instance are saved as instance
     attributes.
@@ -28,13 +28,13 @@ class DeviceRegistryMgmtClientConfiguration:  # pylint: disable=too-many-instanc
     :type credential: ~azure.core.credentials.TokenCredential
     :param subscription_id: The ID of the target subscription. The value must be an UUID. Required.
     :type subscription_id: str
-    :keyword api_version: Api Version. Default value is "2025-11-01-preview". Note that overriding
+    :keyword api_version: Api Version. Default value is "2026-03-01-preview". Note that overriding
      this default value may result in unsupported behavior.
     :paramtype api_version: str
     """
 
     def __init__(self, credential: "TokenCredential", subscription_id: str, **kwargs: Any) -> None:
-        api_version: str = kwargs.pop("api_version", "2025-11-01-preview")
+        api_version: str = kwargs.pop("api_version", "2026-03-01-preview")
 
         if credential is None:
             raise ValueError("Parameter 'credential' must not be None.")
@@ -45,7 +45,7 @@ class DeviceRegistryMgmtClientConfiguration:  # pylint: disable=too-many-instanc
         self.subscription_id = subscription_id
         self.api_version = api_version
         self.credential_scopes = kwargs.pop("credential_scopes", ["https://management.azure.com/.default"])
-        kwargs.setdefault("sdk_moniker", "iot/{}".format(VERSION))
+        kwargs.setdefault("sdk_moniker", "deviceregistry/{}".format(VERSION))
         self.polling_interval = kwargs.get("polling_interval", 30)
         self._configure(**kwargs)
 

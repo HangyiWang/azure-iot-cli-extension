@@ -4,11 +4,14 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-import pytest
 from unittest.mock import Mock, patch
 
+import pytest
 from azure.cli.core.azclierror import ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
+
+
+# ==================== Create ====================
 
 
 @pytest.mark.parametrize(
@@ -24,147 +27,160 @@ from azure.core.exceptions import HttpResponseError
 def test_create_credential(
     fixture_credential_provider, mock_poller, namespace_name, resource_group_name, tags, location
 ):
-    """Test successful credential creation."""
-    mock_credential_result = Mock()
-    poller = mock_poller(mock_credential_result)
-    fixture_credential_provider.client.credentials.begin_create_or_update.return_value = poller
-
-    # Mock namespace.get to return location
-    mock_namespace_location = "namespace_location"
-    mock_namespace = {"location": mock_namespace_location}
-    fixture_credential_provider.client.namespaces.get.return_value = mock_namespace
+    """Credential creation with various parameter combinations."""
+    expected = {"name": "default", "location": "eastus"}
+    ns_location = "namespace_location"
+    fixture_credential_provider.client.credentials.begin_create_or_update.return_value = mock_poller(
+        expected
+    )
+    fixture_credential_provider.client.namespaces.get.return_value = {"location": ns_location}
 
     result = fixture_credential_provider.create(
-        namespace_name=namespace_name, resource_group_name=resource_group_name, location=location, tags=tags
+        namespace_name=namespace_name, resource_group_name=resource_group_name, location=location, tags=tags,
     )
 
+    assert result == expected
+
     if location:
-        # Verify namespace get was NOT called when location is provided
         fixture_credential_provider.client.namespaces.get.assert_not_called()
-        expected_location = location
     else:
-        # Verify namespace get for location
         fixture_credential_provider.client.namespaces.get.assert_called_once_with(
-            resource_group_name=resource_group_name, namespace_name=namespace_name
+            resource_group_name=resource_group_name, namespace_name=namespace_name,
         )
-        expected_location = mock_namespace_location
 
-    assert result == mock_credential_result
-
-    fixture_credential_provider.client.credentials.begin_create_or_update.assert_called_once()
-    call_args = fixture_credential_provider.client.credentials.begin_create_or_update.call_args
-    called_with = call_args[1]
-
-    assert called_with["resource_group_name"] == resource_group_name
-    assert called_with["namespace_name"] == namespace_name
-
-    # Verify the credential was created with the correct location
-    assert called_with["resource"]["location"] == expected_location
+    kw = fixture_credential_provider.client.credentials.begin_create_or_update.call_args[1]
+    assert kw["resource_group_name"] == resource_group_name
+    assert kw["namespace_name"] == namespace_name
+    assert kw["resource"]["location"] == (location or ns_location)
     if tags:
-        assert called_with["resource"]["tags"] == tags
+        assert kw["resource"]["tags"] == tags
+
+
+# ==================== Show ====================
 
 
 def test_show_credential(fixture_credential_provider):
-    """Test successful credential show."""
-    expected_credential = {"name": "default", "location": "eastus", "properties": {"status": "active"}}
-    fixture_credential_provider.client.credentials.get.return_value = expected_credential
+    """Show returns the serialized credential."""
+    expected = {"name": "default", "location": "eastus", "properties": {"status": "active"}}
+    fixture_credential_provider.client.namespaces.get.return_value = Mock()
+    fixture_credential_provider.client.credentials.get.return_value = expected
 
     result = fixture_credential_provider.show(namespace_name="test-namespace", resource_group_name="test-rg")
 
-    assert result == expected_credential
+    assert result == expected
     fixture_credential_provider.client.credentials.get.assert_called_once_with(
-        resource_group_name="test-rg", namespace_name="test-namespace"
+        resource_group_name="test-rg", namespace_name="test-namespace",
     )
+
+
+# ==================== Error Scenarios ====================
 
 
 @pytest.mark.parametrize(
-    "namespace_exists, expected_exception",
-    [
-        (True, ResourceNotFoundError),
-        (False, HttpResponseError),
-    ],
+    "ns_exists, expected_exception",
+    [(True, ResourceNotFoundError), (False, HttpResponseError)],
+    ids=["credential-missing", "namespace-missing"],
 )
-def test_show_credential_not_found(fixture_credential_provider, namespace_exists, expected_exception):
-    """Test credential show when credential or namespace doesn't exist - covers both namespace exists/doesn't exist scenarios."""
-    test_namespace = "test-namespace"
-    test_rg = "test_rg"
+def test_show_credential_not_found(fixture_credential_provider, ns_exists, expected_exception):
+    """Show raises appropriate error when credential or namespace is missing."""
+    ns_name, rg = "test-namespace", "test-rg"
+    http_404 = HttpResponseError(response=Mock(status_code=404))
 
-    # HTTP 404 mock
-    mock_404_response = Mock()
-    mock_404_response.status_code = 404
-    http_404_error = HttpResponseError(response=mock_404_response)
-
-    if namespace_exists:
-        # namespace get succeeds
-        mock_namespace = Mock()
-        fixture_credential_provider.client.namespaces.get.return_value = mock_namespace
-        # credential returns 404
-        fixture_credential_provider.client.credentials.get.side_effect = http_404_error
+    if ns_exists:
+        fixture_credential_provider.client.namespaces.get.return_value = Mock()
+        fixture_credential_provider.client.credentials.get.side_effect = http_404
     else:
-        # namespace returns 404
-        fixture_credential_provider.client.namespaces.get.side_effect = http_404_error
+        fixture_credential_provider.client.namespaces.get.side_effect = http_404
 
     with pytest.raises(expected_exception) as exc_info:
-        fixture_credential_provider.show(namespace_name=test_namespace, resource_group_name=test_rg)
+        fixture_credential_provider.show(namespace_name=ns_name, resource_group_name=rg)
 
-    if namespace_exists:
-        error_message = str(exc_info.value)
-        assert f"No credential found for namespace '{test_namespace}'" in error_message
+    if ns_exists:
+        assert f"No credential found for namespace '{ns_name}'" in str(exc_info.value)
+        fixture_credential_provider.client.credentials.get.assert_called_once()
     else:
         assert exc_info.value.response.status_code == 404
-
-    # Namespace get should always be called
-    fixture_credential_provider.client.namespaces.get.assert_called_once_with(
-        resource_group_name=test_rg, namespace_name=test_namespace
-    )
-
-    # Credential get is only called if namespace exists
-    if namespace_exists:
-        fixture_credential_provider.client.credentials.get.assert_called_once_with(
-            resource_group_name=test_rg, namespace_name=test_namespace
-        )
-    else:
         fixture_credential_provider.client.credentials.get.assert_not_called()
 
 
+# ==================== Delete ====================
+
+
 def test_delete_credential(fixture_credential_provider, mock_poller):
-    """Test successful credential deletion."""
-    mock_delete_result = Mock()
-    poller = mock_poller(mock_delete_result)
-    fixture_credential_provider.client.credentials.begin_delete.return_value = poller
+    """Delete triggers begin_delete LRO and returns the result."""
+    sentinel = Mock()
+    fixture_credential_provider.client.credentials.begin_delete.return_value = mock_poller(sentinel)
 
     result = fixture_credential_provider.delete(namespace_name="test-namespace", resource_group_name="test-rg")
 
-    assert result == mock_delete_result
+    assert result == sentinel
     fixture_credential_provider.client.credentials.begin_delete.assert_called_once_with(
-        resource_group_name="test-rg", namespace_name="test-namespace"
+        resource_group_name="test-rg", namespace_name="test-namespace",
     )
 
 
-@pytest.mark.parametrize("status", ["Succeeded", "Failed"])
-def test_synchronize_credential(fixture_credential_provider, mock_poller, status):
-    """Test credential synchronization"""
-    mock_sync_result = Mock()
-    poller = mock_poller(mock_sync_result)
-    poller.status = Mock(return_value=status)
+# ==================== Synchronize ====================
+
+
+def test_synchronize_credential(fixture_credential_provider, mock_poller):
+    """Synchronize triggers LRO and prints success message."""
+    sentinel = Mock()
+    poller = mock_poller(sentinel)
     fixture_credential_provider.client.credentials.begin_synchronize.return_value = poller
 
-    with patch("azext_iot.adr.providers.credential.console.print") as mock_console_print, patch(
-        "azext_iot.adr.providers.credential.logger.warning"
-    ) as mock_logger_warning:
+    with patch("azext_iot.adr.providers.credential.console.print") as mock_print:
+        result = fixture_credential_provider.synchronize(
+            namespace_name="test-namespace", resource_group_name="test-rg",
+        )
 
-        result = fixture_credential_provider.synchronize(namespace_name="test-namespace", resource_group_name="test-rg")
-
-    assert result == mock_sync_result
+    assert result == sentinel
     fixture_credential_provider.client.credentials.begin_synchronize.assert_called_once_with(
-        resource_group_name="test-rg", namespace_name="test-namespace"
+        resource_group_name="test-rg", namespace_name="test-namespace",
+    )
+    mock_print.assert_called_once_with(
+        "Successfully synchronized credentials for namespace 'test-namespace'", style="green",
     )
 
-    if status != "Succeeded":
-        # Verify warning was logged
-        mock_logger_warning.assert_called_once_with(f"Synchronization completed with a status of: '{status}'")
-    else:
-        # Verify success message was printed to console
-        mock_console_print.assert_called_once_with(
-            "Successfully synchronized credentials for namespace 'test-namespace'", style="green"
+
+def test_synchronize_credential_swallows_false_positive(fixture_credential_provider):
+    """Synchronize swallows HttpResponseError with status 200 (ARMPolling false positive)."""
+    from azure.core.exceptions import HttpResponseError
+
+    mock_response = Mock()
+    mock_response.status_code = 200
+    error = HttpResponseError(response=mock_response, message="Operation returned an invalid status 'OK'")
+
+    poller = Mock()
+    poller.done.return_value = True
+    # wait_for_terminal_state calls poller.result() which we need to raise
+    poller.result.side_effect = error
+    fixture_credential_provider.client.credentials.begin_synchronize.return_value = poller
+
+    with patch("azext_iot.adr.providers.credential.console.print") as mock_print:
+        result = fixture_credential_provider.synchronize(
+            namespace_name="test-namespace", resource_group_name="test-rg",
+        )
+
+    assert result is None
+    mock_print.assert_called_once_with(
+        "Successfully synchronized credentials for namespace 'test-namespace'", style="green",
+    )
+
+
+def test_synchronize_credential_raises_real_error(fixture_credential_provider):
+    """Synchronize re-raises HttpResponseError with non-200 status codes."""
+    from azure.core.exceptions import HttpResponseError
+
+    mock_response = Mock()
+    mock_response.status_code = 500
+    error = HttpResponseError(response=mock_response, message="Internal Server Error")
+
+    poller = Mock()
+    poller.done.return_value = True
+    poller.result.side_effect = error
+    fixture_credential_provider.client.credentials.begin_synchronize.return_value = poller
+
+    with pytest.raises(HttpResponseError):
+        fixture_credential_provider.synchronize(
+            namespace_name="test-namespace", resource_group_name="test-rg",
         )

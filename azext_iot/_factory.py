@@ -121,19 +121,19 @@ def adr_service_factory(cli_ctx, *_):
         *_ : all other args ignored.
 
     Returns:
-        service_client (DeviceRegistryManagementService): operational resource for
+        service_client (MicrosoftDeviceRegistryManagementService): operational resource for
             working with Azure Device Registry Service.
     """
     from azure.cli.core.commands.client_factory import get_subscription_id
 
-    from azext_iot.sdk.deviceregistry.mgmt import DeviceRegistryMgmtClient
+    from azext_iot.sdk.deviceregistry import MicrosoftDeviceRegistryManagementService
 
     subscription_id = get_subscription_id(cli_ctx)
 
-    return DeviceRegistryMgmtClient(
+    return MicrosoftDeviceRegistryManagementService(
         credential=AZURE_CLI_CREDENTIAL,
         subscription_id=subscription_id,
-        endpoint=cli_ctx.cloud.endpoints.resource_manager,
+        endpoint="https://centraluseuap.management.azure.com/",
         credential_scopes=_get_credential_scopes(cli_ctx),
         user_agent_policy=UserAgentPolicy(user_agent=USER_AGENT),
         http_logging_policy=_get_default_logging_policy(),

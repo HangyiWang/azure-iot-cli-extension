@@ -22,6 +22,7 @@ def adr_policy_create(
     certificate_key_type: Optional[str] = None,
     certificate_subject: Optional[str] = None,
     certificate_validity_days: Optional[int] = None,
+    enable_byor: Optional[bool] = None,
 ):
     provider = PolicyProvider(cmd)
     return provider.create(
@@ -32,6 +33,7 @@ def adr_policy_create(
         certificate_key_type=certificate_key_type,
         certificate_subject=certificate_subject,
         certificate_validity_days=certificate_validity_days,
+        enable_byor=enable_byor,
     )
 
 
@@ -60,7 +62,6 @@ def adr_policy_update(
     namespace_name: str,
     resource_group_name: str,
     tags: Optional[Dict[str, str]] = None,
-    certificate_key_type: Optional[str] = None,
     certificate_validity_days: Optional[int] = None,
 ):
     provider = PolicyProvider(cmd)
@@ -69,6 +70,38 @@ def adr_policy_update(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         tags=tags,
-        certificate_key_type=certificate_key_type,
         certificate_validity_days=certificate_validity_days,
+    )
+
+
+def adr_policy_revoke_issuer(
+    cmd,
+    policy_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+):
+    provider = PolicyProvider(cmd)
+    return provider.revoke_issuer(
+        policy_name=policy_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+    )
+
+
+def adr_policy_activate_byor(
+    cmd,
+    policy_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+    certificate_chain_file: str,
+):
+    from azext_iot.common.utility import read_file_content
+
+    certificate_chain = read_file_content(certificate_chain_file)
+    provider = PolicyProvider(cmd)
+    return provider.activate_byor(
+        policy_name=policy_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        certificate_chain=certificate_chain,
     )

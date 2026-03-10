@@ -8,80 +8,39 @@
 
 from copy import deepcopy
 from typing import Any, TYPE_CHECKING
+from typing_extensions import Self
 
 from azure.core.pipeline import policies
 from azure.core.rest import HttpRequest, HttpResponse
 from azure.mgmt.core import ARMPipelineClient
 from azure.mgmt.core.policies import ARMAutoResourceProviderRegistrationPolicy
 
-from ._configuration import DeviceRegistryMgmtClientConfiguration
+from ._configuration import MicrosoftDeviceRegistryManagementServiceConfiguration
 from ._serialization import Deserializer, Serializer
-from .operations import (
-    AssetEndpointProfilesOperations,
-    AssetsOperations,
-    BillingContainersOperations,
-    CredentialsOperations,
-    NamespaceAssetsOperations,
-    NamespaceDevicesOperations,
-    NamespaceDiscoveredAssetsOperations,
-    NamespaceDiscoveredDevicesOperations,
-    NamespacesOperations,
-    OperationStatusOperations,
-    Operations,
-    PoliciesOperations,
-    SchemaRegistriesOperations,
-    SchemaVersionsOperations,
-    SchemasOperations,
-)
+from .operations import CredentialsOperations, NamespaceDevicesOperations, NamespacesOperations, PoliciesOperations
 
 if TYPE_CHECKING:
-    # pylint: disable=unused-import,ungrouped-imports
     from azure.core.credentials import TokenCredential
 
 
-class DeviceRegistryMgmtClient:  # pylint: disable=client-accepts-api-version-keyword,too-many-instance-attributes
+class MicrosoftDeviceRegistryManagementService:
     """Microsoft.DeviceRegistry Resource Provider management API.
 
-    :ivar operations: Operations operations
-    :vartype operations: deviceregistry.mgmt.operations.Operations
-    :ivar asset_endpoint_profiles: AssetEndpointProfilesOperations operations
-    :vartype asset_endpoint_profiles:
-     deviceregistry.mgmt.operations.AssetEndpointProfilesOperations
-    :ivar assets: AssetsOperations operations
-    :vartype assets: deviceregistry.mgmt.operations.AssetsOperations
-    :ivar billing_containers: BillingContainersOperations operations
-    :vartype billing_containers: deviceregistry.mgmt.operations.BillingContainersOperations
-    :ivar operation_status: OperationStatusOperations operations
-    :vartype operation_status: deviceregistry.mgmt.operations.OperationStatusOperations
     :ivar namespaces: NamespacesOperations operations
     :vartype namespaces: deviceregistry.mgmt.operations.NamespacesOperations
-    :ivar schema_registries: SchemaRegistriesOperations operations
-    :vartype schema_registries: deviceregistry.mgmt.operations.SchemaRegistriesOperations
-    :ivar namespace_assets: NamespaceAssetsOperations operations
-    :vartype namespace_assets: deviceregistry.mgmt.operations.NamespaceAssetsOperations
     :ivar credentials: CredentialsOperations operations
     :vartype credentials: deviceregistry.mgmt.operations.CredentialsOperations
     :ivar policies: PoliciesOperations operations
     :vartype policies: deviceregistry.mgmt.operations.PoliciesOperations
     :ivar namespace_devices: NamespaceDevicesOperations operations
     :vartype namespace_devices: deviceregistry.mgmt.operations.NamespaceDevicesOperations
-    :ivar namespace_discovered_assets: NamespaceDiscoveredAssetsOperations operations
-    :vartype namespace_discovered_assets:
-     deviceregistry.mgmt.operations.NamespaceDiscoveredAssetsOperations
-    :ivar namespace_discovered_devices: NamespaceDiscoveredDevicesOperations operations
-    :vartype namespace_discovered_devices:
-     deviceregistry.mgmt.operations.NamespaceDiscoveredDevicesOperations
-    :ivar schemas: SchemasOperations operations
-    :vartype schemas: deviceregistry.mgmt.operations.SchemasOperations
-    :ivar schema_versions: SchemaVersionsOperations operations
-    :vartype schema_versions: deviceregistry.mgmt.operations.SchemaVersionsOperations
     :param credential: Credential needed for the client to connect to Azure. Required.
     :type credential: ~azure.core.credentials.TokenCredential
     :param subscription_id: The ID of the target subscription. The value must be an UUID. Required.
     :type subscription_id: str
     :param endpoint: Service URL. Default value is "https://management.azure.com".
     :type endpoint: str
-    :keyword api_version: Api Version. Default value is "2025-11-01-preview". Note that overriding
+    :keyword api_version: Api Version. Default value is "2026-03-01-preview". Note that overriding
      this default value may result in unsupported behavior.
     :paramtype api_version: str
     :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
@@ -95,7 +54,7 @@ class DeviceRegistryMgmtClient:  # pylint: disable=client-accepts-api-version-ke
         endpoint: str = "https://management.azure.com",
         **kwargs: Any
     ) -> None:
-        self._config = DeviceRegistryMgmtClientConfiguration(
+        self._config = MicrosoftDeviceRegistryManagementServiceConfiguration(
             credential=credential, subscription_id=subscription_id, **kwargs
         )
         _policies = kwargs.pop("policies", None)
@@ -121,37 +80,12 @@ class DeviceRegistryMgmtClient:  # pylint: disable=client-accepts-api-version-ke
         self._serialize = Serializer()
         self._deserialize = Deserializer()
         self._serialize.client_side_validation = False
-        self.operations = Operations(self._client, self._config, self._serialize, self._deserialize)
-        self.asset_endpoint_profiles = AssetEndpointProfilesOperations(
-            self._client, self._config, self._serialize, self._deserialize
-        )
-        self.assets = AssetsOperations(self._client, self._config, self._serialize, self._deserialize)
-        self.billing_containers = BillingContainersOperations(
-            self._client, self._config, self._serialize, self._deserialize
-        )
-        self.operation_status = OperationStatusOperations(
-            self._client, self._config, self._serialize, self._deserialize
-        )
         self.namespaces = NamespacesOperations(self._client, self._config, self._serialize, self._deserialize)
-        self.schema_registries = SchemaRegistriesOperations(
-            self._client, self._config, self._serialize, self._deserialize
-        )
-        self.namespace_assets = NamespaceAssetsOperations(
-            self._client, self._config, self._serialize, self._deserialize
-        )
         self.credentials = CredentialsOperations(self._client, self._config, self._serialize, self._deserialize)
         self.policies = PoliciesOperations(self._client, self._config, self._serialize, self._deserialize)
         self.namespace_devices = NamespaceDevicesOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
-        self.namespace_discovered_assets = NamespaceDiscoveredAssetsOperations(
-            self._client, self._config, self._serialize, self._deserialize
-        )
-        self.namespace_discovered_devices = NamespaceDiscoveredDevicesOperations(
-            self._client, self._config, self._serialize, self._deserialize
-        )
-        self.schemas = SchemasOperations(self._client, self._config, self._serialize, self._deserialize)
-        self.schema_versions = SchemaVersionsOperations(self._client, self._config, self._serialize, self._deserialize)
 
     def send_request(self, request: HttpRequest, *, stream: bool = False, **kwargs: Any) -> HttpResponse:
         """Runs the network request through the client's chained policies.
@@ -178,7 +112,7 @@ class DeviceRegistryMgmtClient:  # pylint: disable=client-accepts-api-version-ke
     def close(self) -> None:
         self._client.close()
 
-    def __enter__(self) -> "DeviceRegistryMgmtClient":
+    def __enter__(self) -> Self:
         self._client.__enter__()
         return self
 
