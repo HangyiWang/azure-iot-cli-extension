@@ -6,6 +6,8 @@
 
 """Integration tests for ADR policy revoke-issuer commands."""
 
+import time
+
 import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
@@ -96,7 +98,7 @@ class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioT
                     # LRO may report failure but still partially succeed
                     _log(LogKind.WARN, "revoke-issuer LRO failed: %s", exc)
 
-                # 3a. Verify policy ICA was regenerated
+                # 3a. Verify policy ICA was regenerated (may need polling for async backend)
                 _log(LogKind.CMD, "az %s", policy_show_cmd)
                 post_policy = self.cmd(policy_show_cmd).get_output_in_json()
                 post_ca = get_ca_config(post_policy)
@@ -107,6 +109,19 @@ class TestADRPolicyRevokeLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioT
                     post_policy["properties"]["provisioningState"],
                     post_subject, pre_subject,
                 )
+                # Backend may need time to regenerate the ICA after revoke
+                if post_subject == pre_subject:
+                    _log(LogKind.WARN, "ICA subject unchanged, polling for backend regeneration ...")
+                    for _poll in range(12):
+                        time.sleep(15)
+                        post_policy = self.cmd(policy_show_cmd).get_output_in_json()
+                        post_ca = get_ca_config(post_policy)
+                        post_subject = post_ca.get("subject")
+                        if post_subject != pre_subject:
+                            _log(LogKind.OK, "ICA subject changed on poll %d", _poll + 1)
+                            break
+                    else:
+                        _log(LogKind.WARN, "ICA subject still unchanged after polling")
                 assert post_subject != pre_subject, (
                     f"Policy ICA subject should change after revoke: "
                     f"before={pre_subject}, after={post_subject}"

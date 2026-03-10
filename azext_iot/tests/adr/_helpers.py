@@ -43,7 +43,7 @@ from azext_iot.tests.adr.conftest import (
 ROLE_PROPAGATION_DELAY = 30
 POLICY_PROPAGATION_DELAY = 15
 BYOR_ACTIVATION_POLL_INTERVAL = 15
-BYOR_ACTIVATION_MAX_POLLS = 12  # up to ~3 minutes
+BYOR_ACTIVATION_MAX_POLLS = 24  # up to ~6 minutes
 
 
 def get_byor_config(policy: dict) -> dict:
