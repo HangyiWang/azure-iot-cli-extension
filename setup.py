@@ -49,7 +49,7 @@ DEPENDENCIES = [
     "azure-storage-blob>=12.14.0,<13.0.0",
     "msrest>=0.6.21",
     "msrestazure>=0.6.3,<2.0.0",
-    "jsonschema~=3.2.0",
+    "jsonschema>=4.25,<5",
     "azure-iot-device~=2.11; sys_platform != 'win32'",
     "azure-iot-device>=2.15.0rc1,<3.0.0dev0; sys_platform == 'win32'",
     "tomli~=2.0",

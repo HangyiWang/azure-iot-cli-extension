@@ -8,7 +8,7 @@ are set out below.  This Third Party Code is licensed to you under their origina
 Microsoft Corporation reserves all other rights not expressly granted, whether by implication, estoppel or otherwise.
 
 -----------------------------------------------------------------------------------------------------------------------
-License notice for jsonschema v3.2.0, obtained from https://github.com/Julian/jsonschema/blob/main/COPYING
+License notice for jsonschema (>=4.25,<5), obtained from https://github.com/Julian/jsonschema/blob/main/COPYING
 
 Copyright (c) 2013 Julian Berman
 
