@@ -430,11 +430,15 @@ def manifest_init_v5(
 
     if not no_validation:
         import jsonschema
+        import referencing
         from azure.cli.core.azclierror import ValidationError
         from azext_iot.deviceupdate.schemas import DEVICE_UPDATE_MANIFEST_V5, DEVICE_UPDATE_MANIFEST_V5_DEFS
 
-        validator = jsonschema.Draft7Validator(DEVICE_UPDATE_MANIFEST_V5)
-        validator.resolver.store[DEVICE_UPDATE_MANIFEST_V5_DEFS["$id"]] = DEVICE_UPDATE_MANIFEST_V5_DEFS
+        registry = referencing.Registry().with_resource(
+            DEVICE_UPDATE_MANIFEST_V5_DEFS["$id"],
+            referencing.Resource.from_contents(DEVICE_UPDATE_MANIFEST_V5_DEFS),
+        )
+        validator = jsonschema.Draft7Validator(DEVICE_UPDATE_MANIFEST_V5, registry=registry)
 
         try:
             validator.validate(payload)
