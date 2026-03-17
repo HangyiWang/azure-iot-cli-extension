@@ -8,7 +8,6 @@ from typing import Dict, Optional
 
 from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
-from knack.log import get_logger
 from rich.console import Console
 
 from azext_iot.adr.common import (
@@ -20,7 +19,6 @@ from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.common.utility import wait_for_terminal_state
 
 console = Console()
-logger = get_logger(__name__)
 
 
 class PolicyProvider(ADRProvider):
@@ -171,21 +169,7 @@ class PolicyProvider(ADRProvider):
                 namespace_name=namespace_name,
                 policy_name=policy_name,
             )
-            try:
-                wait_for_terminal_state(poller, **kwargs)
-            except HttpResponseError as e:
-                # The backend returns 200 OK with an empty body when the LRO completes,
-                # but ARMPolling expects a "status" or "provisioningState" field in the
-                # response to determine the terminal state. Without it, ARMPolling falls
-                # back to the HTTP reason phrase "OK" which is not a recognized terminal
-                # state, causing a false-positive error. A real failure would surface as
-                # a 4xx/5xx status code. Swallow the false positive here.
-                if not (e.response and e.response.status_code == 200):
-                    raise
-                logger.debug(
-                    "Revoke issuer LRO returned HTTP 200 but ARMPolling could not "
-                    "determine terminal state from response body. Treating as success."
-                )
+            wait_for_terminal_state(poller, **kwargs)
 
         # Fetch updated resource after revocation
         return self.show(
@@ -210,21 +194,7 @@ class PolicyProvider(ADRProvider):
                 policy_name=policy_name,
                 body={"certificateChain": certificate_chain},
             )
-            try:
-                wait_for_terminal_state(poller, **kwargs)
-            except HttpResponseError as e:
-                # The backend returns 200 OK with an empty body when the LRO completes,
-                # but ARMPolling expects a "status" or "provisioningState" field in the
-                # response to determine the terminal state. Without it, ARMPolling falls
-                # back to the HTTP reason phrase "OK" which is not a recognized terminal
-                # state, causing a false-positive error. A real failure would surface as
-                # a 4xx/5xx status code. Swallow the false positive here.
-                if not (e.response and e.response.status_code == 200):
-                    raise
-                logger.debug(
-                    "Activate BYOR LRO returned HTTP 200 but ARMPolling could not "
-                    "determine terminal state from response body. Treating as success."
-                )
+            wait_for_terminal_state(poller, **kwargs)
 
         # Fetch updated resource after activation
         return self.show(
