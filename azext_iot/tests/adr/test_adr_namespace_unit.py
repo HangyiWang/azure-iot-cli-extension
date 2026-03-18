@@ -20,7 +20,7 @@ from azext_iot.adr.common import (
 # ==================== Create ====================
 
 
-@pytest.mark.parametrize("enable_credential_policy", [False, True])
+@pytest.mark.parametrize("enable_certificate_management", [False, True])
 @pytest.mark.parametrize("policy_name", [None, "test-policy"])
 @pytest.mark.parametrize("cert_key_type", [None, DEFAULT_NS_POLICY_CERT_KEY_TYPE])
 @pytest.mark.parametrize("cert_validity_days", [None, 30])
@@ -34,7 +34,7 @@ def test_create_namespace(
     cert_validity_days,
     cert_subject,
     policy_name,
-    enable_credential_policy,
+    enable_certificate_management,
 ):
     """Namespace creation with credential-policy matrix."""
     ns_name, rg, location = "test-namespace", "test-rg", "eastus"
@@ -42,7 +42,7 @@ def test_create_namespace(
     fixture_credential_provider.create = Mock(return_value={"id": "credential-id"})
     fixture_policy_provider.create = Mock(return_value={"id": "policy-id"})
 
-    has_policy_args = any([enable_credential_policy, policy_name, cert_key_type, cert_subject, cert_validity_days])
+    has_policy_args = any([enable_certificate_management, policy_name, cert_key_type, cert_subject, cert_validity_days])
 
     with patch(
         "azext_iot.adr.providers.credential.CredentialProvider", return_value=fixture_credential_provider
@@ -67,7 +67,7 @@ def test_create_namespace(
             "resource_group_name": rg,
             "location": location,
             "tags": None,
-            "enable_credential_policy": enable_credential_policy,
+            "enable_certificate_management": enable_certificate_management,
             "policy_name": policy_name,
             "certificate_key_type": cert_key_type,
             "certificate_subject": cert_subject,
@@ -75,7 +75,7 @@ def test_create_namespace(
         }
 
         # Mutually-exclusive validation
-        if enable_credential_policy is False and any([
+        if enable_certificate_management is False and any([
             policy_name is not None,
             cert_key_type is not None,
             cert_validity_days is not None,

@@ -409,7 +409,7 @@ class TestADRDeviceEdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             _log(LogKind.STEP, "Setup ❯ Create namespace with credential+policy")
             ns_cmd = (
                 f"iot adr ns create -n {namespace_name} -g {rg} "
-                f"--location {TEST_LOCATION} --enable-credential-policy"
+                f"--location {TEST_LOCATION} --enable-certificate-management"
             )
             _log(LogKind.CMD, "az %s", ns_cmd)
             self.cmd(ns_cmd)
