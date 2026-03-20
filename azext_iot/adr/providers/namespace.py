@@ -33,7 +33,7 @@ class NamespaceProvider(ADRProvider):
         resource_group_name: str,
         location: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
-        enable_credential_policy: Optional[bool] = None,
+        enable_certificate_management: Optional[bool] = None,
         policy_name: Optional[str] = None,
         certificate_key_type: Optional[str] = None,
         certificate_subject: Optional[str] = None,
@@ -42,7 +42,7 @@ class NamespaceProvider(ADRProvider):
     ):
         # If any policy arguments provided, create policy
         should_create_credential_policy = any([
-            enable_credential_policy,
+            enable_certificate_management,
             policy_name,
             certificate_key_type,
             certificate_subject,
@@ -51,9 +51,9 @@ class NamespaceProvider(ADRProvider):
 
         if should_create_credential_policy:
             # user provided policy inputs but enable is strictly false
-            if enable_credential_policy is False:
+            if enable_certificate_management is False:
                 raise MutuallyExclusiveArgumentError(
-                    "Cannot create a custom policy if `--enable-credential-policy` is false."
+                    "Cannot create a custom policy if `--enable-certificate-management` is false."
                 )
 
             # Set defaults for certificate parameters if not provided

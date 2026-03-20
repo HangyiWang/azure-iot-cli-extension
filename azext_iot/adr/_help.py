@@ -33,13 +33,13 @@ def load_adr_help():
   short-summary: Create a Device Registry namespace.
   long-summary: |
     By default, a namespace is created with a system-assigned managed identity.
-    To create a credential and credential policy, use `--enable-credential-policy` or provide any policy parameters.
+    To create a credential and credential policy, use `--enable-certificate-management` or provide any policy parameters.
     The policy resource name can be customized with the --policy-name argument, but the 'default' credential name cannot be changed.
   examples:
     - name: Create a basic Device Registry namespace
       text: az iot adr ns create -n myNamespace -g myResourceGroup
     - name: Create a Device Registry namespace with credential and default policy
-      text: az iot adr ns create -n myNamespace -g myResourceGroup --enable-credential-policy
+      text: az iot adr ns create -n myNamespace -g myResourceGroup --enable-certificate-management
     - name: Create a Device Registry namespace with custom credential policy
       text: az iot adr ns create -n myNamespace -g myResourceGroup --policy-name myPolicy --cert-validity-days 30
   """

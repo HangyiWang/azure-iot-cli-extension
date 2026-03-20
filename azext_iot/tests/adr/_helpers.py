@@ -167,7 +167,7 @@ class ADRHubInfraHelper(RoleAssignmentHelper):
         with timed_step("Setup 3/6 ❯ Create ADR Namespace"):
             ns_cmd = (
                 f"iot adr ns create -n {namespace_name} -g {resource_group} "
-                f"--location {TEST_LOCATION} --enable-credential-policy"
+                f"--location {TEST_LOCATION} --enable-certificate-management"
             )
             _log(LogKind.CMD, "az %s", ns_cmd)
             namespace = self.cmd(ns_cmd).get_output_in_json()

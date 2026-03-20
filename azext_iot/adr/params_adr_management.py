@@ -41,11 +41,11 @@ def load_adr_management_arguments(self, _):
             arg_type=get_location_type(self.cli_ctx),
             validator=get_default_location_from_resource_group,
         )
-        # Enable credential and policy creation
+        # Enable certificate management and policy creation
         context.argument(
-            "enable_credential_policy",
+            "enable_certificate_management",
             arg_group="Credential",
-            options_list=["--enable-credential-policy", "--ecp"],
+            options_list=["--enable-certificate-management", "--ecm"],
             arg_type=get_three_state_flag(),
             help="Create a credential and credential policy for this Device Registry namespace. "
                  "This is also enabled when any custom policy parameters are provided.",
