@@ -56,7 +56,10 @@ class DeviceProvider(ADRProvider):
             inner_props["operatingSystemVersion"] = operating_system_version
         if attributes is not None:
             if isinstance(attributes, str):
-                attributes = shell_safe_json_parse(attributes)
+                if attributes == "":
+                    attributes = None
+                else:
+                    attributes = shell_safe_json_parse(attributes)
             inner_props["attributes"] = attributes
         if policy_resource_id is not None:
             if policy_resource_id == "":
