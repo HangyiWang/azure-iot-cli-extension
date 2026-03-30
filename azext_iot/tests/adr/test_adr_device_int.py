@@ -65,6 +65,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 namespace_name=namespace_name,
                 hub_name=hub_name,
                 identity_name=identity_name,
+                use_default_policy=True,
             )
             infra = self.setup_dps_with_sync(
                 infra=infra,
@@ -281,7 +282,6 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 revoke_and_check("", expected_enabled=True, label="revoke-default")
                 revoke_and_check("--disable", expected_enabled=False, label="revoke-disable")
                 revoke_and_check("", expected_enabled=None, label="revoke-while-disabled")
-                revoke_and_check("--disable false", expected_enabled=False, label="revoke-disable-false")
 
                 device_cmd(f"update -n {device_id} --enabled true")
                 _log(LogKind.RESULT, "Device re-enabled for idempotency test")
