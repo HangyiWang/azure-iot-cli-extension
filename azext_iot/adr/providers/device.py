@@ -59,7 +59,7 @@ class DeviceProvider(ADRProvider):
                 if attributes == "":
                     attributes = None
                 else:
-                    attributes = shell_safe_json_parse(attributes)
+                    attributes: Dict[str, Any] = shell_safe_json_parse(attributes)
             inner_props["attributes"] = attributes
         if policy_resource_id is not None:
             if policy_resource_id == "":
