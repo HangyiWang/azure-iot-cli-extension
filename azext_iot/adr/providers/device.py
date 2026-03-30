@@ -4,7 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Any, Dict, Optional, cast
+from typing import Dict, Optional
 
 from knack.log import get_logger
 from rich.console import Console
