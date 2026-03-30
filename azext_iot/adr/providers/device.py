@@ -4,7 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from knack.log import get_logger
 from rich.console import Console
@@ -57,10 +57,10 @@ class DeviceProvider(ADRProvider):
         if attributes is not None:
             if isinstance(attributes, str):
                 if attributes == "":
-                    attributes = None
+                    parsed_attributes = None
                 else:
-                    attributes = shell_safe_json_parse(attributes)
-            inner_props["attributes"] = attributes
+                    parsed_attributes = cast(Dict[str, Any], shell_safe_json_parse(attributes))
+            inner_props["attributes"] = parsed_attributes
         if policy_resource_id is not None:
             if policy_resource_id == "":
                 inner_props["policy"] = None
