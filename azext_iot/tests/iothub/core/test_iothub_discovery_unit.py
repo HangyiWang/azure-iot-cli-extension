@@ -97,3 +97,29 @@ class TestIoTHubDiscovery:
         assert target["primarykey"] == AuthenticationTypeDataplane.login.value
         assert target["secondarykey"] == AuthenticationTypeDataplane.login.value
         assert target["cmd"] == fixture_cmd
+
+    def test_get_target_by_eh_connection_string(self, fixture_cmd, get_mgmt_client):
+        """An Event Hub connection string passed as --login is parsed directly without ARM."""
+        discovery = IotHubDiscovery(cmd=fixture_cmd)
+
+        fake_eh_cs = (
+            "Endpoint=sb://cooliothub.servicebus.windows.net/;"
+            "SharedAccessKeyName=iothubowner;"
+            "SharedAccessKey=AB+c/+5nm2XpDXcffhnGhnxz/TVF4m5ag7AuVIGwchj=;"
+            "EntityPath=cooliothub"
+        )
+
+        target = discovery.get_target(
+            resource_name=None, resource_group_name=None, login=fake_eh_cs
+        )
+
+        # Ensure no ARM calls are made
+        assert get_mgmt_client.call_count == 0
+
+        assert target["cs"] == fake_eh_cs
+        assert target["entity"] == "eventhub"
+        assert target["name"] == "eventhub"
+        assert target["policy"] == ""
+        assert target["primarykey"] == ""
+        # Endpoint resolution is deferred to EventTargetBuilder — no 'events' key here
+        assert "events" not in target
