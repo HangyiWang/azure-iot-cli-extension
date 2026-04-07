@@ -1,14 +1,15 @@
-name: Integration tests
-run-name: "Integration tests [${{ inputs.test-services || 'auto' }}] (py${{ inputs.python-versions || '3.13' }})"
+name: Integration Tests
+run-name: "Integration Tests (${{ inputs.test-services || 'auto' }} | py${{ inputs.python-versions || '3.13' }} | ${{ inputs.regions || 'westus' }})"
 
 on:
     schedule:
         - cron: "17 9 * * *" # Daily ~1:17 AM PST / 2:17 AM PDT (off-peak minute to avoid GH Actions queue delays)
+
     # Reusable workflow trigger — called programmatically by other workflows (e.g. release_workflow.yml)
     workflow_call:
         inputs:
             test-services:
-                description: "Services to test (comma-separated: DPS,HubCp,HubDp,ADU,ADR) or 'auto' to detect"
+                description: "Comma-separated services to test (DPS,HubMgmt,HubData,ADU,ADR). 'auto' uses all services on branch."
                 type: string
                 required: false
                 default: "auto"
@@ -41,11 +42,11 @@ on:
                 description: "Run DPS tests"
                 type: boolean
                 default: true
-            testHubCp:
-                description: "Run IoT Hub control-plane tests"
+            testHubMgmt:
+                description: "Run IoT Hub management tests"
                 type: boolean
                 default: true
-            testHubDp:
+            testHubData:
                 description: "Run IoT Hub data-plane tests"
                 type: boolean
                 default: true
@@ -100,8 +101,8 @@ jobs:
                   # --- Service registry: service|test_dir|tox_env|timeout ---
                   all_services=(
                     "DPS|azext_iot/tests/dps|DPS-int|90"
-                    "HubCp|azext_iot/tests/iothub|HubCp-int|120"
-                    "HubDp|azext_iot/tests/iothub|HubDp-int|120"
+                    "HubMgmt|azext_iot/tests/iothub|HubMgmt-int|120"
+                    "HubData|azext_iot/tests/iothub|HubData-int|120"
                     "ADU|azext_iot/tests/deviceupdate|ADU-int|200"
                     "ADR|azext_iot/tests/adr|ADR-int|200"
                   )
@@ -114,8 +115,8 @@ jobs:
                     # workflow_dispatch: filter by boolean toggles + directory existence
                     declare -A toggles=(
                       [DPS]="${{ inputs.testDPS }}"
-                      [HubCp]="${{ inputs.testHubCp }}"
-                      [HubDp]="${{ inputs.testHubDp }}"
+                      [HubMgmt]="${{ inputs.testHubMgmt }}"
+                      [HubData]="${{ inputs.testHubData }}"
                       [ADU]="${{ inputs.testADU }}"
                       [ADR]="${{ inputs.testADR }}"
                     )
@@ -174,7 +175,8 @@ jobs:
                   done
                   matrix="$matrix]"
 
-                  echo "Matrix ($( echo "$matrix" | jq length) jobs): $matrix"
+                  echo "Matrix ($(echo "$matrix" | jq length) jobs):"
+                  echo "$matrix" | jq '.'
                   echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
     int-test:
