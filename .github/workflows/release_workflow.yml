@@ -46,13 +46,17 @@ jobs:
       continue-on-error: ${{ github.event.inputs.continue-on-error == 'true' }}
   int_test:
     needs: [build]
-    if:  always() && !cancelled() && !failure() && (github.event.inputs.run_int_tests == 'true')
-    uses: ./.github/workflows/trigger_ado_int_tests.yml
+    if: always() && !cancelled() && !failure() && (github.event.inputs.run_int_tests == 'true')
+    uses: ./.github/workflows/int_test.yml
+    with:
+      test-services: "auto"
+      python-versions: "3.10,3.11,3.12,3.13"
+      regions: "eastus,eastus2,westus,westus2,westus3,southcentralus,northeurope,westeurope"
     secrets: inherit
   approval:
     needs: [security, build, unit-test, azdev_linter]
     # only needed if (release || wheel) - conditionals allow previous jobs to be skipped and still run
-    if:  always() && !cancelled() && !failure() && (github.event.inputs.github_release == 'true')
+    if: always() && !cancelled() && !failure() && (github.event.inputs.github_release == 'true')
     environment: production
     runs-on: ubuntu-latest
     steps:
@@ -68,6 +72,6 @@ jobs:
       # needed to create draft release
       contents: write
     needs: [approval]
-    if:  always() && !cancelled() && !failure() && github.event.inputs.github_release == 'true'
+    if: always() && !cancelled() && !failure() && github.event.inputs.github_release == 'true'
     uses: ./.github/workflows/stage_release.yml
     secrets: inherit

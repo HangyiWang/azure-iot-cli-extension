@@ -1,0 +1,259 @@
+name: Integration tests
+run-name: "Integration tests [${{ inputs.test-services || 'auto' }}] (py${{ inputs.python-versions || '3.13' }})"
+
+on:
+    schedule:
+        - cron: "17 9 * * *" # Daily ~1:17 AM PST / 2:17 AM PDT (off-peak minute to avoid GH Actions queue delays)
+    # Reusable workflow trigger — called programmatically by other workflows (e.g. release_workflow.yml)
+    workflow_call:
+        inputs:
+            test-services:
+                description: "Services to test (comma-separated: DPS,HubCp,HubDp,ADU,ADR) or 'auto' to detect"
+                type: string
+                required: false
+                default: "auto"
+            python-versions:
+                description: "Python versions (comma-separated: 3.10,3.11,3.12,3.13)"
+                type: string
+                required: false
+                default: "3.13"
+            regions:
+                description: "Azure regions (comma-separated)"
+                type: string
+                required: false
+                default: "westus"
+            resource-group:
+                description: "Resource group for test resources"
+                type: string
+                required: false
+                default: ""
+        secrets:
+            AZURE_CLIENT_ID:
+                required: true
+            AZURE_TENANT_ID:
+                required: true
+            AZURE_SUBSCRIPTION_ID:
+                required: true
+    # Manual trigger — run from GitHub Actions UI with checkbox/input controls
+    workflow_dispatch:
+        inputs:
+            testDPS:
+                description: "Run DPS tests"
+                type: boolean
+                default: true
+            testHubCp:
+                description: "Run IoT Hub control-plane tests"
+                type: boolean
+                default: true
+            testHubDp:
+                description: "Run IoT Hub data-plane tests"
+                type: boolean
+                default: true
+            testADU:
+                description: "Run ADU tests"
+                type: boolean
+                default: true
+            testADR:
+                description: "Run ADR tests"
+                type: boolean
+                default: true
+            python-versions:
+                description: "Python versions (comma-separated: 3.10,3.11,3.12,3.13)"
+                type: string
+                required: false
+                default: "3.13"
+            regions:
+                description: "Azure regions (comma-separated)"
+                type: string
+                required: false
+                default: "westus"
+            resource-group:
+                description: "Resource group for test resources"
+                type: string
+                required: false
+                default: ""
+
+permissions:
+    contents: "read"
+    id-token: "write"
+
+env:
+    RESOURCE_GROUP: "${{ inputs.resource-group || 'iot-cli-int-test-rg' }}"
+
+jobs:
+    setup:
+        name: "Detect test matrix"
+        runs-on: ubuntu-24.04
+        if: github.event_name != 'schedule' || (github.repository == 'Azure/azure-iot-cli-extension' && (github.ref == 'refs/heads/preview' || github.ref == 'refs/heads/dev'))
+        outputs:
+            matrix: ${{ steps.matrix.outputs.matrix }}
+        steps:
+            - name: "Checkout source"
+              uses: actions/checkout@v4
+              with:
+                  sparse-checkout: |
+                      azext_iot/tests
+
+            - name: "Build test matrix"
+              id: matrix
+              run: |
+                  # --- Service registry: service|test_dir|tox_env|timeout ---
+                  all_services=(
+                    "DPS|azext_iot/tests/dps|DPS-int|90"
+                    "HubCp|azext_iot/tests/iothub|HubCp-int|120"
+                    "HubDp|azext_iot/tests/iothub|HubDp-int|120"
+                    "ADU|azext_iot/tests/deviceupdate|ADU-int|200"
+                    "ADR|azext_iot/tests/adr|ADR-int|200"
+                  )
+
+                  # --- Determine which services to include ---
+                  input_services="${{ inputs.test-services || 'auto' }}"
+                  services=""
+
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    # workflow_dispatch: filter by boolean toggles + directory existence
+                    declare -A toggles=(
+                      [DPS]="${{ inputs.testDPS }}"
+                      [HubCp]="${{ inputs.testHubCp }}"
+                      [HubDp]="${{ inputs.testHubDp }}"
+                      [ADU]="${{ inputs.testADU }}"
+                      [ADR]="${{ inputs.testADR }}"
+                    )
+                    for entry in "${all_services[@]}"; do
+                      IFS='|' read -r svc test_dir tox_env timeout <<< "$entry"
+                      [ "${toggles[$svc]}" = "true" ] && [ -d "$test_dir" ] && services="${services}${svc},"
+                    done
+                  elif [ "$input_services" = "auto" ]; then
+                    # auto: include all services whose test directory exists on this branch
+                    for entry in "${all_services[@]}"; do
+                      IFS='|' read -r svc test_dir tox_env timeout <<< "$entry"
+                      [ -d "$test_dir" ] && services="${services}${svc},"
+                    done
+                  else
+                    services="$input_services,"
+                  fi
+                  services="${services%,}" # trim trailing comma
+
+                  python_versions="${{ inputs.python-versions || '3.13' }}"
+                  regions="${{ inputs.regions || 'westus' }}"
+
+                  echo "Services: $services"
+                  echo "Python versions: $python_versions"
+                  echo "Regions: $regions"
+
+                  # --- Build JSON matrix: service × python × region ---
+                  matrix="["
+                  first=true
+
+                  IFS=',' read -ra SVC_ARRAY <<< "$services"
+                  IFS=',' read -ra PY_ARRAY <<< "$python_versions"
+                  IFS=',' read -ra REGION_ARRAY <<< "$regions"
+
+                  for svc in "${SVC_ARRAY[@]}"; do
+                    svc=$(echo "$svc" | xargs)
+                    # Look up metadata from registry
+                    tox_env=""; timeout=""
+                    for entry in "${all_services[@]}"; do
+                      IFS='|' read -r s d t tm <<< "$entry"
+                      [ "$s" = "$svc" ] && tox_env="$t" && timeout="$tm" && break
+                    done
+                    if [ -z "$tox_env" ]; then
+                      echo "::warning::Unknown service: $svc"
+                      continue
+                    fi
+
+                    for py in "${PY_ARRAY[@]}"; do
+                      py=$(echo "$py" | xargs)
+                      for region in "${REGION_ARRAY[@]}"; do
+                        region=$(echo "$region" | xargs)
+
+                        if [ "$first" = true ]; then first=false; else matrix="$matrix,"; fi
+                        matrix="$matrix{\"service\":\"$svc\",\"tox_env\":\"$tox_env\",\"timeout\":$timeout,\"python\":\"$py\",\"region\":\"$region\"}"
+                      done
+                    done
+                  done
+                  matrix="$matrix]"
+
+                  echo "Matrix ($( echo "$matrix" | jq length) jobs): $matrix"
+                  echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+    int-test:
+        name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{ matrix.config.region }})"
+        needs: setup
+        if: ${{ needs.setup.outputs.matrix != '[]' }}
+        runs-on: ubuntu-24.04
+        timeout-minutes: ${{ matrix.config.timeout }}
+        strategy:
+            fail-fast: false
+            matrix:
+                config: ${{ fromJson(needs.setup.outputs.matrix) }}
+        steps:
+            - name: "Setup Python ${{ matrix.config.python }}"
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "${{ matrix.config.python }}"
+
+            - name: "Checkout source"
+              uses: actions/checkout@v4
+
+            - name: "Build and install extension"
+              run: |
+                  pip install -r dev_requirements
+                  python -m build
+                  wheel=$(find ./dist/*.whl)
+                  az extension add --source $wheel -y
+
+            - name: "Setup tox test environment"
+              run: |
+                  pip install tox
+                  tox r -vv -e ${{ matrix.config.tox_env }} --notest
+
+            - name: "Az CLI login"
+              uses: azure/login@v2
+              with:
+                  client-id: ${{ secrets.AZURE_CLIENT_ID }}
+                  tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+                  subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+            - name: "Verify Azure access"
+              run: |
+                  az account show -o table
+                  az group show -n ${{ env.RESOURCE_GROUP }} -o table
+
+            - name: "OIDC Token refresh service"
+              run: |
+                  while true; do
+                    token_request=$ACTIONS_ID_TOKEN_REQUEST_TOKEN
+                    token_uri=$ACTIONS_ID_TOKEN_REQUEST_URL
+                    token=$(curl -sH "Authorization: bearer $token_request" "${token_uri}&audience=api://AzureADTokenExchange" | jq .value -r)
+                    az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -t ${{ secrets.AZURE_TENANT_ID }} --federated-token $token --output none
+                    sleep 240
+                  done &
+
+            - name: "Run ${{ matrix.config.service }} integration tests"
+              env:
+                  AZURE_TEST_RUN_LIVE: "True"
+                  azext_iot_testrg: ${{ env.RESOURCE_GROUP }}
+                  azext_iot_adr_location: ${{ matrix.config.region }}
+              run: |
+                  tox r -e ${{ matrix.config.tox_env }} --skip-pkg-install 2>&1 | \
+                    sed 's/SharedAccessKey=[^;& "'"'"']*//g; s/AccountKey=[^;& "'"'"']*//g; s/sig=[^&"]*//g'
+
+            - name: "Upload coverage artifact"
+              if: ${{ always() }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{ matrix.config.region }}
+                  path: ./.coverage
+                  include-hidden-files: true
+
+            - name: "Cleanup orphaned resources"
+              if: ${{ always() }}
+              run: |
+                  # Re-login in case token expired during test
+                  token=$(curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+                    "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq .value -r)
+                  az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -t ${{ secrets.AZURE_TENANT_ID }} --federated-token $token --output none 2>/dev/null || true
+
+                  echo "Listing resources in ${{ env.RESOURCE_GROUP }}..."
+                  az resource list -g ${{ env.RESOURCE_GROUP }} --query "[].{name:name, type:type}" -o table || true
