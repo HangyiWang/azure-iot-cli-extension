@@ -43,6 +43,19 @@ class IotHubDiscovery(BaseDiscovery):
 
     @classmethod
     def get_target_by_cstring(cls, connection_string: str) -> Dict[str, str]:
+        # If this is an Event Hub connection string (e.g. the IoT Hub built-in endpoint
+        # connection string from the Azure portal), return a minimal placeholder.  The CS
+        # uses "Endpoint=" and "EntityPath=" rather than "HostName=", so IotHubTarget would
+        # raise a ValueError on it.  All parsing and Target construction is deferred to
+        # EventTargetBuilder which detects the EH CS via the "cs" field.
+        if "EntityPath=" in connection_string and "servicebus.windows.net" in connection_string:
+            return {
+                "cs": connection_string,
+                "entity": "eventhub",
+                "name": "eventhub",
+                "policy": "",
+                "primarykey": "",
+            }
         return IotHubTarget.from_connection_string(cstring=connection_string).as_dict()
 
     def _build_target_from_hostname(self, resource_hostname: str) -> Dict[str, str]:

@@ -35,6 +35,7 @@ def validate_messages(
     minimum_severity=Severity.warning.name,
     token=None,
     central_dns_suffix=CENTRAL_ENDPOINT,
+    transport=None,
 ):
     telemetry_args = TelemetryArguments(
         cmd,
@@ -67,6 +68,7 @@ def validate_messages(
         consumer_group=consumer_group,
         central_dns_suffix=central_dns_suffix,
         central_handler_args=central_handler_args,
+        transport=transport,
     )
     provider.start_validate_messages(telemetry_args)
 
@@ -84,6 +86,7 @@ def monitor_events(
     yes=False,
     token=None,
     central_dns_suffix=CENTRAL_ENDPOINT,
+    transport=None,
 ):
     telemetry_args = TelemetryArguments(
         cmd,
@@ -116,6 +119,7 @@ def monitor_events(
         consumer_group=consumer_group,
         central_dns_suffix=central_dns_suffix,
         central_handler_args=central_handler_args,
+        transport=transport,
     )
     provider.start_monitor_events(telemetry_args)
 
