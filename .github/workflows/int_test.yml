@@ -135,6 +135,11 @@ jobs:
                   fi
                   services="${services%,}" # trim trailing comma
 
+                  if [ -z "$services" ]; then
+                    echo "::error::No services selected or no test directories found on this branch."
+                    exit 1
+                  fi
+
                   python_versions="${{ inputs.python-versions || '3.13' }}"
                   regions="${{ inputs.regions || 'westus' }}"
 
@@ -179,9 +184,45 @@ jobs:
                   echo "$matrix" | jq '.'
                   echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
+                  # --- Write summary table ---
+                  echo "## Test Matrix ($(echo "$matrix" | jq length) jobs)" >> $GITHUB_STEP_SUMMARY
+                  echo "| Service | Python | Region | Timeout |" >> $GITHUB_STEP_SUMMARY
+                  echo "|---------|--------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+                  echo "$matrix" | jq -r '.[] | "| \(.service) | \(.python) | \(.region) | \(.timeout) min |"' >> $GITHUB_STEP_SUMMARY
+
+    unit-test:
+        name: "Linter and unit tests"
+        runs-on: ubuntu-24.04
+        steps:
+            - name: "Checkout source"
+              uses: actions/checkout@v4
+
+            - name: "Setup Python 3.13"
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.13"
+                  cache: "pip" # Cache pip downloads to avoid re-downloading packages across runs
+
+            - name: "Setup test suite"
+              run: |
+                  python -m pip install tox
+                  tox r -vv --notest
+
+            - name: "Run linter and unit tests"
+              run: tox r --skip-pkg-install
+
+            - name: "Upload coverage report"
+              if: ${{ always() }}
+              uses: actions/upload-artifact@v4
+              with:
+                  name: coverage-unit
+                  path: ./.coverage
+                  include-hidden-files: true
+                  retention-days: 30
+
     int-test:
         name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{ matrix.config.region }})"
-        needs: setup
+        needs: [setup, unit-test]
         if: ${{ needs.setup.outputs.matrix != '[]' }}
         runs-on: ubuntu-24.04
         timeout-minutes: ${{ matrix.config.timeout }}
@@ -190,20 +231,20 @@ jobs:
             matrix:
                 config: ${{ fromJson(needs.setup.outputs.matrix) }}
         steps:
+            - name: "Checkout source"
+              uses: actions/checkout@v4
+
             - name: "Setup Python ${{ matrix.config.python }}"
               uses: actions/setup-python@v5
               with:
                   python-version: "${{ matrix.config.python }}"
-
-            - name: "Checkout source"
-              uses: actions/checkout@v4
+                  cache: "pip" # Saves ~30-60s per matrix job by caching pip downloads
 
             - name: "Build and install extension"
               run: |
                   pip install -r dev_requirements
                   python -m build
-                  wheel=$(find ./dist/*.whl)
-                  az extension add --source $wheel -y
+                  az extension add --source ./dist/*.whl -y
 
             - name: "Setup tox test environment"
               run: |
@@ -238,6 +279,7 @@ jobs:
                   azext_iot_testrg: ${{ env.RESOURCE_GROUP }}
                   azext_iot_adr_location: ${{ matrix.config.region }}
               run: |
+                  set -o pipefail
                   tox r -e ${{ matrix.config.tox_env }} --skip-pkg-install 2>&1 | \
                     sed 's/SharedAccessKey=[^;& "'"'"']*//g; s/AccountKey=[^;& "'"'"']*//g; s/sig=[^&"]*//g'
 
@@ -248,14 +290,44 @@ jobs:
                   name: coverage-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{ matrix.config.region }}
                   path: ./.coverage
                   include-hidden-files: true
+                  retention-days: 30
 
-            - name: "Cleanup orphaned resources"
+    combine-coverage:
+        name: "Combine coverage reports"
+        if: ${{ always() }}
+        needs: [unit-test, int-test]
+        runs-on: ubuntu-24.04
+        steps:
+            - name: "Checkout source"
+              uses: actions/checkout@v4
+
+            - name: "Download all coverage artifacts"
+              uses: actions/download-artifact@v4
+              with:
+                  pattern: coverage-*
+                  path: ./coverage_parts
+
+            - name: "Combine coverage and generate report"
+              run: |
+                  pip install coverage
+                  coverage combine ./coverage_parts/*/.coverage
+                  coverage report
+                  coverage html --directory ./htmlcov
+
+            - name: "Write job summary"
               if: ${{ always() }}
               run: |
-                  # Re-login in case token expired during test
-                  token=$(curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-                    "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" | jq .value -r)
-                  az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -t ${{ secrets.AZURE_TENANT_ID }} --federated-token $token --output none 2>/dev/null || true
+                  if [ "${{ needs.unit-test.result }}" = "success" ] && [ "${{ needs.int-test.result }}" = "success" ]; then
+                    echo "### All tests passed" >> $GITHUB_STEP_SUMMARY
+                  else
+                    echo "### Test failures detected" >> $GITHUB_STEP_SUMMARY
+                    [ "${{ needs.unit-test.result }}" != "success" ] && echo "- Unit tests: ${{ needs.unit-test.result }}" >> $GITHUB_STEP_SUMMARY
+                    [ "${{ needs.int-test.result }}" != "success" ] && echo "- Integration tests: ${{ needs.int-test.result }}" >> $GITHUB_STEP_SUMMARY
+                  fi
 
-                  echo "Listing resources in ${{ env.RESOURCE_GROUP }}..."
-                  az resource list -g ${{ env.RESOURCE_GROUP }} --query "[].{name:name, type:type}" -o table || true
+            - name: "Upload combined coverage artifact"
+              uses: actions/upload-artifact@v4
+              with:
+                  name: combined-coverage
+                  path: ./htmlcov
+                  retention-days: 30
