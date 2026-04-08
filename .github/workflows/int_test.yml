@@ -217,7 +217,7 @@ jobs:
                   tox r -vv --notest
 
             - name: "Run linter and unit tests"
-              run: tox r -e python-azcur-unit --skip-pkg-install -- -k "test_" --co -q | head -20  # TEMP: dry-run, list first 20 tests only
+              run: tox r --skip-pkg-install
 
             - name: "Upload coverage report"
               if: ${{ always() }}
