@@ -79,7 +79,7 @@ permissions:
   id-token: "write"
 
 env:
-  RESOURCE_GROUP: "${{ inputs.resource-group || 'iot-cli-int-test-rg' }}"
+  RESOURCE_GROUP: "${{ inputs.resource-group || 'cli-int-test-rg' }}"
 
 jobs:
   setup:
