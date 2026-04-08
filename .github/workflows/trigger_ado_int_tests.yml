@@ -1,5 +1,5 @@
 name: Integration Tests
-run-name: "Integration Tests (${{ inputs.test-services || 'DPS, Hub, ADU, ADR' }} | ${{ inputs.regions || 'westus' }})"
+run-name: "Integration Tests (${{ inputs.test-services || 'all' }} | ${{ inputs.regions || 'westus' }})"
 
 on:
   schedule:
@@ -79,6 +79,10 @@ permissions:
   id-token: "write"
 
 env:
+  # Force JavaScript-based actions (checkout, upload-artifact, etc.) to use Node.js 24
+  # instead of the deprecated Node.js 20. Required until actions/* releases ship with Node 24 by default.
+  # See: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   RESOURCE_GROUP: "${{ inputs.resource-group || 'cli-int-test-rg' }}"
 
 jobs:
