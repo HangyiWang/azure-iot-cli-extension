@@ -1,5 +1,5 @@
 name: Integration Tests
-run-name: "Integration Tests (${{ inputs.test-services || 'auto' }} | py${{ inputs.python-versions || '3.13' }} | ${{ inputs.regions || 'westus' }})"
+run-name: "Integration Tests (${{ inputs.test-services || 'DPS, Hub, ADU, ADR' }} | ${{ inputs.regions || 'westus' }})"
 
 on:
     schedule:
@@ -180,8 +180,16 @@ jobs:
                   done
                   matrix="$matrix]"
 
-                  echo "Matrix ($(echo "$matrix" | jq length) jobs):"
-                  echo "$matrix" | jq '.'
+                  job_count=$(echo "$matrix" | jq length)
+                  echo ""
+                  echo "┌──────────────────────────────────────────────────────────┐"
+                  echo "│  Test Matrix: $job_count job(s)                                    │"
+                  echo "├───────────┬─────────┬──────────────┬──────────────────────┤"
+                  echo "│  Service  │ Python  │    Region    │  Timeout             │"
+                  echo "├───────────┼─────────┼──────────────┼──────────────────────┤"
+                  echo "$matrix" | jq -r '.[] | "│  \(.service)\(" " * (9 - (.service | length)))│ \(.python)\(" " * (7 - (.python | length)))│  \(.region)\(" " * (12 - (.region | length)))│  \(.timeout) min\(" " * (18 - ((.timeout | tostring) + " min" | length)))│"'
+                  echo "└───────────┴─────────┴──────────────┴──────────────────────┘"
+                  echo ""
                   echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
                   # --- Write summary table ---
