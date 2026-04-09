@@ -322,6 +322,7 @@ jobs:
           set -o pipefail
           tox r -e ${{ matrix.config.tox_env }} --skip-pkg-install 2>&1 | \
             sed 's/SharedAccessKey=[^;& "'"'"']*//g; s/AccountKey=[^;& "'"'"']*//g; s/sig=[^&"]*//g' | \
+            sed 's/\("primaryKey"\s*:\s*\)"[^"]*"/\1"***"/g; s/\("secondaryKey"\s*:\s*\)"[^"]*"/\1"***"/g' | \
             tee test-output.log
 
       - name: "Record test result"
