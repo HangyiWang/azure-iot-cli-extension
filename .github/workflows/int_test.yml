@@ -83,10 +83,6 @@ permissions:
   id-token: "write"
 
 env:
-  # Force JavaScript-based actions (checkout, upload-artifact, etc.) to use Node.js 24
-  # instead of the deprecated Node.js 20. Required until actions/* releases ship with Node 24 by default.
-  # See: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   RESOURCE_GROUP: "${{ inputs.resource-group || 'cli-int-test-rg' }}"
 
 jobs:
@@ -443,7 +439,7 @@ jobs:
   combine-coverage:
     name: "Combine coverage reports"
     if: ${{ always() }}
-    needs: [unit-test, int-test]
+    needs: [unit-test, int-test, int-test-gate]
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout source"
@@ -465,12 +461,12 @@ jobs:
       - name: "Write job summary"
         if: ${{ always() }}
         run: |
-          if [ "${{ needs.unit-test.result }}" = "success" ] && [ "${{ needs.int-test.result }}" = "success" ]; then
+          if [ "${{ needs.unit-test.result }}" = "success" ] && [ "${{ needs.int-test-gate.result }}" = "success" ]; then
             echo "### All tests passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "### Test failures detected" >> $GITHUB_STEP_SUMMARY
             [ "${{ needs.unit-test.result }}" != "success" ] && echo "- Unit tests: ${{ needs.unit-test.result }}" >> $GITHUB_STEP_SUMMARY
-            [ "${{ needs.int-test.result }}" != "success" ] && echo "- Integration tests: ${{ needs.int-test.result }}" >> $GITHUB_STEP_SUMMARY
+            [ "${{ needs.int-test-gate.result }}" != "success" ] && echo "- Integration tests: ${{ needs.int-test-gate.result }}" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: "Upload combined coverage artifact"
