@@ -1,5 +1,5 @@
 name: Integration Tests
-run-name: "Integration Tests (${{ inputs.test-services || 'auto' }} | ${{ inputs.regions || 'westus' }})"
+run-name: "Integration Tests (${{ inputs['test-services'] || 'auto' }} | ${{ inputs.regions || 'westus' }})"
 
 on:
   schedule:
@@ -83,7 +83,7 @@ permissions:
   id-token: "write"
 
 env:
-  RESOURCE_GROUP: "${{ inputs.resource-group || 'cli-int-test-rg' }}"
+  RESOURCE_GROUP: "${{ inputs['resource-group'] || 'cli-int-test-rg' }}"
 
 jobs:
   setup:
@@ -112,7 +112,7 @@ jobs:
           )
 
           # --- Determine which services to include ---
-          input_services="${{ inputs.test-services || 'auto' }}"
+          input_services="${{ inputs['test-services'] || 'auto' }}"
           services=""
 
           # For scheduled runs, rotate Python version and region independently using
@@ -163,7 +163,7 @@ jobs:
           fi
 
           # Set python_versions and regions if not already set by schedule block above
-          python_versions="${python_versions:-${{ inputs.python-versions || '3.13' }}}"
+          python_versions="${python_versions:-${{ inputs['python-versions'] || '3.13' }}}"
           regions="${regions:-${{ inputs.regions || 'westus' }}}"
 
           echo "Services: $services"
