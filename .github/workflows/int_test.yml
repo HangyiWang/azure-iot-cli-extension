@@ -377,6 +377,7 @@ jobs:
           echo "|---------|--------|--------|--------|" >> $GITHUB_STEP_SUMMARY
 
           gate_pass=true
+          result_count=0
           declare -A service_pass
           declare -A service_fail
 
@@ -389,12 +390,19 @@ jobs:
             icon=$( [ "$status" = "success" ] && echo "✅" || echo "❌" )
             echo "| $service | $python | $region | $icon $status |" >> $GITHUB_STEP_SUMMARY
 
+            result_count=$((result_count + 1))
             if [ "$status" = "success" ]; then
               service_pass[$service]=1
             else
               service_fail[$service]=$(( ${service_fail[$service]:-0} + 1 ))
             fi
           done
+
+          if [ "$result_count" -eq 0 ]; then
+            echo "::error::No test results found — all jobs may have been skipped or cancelled"
+            echo "### ❌ Gate FAILED — no test results were produced" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
 
           # Show failed test details
           has_failures=false
