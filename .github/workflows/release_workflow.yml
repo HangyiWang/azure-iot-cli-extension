@@ -50,8 +50,8 @@ jobs:
     uses: ./.github/workflows/int_test.yml
     with:
       test-services: "auto"
-      python-versions: "3.10,3.11,3.12,3.13"
-      regions: "eastus,westus,northeurope,westeurope"
+      python-versions: "3.10,3.13"
+      regions: "westus"
     secrets: inherit
   approval:
     needs: [security, build, unit-test, azdev_linter, int_test]

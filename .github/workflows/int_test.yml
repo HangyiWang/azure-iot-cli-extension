@@ -1,9 +1,13 @@
 name: Integration Tests
-run-name: "Integration Tests (${{ inputs.test-services || 'all' }} | ${{ inputs.regions || 'westus' }})"
+run-name: "Integration Tests (${{ inputs.test-services || 'auto' }} | ${{ inputs.regions || 'westus' }})"
 
 on:
   schedule:
-    - cron: "17 9 * * *" # Daily ~1:17 AM PST / 2:17 AM PDT (off-peak minute to avoid GH Actions queue delays)
+    # 2 runs per day (midnight + lunch PST), weekdays only.
+    # Python version and region are picked independently using date-based rotation,
+    # so every version gets paired with different regions over time.
+    - cron: "17 8 * * 1-5" # Weekdays 12:17 AM PST (08:17 UTC)
+    - cron: "17 20 * * 1-5" # Weekdays 12:17 PM PST (20:17 UTC)
 
   # Reusable workflow trigger — called programmatically by other workflows (e.g. release_workflow.yml)
   workflow_call:
@@ -115,6 +119,24 @@ jobs:
           input_services="${{ inputs.test-services || 'auto' }}"
           services=""
 
+          # For scheduled runs, rotate Python version and region independently using
+          # day-of-year + hour as a seed. This ensures every version can pair with any region
+          # and combinations shift naturally over time.
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            py_versions=("3.10" "3.11" "3.12" "3.13")
+            region_list=("eastus" "westus" "northeurope" "westeurope")
+            day_of_year=$(date -u +"%j")  # 1-366
+            hour=$(date -u +"%H")         # 08 or 20
+            # Use different offsets for midnight vs lunch so they don't pick the same combo
+            if [ "$hour" = "08" ]; then offset=0; else offset=1; fi
+            seed=$(( day_of_year * 2 + offset ))
+            py_idx=$(( seed % ${#py_versions[@]} ))
+            rg_idx=$(( (seed / ${#py_versions[@]}) % ${#region_list[@]} ))
+            python_versions="${py_versions[$py_idx]}"
+            regions="${region_list[$rg_idx]}"
+            echo "Schedule seed=$seed → Python $python_versions, Region $regions"
+          fi
+
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             # workflow_dispatch: filter by boolean toggles + directory existence
             declare -A toggles=(
@@ -144,8 +166,9 @@ jobs:
             exit 1
           fi
 
-          python_versions="${{ inputs.python-versions || '3.13' }}"
-          regions="${{ inputs.regions || 'westus' }}"
+          # Set python_versions and regions if not already set by schedule block above
+          python_versions="${python_versions:-${{ inputs.python-versions || '3.13' }}}"
+          regions="${regions:-${{ inputs.regions || 'westus' }}}"
 
           echo "Services: $services"
           echo "Python versions: $python_versions"
