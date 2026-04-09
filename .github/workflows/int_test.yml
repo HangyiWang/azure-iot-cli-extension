@@ -281,6 +281,13 @@ jobs:
           pip install -r dev_requirements
           python -m build
           az extension add --source ./dist/*.whl -y
+          # az CLI uses its own Python (e.g. 3.13) to install deps into the extension dir.
+          # Binary packages like rpds-py have version-specific .so files that won't load
+          # under a different Python. Reinstall them for the test Python version.
+          ext_dir=$(az extension show -n azure-iot --query path -o tsv 2>/dev/null || echo "")
+          if [ -n "$ext_dir" ] && [ -d "$ext_dir" ]; then
+            pip install --target "$ext_dir" --upgrade --force-reinstall --no-deps rpds-py
+          fi
 
       - name: "Setup tox test environment"
         run: |
