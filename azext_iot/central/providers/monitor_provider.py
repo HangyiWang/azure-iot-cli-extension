@@ -31,6 +31,7 @@ class MonitorProvider:
         consumer_group: str,
         central_handler_args: CentralHandlerArguments,
         central_dns_suffix: str,
+        transport: str = None,
     ):
         central_device_provider = CentralDeviceProvider(
             cmd=cmd, app_id=app_id, token=token, api_version=ApiVersion.ga.value
@@ -44,7 +45,9 @@ class MonitorProvider:
             token=token,
             consumer_group=consumer_group,
             central_dns_suffix=central_dns_suffix,
+            transport=transport,
         )
+        self._transport = transport
         self._handler = self._build_handler(
             central_device_provider=central_device_provider,
             central_template_provider=central_template_provider,
@@ -61,6 +64,7 @@ class MonitorProvider:
             on_start_string=self._handler.generate_startup_string("Monitoring"),
             on_message_received=self._handler.parse_message,
             timeout=telemetry_args.timeout,
+            transport=self._transport,
         )
 
     def start_validate_messages(self, telemetry_args: TelemetryArguments):
@@ -72,6 +76,7 @@ class MonitorProvider:
             on_start_string=self._handler.generate_startup_string("Validating"),
             on_message_received=self._handler.validate_message,
             timeout=telemetry_args.timeout,
+            transport=self._transport,
         )
 
     def _build_targets(
@@ -81,11 +86,12 @@ class MonitorProvider:
         token: str,
         consumer_group: str,
         central_dns_suffix: str,
+        transport: str = None,
     ):
         from azext_iot.monitor.builders import central_target_builder
 
         targets = central_target_builder.build_central_event_hub_targets(
-            cmd, app_id, token, central_dns_suffix
+            cmd, app_id, token, central_dns_suffix, transport=transport
         )
         [target.add_consumer_group(consumer_group) for target in targets]
 
