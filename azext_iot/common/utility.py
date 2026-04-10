@@ -587,7 +587,7 @@ def is_eventhub_connection_string(cs: str) -> bool:
         endpoint_part = cs.split("Endpoint=")[1].split(";")[0]
         from urllib.parse import urlparse
         parsed = urlparse(endpoint_part)
-        hostname = parsed.hostname or ""
+        hostname = (parsed.hostname or "").lower()
         return hostname.endswith(".servicebus.windows.net")
     except (IndexError, ValueError):
         return False

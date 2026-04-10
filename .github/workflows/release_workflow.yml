@@ -38,15 +38,21 @@ jobs:
     uses: ./.github/workflows/release_build.yml
     secrets: inherit
   unit-test:
+    permissions:
+      contents: read
     uses: ./.github/workflows/tox.yml
     with:
       continue-on-error: ${{ github.event.inputs.continue-on-error == 'true' }}
   azdev_linter:
+    permissions:
+      contents: read
     needs: [build]
     uses: ./.github/workflows/azdev_linter.yml
     with:
       continue-on-error: ${{ github.event.inputs.continue-on-error == 'true' }}
   int_test:
+    permissions:
+      contents: read
     needs: [build]
     if: always() && !cancelled() && !failure() && (github.event.inputs.run_int_tests == 'true')
     uses: ./.github/workflows/trigger_ado_int_tests.yml
