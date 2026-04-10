@@ -262,8 +262,8 @@ class EventTargetBuilder:
                 finally:
                     try:
                         client.close()
-                    except Exception:  # nosec B110
-                        pass
+                    except Exception as e:
+                        logger.debug("Failed to close AMQP client during cleanup: %s", e)
 
                 return result
 

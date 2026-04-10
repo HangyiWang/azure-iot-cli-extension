@@ -190,5 +190,5 @@ class MQTTProvider(object):
     def shutdown(self):
         try:
             self.device_client.shutdown()
-        except Exception:  # nosec B110
-            pass
+        except Exception as e:
+            logger.debug("Failed to shutdown MQTT device client: %s", e)
