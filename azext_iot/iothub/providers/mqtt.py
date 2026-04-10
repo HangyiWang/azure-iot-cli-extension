@@ -11,8 +11,10 @@ from typing import Any, Dict, Optional
 
 from azext_iot.common.utility import ensure_azure_namespace_path
 from azure.cli.core.azclierror import RequiredArgumentMissingError
+from knack.log import get_logger
 
 printer = pprint.PrettyPrinter(indent=2)
+logger = get_logger(__name__)
 
 
 class MQTTProvider(object):
