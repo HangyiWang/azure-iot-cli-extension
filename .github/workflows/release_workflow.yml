@@ -49,11 +49,7 @@ jobs:
   int_test:
     needs: [build]
     if: always() && !cancelled() && !failure() && (github.event.inputs.run_int_tests == 'true')
-    uses: ./.github/workflows/int_test.yml
-    with:
-      test-services: "auto"
-      python-versions: "3.10,3.11,3.12,3.13"
-      regions: "eastus,eastus2,westus,westus2,westus3,southcentralus,northeurope,westeurope"
+    uses: ./.github/workflows/trigger_ado_int_tests.yml
     secrets: inherit
   approval:
     needs: [security, build, unit-test, azdev_linter]
