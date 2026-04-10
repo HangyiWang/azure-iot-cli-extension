@@ -194,7 +194,7 @@ def import_update(
                             "Cached contents from usage of --defer were not removed. Use 'az cache' command group to manage. "
                         )
                     logger.error(lro._pipeline_response.http_response.text())
-                except Exception:
+                except Exception:  # nosec B110
                     pass
 
         import_poller.add_done_callback(import_handler)

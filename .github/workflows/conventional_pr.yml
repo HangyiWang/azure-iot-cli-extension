@@ -1,12 +1,8 @@
 name: "[auto] Check PR title format"
+permissions: {}
 on:
   pull_request:
-    types: [
-        opened,
-        edited,
-        ready_for_review,
-        reopened,
-    ]
+    types: [opened, edited, ready_for_review, reopened]
 jobs:
   verify_title:
     runs-on: ubuntu-latest
@@ -15,10 +11,10 @@ jobs:
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
-            conventional_regex='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\(.*\))?: .*$'
-            if [[ "$TITLE" =~ $conventional_regex ]]; then
-                echo "Success!"
-            else
-                echo "Incorrect PR title format" >> $GITHUB_STEP_SUMMARY
-                exit 1
-            fi
+          conventional_regex='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\(.*\))?: .*$'
+          if [[ "$TITLE" =~ $conventional_regex ]]; then
+              echo "Success!"
+          else
+              echo "Incorrect PR title format" >> $GITHUB_STEP_SUMMARY
+              exit 1
+          fi

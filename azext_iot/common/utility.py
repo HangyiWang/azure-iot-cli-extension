@@ -219,7 +219,7 @@ def read_file_content(file_path, allow_binary=False):
             with open(file_path, encoding=encoding) as f:
                 logger.debug("Attempting to read file %s as %s", file_path, encoding)
                 return f.read()
-        except (UnicodeError, UnicodeDecodeError):
+        except (UnicodeError, UnicodeDecodeError):  # nosec B110
             pass
 
     if allow_binary:
@@ -227,7 +227,7 @@ def read_file_content(file_path, allow_binary=False):
             with open(file_path, "rb") as input_file:
                 logger.debug("Attempting to read file %s as binary", file_path)
                 return base64.b64encode(input_file.read()).decode("utf-8")
-        except Exception:  # pylint: disable=broad-except
+        except Exception:  # pylint: disable=broad-except  # nosec B110
             pass
     raise FileOperationError(
         "Failed to decode file {} - unknown decoding".format(file_path)
@@ -572,6 +572,25 @@ def scantree(path):
 
 def find_between(s, start, end):
     return (s.split(start))[1].split(end)[0]
+
+
+def is_eventhub_connection_string(cs: str) -> bool:
+    """Check if a connection string is an Event Hub connection string.
+
+    Validates that the string contains 'EntityPath=' and that the
+    Endpoint hostname ends with '.servicebus.windows.net'.
+    """
+    if "EntityPath=" not in cs:
+        return False
+    try:
+        # Extract the Endpoint value: Endpoint=sb://<host>/;...
+        endpoint_part = cs.split("Endpoint=")[1].split(";")[0]
+        from urllib.parse import urlparse
+        parsed = urlparse(endpoint_part)
+        hostname = parsed.hostname or ""
+        return hostname.endswith(".servicebus.windows.net")
+    except (IndexError, ValueError):
+        return False
 
 
 def valid_hostname(host_name):

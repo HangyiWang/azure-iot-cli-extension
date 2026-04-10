@@ -1,4 +1,6 @@
+# checkov:skip=CKV_GHA_7:workflow_dispatch inputs are typed booleans controlling test selection, not injected into build output
 name: Run Azure DevOps Integration Tests
+permissions: {}
 on:
   workflow_call:
     inputs:

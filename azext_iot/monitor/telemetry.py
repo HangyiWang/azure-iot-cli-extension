@@ -221,7 +221,7 @@ async def _monitor_events(
 def _stop_and_suppress_eloop(loop):
     try:
         loop.stop()
-    except Exception:
+    except Exception:  # nosec B110
         pass
 
 

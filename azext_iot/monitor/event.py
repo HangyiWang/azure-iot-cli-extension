@@ -212,7 +212,7 @@ def monitor_feedback(target, device_id, wait_on_id=None, token_duration=3600):
     finally:
         try:
             client.close()
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
 

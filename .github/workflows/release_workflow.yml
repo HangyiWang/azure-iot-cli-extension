@@ -1,5 +1,7 @@
+# checkov:skip=CKV_GHA_7:workflow_dispatch inputs are typed booleans controlling release flow, not injected into build output
 name: Build and Publish Release
 run-name: Build and publish release${{ github.event.inputs.github_release == 'true' &&  ' - Stage Release' || ''}}
+permissions: {}
 on:
   # only manual trigger
   workflow_dispatch:

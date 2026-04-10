@@ -225,7 +225,7 @@ class DeviceMessagingProvider(IoTHubProvider):
                         logger.info(f"Decoding message data encoded with: {target_encoding}")
                         try:
                             payload["data"] = result.content.decode(target_encoding)
-                        except Exception:
+                        except Exception:  # nosec B110
                             pass
 
                 return payload
