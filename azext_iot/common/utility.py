@@ -580,13 +580,13 @@ def is_eventhub_connection_string(cs: str) -> bool:
     Validates that the string contains 'EntityPath=' and that the
     Endpoint hostname ends with '.servicebus.windows.net'.
     """
-    if "EntityPath=" not in cs:
-        return False
     try:
-        # Extract the Endpoint value: Endpoint=sb://<host>/;...
-        endpoint_part = cs.split("Endpoint=")[1].split(";")[0]
+        from azext_iot.common._azure import parse_event_hub_connection_string
+        decomposed = parse_event_hub_connection_string(cs)
+        decomposed_lower = {k.lower(): v for k, v in decomposed.items()}
+        endpoint = decomposed_lower.get("endpoint", "")
         from urllib.parse import urlparse
-        parsed = urlparse(endpoint_part)
+        parsed = urlparse(endpoint)
         hostname = (parsed.hostname or "").lower()
         return hostname.endswith(".servicebus.windows.net")
     except (IndexError, ValueError):

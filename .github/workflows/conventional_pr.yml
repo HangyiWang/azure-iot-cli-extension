@@ -5,6 +5,7 @@ on:
     types: [opened, edited, ready_for_review, reopened]
 jobs:
   verify_title:
+    permissions: {}
     runs-on: ubuntu-latest
     steps:
       - name: "Verify PR title matches conventional commits specification"
