@@ -773,14 +773,31 @@ class TestIoTHubMessaging(IoTLiveScenarioTest):
         # x509 CA device simulation and include model Id upon connection
         model_id_simulate_x509ca = "dtmi:com:example:simulatex509ca;1"
 
-        # not sure why this needs a timer but it seems to help avoid unauthorized errors
-        sleep(60)
-        self.cmd(
+        # IoT Hub needs time to propagate the CA certificate verification before x509 CA devices can authenticate.
+        # CI data shows propagation consistently takes >60s, so we wait 60s first then poll every 15s.
+        simulate_x509ca_cmd = (
             "iot device simulate -d {} -n {} -g {} --da '{}' --mc 1 --mi 1 --cp {} --kp {} --pass {} --model-id '{}'".format(
                 device_ids[1], self.entity_name, self.entity_rg, simulate_msg,
                 f"{device_ids[1]}-cert.pem", f"{device_ids[1]}-key.pem", fake_pass, model_id_simulate_x509ca
             )
         )
+        max_retries = 10
+        initial_wait = 60
+        poll_interval = 15
+        sleep(initial_wait)
+        for attempt in range(max_retries):
+            try:
+                self.cmd(simulate_x509ca_cmd)
+                break
+            except Exception:
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        "x509 CA simulate attempt %s/%s failed, retrying in %ss...",
+                        attempt + 1, max_retries, poll_interval
+                    )
+                    sleep(poll_interval)
+                else:
+                    raise
         device_events.append((device_ids[1], f"{simulate_msg} #1"))
         twin_result = self.cmd(
             f"iot hub device-twin show -d {device_ids[1]} -n {self.entity_name} -g {self.entity_rg}").get_output_in_json()

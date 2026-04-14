@@ -220,7 +220,7 @@ class IoTLiveScenarioTest(CaptureOutputLiveScenarioTest):
             command=command, auth_type=auth_type, cstring=self.connection_string
         )
 
-    @pytest.fixture(scope='class', autouse=True)
+    @pytest.fixture(scope='session', autouse=True)
     def tearDownSuite(self):
         yield None
         if not settings.env.azext_iot_testhub:
