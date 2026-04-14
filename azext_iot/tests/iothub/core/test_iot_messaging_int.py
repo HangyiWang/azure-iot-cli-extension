@@ -12,6 +12,7 @@ from time import time, sleep
 from uuid import uuid4
 from azext_iot.iothub.common import NON_DECODABLE_PAYLOAD
 from azext_iot.tests.conftest import get_context_path
+from azure.cli.testsdk.exceptions import CliExecutionError
 from azext_iot.tests.helpers import CERT_ENDING, KEY_ENDING
 from azext_iot.tests.iothub import IoTLiveScenarioTest, PREFIX_DEVICE
 from azext_iot.common.utility import (
@@ -789,11 +790,11 @@ class TestIoTHubMessaging(IoTLiveScenarioTest):
             try:
                 self.cmd(simulate_x509ca_cmd)
                 break
-            except Exception:
+            except CliExecutionError as e:
                 if attempt < max_retries - 1:
                     logger.warning(
-                        "x509 CA simulate attempt %s/%s failed, retrying in %ss...",
-                        attempt + 1, max_retries, poll_interval
+                        "x509 CA simulate attempt %s/%s failed (%s), retrying in %ss...",
+                        attempt + 1, max_retries, e, poll_interval
                     )
                     sleep(poll_interval)
                 else:

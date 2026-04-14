@@ -102,6 +102,7 @@ jobs:
       - name: "Build test matrix"
         id: matrix
         run: |
+          set -euo pipefail
           # --- Service registry: service|test_dir|tox_env|timeout ---
           all_services=(
             "DPS|azext_iot/tests/dps|DPS-int|90"
