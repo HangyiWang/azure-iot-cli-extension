@@ -432,23 +432,26 @@ def test_instance_update_lifecycle(provisioned_instances_module: Dict[str, dict]
     # Clean-up device class subgroup and group
     # TODO : Deleting a class Id does not work today, but you are able to delete a class subgroup.
 
-    # First reset device state
+    # First delete the device identity so the ADU agent is fully removed
     assert cli.invoke(
-        f"iot hub device-twin update -n {iothub_name} -d {device_id} --tags '{json.dumps({'ADUGroup': None})}'"
-    ).success()
-    reset_device_state = {"deviceUpdate": None, "deviceInformation": None}
-    assert cli.invoke(
-        f"iot device simulate -n {iothub_name} -d {device_id} --irp '{json.dumps(reset_device_state)}' --mi 1 --mc 1"
+        f"iot hub device-identity delete -n {iothub_name} -d {device_id}"
     ).success()
 
-    # Re-import device state
+    # Re-import device state so ADU picks up the device removal
     assert cli.invoke(f"iot du device import -n {account_name} -i {instance_name}").success()
 
-    # Delete device class subgroup
-    assert cli.invoke(
-        f"iot du device class delete -n {account_name} -i {instance_name} "
-        f"--class-id {device_class_id} --group-id {device_group_id} -y"
-    ).success()
+    # Delete device class subgroup - retry to allow propagation
+    from time import sleep
+    for attempt in range(3):
+        result = cli.invoke(
+            f"iot du device class delete -n {account_name} -i {instance_name} "
+            f"--class-id {device_class_id} --group-id {device_group_id} -y"
+        )
+        if result.success():
+            break
+        if attempt < 2:
+            sleep(30)
+    assert result.success()
 
     # Delete device group, assert fallback to $default
     assert cli.invoke(
@@ -538,6 +541,12 @@ def test_instance_update_stage(provisioned_instances_module: Dict[str, dict]):
     simple_update_path = get_context_path(__file__, "manifests", simple_manifest_file)
     simple_update_id = process_json_arg(simple_update_path)["updateId"]
     simple_friendly_name = f"simple_{generate_generic_id()}"
+
+    # Delete any existing update with the same ID from a prior test to avoid UpdateAlreadyExists
+    cli.invoke(
+        f"iot du update delete -n {account_name} -i {instance_name} --update-name {simple_update_id['name']} "
+        f"--update-provider {simple_update_id['provider']} --update-version {simple_update_id['version']} -y"
+    )
 
     assert cli.invoke(
         f"iot du update stage -n {account_name} -i {instance_name} --friendly-name {simple_friendly_name} "
