@@ -7,7 +7,7 @@
 import os
 import pytest
 import json
-from time import time, sleep
+from time import time
 
 from uuid import uuid4
 from azext_iot.iothub.common import NON_DECODABLE_PAYLOAD

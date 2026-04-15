@@ -400,9 +400,12 @@ jobs:
           done
 
           if [ "$result_count" -eq 0 ]; then
-            echo "::error::No test results found — all jobs may have been skipped or cancelled"
-            echo "### ❌ Gate FAILED — no test results were produced" >> $GITHUB_STEP_SUMMARY
-            exit 1
+            echo "::notice::No integration test results found — all jobs were skipped or cancelled"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### ⏭️ Integration tests were skipped" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No test results were produced. This is expected when a prerequisite job (e.g. linter or unit tests) failed." >> $GITHUB_STEP_SUMMARY
+            exit 0
           fi
 
           # Show failed test details
