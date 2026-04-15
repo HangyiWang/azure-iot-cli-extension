@@ -12,7 +12,6 @@ from time import time, sleep
 from uuid import uuid4
 from azext_iot.iothub.common import NON_DECODABLE_PAYLOAD
 from azext_iot.tests.conftest import get_context_path
-from azure.cli.testsdk.exceptions import CliExecutionError
 from azext_iot.tests.helpers import CERT_ENDING, KEY_ENDING
 from azext_iot.tests.iothub import IoTLiveScenarioTest, PREFIX_DEVICE
 from azext_iot.common.utility import (
@@ -776,8 +775,9 @@ class TestIoTHubMessaging(IoTLiveScenarioTest):
 
         # IoT Hub needs time to propagate the CA certificate verification before x509 CA devices
         # can authenticate. The simulate command exits 0 despite ConnectionDroppedError (swallowed
-        # in a background thread), so we use send-d2c-message as the readiness probe — it properly
-        # raises CliExecutionError on auth failure. Budget: 600s total (60s initial + 36x15s polls).
+        # in a background thread), so we use send-d2c-message as the readiness probe — it raises
+        # UnauthorizedError on auth failure (re-raised from CliExecutionError by the test SDK).
+        # Budget: 600s total (60s initial + 36x15s polls).
         max_retries = 36
         initial_wait = 60
         poll_interval = 15
@@ -792,7 +792,10 @@ class TestIoTHubMessaging(IoTLiveScenarioTest):
             try:
                 self.cmd(readiness_probe_cmd)
                 break
-            except CliExecutionError as e:
+            except Exception as e:
+                # Do not swallow assertion errors from the test framework.
+                if isinstance(e, AssertionError):
+                    raise
                 if attempt < max_retries - 1:
                     logger.warning(
                         "x509 CA readiness probe attempt %s/%s failed (%s), retrying in %ss...",
