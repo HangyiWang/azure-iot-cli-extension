@@ -35,12 +35,15 @@ def check_hub_device(
     last_error = None
     for attempt in range(3):
         try:
-            device_auth = cli.invoke(
+            result = cli.invoke(
                 "iot hub device-identity show -l {} -d {}".format(
                     hub_cstring,
                     device,
                 )
-            ).as_json()["authentication"]
+            )
+            if not result.success():
+                raise Exception(f"Command failed with exit code {result.error_code}: {result.output}")
+            device_auth = result.as_json()["authentication"]
             break
         except Exception as e:
             last_error = e

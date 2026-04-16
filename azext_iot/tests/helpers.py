@@ -250,24 +250,37 @@ def clean_up_iothub_device_config(
     rg: str
 ):
     from time import sleep
+    import logging
+    logger = logging.getLogger(__name__)
 
     def _list_with_retry(command, retries=3, delay=30):
+        last_exc = None
         for attempt in range(retries):
             try:
-                return cli.invoke(command).as_json()
-            except Exception:
+                result = cli.invoke(command)
+                if not result.success():
+                    raise Exception(f"Command failed with exit code {result.error_code}: {result.output}")
+                return result.as_json()
+            except Exception as e:
+                last_exc = e
                 if attempt < retries - 1:
                     sleep(delay)
+        logger.warning("List command failed after %d retries: %s — %s", retries, command, last_exc)
         return []
 
     def _delete_with_retry(command, retries=3, delay=30):
+        last_exc = None
         for attempt in range(retries):
             try:
-                cli.invoke(command)
+                result = cli.invoke(command)
+                if not result.success():
+                    raise Exception(f"Command failed with exit code {result.error_code}: {result.output}")
                 return
-            except Exception:
+            except Exception as e:
+                last_exc = e
                 if attempt < retries - 1:
                     sleep(delay)
+        logger.warning("Delete command failed after %d retries: %s — %s", retries, command, last_exc)
 
     device_list = [
         d["deviceId"] for d in _list_with_retry(

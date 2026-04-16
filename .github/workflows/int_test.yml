@@ -469,9 +469,14 @@ jobs:
       - name: "Combine coverage and generate report"
         run: |
           pip install coverage
-          coverage combine ./coverage_parts/*/.coverage
-          coverage report
-          coverage html --directory ./htmlcov
+          if compgen -G "./coverage_parts/*/.coverage" > /dev/null; then
+            coverage combine ./coverage_parts/*/.coverage
+            coverage report
+            coverage html --directory ./htmlcov
+          else
+            echo "No coverage files found — skipping combine/report."
+            echo "### ⚠️ No coverage data collected" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: "Write job summary"
         if: ${{ always() }}
