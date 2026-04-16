@@ -259,7 +259,7 @@ def clean_up_iothub_device_config(
             try:
                 result = cli.invoke(command)
                 if not result.success():
-                    raise Exception(f"Command failed with exit code {result.error_code}: {result.output}")
+                    raise RuntimeError(f"Command failed with exit code {result.error_code}: {result.output}")
                 return result.as_json()
             except Exception as e:
                 last_exc = e
@@ -274,7 +274,7 @@ def clean_up_iothub_device_config(
             try:
                 result = cli.invoke(command)
                 if not result.success():
-                    raise Exception(f"Command failed with exit code {result.error_code}: {result.output}")
+                    raise RuntimeError(f"Command failed with exit code {result.error_code}: {result.output}")
                 return
             except Exception as e:
                 last_exc = e

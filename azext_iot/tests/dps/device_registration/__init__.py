@@ -42,7 +42,7 @@ def check_hub_device(
                 )
             )
             if not result.success():
-                raise Exception(f"Command failed with exit code {result.error_code}: {result.output}")
+                raise RuntimeError(f"Command failed with exit code {result.error_code}: {result.output}")
             device_auth = result.as_json()["authentication"]
             break
         except Exception as e:
