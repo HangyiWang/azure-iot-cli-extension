@@ -207,12 +207,13 @@ jobs:
           job_count=$(echo "$matrix" | jq length)
           echo ""
           echo "┌──────────────────────────────────────────────────────────┐"
-          echo "│  Test Matrix: $job_count job(s)                                    │"
-          echo "├───────────┬─────────┬──────────────┬──────────────────────┤"
-          echo "│  Service  │ Python  │    Region    │  Timeout             │"
-          echo "├───────────┼─────────┼──────────────┼──────────────────────┤"
-          echo "$matrix" | jq -r '.[] | "│  \(.service)\(" " * (9 - (.service | length)))│ \(.python)\(" " * (7 - (.python | length)))│  \(.region)\(" " * (12 - (.region | length)))│  \(.timeout) min\(" " * (18 - ((.timeout | tostring) + " min" | length)))│"'
-          echo "└───────────┴─────────┴──────────────┴──────────────────────┘"
+          title="Test Matrix: $job_count job(s)"
+          printf "│  %-56s│\n" "$title"
+          echo "├───────────┬─────────┬──────────────┬─────────────────────┤"
+          echo "│  Service  │ Python  │    Region    │  Timeout            │"
+          echo "├───────────┼─────────┼──────────────┼─────────────────────┤"
+          echo "$matrix" | jq -r '.[] | "│  \(.service)\(" " * (9 - (.service | length)))│ \(.python)\(" " * (8 - (.python | length)))│  \(.region)\(" " * (12 - (.region | length)))│  \(.timeout) min\(" " * (19 - ((.timeout | tostring) + " min" | length)))│"'
+          echo "└───────────┴─────────┴──────────────┴─────────────────────┘"
           echo ""
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
