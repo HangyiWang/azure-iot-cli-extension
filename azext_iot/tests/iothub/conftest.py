@@ -69,9 +69,16 @@ def _cleanup_dynamic_hub():
     yield
     if not iothub_settings.env.azext_iot_testhub:
         logger.info("Deleting dynamically created hub: %s", ENTITY_NAME)
-        delete_result = cli.invoke(f"iot hub delete --name {ENTITY_NAME} --resource-group {ENTITY_RG}")
-        if not delete_result.success():
-            logger.error("Failed to delete hub %s.", ENTITY_NAME)
+        from time import sleep
+        for attempt in range(3):
+            delete_result = cli.invoke(f"iot hub delete --name {ENTITY_NAME} --resource-group {ENTITY_RG}")
+            if delete_result.success():
+                break
+            if attempt < 2:
+                logger.warning("Hub deletion attempt %s failed, retrying...", attempt + 1)
+                sleep(30)
+        else:
+            logger.error("Failed to delete hub %s after 3 attempts.", ENTITY_NAME)
 
 
 @pytest.fixture()

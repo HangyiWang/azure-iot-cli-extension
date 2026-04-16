@@ -255,14 +255,14 @@ jobs:
   int-test:
     name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{ matrix.config.region }})"
     needs: [setup, unit-test]
-    if: ${{ needs.setup.outputs.matrix != '[]' }}
+    if: ${{ needs.setup.result == 'success' && (needs.setup.outputs.matrix || '[]') != '[]' }}
     runs-on: ubuntu-24.04
     continue-on-error: true
     timeout-minutes: ${{ matrix.config.timeout }}
     strategy:
       fail-fast: false
       matrix:
-        config: ${{ fromJson(needs.setup.outputs.matrix) }}
+        config: ${{ fromJson(needs.setup.outputs.matrix || '[]') }}
     steps:
       - name: "Checkout source"
         uses: actions/checkout@v4
