@@ -1,6 +1,5 @@
 name: Integration Tests
-run-name: "Integration Tests (${{ inputs['test-services'] || 'auto' }} | ${{
-  inputs.regions || 'westus' }})"
+run-name: "Integration Tests (${{ inputs['test-services'] || 'auto' }} | ${{ inputs.regions || 'westus' }})"
 
 on:
   schedule:
@@ -13,8 +12,7 @@ on:
   workflow_call:
     inputs:
       test-services:
-        description: "Comma-separated services to test (DPS,HubMgmt,HubData,ADU,ADR).
-          'auto' uses all services on branch."
+        description: "Comma-separated services to test (DPS,HubMgmt,HubData,ADU,ADR). 'auto' uses all services on branch."
         type: string
         required: false
         default: "auto"
@@ -91,8 +89,7 @@ jobs:
   schedule-dispatch:
     name: "Dispatch to dev and preview"
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' && github.repository ==
-      'Azure/azure-iot-cli-extension'
+    if: github.event_name == 'schedule' && github.repository == 'Azure/azure-iot-cli-extension'
     steps:
       - name: "Compute rotation and dispatch"
         env:
@@ -140,6 +137,16 @@ jobs:
 
       - name: "Build test matrix"
         id: matrix
+        env:
+          INPUT_SERVICES: ${{ inputs['test-services'] || 'auto' }}
+          INPUT_PYTHON_VERSIONS: ${{ inputs['python-versions'] || '3.13' }}
+          INPUT_REGIONS: ${{ inputs.regions || 'westus' }}
+          INPUT_EVENT: ${{ github.event_name }}
+          INPUT_TEST_DPS: ${{ inputs.testDPS }}
+          INPUT_TEST_HUB_MGMT: ${{ inputs.testHubMgmt }}
+          INPUT_TEST_HUB_DATA: ${{ inputs.testHubData }}
+          INPUT_TEST_ADU: ${{ inputs.testADU }}
+          INPUT_TEST_ADR: ${{ inputs.testADR }}
         run: |
           set -euo pipefail
           # --- Service registry: service|test_dir|tox_env|timeout ---
@@ -152,17 +159,17 @@ jobs:
           )
 
           # --- Determine which services to include ---
-          input_services="${{ inputs['test-services'] || 'auto' }}"
+          input_services="$INPUT_SERVICES"
           services=""
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          if [ "$INPUT_EVENT" = "workflow_dispatch" ]; then
             # workflow_dispatch: filter by boolean toggles + directory existence
             declare -A toggles=(
-              [DPS]="${{ inputs.testDPS }}"
-              [HubMgmt]="${{ inputs.testHubMgmt }}"
-              [HubData]="${{ inputs.testHubData }}"
-              [ADU]="${{ inputs.testADU }}"
-              [ADR]="${{ inputs.testADR }}"
+              [DPS]="$INPUT_TEST_DPS"
+              [HubMgmt]="$INPUT_TEST_HUB_MGMT"
+              [HubData]="$INPUT_TEST_HUB_DATA"
+              [ADU]="$INPUT_TEST_ADU"
+              [ADR]="$INPUT_TEST_ADR"
             )
             for entry in "${all_services[@]}"; do
               IFS='|' read -r svc test_dir tox_env timeout <<< "$entry"
@@ -184,8 +191,8 @@ jobs:
             exit 1
           fi
 
-          python_versions="${{ inputs['python-versions'] || '3.13' }}"
-          regions="${{ inputs.regions || 'westus' }}"
+          python_versions="$INPUT_PYTHON_VERSIONS"
+          regions="$INPUT_REGIONS"
 
           echo "Services: $services"
           echo "Python versions: $python_versions"
@@ -275,11 +282,9 @@ jobs:
           retention-days: 30
 
   int-test:
-    name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{
-      matrix.config.region }})"
+    name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{ matrix.config.region }})"
     needs: [ setup, unit-test ]
-    if: ${{ needs.setup.result == 'success' && (needs.setup.outputs.matrix || '[]')
-      != '[]' }}
+    if: ${{ needs.setup.result == 'success' && (needs.setup.outputs.matrix || '[]') != '[]' }}
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: ${{ matrix.config.timeout }}
@@ -370,8 +375,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: test-result-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{
-            matrix.config.region }}
+          name: test-result-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{ matrix.config.region }}
           path: test-result/
           retention-days: 1
 
@@ -379,8 +383,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{
-            matrix.config.region }}
+          name: coverage-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{ matrix.config.region }}
           path: ./.coverage
           include-hidden-files: true
           retention-days: 30
