@@ -1,19 +1,20 @@
 name: Integration Tests
-run-name: "Integration Tests (${{ inputs['test-services'] || 'auto' }} | ${{ inputs.regions || 'westus' }})"
+run-name: "Integration Tests (${{ inputs['test-services'] || 'auto' }} | ${{
+  inputs.regions || 'westus' }})"
 
 on:
   schedule:
-    # 2 runs per day (midnight + lunch PST), weekdays only.
-    # Python version and region are picked independently using date-based rotation,
-    # so every version gets paired with different regions over time.
-    - cron: "17 8 * * 1-5" # Weekdays 12:17 AM PST (08:17 UTC)
-    - cron: "17 20 * * 1-5" # Weekdays 12:17 PM PST (20:17 UTC)
+    # preview: once per day on weekdays; dev: once per week on Saturday.
+    # Both dispatch workflow_dispatch to the target branch.
+    - cron: "17 8 * * 1-5" # Weekdays 12:17 AM PST (08:17 UTC) → preview
+    - cron: "17 8 * * 6" # Saturday 12:17 AM PST (08:17 UTC) → dev
 
   # Reusable workflow trigger — called programmatically by other workflows (e.g. release_workflow.yml)
   workflow_call:
     inputs:
       test-services:
-        description: "Comma-separated services to test (DPS,HubMgmt,HubData,ADU,ADR). 'auto' uses all services on branch."
+        description: "Comma-separated services to test (DPS,HubMgmt,HubData,ADU,ADR).
+          'auto' uses all services on branch."
         type: string
         required: false
         default: "auto"
@@ -81,15 +82,53 @@ on:
 permissions:
   contents: "read"
   id-token: "write"
+  actions: "write"
 
 env:
   RESOURCE_GROUP: "${{ inputs['resource-group'] || 'cli-int-test-rg' }}"
 
 jobs:
+  schedule-dispatch:
+    name: "Dispatch to dev and preview"
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'schedule' && github.repository ==
+      'Azure/azure-iot-cli-extension'
+    steps:
+      - name: "Compute rotation and dispatch"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          # Determine target branch based on day of week
+          # Weekdays (Mon-Fri) → preview, Saturday → dev
+          day_of_week=$(date -u +"%u")  # 1=Mon ... 6=Sat, 7=Sun
+          if [ "$day_of_week" = "6" ]; then
+            branch="dev"
+          else
+            branch="preview"
+          fi
+
+          # Rotate Python version and region using day-of-year as seed
+          py_versions=("3.10" "3.11" "3.12" "3.13")
+          region_list=("eastus" "westus" "northeurope" "westeurope")
+          day_of_year=$(date -u +"%j")
+          py_idx=$(( day_of_year % ${#py_versions[@]} ))
+          rg_idx=$(( (day_of_year / ${#py_versions[@]}) % ${#region_list[@]} ))
+          python_ver="${py_versions[$py_idx]}"
+          region="${region_list[$rg_idx]}"
+
+          echo "Dispatching to $branch: Python $python_ver, Region $region"
+          gh workflow run int_test.yml \
+            --repo "${{ github.repository }}" \
+            --ref "$branch" \
+            -f python-versions="$python_ver" \
+            -f regions="$region" || echo "::warning::Failed to dispatch to $branch (branch may not exist)"
+
   setup:
     name: "Detect test matrix"
     runs-on: ubuntu-24.04
-    if: github.event_name != 'schedule' || (github.repository == 'Azure/azure-iot-cli-extension' && (github.ref == 'refs/heads/preview' || github.ref == 'refs/heads/dev'))
+    if: github.event_name != 'schedule'
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
@@ -115,24 +154,6 @@ jobs:
           # --- Determine which services to include ---
           input_services="${{ inputs['test-services'] || 'auto' }}"
           services=""
-
-          # For scheduled runs, rotate Python version and region independently using
-          # day-of-year + hour as a seed. This ensures every version can pair with any region
-          # and combinations shift naturally over time.
-          if [ "${{ github.event_name }}" = "schedule" ]; then
-            py_versions=("3.10" "3.11" "3.12" "3.13")
-            region_list=("eastus" "westus" "northeurope" "westeurope")
-            day_of_year=$(date -u +"%j")  # 1-366
-            hour=$(date -u +"%H")         # 08 or 20
-            # Use different offsets for midnight vs lunch so they don't pick the same combo
-            if [ "$hour" = "08" ]; then offset=0; else offset=1; fi
-            seed=$(( day_of_year * 2 + offset ))
-            py_idx=$(( seed % ${#py_versions[@]} ))
-            rg_idx=$(( (seed / ${#py_versions[@]}) % ${#region_list[@]} ))
-            python_versions="${py_versions[$py_idx]}"
-            regions="${region_list[$rg_idx]}"
-            echo "Schedule seed=$seed → Python $python_versions, Region $regions"
-          fi
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             # workflow_dispatch: filter by boolean toggles + directory existence
@@ -163,9 +184,8 @@ jobs:
             exit 1
           fi
 
-          # Set python_versions and regions if not already set by schedule block above
-          python_versions="${python_versions:-${{ inputs['python-versions'] || '3.13' }}}"
-          regions="${regions:-${{ inputs.regions || 'westus' }}}"
+          python_versions="${{ inputs['python-versions'] || '3.13' }}"
+          regions="${{ inputs.regions || 'westus' }}"
 
           echo "Services: $services"
           echo "Python versions: $python_versions"
@@ -226,6 +246,7 @@ jobs:
   unit-test:
     name: "Linter and unit tests"
     runs-on: ubuntu-24.04
+    if: github.event_name != 'schedule'
     steps:
       - name: "Checkout source"
         uses: actions/checkout@v4
@@ -254,9 +275,11 @@ jobs:
           retention-days: 30
 
   int-test:
-    name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{ matrix.config.region }})"
-    needs: [setup, unit-test]
-    if: ${{ needs.setup.result == 'success' && (needs.setup.outputs.matrix || '[]') != '[]' }}
+    name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{
+      matrix.config.region }})"
+    needs: [ setup, unit-test ]
+    if: ${{ needs.setup.result == 'success' && (needs.setup.outputs.matrix || '[]')
+      != '[]' }}
     runs-on: ubuntu-24.04
     continue-on-error: true
     timeout-minutes: ${{ matrix.config.timeout }}
@@ -347,7 +370,8 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: test-result-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{ matrix.config.region }}
+          name: test-result-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{
+            matrix.config.region }}
           path: test-result/
           retention-days: 1
 
@@ -355,15 +379,16 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{ matrix.config.region }}
+          name: coverage-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{
+            matrix.config.region }}
           path: ./.coverage
           include-hidden-files: true
           retention-days: 30
 
   int-test-gate:
     name: "Integration test gate"
-    needs: [int-test]
-    if: always() && !cancelled()
+    needs: [ int-test ]
+    if: github.event_name != 'schedule' && always() && !cancelled()
     runs-on: ubuntu-24.04
     steps:
       - name: "Download all test results"
@@ -454,8 +479,8 @@ jobs:
 
   combine-coverage:
     name: "Combine coverage reports"
-    if: ${{ always() }}
-    needs: [unit-test, int-test, int-test-gate]
+    if: github.event_name != 'schedule' && always()
+    needs: [ unit-test, int-test, int-test-gate ]
     runs-on: ubuntu-24.04
     steps:
       - name: "Checkout source"
