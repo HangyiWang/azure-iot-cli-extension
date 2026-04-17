@@ -362,6 +362,12 @@ def test_route_fallback_lifecycle(provisioned_only_iot_hubs_module):
     iot_rg = provisioned_only_iot_hubs_module[0]["rg"]
     fallback_name = "$fallback"
 
+    # Ensure fallback route is enabled before testing (may be left disabled by prior runs)
+    cli.invoke(
+        f"iot hub message-route fallback set -n {iot_hub} -g {iot_rg} -e true"
+    )
+    wait_till_hub_state_is_active(iot_hub, iot_rg)
+
     expected_fallback_route = build_expected_route(
         name=fallback_name,
         source_type=RouteSourceType.DeviceMessages.value,

@@ -17,6 +17,7 @@ from azext_iot.tests.generators import generate_generic_id
 from azext_iot.common.certops import create_self_signed_certificate
 from azext_iot.tests.helpers import assign_role_assignment, clean_up_iothub_device_config, get_closest_marker
 from azext_iot.tests.settings import DynamoSettings, ENV_SET_TEST_IOTHUB_REQUIRED, ENV_SET_TEST_IOTHUB_OPTIONAL
+from azext_iot.tests.iothub import ENTITY_NAME, ENTITY_RG, settings as iothub_settings
 
 logger = get_logger(__name__)
 MAX_RBAC_ASSIGNMENT_TRIES = 10
@@ -55,6 +56,29 @@ def assign_iot_hub_dataplane_rbac_role(hub_results):
                 role=USER_ROLE,
                 max_tries=MAX_RBAC_ASSIGNMENT_TRIES
             )
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _cleanup_dynamic_hub():
+    """Session-scoped fixture to delete dynamically created hubs after all tests complete.
+
+    This runs once per xdist worker session, ensuring the hub is not deleted
+    between test classes (which would cause race conditions for classes sharing
+    the same hub on the same worker).
+    """
+    yield
+    if not iothub_settings.env.azext_iot_testhub:
+        logger.info("Deleting dynamically created hub: %s", ENTITY_NAME)
+        from time import sleep
+        for attempt in range(3):
+            delete_result = cli.invoke(f"iot hub delete --name {ENTITY_NAME} --resource-group {ENTITY_RG}")
+            if delete_result.success():
+                break
+            if attempt < 2:
+                logger.warning("Hub deletion attempt %s failed, retrying...", attempt + 1)
+                sleep(30)
+        else:
+            logger.error("Failed to delete hub %s after 3 attempts.", ENTITY_NAME)
 
 
 @pytest.fixture()

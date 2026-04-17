@@ -5,6 +5,7 @@
 # --------------------------------------------------------------------------------------------
 
 
+from time import sleep
 from typing import Dict
 
 
@@ -31,12 +32,26 @@ def check_hub_device(
 ):
     """Helper method to check whether a device exists in a hub."""
 
-    device_auth = cli.invoke(
-        "iot hub device-identity show -l {} -d {}".format(
-            hub_cstring,
-            device,
-        )
-    ).as_json()["authentication"]
+    last_error = None
+    for attempt in range(3):
+        try:
+            result = cli.invoke(
+                "iot hub device-identity show -l {} -d {}".format(
+                    hub_cstring,
+                    device,
+                )
+            )
+            if not result.success():
+                raise RuntimeError(f"Command failed with exit code {result.error_code}: {result.output}")
+            device_auth = result.as_json()["authentication"]
+            break
+        except Exception as e:
+            last_error = e
+            if attempt < 2:
+                sleep(30)
+    else:
+        raise last_error
+
     assert auth_type == device_auth["type"]
     if key:
         assert key == device_auth["symmetricKey"]["primaryKey"]
