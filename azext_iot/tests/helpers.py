@@ -249,44 +249,77 @@ def clean_up_iothub_device_config(
     hub_name: str,
     rg: str
 ):
-    device_list = []
-    device_list.extend(d["deviceId"] for d in cli.invoke(
-        f"iot hub device-twin list -n {hub_name} -g {rg}"
-    ).as_json())
+    from time import sleep
+    import logging
+    logger = logging.getLogger(__name__)
 
-    deployment_list = []
-    deployment_list.extend(c["id"] for c in cli.invoke(
-        f"iot edge deployment list -n {hub_name} -g {rg}"
-    ).as_json())
+    def _list_with_retry(command, retries=3, delay=30):
+        last_exc = None
+        for attempt in range(retries):
+            try:
+                result = cli.invoke(command)
+                if not result.success():
+                    raise RuntimeError(f"Command failed with exit code {result.error_code}: {result.output}")
+                return result.as_json()
+            except Exception as e:
+                last_exc = e
+                if attempt < retries - 1:
+                    sleep(delay)
+        logger.warning("List command failed after %d retries: %s — %s", retries, command, last_exc)
+        return []
 
-    config_list = []
-    config_list.extend(c["id"] for c in cli.invoke(
-        f"iot hub configuration list -n {hub_name} -g {rg}"
-    ).as_json())
+    def _delete_with_retry(command, retries=3, delay=30):
+        last_exc = None
+        for attempt in range(retries):
+            try:
+                result = cli.invoke(command)
+                if not result.success():
+                    raise RuntimeError(f"Command failed with exit code {result.error_code}: {result.output}")
+                return
+            except Exception as e:
+                last_exc = e
+                if attempt < retries - 1:
+                    sleep(delay)
+        logger.warning("Delete command failed after %d retries: %s — %s", retries, command, last_exc)
 
-    if device_list:
-        for device in device_list:
-            cli.invoke(
-                "iot hub device-identity delete -d {} -n {} -g {}".format(
-                    device, hub_name, rg
-                )
+    device_list = [
+        d["deviceId"] for d in _list_with_retry(
+            f"iot hub device-twin list -n {hub_name} -g {rg}"
+        )
+    ]
+
+    deployment_list = [
+        c["id"] for c in _list_with_retry(
+            f"iot edge deployment list -n {hub_name} -g {rg}"
+        )
+    ]
+
+    config_list = [
+        c["id"] for c in _list_with_retry(
+            f"iot hub configuration list -n {hub_name} -g {rg}"
+        )
+    ]
+
+    for device in device_list:
+        _delete_with_retry(
+            "iot hub device-identity delete -d {} -n {} -g {}".format(
+                device, hub_name, rg
             )
+        )
 
-    if deployment_list:
-        for deployment in deployment_list:
-            cli.invoke(
-                "iot edge deployment delete -d {} -n {} -g {}".format(
-                    deployment, hub_name, rg
-                )
+    for deployment in deployment_list:
+        _delete_with_retry(
+            "iot edge deployment delete -d {} -n {} -g {}".format(
+                deployment, hub_name, rg
             )
+        )
 
-    if config_list:
-        for config in config_list:
-            cli.invoke(
-                "iot hub configuration delete -c {} -n {} -g {}".format(
-                    config, hub_name, rg
-                )
+    for config in config_list:
+        _delete_with_retry(
+            "iot hub configuration delete -c {} -n {} -g {}".format(
+                config, hub_name, rg
             )
+        )
 
 
 def create_test_cert(

@@ -223,11 +223,7 @@ class IoTLiveScenarioTest(CaptureOutputLiveScenarioTest):
     @pytest.fixture(scope='class', autouse=True)
     def tearDownSuite(self):
         yield None
-        if not settings.env.azext_iot_testhub:
-            self.cmd(
-                "iot hub delete --name {} --resource-group {}".format(
-                    ENTITY_NAME, ENTITY_RG
-                )
-            )
+        # Hub deletion is handled by the session-scoped _cleanup_dynamic_hub
+        # fixture in conftest.py to avoid race conditions between classes.
         if hasattr(self, "storage_cstring"):
             self._delete_storage_account()
