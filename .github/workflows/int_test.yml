@@ -90,7 +90,7 @@ env:
 jobs:
   schedule-dispatch:
     name: "Dispatch to dev and preview"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     if: github.event_name == 'schedule' && github.repository ==
       'Azure/azure-iot-cli-extension'
     steps:
@@ -127,7 +127,7 @@ jobs:
 
   setup:
     name: "Detect test matrix"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     if: github.event_name != 'schedule'
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
@@ -245,7 +245,7 @@ jobs:
 
   unit-test:
     name: "Linter and unit tests"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     if: github.event_name != 'schedule'
     steps:
       - name: "Checkout source"
@@ -280,7 +280,7 @@ jobs:
     needs: [ setup, unit-test ]
     if: ${{ needs.setup.result == 'success' && (needs.setup.outputs.matrix || '[]')
       != '[]' }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: ${{ matrix.config.timeout }}
     strategy:
@@ -389,7 +389,7 @@ jobs:
     name: "Integration test gate"
     needs: [ int-test ]
     if: github.event_name != 'schedule' && always() && !cancelled()
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: "Download all test results"
         uses: actions/download-artifact@v4
@@ -481,7 +481,7 @@ jobs:
     name: "Combine coverage reports"
     if: github.event_name != 'schedule' && always()
     needs: [ unit-test, int-test, int-test-gate ]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: "Checkout source"
         uses: actions/checkout@v4
