@@ -1,5 +1,8 @@
 name: Integration Tests
-run-name: "Integration Tests (${{ inputs['test-services'] || 'auto' }} | ${{ inputs.regions || 'westus' }})"
+run-name: >-
+  ${{ github.event_name == 'schedule'
+    && 'Integration Tests (scheduled)'
+    || format('Integration Tests ({0} | {1})', inputs['test-services'] || 'auto', inputs.regions || 'westus') }}
 
 on:
   schedule:
