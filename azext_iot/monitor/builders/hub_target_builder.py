@@ -11,7 +11,6 @@ from azure.eventhub.aio import EventHubConsumerClient
 from knack.log import get_logger
 from azext_iot.common.sas_token_auth import SasTokenAuthentication
 from azext_iot.common.utility import url_encode_str, is_eventhub_connection_string
-from azext_iot.monitor.models.enum import Transport
 from azext_iot.monitor.models.target import Target
 
 logger = get_logger(__name__)
