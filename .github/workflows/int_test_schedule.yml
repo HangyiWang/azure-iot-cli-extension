@@ -4,8 +4,9 @@ run-name: "Dispatch integration tests → ${{ github.event_name == 'schedule' &&
 on:
     schedule:
         # preview: once per day on weekdays; dev: once per week on Saturday.
-        - cron: "17 8 * * 1-5" # Weekdays 12:17 AM PST (08:17 UTC) → preview
-        - cron: "17 8 * * 6" # Saturday 12:17 AM PST (08:17 UTC) → dev
+        - cron: "17 8 * * 1-5" # Weekdays 12:17 AM PT (08:17 UTC) → preview
+        - cron: "17 8 * * 6" # Saturday 12:17 AM PT (08:17 UTC) → dev
+    workflow_dispatch:
 
 permissions:
     contents: "read"
