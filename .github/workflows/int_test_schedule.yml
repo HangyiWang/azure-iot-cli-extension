@@ -1,0 +1,50 @@
+name: "Integration Tests (scheduler)"
+run-name: "Dispatch integration tests → ${{ github.event_name == 'schedule' && 'auto' || 'manual' }}"
+
+on:
+    schedule:
+        # preview: once per day on weekdays; dev: once per week on Saturday.
+        - cron: "17 8 * * 1-5" # Weekdays 12:17 AM PT (08:17 UTC) → preview
+        - cron: "17 8 * * 6" # Saturday 12:17 AM PT (08:17 UTC) → dev
+    workflow_dispatch:
+
+permissions:
+    contents: "read"
+    actions: "write"
+
+jobs:
+    dispatch:
+        name: "Dispatch to target branch"
+        runs-on: ubuntu-latest
+        if: github.repository == 'Azure/azure-iot-cli-extension'
+        steps:
+            - name: "Compute rotation and dispatch"
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  set -euo pipefail
+
+                  # Determine target branch based on day of week
+                  # Weekdays (Mon-Fri) → preview, Saturday → dev
+                  day_of_week=$(date -u +"%u")  # 1=Mon ... 6=Sat, 7=Sun
+                  if [ "$day_of_week" = "6" ]; then
+                    branch="dev"
+                  else
+                    branch="preview"
+                  fi
+
+                  # Rotate Python version and region using day-of-year as seed
+                  py_versions=("3.10" "3.11" "3.12" "3.13")
+                  region_list=("eastus" "westus" "northeurope" "westeurope")
+                  day_of_year=$(date -u +"%j")
+                  py_idx=$(( day_of_year % ${#py_versions[@]} ))
+                  rg_idx=$(( (day_of_year / ${#py_versions[@]}) % ${#region_list[@]} ))
+                  python_ver="${py_versions[$py_idx]}"
+                  region="${region_list[$rg_idx]}"
+
+                  echo "Dispatching to $branch: Python $python_ver, Region $region"
+                  gh workflow run int_test.yml \
+                    --repo "${{ github.repository }}" \
+                    --ref "$branch" \
+                    -f python-versions="$python_ver" \
+                    -f regions="$region" || echo "::warning::Failed to dispatch to $branch (branch may not exist)"
