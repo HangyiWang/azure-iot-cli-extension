@@ -1,16 +1,8 @@
 name: Integration Tests
 run-name: >-
-  ${{ github.event_name == 'schedule'
-    && 'Integration Tests (scheduled)'
-    || format('Integration Tests ({0} | {1})', inputs['test-services'] || 'auto', inputs.regions || 'westus') }}
+  Integration Tests (${{ inputs['test-services'] || 'auto' }} | ${{ inputs.regions || 'westus' }})
 
 on:
-  schedule:
-    # preview: once per day on weekdays; dev: once per week on Saturday.
-    # Both dispatch workflow_dispatch to the target branch.
-    - cron: "17 8 * * 1-5" # Weekdays 12:17 AM PST (08:17 UTC) → preview
-    - cron: "17 8 * * 6" # Saturday 12:17 AM PST (08:17 UTC) → dev
-
   # Reusable workflow trigger — called programmatically by other workflows (e.g. release_workflow.yml)
   workflow_call:
     inputs:
@@ -83,52 +75,14 @@ on:
 permissions:
   contents: "read"
   id-token: "write"
-  actions: "write"
 
 env:
   RESOURCE_GROUP: "${{ inputs['resource-group'] || 'cli-int-test-rg' }}"
 
 jobs:
-  schedule-dispatch:
-    name: "Dispatch to dev and preview"
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' && github.repository == 'Azure/azure-iot-cli-extension'
-    steps:
-      - name: "Compute rotation and dispatch"
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-
-          # Determine target branch based on day of week
-          # Weekdays (Mon-Fri) → preview, Saturday → dev
-          day_of_week=$(date -u +"%u")  # 1=Mon ... 6=Sat, 7=Sun
-          if [ "$day_of_week" = "6" ]; then
-            branch="dev"
-          else
-            branch="preview"
-          fi
-
-          # Rotate Python version and region using day-of-year as seed
-          py_versions=("3.10" "3.11" "3.12" "3.13")
-          region_list=("eastus" "westus" "northeurope" "westeurope")
-          day_of_year=$(date -u +"%j")
-          py_idx=$(( day_of_year % ${#py_versions[@]} ))
-          rg_idx=$(( (day_of_year / ${#py_versions[@]}) % ${#region_list[@]} ))
-          python_ver="${py_versions[$py_idx]}"
-          region="${region_list[$rg_idx]}"
-
-          echo "Dispatching to $branch: Python $python_ver, Region $region"
-          gh workflow run int_test.yml \
-            --repo "${{ github.repository }}" \
-            --ref "$branch" \
-            -f python-versions="$python_ver" \
-            -f regions="$region" || echo "::warning::Failed to dispatch to $branch (branch may not exist)"
-
   setup:
     name: "Detect test matrix"
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
@@ -256,7 +210,6 @@ jobs:
   unit-test:
     name: "Linter and unit tests"
     runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
     steps:
       - name: "Checkout source"
         uses: actions/checkout@v4
@@ -311,11 +264,11 @@ jobs:
           python -m build
           az extension add --source ./dist/*.whl -y
           # az CLI uses its own Python (e.g. 3.13) to install deps into the extension dir.
-          # Binary packages like rpds-py have version-specific .so files that won't load
-          # under a different Python. Reinstall them for the test Python version.
+          # Binary packages like rpds-py and cryptography have version-specific .so files
+          # that won't load under a different Python. Reinstall them for the test Python version.
           ext_dir=$(az extension show -n azure-iot --query path -o tsv 2>/dev/null || echo "")
           if [ -n "$ext_dir" ] && [ -d "$ext_dir" ]; then
-            pip install --target "$ext_dir" --upgrade --force-reinstall --no-deps rpds-py
+            pip install --target "$ext_dir" --upgrade --force-reinstall --no-deps rpds-py cryptography
           fi
 
       - name: "Setup tox test environment"
@@ -394,7 +347,7 @@ jobs:
   int-test-gate:
     name: "Integration test gate"
     needs: [ int-test ]
-    if: github.event_name != 'schedule' && always() && !cancelled()
+    if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - name: "Download all test results"
@@ -485,7 +438,7 @@ jobs:
 
   combine-coverage:
     name: "Combine coverage reports"
-    if: github.event_name != 'schedule' && always()
+    if: always()
     needs: [ unit-test, int-test, int-test-gate ]
     runs-on: ubuntu-latest
     steps:
