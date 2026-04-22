@@ -225,8 +225,8 @@ class DeviceMessagingProvider(IoTHubProvider):
                         logger.info(f"Decoding message data encoded with: {target_encoding}")
                         try:
                             payload["data"] = result.content.decode(target_encoding)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("Failed to decode message data with encoding %s: %s", target_encoding, e)
 
                 return payload
             return
@@ -377,7 +377,7 @@ class DeviceMessagingProvider(IoTHubProvider):
                 self.calls += 1
                 payload = {
                     "id": str(uuid.uuid4()),
-                    "timestamp": str(datetime.datetime.utcnow()),
+                    "timestamp": str(datetime.datetime.now(datetime.timezone.utc)),
                     "data": str(data + " #{}".format(self.calls)),
                 }
                 return json.dumps(payload) if jsonify else payload

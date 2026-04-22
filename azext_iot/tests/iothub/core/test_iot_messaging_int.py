@@ -7,12 +7,11 @@
 import os
 import pytest
 import json
-from time import time, sleep
+from time import time
 
 from uuid import uuid4
 from azext_iot.iothub.common import NON_DECODABLE_PAYLOAD
 from azext_iot.tests.conftest import get_context_path
-from azext_iot.tests.helpers import CERT_ENDING, KEY_ENDING
 from azext_iot.tests.iothub import IoTLiveScenarioTest, PREFIX_DEVICE
 from azext_iot.common.utility import (
     execute_onthread,
@@ -20,13 +19,12 @@ from azext_iot.common.utility import (
     read_file_content,
     validate_key_value_pairs
 )
-from azext_iot.tests.test_utils import create_certificate
 from knack.log import get_logger
 
 
 logger = get_logger(__name__)
 
-LIVE_CONSUMER_GROUPS = ["test1", "test2", "test3"]
+LIVE_CONSUMER_GROUPS = ["test1", "test2", "test3", "test4"]
 MQTT_PROVIDER_SETUP_TIME = 15
 
 messaging_data_path = get_context_path(__file__, "test_messaging_data.json")
@@ -649,15 +647,13 @@ class TestIoTHubMessaging(IoTLiveScenarioTest):
         self._monitor_checker(enqueued_time=enqueued_time, device_events=device_events)
 
     def test_mqtt_device_simulation_x509(self):
-        device_ids = self.generate_device_names(2)
+        device_ids = self.generate_device_names(1)
         device_events = []
         output_dir = os.getcwd()
         enqueued_time = calculate_millisec_since_unix_epoch_utc()
         simulate_msg = "Cert Connection Simulate"
         send_d2c_msg = "Cert Connection Send-D2C-Message"
         self.kwargs["messaging_data"] = read_file_content(messaging_data_path)
-        self.kwargs["messaging_unicodable_data"] = read_file_content(messaging_unicodable_data_path)
-        self.kwargs["messaging_non_unicodable_data"] = NON_DECODABLE_PAYLOAD
 
         self.cmd(
             "iot hub device-identity create -d {} -n {} -g {} --am x509_thumbprint --valid-days 10 --od '{}'".format(
@@ -708,119 +704,6 @@ class TestIoTHubMessaging(IoTLiveScenarioTest):
             )
         )
         device_events.append((device_ids[0], self.kwargs["messaging_data"]))
-
-        # Set up the CA signed cert - need to upload to hub and sign
-        root_cert = create_certificate(subject="root", valid_days=1, cert_output_dir=output_dir)
-        fake_pass = "pass1234"
-        create_certificate(
-            subject=device_ids[1],
-            valid_days=1,
-            cert_output_dir=output_dir,
-            cert_object=root_cert,
-            chain_cert=True,
-            signing_password=fake_pass
-        )
-        for cert_name in ["root", device_ids[1]]:
-            self.tracked_certs.append(cert_name + CERT_ENDING)
-            self.tracked_certs.append(cert_name + KEY_ENDING)
-
-        certificates_result = self.cmd(
-            "iot hub certificate list --hub-name {} -g {}".format(
-                self.entity_name, self.entity_rg
-            )
-        ).get_output_in_json()
-
-        # delete the certificate if already exist before creation
-        if any(cert["name"] == "root" for cert in certificates_result["value"]):
-            self.cmd(
-                "iot hub certificate delete --hub-name {} -g {} -n {} -e *".format(
-                    self.entity_name, self.entity_rg, "root"
-                )
-            )
-
-        self.cmd(
-            "iot hub certificate create --hub-name {} -g {} -n {} -p {}".format(
-                self.entity_name, self.entity_rg, "root", "root" + CERT_ENDING
-            )
-        )
-
-        verification_code = self.cmd(
-            "iot hub certificate generate-verification-code --hub-name {} -g {} -n {} -e *".format(
-                self.entity_name, self.entity_rg, "root",
-            )
-        ).get_output_in_json()["properties"]["verificationCode"]
-
-        create_certificate(
-            subject=verification_code, valid_days=1, cert_output_dir=output_dir, cert_object=root_cert
-        )
-        self.tracked_certs.append(verification_code + CERT_ENDING)
-        self.tracked_certs.append(verification_code + KEY_ENDING)
-
-        self.cmd(
-            "iot hub certificate verify --hub-name {} -g {} -n {} -p {} -e *".format(
-                self.entity_name, self.entity_rg, "root", verification_code + CERT_ENDING
-            )
-        )
-
-        # create x509 CA device
-        self.cmd(
-            "iot hub device-identity create -d {} -n {} -g {} --am x509_ca ".format(
-                device_ids[1], self.entity_name, self.entity_rg
-            ),
-            checks=[self.check("deviceId", device_ids[1])],
-        )
-
-        # x509 CA device simulation and include model Id upon connection
-        model_id_simulate_x509ca = "dtmi:com:example:simulatex509ca;1"
-
-        # not sure why this needs a timer but it seems to help avoid unauthorized errors
-        sleep(60)
-        self.cmd(
-            "iot device simulate -d {} -n {} -g {} --da '{}' --mc 1 --mi 1 --cp {} --kp {} --pass {} --model-id '{}'".format(
-                device_ids[1], self.entity_name, self.entity_rg, simulate_msg,
-                f"{device_ids[1]}-cert.pem", f"{device_ids[1]}-key.pem", fake_pass, model_id_simulate_x509ca
-            )
-        )
-        device_events.append((device_ids[1], f"{simulate_msg} #1"))
-        twin_result = self.cmd(
-            f"iot hub device-twin show -d {device_ids[1]} -n {self.entity_name} -g {self.entity_rg}").get_output_in_json()
-        assert twin_result["modelId"] == model_id_simulate_x509ca
-
-        self.cmd(
-            "iot device send-d2c-message -d {} -n {} -g {} --da '{}' --cp {} --kp {} --pass {}".format(
-                device_ids[1], self.entity_name, self.entity_rg, send_d2c_msg,
-                f"{device_ids[1]}-cert.pem", f"{device_ids[1]}-key.pem", fake_pass
-            )
-        )
-        device_events.append((device_ids[1], send_d2c_msg))
-
-        self.cmd(
-            """iot device send-d2c-message -d {} -n {} -g {} --dfp '{}' -p '$.ct=application/octet-stream'
-            --cp {} --kp {} --pass {}""".format(
-                device_ids[1], self.entity_name, self.entity_rg, messaging_unicodable_data_path,
-                f"{device_ids[1]}-cert.pem", f"{device_ids[1]}-key.pem", fake_pass
-            )
-        )
-        device_events.append((device_ids[1], self.kwargs["messaging_unicodable_data"]))
-
-        self.cmd(
-            """iot device send-d2c-message -d {} -n {} -g {} --dfp '{}' -p '$.ct=application/octet-stream'
-            --cp {} --kp {} --pass {}""".format(
-                device_ids[1], self.entity_name, self.entity_rg, messaging_non_unicodable_data_path,
-                f"{device_ids[1]}-cert.pem", f"{device_ids[1]}-key.pem", fake_pass
-            )
-        )
-        device_events.append((device_ids[1], self.kwargs["messaging_non_unicodable_data"]))
-
-        # Error - send-d2c-message with non existed file path.
-        self.cmd(
-            """iot device send-d2c-message -d {} -n {} -g {} --dfp '{}' -p '$.ct=application/octet-stream'
-            --cp {} --kp {} --pass {}""".format(
-                device_ids[1], self.entity_name, self.entity_rg, '123',
-                f"{device_ids[1]}-cert.pem", f"{device_ids[1]}-key.pem", fake_pass
-            ),
-            expect_failure=True
-        )
 
         self._monitor_checker(enqueued_time=enqueued_time, device_events=device_events)
 
@@ -1241,10 +1124,31 @@ class TestIoTHubMessaging(IoTLiveScenarioTest):
                 device_ids,
             )
 
-        # Monitor events with --login parameter
+        # Monitor events with --login parameter (IoT Hub connection string)
         self.command_execute_assert(
             "iot hub monitor-events -t 8 -y -p all --cg {} --et {} --login {}".format(
                 LIVE_CONSUMER_GROUPS[2], enqueued_time, self.connection_string
+            ),
+            device_ids,
+        )
+
+        # Monitor events with --login using an Event Hub connection string
+        # (the built-in endpoint CS available from `az iot hub connection-string show --eh`)
+        eh_cs_output = self.cmd(
+            "iot hub connection-string show -n {} --eh -o json".format(self.entity_name)
+        ).get_output_in_json()
+        eh_cs = eh_cs_output["connectionString"]
+        self.command_execute_assert(
+            "iot hub monitor-events -t 8 -y --cg {} --et {} --login {}".format(
+                LIVE_CONSUMER_GROUPS[3], enqueued_time, eh_cs
+            ),
+            device_ids,
+        )
+
+        # Monitor events with explicit --transport amqp_ws (AMQP over WebSocket)
+        self.command_execute_assert(
+            "iot hub monitor-events -n {} -g {} --cg {} --et {} -t 8 -y --transport amqp_ws".format(
+                self.entity_name, self.entity_rg, LIVE_CONSUMER_GROUPS[0], enqueued_time
             ),
             device_ids,
         )

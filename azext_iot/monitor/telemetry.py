@@ -7,6 +7,8 @@
 import asyncio
 import sys
 from azure.eventhub.aio import EventHubConsumerClient
+from azure.eventhub import TransportType
+from azext_iot.monitor.models.enum import Transport
 from azure.cli.core.azclierror import CLIInternalError
 from datetime import datetime, timezone
 
@@ -15,7 +17,7 @@ from knack.log import get_logger
 from typing import List
 from azext_iot.constants import VERSION, USER_AGENT
 from azext_iot.monitor.models.target import Target
-from azext_iot.monitor.utility import get_loop
+from azext_iot.monitor.utility import get_http_proxy_settings, get_loop
 
 logger = get_logger(__name__)
 DEBUG = False
@@ -27,6 +29,7 @@ def start_single_monitor(
     on_start_string: str,
     on_message_received,
     timeout=0,
+    transport=None,
 ):
     """
     :param on_message_received:
@@ -39,6 +42,7 @@ def start_single_monitor(
         on_start_string=on_start_string,
         on_message_received=on_message_received,
         timeout=timeout,
+        transport=transport,
     )
 
 
@@ -48,6 +52,7 @@ def start_multiple_monitors(
     enqueued_time_utc,
     on_message_received,
     timeout=0,
+    transport=None,
 ):
     """
     :param on_message_received:
@@ -60,6 +65,7 @@ def start_multiple_monitors(
             enqueued_time_utc=enqueued_time_utc,
             on_message_received=on_message_received,
             timeout=timeout,
+            transport=transport,
         )
         for target in targets
     ]
@@ -96,7 +102,7 @@ def start_multiple_monitors(
 
 
 async def _initiate_event_monitor(
-    target: Target, enqueued_time_utc, on_message_received, timeout=0
+    target: Target, enqueued_time_utc, on_message_received, timeout=0, transport=None
 ):
     if not target.partitions:
         logger.warning("No Event Hub partitions found to listen on.")
@@ -108,6 +114,8 @@ async def _initiate_event_monitor(
     #   - IoT Central: AzureSasCredential with pre-generated token
     # EventHubSharedKeyCredential has sync/async compatibility issues with aio client
 
+    proxy_settings = get_http_proxy_settings()
+
     if target.policy and target.key:
         # IoT Hub: Use connection string (works with async EventHubConsumerClient)
         connection_str = (
@@ -116,19 +124,33 @@ async def _initiate_event_monitor(
             f"SharedAccessKey={target.key};"
             f"EntityPath={target.path}"
         )
+        create_kwargs = {
+            "consumer_group": target.consumer_group,
+            "eventhub_name": target.path,
+        }
+        if transport == Transport.AMQP_WS or proxy_settings:
+            create_kwargs["transport_type"] = TransportType.AmqpOverWebsocket
+        if proxy_settings:
+            create_kwargs["http_proxy"] = proxy_settings
+
         consumer_client = EventHubConsumerClient.from_connection_string(
             connection_str,
-            consumer_group=target.consumer_group,
-            eventhub_name=target.path,
+            **create_kwargs,
         )
     elif target.sas_credential:
         # IoT Central: Use pre-generated SAS token credential
-        consumer_client = EventHubConsumerClient(
-            fully_qualified_namespace=target.hostname,
-            eventhub_name=target.path,
-            consumer_group=target.consumer_group,
-            credential=target.sas_credential,
-        )
+        create_kwargs = {
+            "fully_qualified_namespace": target.hostname,
+            "eventhub_name": target.path,
+            "consumer_group": target.consumer_group,
+            "credential": target.sas_credential,
+        }
+        if transport == Transport.AMQP_WS or proxy_settings:
+            create_kwargs["transport_type"] = TransportType.AmqpOverWebsocket
+        if proxy_settings:
+            create_kwargs["http_proxy"] = proxy_settings
+
+        consumer_client = EventHubConsumerClient(**create_kwargs)
     else:
         raise CLIInternalError(
             "Target object is missing authentication credentials. "
@@ -199,8 +221,8 @@ async def _monitor_events(
 def _stop_and_suppress_eloop(loop):
     try:
         loop.stop()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed to stop event loop: %s", e)
 
 
 def _get_conn_props():

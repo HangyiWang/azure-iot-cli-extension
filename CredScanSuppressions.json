@@ -81,6 +81,16 @@
             "file": "azext_iot\\tests\\iothub\\devices\\test_iot_edge_devices_create_int.py",
             "placeholder": "$credential$",
             "_justification": "Fake credentials for container auth"
+        },
+        {
+            "file": "azext_iot\\tests\\utility\\test_monitor_parsers_unit.py",
+            "placeholder": "p%40ss",
+            "_justification": "Fake URL-encoded proxy password used in unit test for HTTP proxy parsing."
+        },
+        {
+            "file": "azext_iot\\tests\\utility\\test_monitor_parsers_unit.py",
+            "placeholder": "p@ss",
+            "_justification": "Fake decoded proxy password used in unit test for HTTP proxy parsing."
         }
     ]
 }

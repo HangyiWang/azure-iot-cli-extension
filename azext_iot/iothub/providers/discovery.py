@@ -9,7 +9,7 @@ from azure.cli.core.commands.client_factory import get_subscription_id
 from azext_iot.common._azure import IOT_SERVICE_CS_TEMPLATE
 from azext_iot.common.base_discovery import BaseDiscovery
 from azext_iot.common.shared import DiscoveryResourceType, AuthenticationTypeDataplane
-from azext_iot.common.utility import trim_from_start
+from azext_iot.common.utility import trim_from_start, is_eventhub_connection_string
 from azext_iot.iothub.models.iothub_target import IotHubTarget
 from azext_iot._factory import iot_hub_service_factory
 from typing import Any, Dict
@@ -43,6 +43,19 @@ class IotHubDiscovery(BaseDiscovery):
 
     @classmethod
     def get_target_by_cstring(cls, connection_string: str) -> Dict[str, str]:
+        # If this is an Event Hub connection string (e.g. the IoT Hub built-in endpoint
+        # connection string from the Azure portal), return a minimal placeholder.  The CS
+        # uses "Endpoint=" and "EntityPath=" rather than "HostName=", so IotHubTarget would
+        # raise a ValueError on it.  All parsing and Target construction is deferred to
+        # EventTargetBuilder which detects the EH CS via the "cs" field.
+        if is_eventhub_connection_string(connection_string):
+            return {
+                "cs": connection_string,
+                "entity": "eventhub",
+                "name": "eventhub",
+                "policy": "",
+                "primarykey": "",
+            }
         return IotHubTarget.from_connection_string(cstring=connection_string).as_dict()
 
     def _build_target_from_hostname(self, resource_hostname: str) -> Dict[str, str]:

@@ -7,11 +7,14 @@
 import asyncio
 
 from azure.cli.core.azclierror import CLIInternalError
+from azure.eventhub import TransportType
 from azure.eventhub.aio import EventHubConsumerClient
 from knack.log import get_logger
 from azext_iot.common.sas_token_auth import SasTokenAuthentication
-from azext_iot.common.utility import url_encode_str
+from azext_iot.common.utility import url_encode_str, is_eventhub_connection_string
+from azext_iot.monitor.models.enum import Transport
 from azext_iot.monitor.models.target import Target
+from azext_iot.monitor.utility import get_http_proxy_settings
 
 logger = get_logger(__name__)
 
@@ -34,12 +37,19 @@ class EventTargetBuilder:
         self.eventLoop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.eventLoop)
 
-    def build_iot_hub_target(self, target):
+    def build_iot_hub_target(self, target, transport=None):
         return self.eventLoop.run_until_complete(
-            self._build_iot_hub_target_async(target)
+            self._build_iot_hub_target_async(target, transport=transport)
         )
 
-    async def _build_iot_hub_target_async(self, target):
+    async def _build_iot_hub_target_async(self, target, transport=None):
+        cs = target.get("cs", "")
+        # If the connection string is an Event Hub connection string (e.g. from IoT Hub's
+        # built-in endpoint in the Azure portal), skip the AMQP redirect and connect
+        # directly.  This also ensures proxy settings are applied correctly.
+        if is_eventhub_connection_string(cs):
+            return await self._build_from_eh_connection_string(cs, transport=transport)
+
         # If events metadata not provided, attempt to discover it via AMQP redirect
         if "events" not in target:
             event_info = await self._evaluate_redirect(target)
@@ -81,10 +91,19 @@ class EventTargetBuilder:
             f"SharedAccessKey={key};"
             f"EntityPath={path}"
         )
+        create_kwargs = {
+            "consumer_group": "$Default",
+            "eventhub_name": path,
+        }
+        proxy_settings = get_http_proxy_settings()
+        if transport == Transport.AMQP_WS or proxy_settings:
+            create_kwargs["transport_type"] = TransportType.AmqpOverWebsocket
+        if proxy_settings:
+            create_kwargs["http_proxy"] = proxy_settings
+
         client = EventHubConsumerClient.from_connection_string(
             connection_str,
-            consumer_group="$Default",
-            eventhub_name=path,
+            **create_kwargs,
         )
 
         try:
@@ -100,6 +119,51 @@ class EventTargetBuilder:
         except Exception as e:
             raise CLIInternalError(
                 f"Unable to query partitions for '{target['entity'].split('.')[0]}': {e}"
+            )
+
+    async def _build_from_eh_connection_string(self, cs: str, transport=None) -> Target:
+        """Build a Target directly from an Event Hub connection string.
+
+        Parses and connects to the Event Hub endpoint described by *cs*, applying
+        any configured HTTP proxy.  Used when the caller supplies an EH connection
+        string (e.g. from IoT Hub's built-in endpoint in the Azure portal) so that
+        the AMQP link-redirect step can be skipped entirely.
+        """
+        from azext_iot.common._azure import parse_event_hub_connection_string
+        parsed = parse_event_hub_connection_string(cs)
+        endpoint_raw = parsed.get("Endpoint", "")
+        for prefix in ("sb://", "amqps://"):
+            if endpoint_raw.lower().startswith(prefix):
+                endpoint_raw = endpoint_raw[len(prefix):]
+                break
+        hostname = endpoint_raw.rstrip("/")
+        entity_path = parsed["EntityPath"]
+        sas_key_name = parsed["SharedAccessKeyName"]
+        sas_key = parsed["SharedAccessKey"]
+
+        create_kwargs = {
+            "consumer_group": "$Default",
+        }
+        proxy_settings = get_http_proxy_settings()
+        if transport == Transport.AMQP_WS or proxy_settings:
+            create_kwargs["transport_type"] = TransportType.AmqpOverWebsocket
+        if proxy_settings:
+            create_kwargs["http_proxy"] = proxy_settings
+
+        client = EventHubConsumerClient.from_connection_string(cs, **create_kwargs)
+        try:
+            async with client:
+                partition_ids = await client.get_partition_ids()
+                return Target(
+                    hostname=hostname,
+                    path=entity_path,
+                    partitions=list(partition_ids),
+                    policy=sas_key_name,
+                    key=sas_key,
+                )
+        except Exception as e:
+            raise CLIInternalError(
+                f"Unable to query partitions from Event Hub endpoint '{hostname}': {e}"
             )
 
     async def _evaluate_redirect(self, target):
@@ -198,8 +262,8 @@ class EventTargetBuilder:
                 finally:
                     try:
                         client.close()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("Failed to close AMQP client during cleanup: %s", e)
 
                 return result
 
