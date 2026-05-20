@@ -18,16 +18,16 @@ def test_dps_discovery(provisioned_iot_dps_no_hub_module):
     discovery = DPSDiscovery(cmd_shell)
 
     resource = discovery.find_resource(resource_name=dps_name)
-    assert resource.name == dps_name
+    assert resource["name"] == dps_name
 
-    auto_policy = discovery.find_policy(resource_name=dps_name, rg=dps_rg).as_dict()
+    auto_policy = discovery.find_policy(resource_name=dps_name, rg=dps_rg)
     assert auto_policy
 
     # Assumption - Test DPS includes the vanilla provisioningserviceowner policy
     desired_policy = discovery.find_policy(
         resource_name=dps_name, rg=dps_rg, policy_name=desired_policy_name
-    ).as_dict()
-    assert desired_policy["key_name"] == desired_policy_name
+    )
+    assert desired_policy["keyName"] == desired_policy_name
 
     policies = discovery.get_policies(resource_name=dps_name, rg=dps_rg)
     assert len(policies)
@@ -40,14 +40,14 @@ def test_dps_discovery(provisioned_iot_dps_no_hub_module):
     assert sub_dps
 
     filtered_sub_dps = [
-        dps for dps in sub_dps if dps.as_dict()["name"] == dps_name
+        dps for dps in sub_dps if dps["name"] == dps_name
     ]
     assert filtered_sub_dps
 
     rg_dpss = discovery.get_resources(rg=dps_rg)
     assert rg_dpss
 
-    filtered_rg_dpss = [dps for dps in rg_dpss if dps.as_dict()["name"] == dps_name]
+    filtered_rg_dpss = [dps for dps in rg_dpss if dps["name"] == dps_name]
     assert filtered_rg_dpss
 
     assert len(rg_dpss) <= len(sub_dps)

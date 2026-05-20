@@ -10,7 +10,6 @@ from azure.core.exceptions import HttpResponseError
 from knack.log import get_logger
 from azext_iot.common.shared import AuthenticationTypeDataplane
 from typing import Any, Dict, List
-from types import SimpleNamespace
 
 from azext_iot.common.utility import valid_hostname
 
@@ -164,7 +163,7 @@ class BaseDiscovery(ABC):
 
         if resource_list:
             target = next(
-                (resource for resource in resource_list if resource_name.lower() == resource.name.lower()),
+                (resource for resource in resource_list if resource_name.lower() == resource["name"].lower()),
                 None
             )
             if target:
@@ -210,10 +209,10 @@ class BaseDiscovery(ABC):
         policy_list = self.get_policies(resource_name=resource_name, rg=rg)
 
         for policy in policy_list:
-            rights_set = set(policy.rights.split(", "))
+            rights_set = set(policy["rights"].split(", "))
             if self.necessary_rights_set.issubset(rights_set):
                 logger.info(
-                    "Using policy '%s' for %s interaction.", policy.key_name, self.resource_type
+                    "Using policy '%s' for %s interaction.", policy["keyName"], self.resource_type
                 )
                 return policy
 
@@ -292,10 +291,11 @@ class BaseDiscovery(ABC):
 
             resource = self.find_resource(resource_name=resource_name, rg=resource_group_name)
 
-            policy = SimpleNamespace()
-            policy.key_name = AuthenticationTypeDataplane.login.value
-            policy.primary_key = AuthenticationTypeDataplane.login.value
-            policy.secondary_key = AuthenticationTypeDataplane.login.value
+            policy = {
+                "keyName": AuthenticationTypeDataplane.login.value,
+                "primaryKey": AuthenticationTypeDataplane.login.value,
+                "secondaryKey": AuthenticationTypeDataplane.login.value,
+            }
 
             return self._build_target(
                 resource=resource,
@@ -309,10 +309,10 @@ class BaseDiscovery(ABC):
         resource = self.find_resource(resource_name=resource_name, rg=resource_group_name)
         key_type = kwargs.get("key_type", "primary")
         policy_name = kwargs.get("policy_name", "auto")
-        rg = getattr(resource, "resourcegroup", None) or resource.additional_properties.get("resourcegroup")
+        rg = resource.get("resourcegroup")
 
         resource_policy = self.find_policy(
-            resource_name=resource.name, rg=rg, policy_name=policy_name,
+            resource_name=resource["name"], rg=rg, policy_name=policy_name,
         )
 
         return self._build_target(
@@ -339,14 +339,12 @@ class BaseDiscovery(ABC):
         if resources:
             for resource in resources:
                 try:
-                    resource_group_name = getattr(
-                        resource, "resourcegroup", None
-                    ) or resource.additional_properties.get("resourcegroup")
+                    resource_group_name = resource.get("resourcegroup")
                     targets.append(
-                        self.get_target(resource_name=resource.name, resource_group_name=resource_group_name, **kwargs)
+                        self.get_target(resource_name=resource["name"], resource_group_name=resource_group_name, **kwargs)
                     )
                 except (HttpResponseError, ResourceNotFoundError) as e:
-                    logger.warning("Could not access %s. %s", resource.name, e)
+                    logger.warning("Could not access %s. %s", resource["name"], e)
 
         return targets
 

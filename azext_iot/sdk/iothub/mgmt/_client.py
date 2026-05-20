@@ -8,13 +8,13 @@
 
 from copy import deepcopy
 from typing import Any, TYPE_CHECKING
+from typing_extensions import Self
 
 from azure.core.pipeline import policies
 from azure.core.rest import HttpRequest, HttpResponse
 from azure.mgmt.core import ARMPipelineClient
 from azure.mgmt.core.policies import ARMAutoResourceProviderRegistrationPolicy
 
-from . import models as _models
 from ._configuration import IotHubClientConfiguration
 from ._serialization import Deserializer, Serializer
 from .operations import (
@@ -28,11 +28,10 @@ from .operations import (
 )
 
 if TYPE_CHECKING:
-    # pylint: disable=unused-import,ungrouped-imports
     from azure.core.credentials import TokenCredential
 
 
-class IotHubClient:  # pylint: disable=client-accepts-api-version-keyword,too-many-instance-attributes
+class IotHubClient:  # pylint: disable=too-many-instance-attributes
     """Use this API to manage the IoT hubs in your Azure subscription.
 
     :ivar operations: Operations operations
@@ -56,7 +55,7 @@ class IotHubClient:  # pylint: disable=client-accepts-api-version-keyword,too-ma
     :type subscription_id: str
     :param endpoint: Service URL. Default value is "https://management.azure.com".
     :type endpoint: str
-    :keyword api_version: Api Version. Default value is "2025-08-01-preview". Note that overriding
+    :keyword api_version: Api Version. Default value is "2026-03-01-preview". Note that overriding
      this default value may result in unsupported behavior.
     :paramtype api_version: str
     :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
@@ -91,10 +90,8 @@ class IotHubClient:  # pylint: disable=client-accepts-api-version-keyword,too-ma
             ]
         self._client: ARMPipelineClient = ARMPipelineClient(base_url=endpoint, policies=_policies, **kwargs)
 
-        client_models = {k: v for k, v in _models._models.__dict__.items() if isinstance(v, type)}
-        client_models.update({k: v for k, v in _models.__dict__.items() if isinstance(v, type)})
-        self._serialize = Serializer(client_models)
-        self._deserialize = Deserializer(client_models)
+        self._serialize = Serializer()
+        self._deserialize = Deserializer()
         self._serialize.client_side_validation = False
         self.operations = Operations(self._client, self._config, self._serialize, self._deserialize)
         self.iot_hub_resource = IotHubResourceOperations(self._client, self._config, self._serialize, self._deserialize)
@@ -135,7 +132,7 @@ class IotHubClient:  # pylint: disable=client-accepts-api-version-keyword,too-ma
     def close(self) -> None:
         self._client.close()
 
-    def __enter__(self) -> "IotHubClient":
+    def __enter__(self) -> Self:
         self._client.__enter__()
         return self
 

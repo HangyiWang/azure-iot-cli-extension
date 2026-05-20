@@ -20,6 +20,7 @@ from azext_iot.common.shared import (
     SettleType,
     DeviceAuthType,
     KeyType,
+    HostnameType,
     AttestationType,
     ProtocolType,
     AckType,
@@ -350,6 +351,34 @@ def load_arguments(self, _):
             options_list=["--default-eventhub", "--eh"],
             help="Flag indicating the connection string returned is for the default EventHub endpoint. Default: false.",
         )
+        context.argument(
+            "hostname_type",
+            options_list=["--hostname-type", "--ht"],
+            arg_type=get_enum_type(HostnameType),
+            default=HostnameType.AUTO.value,
+            help="Type of hostname to use in the connection string. "
+            "'auto' uses the TLS 1.3 device hostname on GWv2 hubs, classic otherwise. "
+            "'classic' always uses the default hostname. "
+            "'device' uses the TLS 1.3 device hostname (errors if not GWv2). "
+            "'service' uses the TLS 1.3 service hostname (errors if not GWv2).",
+        )
+
+    for cs_command in [
+        "iot hub device-identity connection-string",
+        "iot hub module-identity connection-string",
+    ]:
+        with self.argument_context(cs_command) as context:
+            context.argument(
+                "hostname_type",
+                options_list=["--hostname-type", "--ht"],
+                arg_type=get_enum_type(HostnameType),
+                default=HostnameType.AUTO.value,
+                help="Type of hostname to use in the connection string. "
+                "'auto' uses the TLS 1.3 device hostname on GWv2 hubs, classic otherwise. "
+                "'classic' always uses the default hostname. "
+                "'device' uses the TLS 1.3 device hostname (errors if not GWv2). "
+                "'service' uses the TLS 1.3 service hostname (errors if not GWv2).",
+            )
 
     with self.argument_context("iot hub job") as context:
         context.argument("job_id", options_list=["--job-id"], help="IoT Hub job Id.")

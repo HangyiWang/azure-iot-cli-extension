@@ -361,11 +361,6 @@ class TestIoTHubDevices(IoTLiveScenarioTest):
             f"iot hub device-identity create -d {device_ids[1]} -n {self.entity_name} -g {self.entity_rg} --am x509_ca"
         )
 
-        sym_cstring_pattern = f"HostName={self.entity_name}.azure-devices.net;DeviceId={device_ids[0]};SharedAccessKey=#"
-        cer_cstring_pattern = (
-            f"HostName={self.entity_name}.azure-devices.net;DeviceId={device_ids[1]};x509=true"
-        )
-
         for auth_phase in DATAPLANE_AUTH_TYPES:
             primary_key_cstring = self.cmd(
                 self.set_cmd_auth_type(
@@ -375,12 +370,11 @@ class TestIoTHubDevices(IoTLiveScenarioTest):
                 )
             ).get_output_in_json()
 
-            target_key = symmetric_key_device["authentication"]["symmetricKey"][
-                "primaryKey"
-            ]
-            target_sym_cstring = sym_cstring_pattern.replace("#", target_key)
-
-            assert target_sym_cstring == primary_key_cstring["connectionString"]
+            cs = primary_key_cstring["connectionString"]
+            target_key = symmetric_key_device["authentication"]["symmetricKey"]["primaryKey"]
+            assert f"DeviceId={device_ids[0]}" in cs
+            assert f"SharedAccessKey={target_key}" in cs
+            assert cs.startswith(f"HostName={self.entity_name}")
 
             secondary_key_cstring = self.cmd(
                 self.set_cmd_auth_type(
@@ -390,12 +384,11 @@ class TestIoTHubDevices(IoTLiveScenarioTest):
                 )
             ).get_output_in_json()
 
-            target_key = symmetric_key_device["authentication"]["symmetricKey"][
-                "secondaryKey"
-            ]
-            target_sym_cstring = sym_cstring_pattern.replace("#", target_key)
-
-            assert target_sym_cstring == secondary_key_cstring["connectionString"]
+            cs = secondary_key_cstring["connectionString"]
+            target_key = symmetric_key_device["authentication"]["symmetricKey"]["secondaryKey"]
+            assert f"DeviceId={device_ids[0]}" in cs
+            assert f"SharedAccessKey={target_key}" in cs
+            assert cs.startswith(f"HostName={self.entity_name}")
 
             x509_cstring = self.cmd(
                 self.set_cmd_auth_type(
@@ -405,7 +398,10 @@ class TestIoTHubDevices(IoTLiveScenarioTest):
                 )
             ).get_output_in_json()
 
-            assert cer_cstring_pattern == x509_cstring["connectionString"]
+            cs = x509_cstring["connectionString"]
+            assert f"DeviceId={device_ids[1]}" in cs
+            assert "x509=true" in cs
+            assert cs.startswith(f"HostName={self.entity_name}")
 
     # TODO: Improve validation of tests via micro device client or other means.
     def test_iothub_device_generate_sas_token(self):

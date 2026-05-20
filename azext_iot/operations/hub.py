@@ -6,7 +6,6 @@
 
 from os.path import exists
 from knack.log import get_logger
-from enum import Enum, EnumMeta
 from tqdm import tqdm
 from azure.cli.core.azclierror import (
     ArgumentUsageError,
@@ -34,6 +33,7 @@ from azext_iot.common.shared import (
     SdkType,
     ConfigType,
     KeyType,
+    HostnameType,
     RenewKeyType,
     IoTHubStateType,
     DeviceAuthApiType,
@@ -2394,7 +2394,39 @@ def _iot_build_sas_token(
     return SasTokenAuthentication(uri, policy, key, duration)
 
 
-def _build_device_or_module_connection_string(entity, key_type="primary"):
+def _transform_hostname(hostname, hostname_type):
+    """Transform a hostname to the requested type via string manipulation."""
+    parts = hostname.split(".")
+    hub_name = parts[0]
+    if parts[1] in (HostnameType.DEVICE.value, HostnameType.SERVICE.value):
+        domain = ".".join(parts[2:])
+    else:
+        domain = ".".join(parts[1:])
+    hostname_map = {
+        HostnameType.CLASSIC.value: f"{hub_name}.{domain}",
+        HostnameType.DEVICE.value: f"{hub_name}.device.{domain}",
+        HostnameType.SERVICE.value: f"{hub_name}.service.{domain}",
+    }
+    return hostname_map.get(hostname_type, hostname)
+
+
+def _resolve_hostname_by_type(target, hostname_type, auto_tls_key="deviceHostName"):
+    classic = _transform_hostname(target["entity"], HostnameType.CLASSIC.value)
+    if hostname_type == HostnameType.CLASSIC.value:
+        return classic
+    if hostname_type == HostnameType.AUTO.value:
+        return target.get(auto_tls_key) or classic
+    key = "deviceHostName" if hostname_type == HostnameType.DEVICE.value else "serviceHostName"
+    resolved = target.get(key)
+    if not resolved:
+        raise InvalidArgumentValueError(
+            f"The '{hostname_type}' hostname is not available for IoT Hub '{target['name']}'. "
+            "This hostname type is only supported on GWv2 IoT Hubs."
+        )
+    return resolved
+
+
+def _build_device_or_module_connection_string(entity, key_type="primary", hostname_override=None):
     is_device = entity.get("moduleId") is None
     template = (
         "HostName={};DeviceId={};{}"
@@ -2417,11 +2449,12 @@ def _build_device_or_module_connection_string(entity, key_type="primary"):
     else:
         raise CLIInternalError("Unable to form target connection string")
 
+    hostname = hostname_override or entity.get("hub")
     if is_device:
-        return template.format(entity.get("hub"), entity.get("deviceId"), key)
+        return template.format(hostname, entity.get("deviceId"), key)
     else:
         return template.format(
-            entity.get("hub"), entity.get("deviceId"), entity.get("moduleId"), key
+            hostname, entity.get("deviceId"), entity.get("moduleId"), key
         )
 
 
@@ -2433,18 +2466,23 @@ def iot_get_device_connection_string(
     resource_group_name=None,
     login=None,
     auth_type_dataplane=None,
+    hostname_type=HostnameType.AUTO.value,
 ):
     result = {}
-    device = iot_device_show(
-        cmd,
-        device_id,
-        hub_name_or_hostname=hub_name_or_hostname,
+    discovery = IotHubDiscovery(cmd)
+    target = discovery.get_target(
+        resource_name=hub_name_or_hostname,
         resource_group_name=resource_group_name,
         login=login,
-        auth_type_dataplane=auth_type_dataplane,
+        auth_type=auth_type_dataplane,
     )
+    device = _iot_device_show(target, device_id)
+    if login:
+        hostname_override = _transform_hostname(target["entity"], hostname_type)
+    else:
+        hostname_override = _resolve_hostname_by_type(target, hostname_type, auto_tls_key="deviceHostName")
     result["connectionString"] = _build_device_or_module_connection_string(
-        device, key_type
+        device, key_type, hostname_override=hostname_override
     )
     return result
 
@@ -2458,19 +2496,23 @@ def iot_get_module_connection_string(
     resource_group_name=None,
     login=None,
     auth_type_dataplane=None,
+    hostname_type=HostnameType.AUTO.value,
 ):
     result = {}
-    module = iot_device_module_show(
-        cmd,
-        device_id,
-        module_id,
+    discovery = IotHubDiscovery(cmd)
+    target = discovery.get_target(
+        resource_name=hub_name_or_hostname,
         resource_group_name=resource_group_name,
-        hub_name_or_hostname=hub_name_or_hostname,
         login=login,
-        auth_type_dataplane=auth_type_dataplane,
+        auth_type=auth_type_dataplane,
     )
+    module = _iot_device_module_show(target, device_id, module_id)
+    if login:
+        hostname_override = _transform_hostname(target["entity"], hostname_type)
+    else:
+        hostname_override = _resolve_hostname_by_type(target, hostname_type, auto_tls_key="deviceHostName")
     result["connectionString"] = _build_device_or_module_connection_string(
-        module, key_type
+        module, key_type, hostname_override=hostname_override
     )
     return result
 
@@ -2867,6 +2909,7 @@ def iot_hub_connection_string_show(
     key_type=KeyType.primary.value,
     show_all=False,
     default_eventhub=False,
+    hostname_type=HostnameType.AUTO.value,
 ):
     discovery = IotHubDiscovery(cmd)
 
@@ -2877,16 +2920,16 @@ def iot_hub_connection_string_show(
 
         def conn_str_getter(hub):
             return _get_hub_connection_string(
-                discovery, hub, policy_name, key_type, show_all, default_eventhub
+                cmd, discovery, hub, policy_name, key_type, show_all, default_eventhub, hostname_type
             )
 
         connection_strings = []
         for hub in hubs:
-            if hub.properties.state == IoTHubStateType.Active.value:
+            if hub["properties"]["state"] == IoTHubStateType.Active.value:
                 try:
                     connection_strings.append(
                         {
-                            "name": hub.name,
+                            "name": hub["name"],
                             "connectionString": conn_str_getter(hub)
                             if show_all
                             else conn_str_getter(hub)[0],
@@ -2894,14 +2937,14 @@ def iot_hub_connection_string_show(
                     )
                 except Exception:
                     logger.warning(
-                        f"Warning: The IoT Hub {hub.name} in resource group "
-                        + f"{hub.additional_properties['resourcegroup']} does "
+                        f"Warning: The IoT Hub {hub['name']} in resource group "
+                        + f"{hub['resourcegroup']} does "
                         + f"not have the target policy {policy_name}."
                     )
             else:
                 logger.warning(
-                    f"Warning: The IoT Hub {hub.name} in resource group "
-                    + f"{hub.additional_properties['resourcegroup']} is skipped "
+                    f"Warning: The IoT Hub {hub['name']} in resource group "
+                    + f"{hub['resourcegroup']} is skipped "
                     + "because the hub is not active."
                 )
         return connection_strings
@@ -2909,57 +2952,67 @@ def iot_hub_connection_string_show(
     hub = discovery.find_resource(hub_name_or_hostname, resource_group_name)
     if hub:
         conn_str = _get_hub_connection_string(
-            discovery, hub, policy_name, key_type, show_all, default_eventhub
+            cmd, discovery, hub, policy_name, key_type, show_all, default_eventhub, hostname_type
         )
         return {"connectionString": conn_str if show_all else conn_str[0]}
 
 
 def _get_hub_connection_string(
-    discovery, hub, policy_name, key_type, show_all, default_eventhub
+    cmd, discovery, hub, policy_name, key_type, show_all, default_eventhub,
+    hostname_type=HostnameType.AUTO.value,
 ):
 
     policies = []
     if show_all:
         policies.extend(
-            discovery.get_policies(hub.name, hub.additional_properties["resourcegroup"])
+            discovery.get_policies(hub["name"], hub["resourcegroup"])
         )
     else:
         policies.append(
             discovery.find_policy(
-                hub.name, hub.additional_properties["resourcegroup"], policy_name
+                hub["name"], hub["resourcegroup"], policy_name
             )
         )
     if default_eventhub:
         cs_template_eventhub = (
             "Endpoint={};SharedAccessKeyName={};SharedAccessKey={};EntityPath={}"
         )
-        endpoint = hub.properties.event_hub_endpoints["events"].endpoint
-        entityPath = hub.properties.event_hub_endpoints["events"].path
+        endpoint = hub["properties"]["eventHubEndpoints"]["events"]["endpoint"]
+        entityPath = hub["properties"]["eventHubEndpoints"]["events"]["path"]
         return [
             cs_template_eventhub.format(
                 endpoint,
-                p.key_name,
-                p.secondary_key
+                p["keyName"],
+                p["secondaryKey"]
                 if key_type == KeyType.secondary.value
-                else p.primary_key,
+                else p["primaryKey"],
                 entityPath,
             )
             for p in policies
             if "serviceconnect"
             in (
-                p.rights.value.lower()
-                if isinstance(p.rights, (Enum, EnumMeta))
-                else p.rights.lower()
+                p["rights"].lower()
             )
         ]
 
-    hostname = hub.properties.host_name
+    if hostname_type == HostnameType.AUTO.value:
+        hostname = hub["properties"].get("deviceHostName") or hub["properties"]["hostName"]
+    elif hostname_type == HostnameType.CLASSIC.value:
+        hostname = hub["properties"]["hostName"]
+    else:
+        key = "deviceHostName" if hostname_type == HostnameType.DEVICE.value else "serviceHostName"
+        hostname = hub["properties"].get(key)
+        if not hostname:
+            raise InvalidArgumentValueError(
+                f"The '{hostname_type}' hostname is not available for IoT Hub '{hub['name']}'. "
+                "This hostname type is only supported on GWv2 IoT Hubs."
+            )
     cs_template = "HostName={};SharedAccessKeyName={};SharedAccessKey={}"
     return [
         cs_template.format(
             hostname,
-            p.key_name,
-            p.secondary_key if key_type == KeyType.secondary.value else p.primary_key,
+            p["keyName"],
+            p["secondaryKey"] if key_type == KeyType.secondary.value else p["primaryKey"],
         )
         for p in policies
     ]
@@ -2982,8 +3035,8 @@ def _iot_hub_distributed_tracing_show(discovery, target, device_id):
 def _validate_device_tracing(discovery, target, device_twin):
     if not all([target.get("location"), target.get("sku_tier")]):
         resource = discovery.find_resource(target["name"])
-        target["location"] = resource.location
-        target["sku_tier"] = resource.sku.tier.value if isinstance(resource.sku.tier, (Enum, EnumMeta)) else resource.sku.tier
+        target["location"] = resource["location"]
+        target["sku_tier"] = resource["sku"]["tier"]
     if target["location"].lower() not in TRACING_ALLOWED_FOR_LOCATION:
         raise ClientRequestError(
             'Distributed tracing isn\'t supported for the hub located at "{}" location.'.format(

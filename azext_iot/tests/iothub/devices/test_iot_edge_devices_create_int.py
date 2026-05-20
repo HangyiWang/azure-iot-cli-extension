@@ -357,7 +357,7 @@ class TestNestedEdgeHierarchy(IoTLiveScenarioTest):
                     # hub hostname
                     assert (
                         config["provisioning"]["iothub_hostname"]
-                        == f"{self.entity_name}.azure-devices.net"
+                        == self.host_name
                     )
                     # device_id
                     assert config["provisioning"]["device_id"] == device_id

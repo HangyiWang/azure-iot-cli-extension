@@ -3,6 +3,36 @@
 Release History
 ===============
 
+0.31.0b1 (Preview)
++++++++++++++++
+
+**General updates**
+
+* This is a preview release adding TLS 1.3 support for IoT Hub and managed identity support for DPS linked hubs.
+* To install preview extensions, you will need to add the ``--allow-preview`` argument to ``az extension add/update`` commands.
+* New IoT Hub and DPS management SDKs targeting the ``2026-03-01-preview`` API version, which natively exposes ``deviceHostName``, ``serviceHostName`` and ``gatewayVersion`` on hubs and ``authenticationType``/``hostName`` on DPS linked-hub entries.
+
+**IoT Hub updates**
+
+* IoT Hub data-plane operations now communicate over the new service hostname (``<hub>.service.azure-devices.net``) on TLS 1.3-capable hubs, falling back to the classic hostname for V1 hubs. No user action required.
+
+* Added ``--hostname-type`` parameter to connection-string commands to control the hostname returned in output. Applies to ``az iot hub connection-string show``, ``az iot hub device-identity connection-string show`` and ``az iot hub module-identity connection-string show``:
+
+  - Default ``auto`` - uses the TLS 1.3 device hostname (``<hub>.device.azure-devices.net``) on GWv2 hubs, classic hostname on V1 hubs.
+  - ``classic`` - always uses ``<hub>.azure-devices.net``.
+  - ``device`` - uses the TLS 1.3 device hostname; errors if the hub is not GWv2.
+  - ``service`` - uses the TLS 1.3 service hostname (``<hub>.service.azure-devices.net``); errors if the hub is not GWv2.
+
+**DPS updates**
+
+* ``az iot dps linked-hub create`` now supports managed-identity authentication via new parameters:
+
+  - ``--authentication-type`` - ``KeyBased`` (default), ``SystemAssigned`` or ``UserAssigned``.
+  - ``--user-assigned-identity`` - required when ``--authentication-type`` is ``UserAssigned``.
+  - ``--hostname-type`` - ``auto`` (default, resolves to ``device`` when available, ``classic`` for V1 hubs), ``device`` or ``classic``. ``service`` is not supported for DPS linked-hub.
+
+* For managed-identity links, the linked hub's hostname is auto-resolved from the IoT Hub's ``deviceHostName`` (with classic fallback for V1 hubs). CLI validates that the appropriate identity type is enabled on the DPS resource before creating a managed-identity link.
+
 0.29.0
 +++++++++++++++
 

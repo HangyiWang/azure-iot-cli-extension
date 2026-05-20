@@ -246,8 +246,8 @@ class StateProvider(IoTHubProvider):
                 control_plane_obj = self.discovery.find_resource(hub_name, hub_rg)
 
                 if not hub_rg:
-                    hub_rg = control_plane_obj.additional_properties["resourcegroup"]
-                hub_resource_id = control_plane_obj.id
+                    hub_rg = control_plane_obj["resourcegroup"]
+                hub_resource_id = control_plane_obj["id"]
                 hub_arm = cli.invoke(f"group export -n {hub_rg} --resource-ids '{hub_resource_id}' --skip-all-params").as_json()
                 if hub_arm and hub_arm["resources"]:
                     hub_state["arm"] = hub_arm
@@ -272,22 +272,22 @@ class StateProvider(IoTHubProvider):
                 # remove/overwrite attributes that cannot be changed
                 current_hub_resource = self.discovery.find_resource(self.hub_name, self.rg)
                 if not self.rg:
-                    self.rg = current_hub_resource.additional_properties["resourcegroup"]
+                    self.rg = current_hub_resource["resourcegroup"]
                 # location
-                hub_resource["location"] = current_hub_resource.location
+                hub_resource["location"] = current_hub_resource["location"]
                 # sku
-                hub_resource["sku"] = current_hub_resource.sku.serialize()
+                hub_resource["sku"] = current_hub_resource["sku"]
                 # event hub partitions
-                partition_count = current_hub_resource.properties.event_hub_endpoints["events"].partition_count
+                partition_count = current_hub_resource["properties"]["eventHubEndpoints"]["events"]["partitionCount"]
                 hub_resource["properties"]["eventHubEndpoints"]["events"]["partitionCount"] = partition_count
                 # enable data residency
                 if (
-                    hasattr(current_hub_resource.properties, "enable_data_residency")
+                    "enableDataResidency" in current_hub_resource["properties"]
                     and "enableDataResidency" in hub_resource["properties"]
                 ):
-                    hub_resource["properties"]["enableDataResidency"] = current_hub_resource.properties.enable_data_residency
+                    hub_resource["properties"]["enableDataResidency"] = current_hub_resource["properties"]["enableDataResidency"]
                 # features - hub takes care of this but we will do this just incase
-                hub_resource["properties"]["features"] = current_hub_resource.properties.features
+                hub_resource["properties"]["features"] = current_hub_resource["properties"]["features"]
                 # TODO check for other props and add them as they pop up
 
             else:
@@ -1003,8 +1003,7 @@ class StateProvider(IoTHubProvider):
     def delete_all_certificates(self):
         """Delete all certs if possible."""
         cert_client = self._get_client().certificates
-        # serialize strips name and etag - use as_dict instead
-        certificates = cert_client.list_by_iot_hub(self.rg, self.hub_name).as_dict()
+        certificates = cert_client.list_by_iot_hub(self.rg, self.hub_name)
 
         # TODO - need to support SDKs with/without match_condition argument
         for cert in tqdm(certificates["value"], desc=usr_msgs.DELETE_CERT_DESC, ascii=" #"):

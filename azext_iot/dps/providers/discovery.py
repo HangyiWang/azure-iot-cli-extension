@@ -79,17 +79,17 @@ class DPSDiscovery(BaseDiscovery):
         # but that will be better served aligning with vNext pattern for DPS
         result = {}
         result["cs"] = IOT_SERVICE_CS_TEMPLATE.format(
-            resource.properties.service_operations_host_name,
-            policy.key_name,
-            policy.primary_key if key_type == "primary" else policy.secondary_key,
+            resource["properties"]["serviceOperationsHostName"],
+            policy["keyName"],
+            policy["primaryKey"] if key_type == "primary" else policy["secondaryKey"],
         )
-        result["entity"] = resource.properties.service_operations_host_name
-        result["policy"] = policy.key_name
-        result["primarykey"] = policy.primary_key
-        result["secondarykey"] = policy.secondary_key
+        result["entity"] = resource["properties"]["serviceOperationsHostName"]
+        result["policy"] = policy["keyName"]
+        result["primarykey"] = policy["primaryKey"]
+        result["secondarykey"] = policy["secondaryKey"]
         result["subscription"] = self.sub_id
         result["cmd"] = self.cmd
-        result["idscope"] = resource.properties.id_scope
+        result["idscope"] = resource["properties"]["idScope"]
 
         return result
 
@@ -97,4 +97,4 @@ class DPSDiscovery(BaseDiscovery):
         """Get the ID scope. Only needed for certain DPS operations."""
         return self.find_resource(
             resource_name=resource_name, rg=rg
-        ).properties.id_scope
+        )["properties"]["idScope"]

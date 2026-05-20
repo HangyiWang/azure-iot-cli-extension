@@ -23,17 +23,17 @@ class TestIoTHubDiscovery(IoTLiveScenarioTest):
         discovery = IotHubDiscovery(self.cmd_shell)
 
         iothub = discovery.find_resource(resource_name=self.entity_name)
-        assert iothub.name == self.entity_name
+        assert iothub["name"] == self.entity_name
 
-        auto_policy = discovery.find_policy(resource_name=self.entity_name, rg=self.entity_rg).as_dict()
+        auto_policy = discovery.find_policy(resource_name=self.entity_name, rg=self.entity_rg)
         rights_set = set(auto_policy["rights"].split(", "))
         assert rights_set == PRIVILEDGED_ACCESS_RIGHTS_SET
 
         # Assumption - Test Iothub includes the vanilla iothubowner policy
         desired_policy = discovery.find_policy(
             resource_name=self.entity_name, rg=self.entity_rg, policy_name=self.desired_policy_name
-        ).as_dict()
-        assert desired_policy["key_name"] == self.desired_policy_name
+        )
+        assert desired_policy["keyName"] == self.desired_policy_name
 
         policies = discovery.get_policies(resource_name=self.entity_name, rg=self.entity_rg)
         assert len(policies)
@@ -46,14 +46,14 @@ class TestIoTHubDiscovery(IoTLiveScenarioTest):
         assert sub_hubs
 
         filtered_sub_hubs = [
-            hub for hub in sub_hubs if hub.as_dict()["name"] == self.entity_name
+            hub for hub in sub_hubs if hub["name"] == self.entity_name
         ]
         assert filtered_sub_hubs
 
         rg_hubs = discovery.get_resources(rg=self.entity_rg)
         assert rg_hubs
 
-        filtered_rg_hubs = [hub for hub in rg_hubs if hub.as_dict()["name"] == self.entity_name]
+        filtered_rg_hubs = [hub for hub in rg_hubs if hub["name"] == self.entity_name]
         assert filtered_rg_hubs
 
         assert len(rg_hubs) <= len(sub_hubs)

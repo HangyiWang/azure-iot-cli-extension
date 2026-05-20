@@ -19,10 +19,9 @@ from azure.cli.command_modules.iot.shared import (EndpointType,
                                                   RenewKeyType,
                                                   AuthenticationType)
 
-from azext_iot.sdk.dps.mgmt.models import IotDpsSku, AccessRightsDescription
 
-from azext_iot.sdk.iothub.mgmt.models import IotHubSku
 from .custom import KeyType, SimpleAccessRights
+from .shared import IotDpsSku, IotHubSku, AccessRightsDescription, IotHubAuthenticationType
 from azure.cli.command_modules.iot._validators import (validate_policy_permissions,
                                                        validate_retention_days,
                                                        validate_fileupload_notification_max_delivery_count,
@@ -135,6 +134,26 @@ def load_arguments(self, _):  # pylint: disable=too-many-statements
                    help='Location of the IoT hub.',
                    arg_group='IoT Hub Identifier',
                    deprecate_info=c.deprecate(hide=True))
+        c.argument('authentication_type',
+                   options_list=['--authentication-type', '--auth-type'],
+                   arg_type=get_enum_type(IotHubAuthenticationType),
+                   help='Authentication type for the linked IoT Hub. '
+                   "'KeyBased' uses a connection string. "
+                   "'SystemAssigned' uses the DPS system-assigned managed identity. "
+                   "'UserAssigned' uses a user-assigned managed identity.")
+        c.argument('user_assigned_identity',
+                   options_list=['--user-assigned-identity', '--uai'],
+                   help='User-assigned managed identity resource ID. '
+                   'Required when authentication type is UserAssigned.')
+        c.argument('hostname_type',
+                   options_list=['--hostname-type', '--ht'],
+                   arg_type=get_enum_type(["auto", "device", "classic"]),
+                   default="auto",
+                   help="Type of IoT Hub hostname to use when linking. "
+                   "'auto' uses the TLS 1.3 device hostname if available, classic otherwise. "
+                   "'device' uses the TLS 1.3 device hostname (errors if not GWv2). "
+                   "'classic' uses the classic hostname (hub.azure-devices.net). "
+                   "Only applies when --hub-name is provided.")
         c.argument('apply_allocation_policy',
                    help='A boolean indicating whether to apply allocation policy to the IoT hub.',
                    arg_type=get_three_state_flag())

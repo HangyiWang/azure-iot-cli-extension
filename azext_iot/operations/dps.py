@@ -50,10 +50,6 @@ from azext_iot.sdk.dps.service.models import (
 logger = get_logger(__name__)
 
 
-def _get_dps_resource_group(dps):
-    return getattr(dps, "resourcegroup", None) or dps.additional_properties.get("resourcegroup")
-
-
 # DPS Enrollments
 
 
@@ -775,12 +771,12 @@ def iot_dps_connection_string_show(
 
         connection_strings = []
         for dps in dps:
-            if dps.properties.state == IoTDPSStateType.Active.value:
+            if dps["properties"]["state"] == IoTDPSStateType.Active.value:
                 try:
-                    dps_resource_group = _get_dps_resource_group(dps)
+                    dps_resource_group = dps["resourcegroup"]
                     connection_strings.append(
                         {
-                            "name": dps.name,
+                            "name": dps["name"],
                             "connectionString": conn_str_getter(dps)
                             if show_all
                             else conn_str_getter(dps)[0],
@@ -788,14 +784,14 @@ def iot_dps_connection_string_show(
                     )
                 except Exception:
                     logger.warning(
-                        f"Warning: The DPS {dps.name} in resource group "
+                        f"Warning: The DPS {dps['name']} in resource group "
                         + f"{dps_resource_group} does "
                         + f"not have the target policy {policy_name}."
                     )
             else:
-                dps_resource_group = _get_dps_resource_group(dps)
+                dps_resource_group = dps["resourcegroup"]
                 logger.warning(
-                    f"Warning: The DPS {dps.name} in resource group "
+                    f"Warning: The DPS {dps['name']} in resource group "
                     + f"{dps_resource_group} is skipped "
                     + "because the DPS is not active."
                 )
@@ -813,24 +809,24 @@ def _get_dps_connection_string(
     discovery, dps, policy_name, key_type, show_all
 ):
     policies = []
-    dps_resource_group = _get_dps_resource_group(dps)
+    dps_resource_group = dps["resourcegroup"]
     if show_all:
         policies.extend(
-            discovery.get_policies(dps.name, dps_resource_group)
+            discovery.get_policies(dps["name"], dps_resource_group)
         )
     else:
         policies.append(
             discovery.find_policy(
-                dps.name, dps_resource_group, policy_name
+                dps["name"], dps_resource_group, policy_name
             )
         )
 
-    hostname = dps.properties.service_operations_host_name
+    hostname = dps["properties"]["serviceOperationsHostName"]
     return [
         IOT_SERVICE_CS_TEMPLATE.format(
             hostname,
-            p.key_name,
-            p.secondary_key if key_type == KeyType.secondary.value else p.primary_key,
+            p["keyName"],
+            p["secondaryKey"] if key_type == KeyType.secondary.value else p["primaryKey"],
         )
         for p in policies
     ]

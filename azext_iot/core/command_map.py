@@ -21,19 +21,19 @@ ENDPOINT_DEPRECATION_INFO = 'IoT Extension (azure-iot) message-endpoint command 
 class PolicyUpdateResultTransform(LongRunningOperation):  # pylint: disable=too-few-public-methods
     def __call__(self, poller):
         result = super().__call__(poller)
-        return result.properties.authorization_policies
+        return result["properties"]["authorizationPolicies"]
 
 
 class EndpointUpdateResultTransform(LongRunningOperation):  # pylint: disable=too-few-public-methods
     def __call__(self, poller):
         result = super().__call__(poller)
-        return result.properties.routing.endpoints
+        return result["properties"]["routing"]["endpoints"]
 
 
 class RouteUpdateResultTransform(LongRunningOperation):  # pylint: disable=too-few-public-methods
     def __call__(self, poller):
         result = super().__call__(poller)
-        return result.properties.routing.routes
+        return result["properties"]["routing"]["routes"]
 
 
 # Deleting IoT Hub is a long-running operation. Due to API implementation issue, 404 error will be thrown during

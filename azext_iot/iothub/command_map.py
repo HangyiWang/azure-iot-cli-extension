@@ -31,13 +31,13 @@ iothub_devicestream_ops = CliCommandType(
 class EndpointUpdateResultTransform(LongRunningOperation):  # pylint: disable=too-few-public-methods
     def __call__(self, poller):
         result = super(EndpointUpdateResultTransform, self).__call__(poller)
-        return result.properties.routing.endpoints
+        return result["properties"]["routing"]["endpoints"]
 
 
 class RouteUpdateResultTransform(LongRunningOperation):  # pylint: disable=too-few-public-methods
     def __call__(self, poller):
         result = super(RouteUpdateResultTransform, self).__call__(poller)
-        return result.properties.routing.routes
+        return result["properties"]["routing"]["routes"]
 
 
 def load_iothub_commands(self, _):
