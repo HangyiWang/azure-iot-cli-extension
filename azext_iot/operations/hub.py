@@ -2240,22 +2240,20 @@ def iot_get_sas_token(
     module_id=None,
     auth_type_dataplane=None,
     connection_string=None,
+    hostname_type=HostnameType.AUTO.value,
 ):
     key_type = key_type.lower()
     policy_name = policy_name.lower()
 
-    if login and policy_name != "iothubowner":
-        raise ArgumentUsageError(
-            "You are unable to change the sas policy with a hub connection string login."
-        )
-    if login and key_type != "primary" and not device_id:
-        raise ArgumentUsageError(
-            "For non-device sas, you are unable to change the key type with a connection string login."
-        )
-    if module_id and not device_id:
-        raise ArgumentUsageError(
-            "You are unable to get sas token for module without device information."
-        )
+    _validate_iot_get_sas_token_args(
+        login=login,
+        policy_name=policy_name,
+        key_type=key_type,
+        device_id=device_id,
+        module_id=module_id,
+        connection_string=connection_string,
+        hostname_type=hostname_type,
+    )
 
     if connection_string:
         return {
@@ -2277,8 +2275,31 @@ def iot_get_sas_token(
             resource_group_name,
             login,
             auth_type_dataplane,
+            hostname_type,
         ).generate_sas_token()
     }
+
+
+def _validate_iot_get_sas_token_args(
+    login, policy_name, key_type, device_id, module_id, connection_string, hostname_type
+):
+    if login and policy_name != "iothubowner":
+        raise ArgumentUsageError(
+            "You are unable to change the sas policy with a hub connection string login."
+        )
+    if login and key_type != "primary" and not device_id:
+        raise ArgumentUsageError(
+            "For non-device sas, you are unable to change the key type with a connection string login."
+        )
+    if module_id and not device_id:
+        raise ArgumentUsageError(
+            "You are unable to get sas token for module without device information."
+        )
+    if connection_string and hostname_type != HostnameType.AUTO.value:
+        raise ArgumentUsageError(
+            "--hostname-type is not supported with --connection-string. "
+            "The SAS audience is derived from the HostName in the supplied connection string."
+        )
 
 
 def _iot_build_sas_token_from_cs(connection_string, duration=3600):
@@ -2330,6 +2351,7 @@ def _iot_build_sas_token(
     resource_group_name=None,
     login=None,
     auth_type_dataplane=None,
+    hostname_type=HostnameType.AUTO.value,
 ):
     from azext_iot.common._azure import (
         parse_iot_device_connection_string,
@@ -2352,6 +2374,10 @@ def _iot_build_sas_token(
     policy = None
     key = None
 
+    resolved_host = _resolve_sas_audience(
+        target, hostname_type, device_id=device_id, login=login
+    )
+
     if device_id:
         logger.info(
             'Obtaining device "%s" details from registry, using IoT Hub policy "%s"',
@@ -2365,7 +2391,7 @@ def _iot_build_sas_token(
                 entity=module, key_type=key_type
             )
             uri = "{}/devices/{}/modules/{}".format(
-                target["entity"], device_id, module_id
+                resolved_host, device_id, module_id
             )
             try:
                 parsed_module_cs = parse_iot_device_module_connection_string(module_cs)
@@ -2378,7 +2404,7 @@ def _iot_build_sas_token(
             device_cs = _build_device_or_module_connection_string(
                 entity=device, key_type=key_type
             )
-            uri = "{}/devices/{}".format(target["entity"], device_id)
+            uri = "{}/devices/{}".format(resolved_host, device_id)
             try:
                 parsed_device_cs = parse_iot_device_connection_string(device_cs)
             except ValueError as e:
@@ -2387,7 +2413,7 @@ def _iot_build_sas_token(
 
             key = parsed_device_cs["SharedAccessKey"]
     else:
-        uri = target["entity"]
+        uri = resolved_host
         policy = target["policy"]
         key = target["primarykey"] if key_type == "primary" else target["secondarykey"]
 
@@ -2408,6 +2434,25 @@ def _transform_hostname(hostname, hostname_type):
         HostnameType.SERVICE.value: f"{hub_name}.service.{domain}",
     }
     return hostname_map.get(hostname_type, hostname)
+
+
+def _resolve_sas_audience(target, hostname_type, device_id=None, login=None):
+    """Resolve the SAS audience host.
+
+    Login mode lacks ARM metadata, so the host is string-transformed from the
+    CS HostName.
+    """
+    auto_tls_key = "deviceHostName" if device_id else "serviceHostName"
+    if login:
+        effective_type = hostname_type
+        if effective_type == HostnameType.AUTO.value:
+            effective_type = (
+                HostnameType.DEVICE.value if device_id else HostnameType.SERVICE.value
+            )
+        return _transform_hostname(target["entity"], effective_type)
+    return _resolve_hostname_by_type(
+        target, hostname_type, auto_tls_key=auto_tls_key
+    )
 
 
 def _resolve_hostname_by_type(target, hostname_type, auto_tls_key="deviceHostName"):
@@ -2468,6 +2513,11 @@ def iot_get_device_connection_string(
     auth_type_dataplane=None,
     hostname_type=HostnameType.AUTO.value,
 ):
+    if hostname_type == HostnameType.SERVICE.value:
+        raise InvalidArgumentValueError(
+            "Hostname type 'service' is not supported for device connection strings. "
+            "Use 'auto', 'device', or 'classic' instead."
+        )
     result = {}
     discovery = IotHubDiscovery(cmd)
     target = discovery.get_target(
@@ -2498,6 +2548,11 @@ def iot_get_module_connection_string(
     auth_type_dataplane=None,
     hostname_type=HostnameType.AUTO.value,
 ):
+    if hostname_type == HostnameType.SERVICE.value:
+        raise InvalidArgumentValueError(
+            "Hostname type 'service' is not supported for module connection strings. "
+            "Use 'auto', 'device', or 'classic' instead."
+        )
     result = {}
     discovery = IotHubDiscovery(cmd)
     target = discovery.get_target(

@@ -380,6 +380,23 @@ def load_arguments(self, _):
                 "'service' uses the TLS 1.3 service hostname (errors if not GWv2).",
             )
 
+    with self.argument_context("iot hub generate-sas-token") as context:
+        context.argument(
+            "hostname_type",
+            options_list=["--hostname-type", "--ht"],
+            arg_type=get_enum_type(HostnameType),
+            default=HostnameType.AUTO.value,
+            help="Type of hostname to use as the SAS token audience. "
+            "'auto' uses the device hostname for device/module-scoped tokens "
+            "and the service hostname for hub-scoped tokens. "
+            "'classic' always uses the default hostname. "
+            "'device' uses the device hostname (errors on non-GWv2 hubs). "
+            "'service' uses the service hostname (errors on non-GWv2 hubs). "
+            "This option cannot be combined with --connection-string; when "
+            "--connection-string is supplied, the SAS audience is derived "
+            "from its HostName.",
+        )
+
     with self.argument_context("iot hub job") as context:
         context.argument("job_id", options_list=["--job-id"], help="IoT Hub job Id.")
         context.argument(
