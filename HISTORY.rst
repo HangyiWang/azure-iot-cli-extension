@@ -29,6 +29,19 @@ Release History
   - ``add`` - attach an IoT Hub or DPS resource by ARM resource ID with either system- or user-assigned managed-identity authentication.
   - ``show`` / ``list`` / ``remove`` - inspect and detach endpoint links.
 
+0.31.0b2 (Preview)
++++++++++++++++
+
+**Bug fixes**
+
+* ``az iot hub device-identity connection-string show`` and ``az iot hub module-identity connection-string show`` now reject ``--hostname-type service``. Use ``auto``, ``device`` or ``classic`` instead.
+
+* ``az iot hub generate-sas-token`` gains a ``--hostname-type`` parameter to control the SAS token audience:
+
+  - Hub-level (no ``-d``) defaults to the service hostname.
+  - Device-level (``-d``) and module-level (``-d -m``) default to the device hostname.
+  - ``service``, ``device`` and ``classic`` are explicitly selectable.
+
 0.31.0b1 (Preview)
 +++++++++++++++
 
