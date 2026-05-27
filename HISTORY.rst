@@ -3,6 +3,32 @@
 Release History
 ===============
 
+0.33.0b1 (Preview)
++++++++++++++++
+
+**General updates**
+
+* Preview release introducing ADR Ignite command surface against the Microsoft.DeviceRegistry ``2026-11-02-preview`` API version.
+* DeviceRegistry management SDK regenerated to expose new ``Groups``, ``Jobs``, ``JobRuns`` operation groups and the extended ``Namespaces`` messaging/provisioning endpoint shape.
+* To install preview extensions, you will need to add the ``--allow-preview`` argument to ``az extension add/update`` commands.
+
+**ADR namespace updates**
+
+* New ``az iot adr ns group`` command group for managing device groups within an ADR namespace:
+
+  - ``create`` - create a Device-type group with a membership query.
+  - ``show`` / ``list`` / ``delete`` - inspect and remove groups.
+
+* New ``az iot adr ns job`` command group for managing namespace-scoped jobs:
+
+  - ``create`` - create an Update job targeting a group, parameterized by ``--update-provider``/``--update-name``/``--update-version``.
+  - ``show`` / ``list`` / ``delete`` - inspect and remove jobs.
+
+* New ``az iot adr ns link hub`` and ``az iot adr ns link dps`` command groups for managing namespace messaging/provisioning endpoint links to IoT Hub and DPS resources:
+
+  - ``add`` - attach an IoT Hub or DPS resource by ARM resource ID with either system- or user-assigned managed-identity authentication.
+  - ``show`` / ``list`` / ``remove`` - inspect and detach endpoint links.
+
 0.31.0b1 (Preview)
 +++++++++++++++
 

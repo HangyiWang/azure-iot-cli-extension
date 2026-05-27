@@ -13,6 +13,9 @@ import pytest
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.adr.providers.credential import CredentialProvider
 from azext_iot.adr.providers.device import DeviceProvider
+from azext_iot.adr.providers.group import GroupProvider
+from azext_iot.adr.providers.job import JobProvider
+from azext_iot.adr.providers.linking import LinkProvider
 from azext_iot.adr.providers.namespace import NamespaceProvider
 from azext_iot.adr.providers.policy import PolicyProvider
 from azext_iot.tests.generators import generate_generic_id
@@ -74,6 +77,9 @@ def mock_wait_for_terminal_state(request, monkeypatch):
     monkeypatch.setattr("azext_iot.adr.providers.credential.wait_for_terminal_state", fast_wait)
     monkeypatch.setattr("azext_iot.adr.providers.policy.wait_for_terminal_state", fast_wait)
     monkeypatch.setattr("azext_iot.adr.providers.device.wait_for_terminal_state", fast_wait)
+    monkeypatch.setattr("azext_iot.adr.providers.group.wait_for_terminal_state", fast_wait)
+    monkeypatch.setattr("azext_iot.adr.providers.job.wait_for_terminal_state", fast_wait)
+    monkeypatch.setattr("azext_iot.adr.providers.linking.wait_for_terminal_state", fast_wait)
 
 
 @pytest.fixture()
@@ -139,6 +145,42 @@ def fixture_device_provider(fixture_cmd):
         mock_client = Mock()
         mock_factory.return_value = mock_client
         provider = DeviceProvider(fixture_cmd)
+        provider.client = mock_client
+        return provider
+
+
+@pytest.fixture()
+def fixture_group_provider(fixture_cmd):
+    """Group provider fixture for testing."""
+    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
+        mock_client = Mock()
+        mock_factory.return_value = mock_client
+        provider = GroupProvider(fixture_cmd)
+        provider.client = mock_client
+        # Stub out location lookup so create() doesn't hit ARM.
+        provider._ensure_location = lambda *a, **kw: "westus"
+        return provider
+
+
+@pytest.fixture()
+def fixture_job_provider(fixture_cmd):
+    """Job provider fixture for testing."""
+    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
+        mock_client = Mock()
+        mock_factory.return_value = mock_client
+        provider = JobProvider(fixture_cmd)
+        provider.client = mock_client
+        provider._ensure_location = lambda *a, **kw: "westus"
+        return provider
+
+
+@pytest.fixture()
+def fixture_link_provider(fixture_cmd):
+    """Link provider fixture for testing."""
+    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
+        mock_client = Mock()
+        mock_factory.return_value = mock_client
+        provider = LinkProvider(fixture_cmd)
         provider.client = mock_client
         return provider
 

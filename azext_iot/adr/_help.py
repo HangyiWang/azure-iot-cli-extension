@@ -292,3 +292,234 @@ def load_adr_help():
     - name: Revoke credentials and disable the device
       text: az iot adr ns device revoke -n myDevice --ns myNamespace -g myResourceGroup --disable
   """
+
+    # -------- Groups --------
+    helps[
+        "iot adr ns group"
+    ] = """
+  type: group
+  short-summary: Manage Device Registry groups (dynamic device memberships).
+  """
+
+    helps[
+        "iot adr ns group create"
+    ] = """
+  type: command
+  short-summary: Create a Device Registry group.
+  long-summary: |
+    Groups define a dynamic device membership using a query expression.
+    Today only "Device" groups are supported.
+  examples:
+    - name: Create a group with a membership query
+      text: |
+        az iot adr ns group create -n myGroup --ns myNamespace -g myResourceGroup \\
+          --qs "attributes.location == 'building-A'" --display-name "Building A devices"
+  """
+
+    helps[
+        "iot adr ns group show"
+    ] = """
+  type: command
+  short-summary: Show details of a Device Registry group.
+  examples:
+    - name: Show a group
+      text: az iot adr ns group show -n myGroup --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns group list"
+    ] = """
+  type: command
+  short-summary: List Device Registry groups in a namespace.
+  examples:
+    - name: List groups
+      text: az iot adr ns group list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns group delete"
+    ] = """
+  type: command
+  short-summary: Delete a Device Registry group.
+  examples:
+    - name: Delete a group
+      text: az iot adr ns group delete -n myGroup --ns myNamespace -g myResourceGroup
+  """
+
+    # -------- Jobs --------
+    helps[
+        "iot adr ns job"
+    ] = """
+  type: group
+  short-summary: Manage Device Registry jobs (Update jobs targeting groups).
+  """
+
+    helps[
+        "iot adr ns job create"
+    ] = """
+  type: command
+  short-summary: Create an Update job in a Device Registry namespace.
+  long-summary: |
+    Creates a continuous Update job targeting a Device Registry group. The
+    update is identified by its Device Update updateId (provider/name/version).
+  examples:
+    - name: Create an Update job targeting a group
+      text: |
+        az iot adr ns job create -n myJob --ns myNamespace -g myResourceGroup \\
+          --tgid "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceRegistry/namespaces/<ns>/groups/<g>" \\
+          --up Contoso --un Toaster --uv 1.0.0
+  """
+
+    helps[
+        "iot adr ns job show"
+    ] = """
+  type: command
+  short-summary: Show details of a Device Registry job.
+  examples:
+    - name: Show a job
+      text: az iot adr ns job show -n myJob --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns job list"
+    ] = """
+  type: command
+  short-summary: List Device Registry jobs in a namespace.
+  examples:
+    - name: List jobs
+      text: az iot adr ns job list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns job delete"
+    ] = """
+  type: command
+  short-summary: Delete a Device Registry job.
+  examples:
+    - name: Delete a job
+      text: az iot adr ns job delete -n myJob --ns myNamespace -g myResourceGroup
+  """
+
+    # -------- Links (hub) --------
+    helps[
+        "iot adr ns link"
+    ] = """
+  type: group
+  short-summary: Manage inbound endpoint links (IoT Hub / DPS) on a Device Registry namespace.
+  """
+
+    helps[
+        "iot adr ns link hub"
+    ] = """
+  type: group
+  short-summary: Manage IoT Hub messaging links on a Device Registry namespace.
+  """
+
+    helps[
+        "iot adr ns link hub add"
+    ] = """
+  type: command
+  short-summary: Add (or replace) an IoT Hub messaging link on the namespace.
+  long-summary: |
+    Attach an IoT Hub to the namespace as an inbound messaging endpoint. The
+    namespace identity used by inbound calls must be either system-assigned
+    (--mi-system-assigned) or a user-assigned identity already attached to the
+    namespace (--mi-user-assigned <resourceId>).
+  examples:
+    - name: Add an IoT Hub link using the namespace's system-assigned identity
+      text: |
+        az iot adr ns link hub add -n hub1 --ns myNamespace -g myResourceGroup \\
+          --rid "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub>" \\
+          --mi-system-assigned
+    - name: Add an IoT Hub link using a user-assigned identity
+      text: |
+        az iot adr ns link hub add -n hub1 --ns myNamespace -g myResourceGroup \\
+          --rid "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub>" \\
+          --mi-user-assigned "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<uami>"
+  """
+
+    helps[
+        "iot adr ns link hub show"
+    ] = """
+  type: command
+  short-summary: Show details of an IoT Hub messaging link.
+  examples:
+    - name: Show a hub link
+      text: az iot adr ns link hub show -n hub1 --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns link hub list"
+    ] = """
+  type: command
+  short-summary: List IoT Hub messaging links on a namespace.
+  examples:
+    - name: List hub links
+      text: az iot adr ns link hub list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns link hub remove"
+    ] = """
+  type: command
+  short-summary: Remove an IoT Hub messaging link from a namespace.
+  examples:
+    - name: Remove a hub link
+      text: az iot adr ns link hub remove -n hub1 --ns myNamespace -g myResourceGroup
+  """
+
+    # -------- Links (dps) --------
+    helps[
+        "iot adr ns link dps"
+    ] = """
+  type: group
+  short-summary: Manage Device Provisioning Service (DPS) links on a Device Registry namespace.
+  """
+
+    helps[
+        "iot adr ns link dps add"
+    ] = """
+  type: command
+  short-summary: Add (or replace) a DPS provisioning link on the namespace.
+  long-summary: |
+    Attach a Device Provisioning Service to the namespace as an inbound
+    provisioning endpoint. The namespace identity used for inbound calls must
+    be either system-assigned (--mi-system-assigned) or a user-assigned
+    identity already attached to the namespace (--mi-user-assigned).
+  examples:
+    - name: Add a DPS link using the namespace's system-assigned identity
+      text: |
+        az iot adr ns link dps add -n dps1 --ns myNamespace -g myResourceGroup \\
+          --rid "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/ProvisioningServices/<dps>" \\
+          --mi-system-assigned
+  """
+
+    helps[
+        "iot adr ns link dps show"
+    ] = """
+  type: command
+  short-summary: Show details of a DPS provisioning link.
+  examples:
+    - name: Show a DPS link
+      text: az iot adr ns link dps show -n dps1 --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns link dps list"
+    ] = """
+  type: command
+  short-summary: List DPS provisioning links on a namespace.
+  examples:
+    - name: List DPS links
+      text: az iot adr ns link dps list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns link dps remove"
+    ] = """
+  type: command
+  short-summary: Remove a DPS provisioning link from a namespace.
+  examples:
+    - name: Remove a DPS link
+      text: az iot adr ns link dps remove -n dps1 --ns myNamespace -g myResourceGroup
+  """

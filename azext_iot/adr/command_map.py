@@ -28,6 +28,21 @@ adr_device_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
+adr_group_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_group#{}",
+    client_factory=adr_service_factory,
+)
+
+adr_job_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_job#{}",
+    client_factory=adr_service_factory,
+)
+
+adr_link_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_link#{}",
+    client_factory=adr_service_factory,
+)
+
 
 def load_adr_commands(self, _):
     # Namespace commands
@@ -61,3 +76,31 @@ def load_adr_commands(self, _):
         cmd_group.command("list", "adr_device_list")
         cmd_group.command("update", "adr_device_update")
         cmd_group.command("revoke", "adr_device_revoke", confirmation=True)
+
+    # Group commands
+    with self.command_group("iot adr ns group", command_type=adr_group_ops) as cmd_group:
+        cmd_group.command("create", "adr_group_create")
+        cmd_group.show_command("show", "adr_group_show")
+        cmd_group.command("list", "adr_group_list")
+        cmd_group.command("delete", "adr_group_delete", confirmation=True)
+
+    # Job commands
+    with self.command_group("iot adr ns job", command_type=adr_job_ops) as cmd_group:
+        cmd_group.command("create", "adr_job_create")
+        cmd_group.show_command("show", "adr_job_show")
+        cmd_group.command("list", "adr_job_list")
+        cmd_group.command("delete", "adr_job_delete", confirmation=True)
+
+    # Link commands (IoT Hub)
+    with self.command_group("iot adr ns link hub", command_type=adr_link_ops) as cmd_group:
+        cmd_group.command("add", "adr_link_hub_add")
+        cmd_group.show_command("show", "adr_link_hub_show")
+        cmd_group.command("list", "adr_link_hub_list")
+        cmd_group.command("remove", "adr_link_hub_remove", confirmation=True)
+
+    # Link commands (DPS)
+    with self.command_group("iot adr ns link dps", command_type=adr_link_ops) as cmd_group:
+        cmd_group.command("add", "adr_link_dps_add")
+        cmd_group.show_command("show", "adr_link_dps_show")
+        cmd_group.command("list", "adr_link_dps_list")
+        cmd_group.command("remove", "adr_link_dps_remove", confirmation=True)

@@ -176,3 +176,135 @@ def load_adr_management_arguments(self, _):
             help="Disable the device after revoking credentials. "
                  "Prevents new credentials from being issued.",
         )
+
+    # ----- Group commands -----
+    with self.argument_context("iot adr ns group") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "group_name",
+            options_list=["--group-name", "--name", "-n"],
+            help="Name of the group.",
+        )
+
+    with self.argument_context("iot adr ns group create") as context:
+        context.argument("tags", arg_type=tags_type)
+        context.argument(
+            "location",
+            arg_type=get_location_type(self.cli_ctx),
+            validator=get_default_location_from_resource_group,
+        )
+        context.argument(
+            "query",
+            options_list=["--query-string", "--qs"],
+            help="Membership query for the group (Kusto-style query over device "
+                 "attributes). Use --query-string to avoid clashing with the "
+                 "global --query JMESPath argument.",
+        )
+        context.argument(
+            "group_type",
+            options_list=["--group-type"],
+            help="Type of group. Currently only 'Device' is supported.",
+        )
+        context.argument(
+            "display_name",
+            options_list=["--display-name", "--dn"],
+            help="Friendly display name for the group.",
+        )
+        context.argument(
+            "description",
+            options_list=["--description"],
+            help="Description of the group.",
+        )
+
+    # ----- Job commands -----
+    with self.argument_context("iot adr ns job") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "job_name",
+            options_list=["--job-name", "--name", "-n"],
+            help="Name of the job.",
+        )
+
+    with self.argument_context("iot adr ns job create") as context:
+        context.argument("tags", arg_type=tags_type)
+        context.argument(
+            "location",
+            arg_type=get_location_type(self.cli_ctx),
+            validator=get_default_location_from_resource_group,
+        )
+        context.argument(
+            "target_group_id",
+            options_list=["--target-group-id", "--tgid"],
+            help="ARM resource ID of the Device Registry group this job targets.",
+        )
+        context.argument(
+            "update_provider",
+            options_list=["--update-provider", "--up"],
+            arg_group="Update",
+            help="Device Update 'provider' segment of the update ID.",
+        )
+        context.argument(
+            "update_name",
+            options_list=["--update-name", "--un"],
+            arg_group="Update",
+            help="Device Update 'name' segment of the update ID.",
+        )
+        context.argument(
+            "update_version",
+            options_list=["--update-version", "--uv"],
+            arg_group="Update",
+            help="Device Update 'version' segment of the update ID.",
+        )
+
+    # ----- Link commands (hub + dps share the same parameter shape) -----
+    for cmd in ["iot adr ns link hub", "iot adr ns link dps"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "namespace_name",
+                options_list=["--namespace", "--ns"],
+                help="Name of the Device Registry namespace.",
+            )
+            context.argument(
+                "link_name",
+                options_list=["--link-name", "--name", "-n"],
+                help="Name of the link (key on the namespace endpoints dictionary).",
+            )
+
+    for cmd in ["iot adr ns link hub add", "iot adr ns link dps add"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "resource_id",
+                options_list=["--resource-id", "--rid"],
+                help="ARM resource ID of the IoT Hub or DPS to link.",
+            )
+            context.argument(
+                "mi_system_assigned",
+                options_list=["--mi-system-assigned"],
+                arg_type=get_three_state_flag(),
+                arg_group="Identity",
+                help="Use the namespace's system-assigned managed identity for "
+                     "inbound calls. Mutually exclusive with --mi-user-assigned.",
+            )
+            context.argument(
+                "mi_user_assigned",
+                options_list=["--mi-user-assigned"],
+                arg_group="Identity",
+                help="Resource ID of a user-assigned managed identity already "
+                     "attached to the namespace. Mutually exclusive with "
+                     "--mi-system-assigned.",
+            )
+            context.argument(
+                "endpoint_type",
+                options_list=["--endpoint-type"],
+                help="Override the endpoint type discriminator. Defaults to "
+                     "'Microsoft.Devices/IotHubs' for hub links and "
+                     "'Microsoft.Devices/ProvisioningServices' for DPS links.",
+            )
