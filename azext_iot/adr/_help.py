@@ -429,12 +429,12 @@ def load_adr_help():
     - name: Add an IoT Hub link using the namespace's system-assigned identity
       text: |
         az iot adr ns link hub add -n hub1 --ns myNamespace -g myResourceGroup \\
-          --rid "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub>" \\
+          --hub-resource-id "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub>" \\
           --mi-system-assigned
     - name: Add an IoT Hub link using a user-assigned identity
       text: |
         az iot adr ns link hub add -n hub1 --ns myNamespace -g myResourceGroup \\
-          --rid "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub>" \\
+          --hub-resource-id "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub>" \\
           --mi-user-assigned "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<uami>"
   """
 
@@ -490,7 +490,7 @@ def load_adr_help():
     - name: Add a DPS link using the namespace's system-assigned identity
       text: |
         az iot adr ns link dps add -n dps1 --ns myNamespace -g myResourceGroup \\
-          --rid "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/ProvisioningServices/<dps>" \\
+          --dps-resource-id "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/ProvisioningServices/<dps>" \\
           --mi-system-assigned
   """
 

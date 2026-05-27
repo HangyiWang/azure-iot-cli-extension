@@ -278,13 +278,9 @@ def load_adr_management_arguments(self, _):
                 help="Name of the link (key on the namespace endpoints dictionary).",
             )
 
+    # Shared identity + endpoint-type args for both link-add variants.
     for cmd in ["iot adr ns link hub add", "iot adr ns link dps add"]:
         with self.argument_context(cmd) as context:
-            context.argument(
-                "resource_id",
-                options_list=["--resource-id", "--rid"],
-                help="ARM resource ID of the IoT Hub or DPS to link.",
-            )
             context.argument(
                 "mi_system_assigned",
                 options_list=["--mi-system-assigned"],
@@ -308,3 +304,18 @@ def load_adr_management_arguments(self, _):
                      "'Microsoft.Devices/IotHubs' for hub links and "
                      "'Microsoft.Devices/ProvisioningServices' for DPS links.",
             )
+
+    # Per-subgroup spelling for the linked resource's ARM ID, mirroring
+    # the --policy-resource-id convention used elsewhere in this file.
+    with self.argument_context("iot adr ns link hub add") as context:
+        context.argument(
+            "resource_id",
+            options_list=["--hub-resource-id"],
+            help="ARM resource ID of the IoT Hub to link.",
+        )
+    with self.argument_context("iot adr ns link dps add") as context:
+        context.argument(
+            "resource_id",
+            options_list=["--dps-resource-id"],
+            help="ARM resource ID of the Device Provisioning Service to link.",
+        )
