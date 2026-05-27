@@ -424,7 +424,7 @@ def load_adr_help():
     Attach an IoT Hub to the namespace as an inbound messaging endpoint. The
     namespace identity used by inbound calls must be either system-assigned
     (--mi-system-assigned) or a user-assigned identity already attached to the
-    namespace (--mi-user-assigned <resourceId>).
+    namespace (--mi-user-assigned `<resourceId>`).
   examples:
     - name: Add an IoT Hub link using the namespace's system-assigned identity
       text: |
