@@ -1248,7 +1248,7 @@ def build_groups_get_current_member_count_request(  # pylint: disable=name-too-l
     return HttpRequest(method="POST", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_groups_get_sample_of_members_request(  # pylint: disable=name-too-long
+def build_groups_preview_members_request(
     resource_group_name: str, namespace_name: str, group_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -1258,7 +1258,7 @@ def build_groups_get_sample_of_members_request(  # pylint: disable=name-too-long
     accept = _headers.pop("Accept", "application/json")
 
     # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/groups/{groupName}/getSampleOfMembers"
+    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/groups/{groupName}/previewMembers"
     path_format_arguments = {
         "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
         "resourceGroupName": _SERIALIZER.url(
@@ -1737,7 +1737,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -1770,6 +1776,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -1887,7 +1897,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -1920,6 +1936,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -2040,7 +2060,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -2073,6 +2099,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -2251,7 +2281,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -2284,6 +2320,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -2322,7 +2362,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -2355,6 +2401,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -2423,7 +2473,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -2456,6 +2512,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -2516,7 +2576,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -2549,6 +2615,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -2587,7 +2657,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -2620,6 +2696,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -2798,11 +2878,16 @@ class NamespacesOperations:
                 properties = {
                     "id": "str",
                     "identity": {
-                        "type": "str"
+                        "type": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -2832,6 +2917,10 @@ class NamespacesOperations:
                                 }
                             }
                         },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioning": {
                             "endpoints": {
                                 "str": {
@@ -2844,9 +2933,7 @@ class NamespacesOperations:
                                     "linkingState": "str"
                                 }
                             }
-                        },
-                        "provisioningState": "str",
-                        "uuid": "str"
+                        }
                     },
                     "systemData": {
                         "createdAt": "2020-02-20 00:00:00",
@@ -2869,7 +2956,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -2902,6 +2995,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -2970,7 +3067,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -3003,6 +3106,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -3060,11 +3167,16 @@ class NamespacesOperations:
                 properties = {
                     "id": "str",
                     "identity": {
-                        "type": "str"
+                        "type": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -3094,6 +3206,10 @@ class NamespacesOperations:
                                 }
                             }
                         },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioning": {
                             "endpoints": {
                                 "str": {
@@ -3106,9 +3222,7 @@ class NamespacesOperations:
                                     "linkingState": "str"
                                 }
                             }
-                        },
-                        "provisioningState": "str",
-                        "uuid": "str"
+                        }
                     },
                     "systemData": {
                         "createdAt": "2020-02-20 00:00:00",
@@ -3131,7 +3245,13 @@ class NamespacesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -3164,6 +3284,10 @@ class NamespacesOperations:
                                     "resourceId": "str"
                                 }
                             }
+                        },
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
                         },
                         "provisioning": {
                             "endpoints": {
@@ -9269,10 +9393,8 @@ class GroupsOperations:
         return cast(JSON, deserialized)  # type: ignore
 
     @distributed_trace
-    def get_sample_of_members(
-        self, resource_group_name: str, namespace_name: str, group_name: str, **kwargs: Any
-    ) -> JSON:
-        """Gets a stored sample of members that was determined during the last refresh.
+    def preview_members(self, resource_group_name: str, namespace_name: str, group_name: str, **kwargs: Any) -> JSON:
+        """Gets a stored preview of members that was determined during the last refresh.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -9308,7 +9430,7 @@ class GroupsOperations:
 
         cls: ClsType[JSON] = kwargs.pop("cls", None)
 
-        _request = build_groups_get_sample_of_members_request(
+        _request = build_groups_preview_members_request(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             group_name=group_name,
