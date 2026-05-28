@@ -33,7 +33,7 @@ CUSTOM_CERT_UPDATE_VALIDITY_DAYS = 20
 CUSTOM_CERT_KEY_TYPE = "ECC"
 CUSTOM_CERT_SUBJECT = "CN=test-device"
 
-TEST_LOCATION = os.getenv("azext_iot_adr_location", "westus")
+TEST_LOCATION = os.getenv("azext_iot_adr_location", "centraluseuap")
 
 
 def pytest_runtest_logreport(report):
