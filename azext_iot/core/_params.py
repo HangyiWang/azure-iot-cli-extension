@@ -157,13 +157,46 @@ def load_arguments(self, _):  # pylint: disable=too-many-statements
         c.argument('apply_allocation_policy',
                    help='A boolean indicating whether to apply allocation policy to the IoT hub.',
                    arg_type=get_three_state_flag())
-        c.argument('allocation_weight', help='Allocation weight of the IoT hub.')
+        c.argument('allocation_weight', help='Allocation weight of the IoT hub.', type=int)
 
     with self.argument_context('iot dps linked-hub update') as c:
+        c.argument('linked_hub',
+                   options_list=['--linked-hub'],
+                   help='Full host name of the linked IoT Hub (e.g. `myhub.device.azure-devices.net`). '
+                   'Use this to disambiguate when --hub-name resolves to multiple entries.',
+                   arg_group='Linked Hub Identifier')
+        c.argument('hub_name',
+                   options_list=['--hub-name', '--hn'],
+                   help='IoT Hub short name. Preferred over --linked-hub; resolves to the correct '
+                   'entry regardless of classic/device hostname.',
+                   arg_group='Linked Hub Identifier')
+        c.argument('hostname_type',
+                   options_list=['--hostname-type', '--ht'],
+                   arg_type=get_enum_type(["auto", "device", "classic"]),
+                   help="Switch the linked hub to a different endpoint hostname. "
+                   "'auto' uses the TLS 1.3 device hostname when available, classic otherwise. "
+                   "'device' uses the TLS 1.3 device hostname (errors on non-GWv2 hubs). "
+                   "'classic' uses the classic hostname.")
+        c.argument('authentication_type',
+                   options_list=['--authentication-type', '--auth-type'],
+                   arg_type=get_enum_type(IotHubAuthenticationType),
+                   help='Switch the linked hub to a different authentication type. '
+                   "'KeyBased' uses a connection string (supplied via --connection-string, "
+                   "otherwise auto-fetched from the identified hub). "
+                   "'SystemAssigned' uses the DPS system-assigned managed identity. "
+                   "'UserAssigned' uses a user-assigned managed identity.")
+        c.argument('user_assigned_identity',
+                   options_list=['--user-assigned-identity', '--uai'],
+                   help='User-assigned managed identity resource ID. '
+                   'Required when --authentication-type is UserAssigned.')
+        c.argument('connection_string',
+                   options_list=['--connection-string', '--cs'],
+                   help='IoT Hub connection string to use when switching to KeyBased authentication. '
+                   'If omitted, the key is auto-fetched from the identified hub.')
         c.argument('apply_allocation_policy',
-                   help='A boolean indicating whether to apply allocation policy to the Iot hub.',
+                   help='A boolean indicating whether to apply allocation policy to the IoT hub.',
                    arg_type=get_three_state_flag())
-        c.argument('allocation_weight', help='Allocation weight of the IoT hub.')
+        c.argument('allocation_weight', help='Allocation weight of the IoT hub.', type=int)
 
     with self.argument_context('iot dps certificate') as c:
         c.argument('certificate_path', options_list=['--path', '-p'], type=file_type,

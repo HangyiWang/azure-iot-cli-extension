@@ -16,6 +16,15 @@ Release History
   - Device-level (``-d``) and module-level (``-d -m``) default to the device hostname.
   - ``service``, ``device`` and ``classic`` are explicitly selectable.
 
+**DPS updates**
+
+* ``az iot dps linked-hub update`` can now switch a linked hub's endpoint and authentication type, enabling a single-step TLS 1.3 + managed-identity migration:
+
+  - ``--hub-name`` (preferred) or ``--linked-hub <full-hostname>`` identifies the entry to update. ``--hub-name`` resolves to the correct entry regardless of classic or device hostname; if the same hub is linked at multiple endpoints, the CLI errors with a clear disambiguation hint pointing to ``--linked-hub``.
+  - ``--hostname-type {auto, device, classic}`` switches the linked hub's endpoint hostname. For KeyBased links the existing connection string is rewritten in place, preserving the existing key.
+  - ``--authentication-type {KeyBased, SystemAssigned, UserAssigned}`` (with optional ``--user-assigned-identity`` / ``--connection-string``) switches the authentication type. When switching to KeyBased without ``--connection-string``, the hub key is auto-fetched via ``--hub-name``.
+  - Endpoint and authentication-type changes can be combined in a single call.
+
 0.31.0b1 (Preview)
 +++++++++++++++
 

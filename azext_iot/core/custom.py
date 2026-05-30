@@ -31,6 +31,7 @@ from knack.util import CLIError
 
 from azext_iot._factory import iot_hub_service_factory, resource_service_factory
 from azext_iot.common._azure import IOT_SERVICE_CS_TEMPLATE
+from azext_iot.common.utility import validate_key_value_pairs
 from azext_iot.constants import IOT_HUB_DEFAULT_POLICY
 from azext_iot.common.certops import open_certificate
 from azext_iot.core.shared import (
@@ -124,6 +125,41 @@ def _warn_mixed_endpoint_types(linked_hubs):
             "DPS has linked hubs with mixed hostname types (device and classic). "
             "This may cause inconsistent behavior during device provisioning."
         )
+
+
+def _find_linked_hub_entry(linked_hubs, hub_name=None, linked_hub=None):
+    """Find a linked-hub entry by short hub-name (prefix) or full hostname (exact).
+
+    Raises ResourceNotFoundError if no entry matches, or
+    InvalidArgumentValueError if --hub-name resolves to multiple entries
+    (caller must disambiguate with --linked-hub <full-hostname>).
+    """
+    if linked_hub:
+        for entry in linked_hubs:
+            if entry["name"].lower() == linked_hub.lower():
+                return entry
+        raise ResourceNotFoundError(
+            f"Linked hub '{linked_hub}' does not exist. "
+            "Use 'iot dps linked-hub list' to see all linked hubs."
+        )
+
+    short_name = hub_name.lower()
+    matches = [
+        entry for entry in linked_hubs
+        if entry["name"].lower().startswith(f"{short_name}.")
+    ]
+    if not matches:
+        raise ResourceNotFoundError(
+            f"No linked hub found for IoT Hub '{hub_name}'. "
+            "Use 'iot dps linked-hub list' to see all linked hubs."
+        )
+    if len(matches) > 1:
+        names = ", ".join(m["name"] for m in matches)
+        raise InvalidArgumentValueError(
+            f"Multiple linked-hub entries found for IoT Hub '{hub_name}': {names}. "
+            "Specify --linked-hub <full-hostname> to disambiguate."
+        )
+    return matches[0]
 
 
 # CUSTOM METHODS FOR DPS
@@ -495,38 +531,164 @@ def iot_dps_linked_hub_create(
     return iot_dps_linked_hub_list(client, dps_name, resource_group_name)
 
 
-def iot_dps_linked_hub_update(cmd, client, dps_name, linked_hub, resource_group_name=None,
-                              apply_allocation_policy=None, allocation_weight=None, no_wait=False):
-    if '.' not in linked_hub:
-        hub_client = iot_hub_service_factory(cmd.cli_ctx)
-        linked_hub = _get_iot_hub_hostname(hub_client, linked_hub)
+def iot_dps_linked_hub_update(
+    cmd,
+    client,
+    dps_name,
+    linked_hub=None,
+    hub_name=None,
+    hostname_type=None,
+    authentication_type=None,
+    user_assigned_identity=None,
+    connection_string=None,
+    resource_group_name=None,
+    apply_allocation_policy=None,
+    allocation_weight=None,
+    no_wait=False,
+):
+    """Update a linked IoT Hub on a DPS — allocation policy/weight, endpoint hostname type,
+    and/or authentication type.
+    """
+    if not hub_name and not linked_hub:
+        raise RequiredArgumentMissingError(
+            "Specify --hub-name (preferred) or --linked-hub to identify the linked hub."
+        )
+    if hub_name and linked_hub:
+        raise MutuallyExclusiveArgumentError(
+            "Specify either --hub-name or --linked-hub, not both."
+        )
+
+    mutation_args = {
+        "--hostname-type": hostname_type,
+        "--authentication-type": authentication_type,
+        "--connection-string": connection_string,
+        "--user-assigned-identity": user_assigned_identity,
+        "--allocation-weight": allocation_weight,
+        "--apply-allocation-policy": apply_allocation_policy,
+    }
+    if all(v is None for v in mutation_args.values()):
+        raise RequiredArgumentMissingError(
+            "Provide at least one update parameter: " + ", ".join(mutation_args.keys()) + "."
+        )
+
+    if linked_hub and '.' not in linked_hub:
+        hub_name = linked_hub
+        linked_hub = None
+
+    if not hub_name:
+        hub_name = linked_hub.split(".")[0]
+
+    is_mi = authentication_type in (
+        IotHubAuthenticationType.SYSTEM_ASSIGNED.value,
+        IotHubAuthenticationType.USER_ASSIGNED.value,
+    )
+    if is_mi and connection_string:
+        raise MutuallyExclusiveArgumentError(
+            "--connection-string cannot be used with --authentication-type SystemAssigned "
+            "or UserAssigned. Managed identity links do not use a connection string."
+        )
+    if authentication_type == IotHubAuthenticationType.USER_ASSIGNED.value and not user_assigned_identity:
+        raise RequiredArgumentMissingError(
+            "--user-assigned-identity is required when --authentication-type is UserAssigned."
+        )
+    if user_assigned_identity and authentication_type != IotHubAuthenticationType.USER_ASSIGNED.value:
+        raise MutuallyExclusiveArgumentError(
+            "--user-assigned-identity only applies with --authentication-type UserAssigned."
+        )
 
     resource_group_name = _ensure_dps_resource_group_name(client, resource_group_name, dps_name)
-    dps_linked_hubs = []
-    dps_linked_hubs.extend(iot_dps_linked_hub_list(client, dps_name, resource_group_name))
-    if not _is_linked_hub_existed(dps_linked_hubs, linked_hub):
-        raise ResourceNotFoundError("Access policy {0} doesn't exist.".format(linked_hub))
-
-    for hub in dps_linked_hubs:
-        if hub["name"] == linked_hub:
-            if apply_allocation_policy is not None:
-                hub["applyAllocationPolicy"] = apply_allocation_policy
-            if allocation_weight is not None:
-                hub["allocationWeight"] = allocation_weight
-
     dps = iot_dps_get(client, dps_name, resource_group_name)
-    dps["properties"]["iotHubs"] = dps_linked_hubs
+    linked_hubs = dps["properties"]["iotHubs"]
+    target_entry = _find_linked_hub_entry(linked_hubs, hub_name=hub_name, linked_hub=linked_hub)
+
+    if is_mi:
+        identity_type = (dps.get("identity") or {}).get("type", "None")
+        if authentication_type == IotHubAuthenticationType.SYSTEM_ASSIGNED.value and "SystemAssigned" not in identity_type:
+            raise InvalidArgumentValueError(
+                f"System-assigned managed identity is not enabled on DPS '{dps_name}'. "
+                "Enable it before linking with SystemAssigned authentication."
+            )
+        if authentication_type == IotHubAuthenticationType.USER_ASSIGNED.value and "UserAssigned" not in identity_type:
+            raise InvalidArgumentValueError(
+                f"User-assigned managed identity is not configured on DPS '{dps_name}'. "
+                "Assign a user identity before linking with UserAssigned authentication."
+            )
+
+    hub = None
+    hub_client = None
+    needs_hub_fetch = hostname_type or (
+        authentication_type == IotHubAuthenticationType.KEY_BASED.value and not connection_string
+    )
+    if needs_hub_fetch:
+        hub_client = iot_hub_service_factory(cmd.cli_ctx)
+        hub = iot_hub_get(cmd, hub_client, hub_name=hub_name)
+
+    new_hostname = None
+    if hostname_type:
+        new_hostname = _resolve_linked_hub_hostname(hub, hostname_type)
+        target_entry["name"] = new_hostname
+        target_entry["hostName"] = new_hostname
+
+    if authentication_type:
+        target_entry["authenticationType"] = authentication_type
+        if authentication_type == IotHubAuthenticationType.USER_ASSIGNED.value:
+            target_entry["selectedUserAssignedIdentityResourceId"] = user_assigned_identity
+        else:
+            target_entry.pop("selectedUserAssignedIdentityResourceId", None)
+        if authentication_type != IotHubAuthenticationType.KEY_BASED.value:
+            target_entry["connectionString"] = ""
+
+    target_auth = target_entry["authenticationType"]
+    if connection_string and target_auth != IotHubAuthenticationType.KEY_BASED.value:
+        raise MutuallyExclusiveArgumentError(
+            "--connection-string only applies to KeyBased authentication. "
+            "The linked hub uses managed identity; provide --authentication-type KeyBased "
+            "to switch, or omit --connection-string."
+        )
+
+    cs_needs_rebuild = (
+        target_auth == IotHubAuthenticationType.KEY_BASED.value
+        and (authentication_type or new_hostname or connection_string)
+    )
+    if cs_needs_rebuild:
+        if connection_string:
+            if ".service.azure-devices" in connection_string.lower():
+                raise InvalidArgumentValueError(
+                    "Service hostname is not supported for DPS hub linking. "
+                    "Use a connection string with device or classic hostname."
+                )
+            target_entry["connectionString"] = connection_string
+        else:
+            parsed_existing_cs = validate_key_value_pairs(target_entry.get("connectionString")) or {}
+            existing_policy = parsed_existing_cs.get("SharedAccessKeyName") or IOT_HUB_DEFAULT_POLICY
+            policies = iot_hub_policy_get(
+                hub_client, hub_name, existing_policy, _get_resource_group_from_hub(hub)
+            )
+            target_entry["connectionString"] = IOT_SERVICE_CS_TEMPLATE.format(
+                target_entry["hostName"], policies["keyName"], policies["primaryKey"]
+            )
+
+    if apply_allocation_policy is not None:
+        target_entry["applyAllocationPolicy"] = apply_allocation_policy
+    if allocation_weight is not None:
+        target_entry["allocationWeight"] = allocation_weight
+
+    _warn_mixed_endpoint_types(linked_hubs)
 
     if no_wait:
         return client.iot_dps_resource.begin_create_or_update(
-            resource_group_name=resource_group_name, provisioning_service_name=dps_name, iot_dps_description=dps
+            resource_group_name=resource_group_name,
+            provisioning_service_name=dps_name,
+            iot_dps_description=dps,
         )
     LongRunningOperation(cmd.cli_ctx)(
         client.iot_dps_resource.begin_create_or_update(
-            resource_group_name=resource_group_name, provisioning_service_name=dps_name, iot_dps_description=dps
+            resource_group_name=resource_group_name,
+            provisioning_service_name=dps_name,
+            iot_dps_description=dps,
         )
     )
-    return iot_dps_linked_hub_get(cmd, client, dps_name, linked_hub, resource_group_name)
+    return iot_dps_linked_hub_get(cmd, client, dps_name, target_entry["name"], resource_group_name)
 
 
 def iot_dps_linked_hub_delete(cmd, client, dps_name, linked_hub, resource_group_name=None, no_wait=False):
