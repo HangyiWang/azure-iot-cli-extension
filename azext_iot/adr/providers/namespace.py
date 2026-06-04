@@ -19,6 +19,7 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     IdentityType,
     OutboundIdentityType,
+    build_mi_body,
 )
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.adr.providers.credential import CredentialProvider
@@ -29,8 +30,14 @@ console = Console()
 logger = get_logger(__name__)
 
 
+_OUTBOUND_MI_MUTEX_MSG = (
+    "Specify only one outbound identity: --outbound-mi-system-assigned uses the namespace's "
+    "system-assigned identity, --outbound-mi-user-assigned <uami-resource-id> uses a user-assigned "
+    "managed identity (the two options are mutually exclusive)."
+)
+
 _OUTBOUND_UAMI_PENDING_MSG = (
-    "User-assigned managed identity for outbound identity is not yet supported by the CLI; "
+    "User-assigned managed identity for outbound identity is not yet available from the backend; "
     "the underlying Microsoft.DeviceRegistry API surface is still being finalized. "
     "Use --outbound-mi-system-assigned instead."
 )
@@ -42,18 +49,23 @@ def _resolve_outbound_identity(
 ) -> Optional[dict]:
     """Return the OutboundIdentity body (or None when no flag provided).
 
-    Mutually exclusive between SAMI and UAMI. UAMI is currently rejected per design §2.3 -
-    backend spec still being finalized.
+    SAMI and UAMI are mutually exclusive. UAMI is currently rejected because
+    the backend spec is still being finalized.
     """
+    # Normalize empty/whitespace UAMI before the mutex check so a stray
+    # '--outbound-mi-user-assigned ""' is treated as not provided.
+    if outbound_mi_user_assigned is not None and not outbound_mi_user_assigned.strip():
+        outbound_mi_user_assigned = None
     if outbound_mi_system_assigned and outbound_mi_user_assigned:
-        raise MutuallyExclusiveArgumentError(
-            "--outbound-mi-system-assigned and --outbound-mi-user-assigned are mutually exclusive."
-        )
+        raise MutuallyExclusiveArgumentError(_OUTBOUND_MI_MUTEX_MSG)
     if outbound_mi_user_assigned:
         raise ArgumentUsageError(_OUTBOUND_UAMI_PENDING_MSG)
-    if outbound_mi_system_assigned:
-        return {"type": OutboundIdentityType.system_assigned.value}
-    return None
+    return build_mi_body(
+        outbound_mi_system_assigned,
+        outbound_mi_user_assigned,
+        sami_type=OutboundIdentityType.system_assigned.value,
+        uami_type=OutboundIdentityType.user_assigned.value,
+    )
 
 
 class NamespaceProvider(ADRProvider):

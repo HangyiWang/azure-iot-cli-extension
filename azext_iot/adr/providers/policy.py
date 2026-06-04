@@ -104,7 +104,7 @@ class PolicyProvider(ADRProvider):
         self.client.namespaces.get(resource_group_name=resource_group_name, namespace_name=namespace_name)
 
         try:
-            results = self.client.policies.list_by_resource_group(
+            results = self.client.policies.list_by_credential(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
             )

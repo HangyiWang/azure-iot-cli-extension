@@ -17,21 +17,13 @@ from azure.mgmt.core.policies import AsyncARMAutoResourceProviderRegistrationPol
 
 from .._serialization import Deserializer, Serializer
 from ._configuration import MicrosoftDeviceRegistryManagementServiceConfiguration
-from .operations import (
-    CredentialsOperations,
-    GroupsOperations,
-    JobRunsOperations,
-    JobsOperations,
-    NamespaceDevicesOperations,
-    NamespacesOperations,
-    PoliciesOperations,
-)
+from .operations import CredentialsOperations, NamespaceDevicesOperations, NamespacesOperations, PoliciesOperations
 
 if TYPE_CHECKING:
     from azure.core.credentials_async import AsyncTokenCredential
 
 
-class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-instance-attributes
+class MicrosoftDeviceRegistryManagementService:
     """Microsoft.DeviceRegistry Resource Provider management API.
 
     :ivar namespaces: NamespacesOperations operations
@@ -43,19 +35,13 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
     :ivar namespace_devices: NamespaceDevicesOperations operations
     :vartype namespace_devices:
      azext_iot.sdk.deviceregistry.aio.operations.NamespaceDevicesOperations
-    :ivar groups: GroupsOperations operations
-    :vartype groups: azext_iot.sdk.deviceregistry.aio.operations.GroupsOperations
-    :ivar jobs: JobsOperations operations
-    :vartype jobs: azext_iot.sdk.deviceregistry.aio.operations.JobsOperations
-    :ivar job_runs: JobRunsOperations operations
-    :vartype job_runs: azext_iot.sdk.deviceregistry.aio.operations.JobRunsOperations
     :param credential: Credential needed for the client to connect to Azure. Required.
     :type credential: ~azure.core.credentials_async.AsyncTokenCredential
     :param subscription_id: The ID of the target subscription. The value must be an UUID. Required.
     :type subscription_id: str
     :param endpoint: Service URL. Default value is "https://management.azure.com".
     :type endpoint: str
-    :keyword api_version: Api Version. Default value is "2026-11-02-preview". Note that overriding
+    :keyword api_version: Api Version. Default value is "2026-11-01-preview". Note that overriding
      this default value may result in unsupported behavior.
     :paramtype api_version: str
     :keyword int polling_interval: Default waiting time between two polls for LRO operations if no
@@ -101,9 +87,6 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
         self.namespace_devices = NamespaceDevicesOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
-        self.groups = GroupsOperations(self._client, self._config, self._serialize, self._deserialize)
-        self.jobs = JobsOperations(self._client, self._config, self._serialize, self._deserialize)
-        self.job_runs = JobRunsOperations(self._client, self._config, self._serialize, self._deserialize)
 
     def send_request(
         self, request: HttpRequest, *, stream: bool = False, **kwargs: Any

@@ -41,7 +41,7 @@ _UPDATE_FIELDS_REQUIRED_MSG = (
 )
 _IMMUTABLE_FIELDS_MSG = (
     "Only --tags can be modified after creation. The job's --type, --target-group-name, --update-id-* and "
-    "scheduling fields are immutable (see design §3.1). To change these, delete and recreate the job."
+    "scheduling fields are immutable. To change these, delete and recreate the job."
 )
 _INVALID_TIMEOUT_MSG = (
     "--timeout must be a valid ISO 8601 duration (e.g. 'PT1H', 'P1D', 'PT30M'). Provided value: '{value}'."
@@ -91,10 +91,10 @@ class JobProvider(ADRProvider):
     ):
         """Create a job in the namespace.
 
-        Per design §3.1, only ``jobType: Update`` ships in v1. The CLI rejects
-        ``Action``/``State`` client-side with a clear message even though help
-        names them for forward-compat. The body shape is verified against the
-        spec ``UpdateJobProperties`` model.
+        Only ``jobType: Update`` ships in v1. The CLI rejects ``Action``/``State``
+        client-side with a clear message even though help names them for
+        forward-compat. The body shape is verified against the spec
+        ``UpdateJobProperties`` model.
 
         The target group is always resolved against the job's own namespace and
         resource group (cross-namespace targets are not supported in this
@@ -115,7 +115,7 @@ class JobProvider(ADRProvider):
         )
 
         # Update-job requires the ADU update identity triple (passed opaquely;
-        # no ADU preflight per design §3.1).
+        # no ADU preflight).
         if not (update_provider and update_name and update_version):
             raise ArgumentUsageError(_UPDATE_FIELDS_REQUIRED_MSG)
 
@@ -224,10 +224,10 @@ class JobProvider(ADRProvider):
     ):
         """Delete a job from the namespace.
 
-        Per design §2.2, surface a best-effort warning if any in-flight runs
-        (status in ``Scheduled``/``Queued``/``Active``) belong to this job;
-        deletion proceeds regardless (the backend DELETE cancels affected runs
-        with ``CanceledByCustomer``).
+        Surface a best-effort warning if any in-flight runs (status in
+        ``Scheduled``/``Queued``/``Active``) belong to this job; deletion
+        proceeds regardless (the backend DELETE cancels affected runs with
+        ``CanceledByCustomer``).
         """
         in_flight_runs = self._check_in_flight_runs(
             job_name=job_name,
@@ -308,7 +308,7 @@ class JobProvider(ADRProvider):
 
         Best-effort: any exception (RBAC, transient SDK error) is logged at
         warning level and yields an empty list so that deletion is never
-        blocked by a probe-failure. See design §2.2.
+        blocked by a probe-failure.
         """
         try:
             runs = self.client.job_runs.list_by_job(

@@ -148,7 +148,7 @@ def test_show_policy(fixture_policy_provider):
 def test_list_policies(fixture_policy_provider):
     """List returns serialized results for each policy."""
     fixture_policy_provider.client.namespaces.get.return_value = Mock()
-    fixture_policy_provider.client.policies.list_by_resource_group.return_value = [
+    fixture_policy_provider.client.policies.list_by_credential.return_value = [
         {"name": "a"},
         {"name": "b"},
     ]
@@ -264,7 +264,7 @@ def _assert_not_found(provider, method_name, kwargs, namespace_exists):
         provider.client.namespaces.get.return_value = Mock()
         error = _make_parent_not_found_error()
         target = (
-            provider.client.policies.list_by_resource_group
+            provider.client.policies.list_by_credential
             if method_name == "list"
             else provider.client.policies.get
         )

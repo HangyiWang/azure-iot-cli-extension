@@ -13,7 +13,7 @@ import azext_iot._help  # noqa: F401
 from azext_iot.core.command_map import load_core_commands
 from azext_iot.adr.command_map import load_adr_commands
 from azext_iot.core.params import load_core_arguments
-from azext_iot.adr.params_adr_management import load_adr_management_arguments
+from azext_iot.adr.params import load_adr_arguments
 
 iothub_ops = CliCommandType(operations_tmpl="azext_iot.operations.hub#{}")
 iotdps_ops = CliCommandType(operations_tmpl="azext_iot.operations.dps#{}")
@@ -61,7 +61,7 @@ class IoTExtCommandsLoader(AzCommandsLoader):
 
         # TODO - CMS Preview - arguments
         load_core_arguments(self, command)
-        load_adr_management_arguments(self, command)
+        load_adr_arguments(self, command)
 
 
 COMMAND_LOADER_CLS = IoTExtCommandsLoader

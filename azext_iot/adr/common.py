@@ -5,6 +5,7 @@
 # --------------------------------------------------------------------------------------------
 
 from enum import Enum
+from typing import Optional
 
 
 class IdentityType(Enum):
@@ -90,8 +91,8 @@ class JobRunStatus(Enum):
 
 
 #: Job-run statuses that count as "in flight" for the job/group pre-delete
-#: warning surface. Per design §2.2, the operator is warned that deleting will
-#: cancel any runs in these states.
+#: warning surface. The operator is warned that deleting will cancel any runs
+#: in these states.
 JOB_RUN_IN_FLIGHT_STATUSES = frozenset(
     {JobRunStatus.scheduled.value, JobRunStatus.queued.value, JobRunStatus.active.value}
 )
@@ -117,6 +118,32 @@ DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS = 30
 DEFAULT_NS_CREDENTIAL_NAME = "default"
 DEFAULT_NS_POLICY_NAME = "default"
 DEFAULT_NS_POLICY_CERT_KEY_TYPE = PolicyCertificateKeyType.ecc.value
+
+
+def build_mi_body(
+    mi_system_assigned: Optional[bool],
+    mi_user_assigned: Optional[str],
+    *,
+    sami_type: str,
+    uami_type: str,
+) -> Optional[dict]:
+    """Build a managed-identity body dict, or None if neither flag is set.
+
+    Shared by the link endpoint (InboundCallerIdentity) and namespace
+    (OutboundIdentity) surfaces. Callers are responsible for SAMI/UAMI mutex
+    enforcement, required-argument checks, and any surface-specific UAMI
+    restrictions (the contracts vary).
+
+    Empty/whitespace ``mi_user_assigned`` is treated as "not provided" so a
+    stray ``--…-mi-user-assigned ""`` does not emit a malformed body.
+    """
+    if mi_user_assigned is not None and not mi_user_assigned.strip():
+        mi_user_assigned = None
+    if mi_user_assigned:
+        return {"type": uami_type, "userAssignedIdentity": mi_user_assigned}
+    if mi_system_assigned:
+        return {"type": sami_type}
+    return None
 
 # Error message templates
 CREDENTIAL_NOT_FOUND_MSG = (

@@ -13,6 +13,7 @@ from azure.cli.core.azclierror import (
     ResourceNotFoundError,
 )
 from knack.log import get_logger
+from msrestazure.tools import is_valid_resource_id, parse_resource_id
 from rich.console import Console
 
 from azext_iot._factory import iot_service_provisioning_factory
@@ -20,6 +21,7 @@ from azext_iot.adr.common import (
     DPS_ENDPOINT_TYPE,
     IOT_HUB_ENDPOINT_TYPE,
     InboundCallerIdentityType,
+    build_mi_body,
 )
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.common.utility import wait_for_terminal_state
@@ -36,6 +38,18 @@ DPS_FIRST_REQUIRED_MSG = (
 DPS_CAP_EXCEEDED_MSG = (
     "Namespace already has a linked DPS; use 'az iot adr ns link dps update' "
     "or remove the existing entry first. Only one DPS may be linked per namespace."
+)
+
+_MI_MUTEX_MSG = (
+    "Specify only one identity: use --mi-system-assigned for the namespace's "
+    "system-assigned identity, or --mi-user-assigned <uami-resource-id> for a "
+    "user-assigned managed identity (the two options are mutually exclusive)."
+)
+
+_MI_REQUIRED_MSG = (
+    "An inbound caller identity is required. Pass --mi-system-assigned to use the "
+    "namespace's system-assigned identity, or --mi-user-assigned <uami-resource-id> "
+    "to use a user-assigned managed identity."
 )
 
 
@@ -57,46 +71,45 @@ def _parse_dps_resource_id(dps_resource_id: str) -> dict:
             f"'{raw}' looks like a bare DPS name. Pass the full ARM resource ID instead "
             "(use 'az iot dps show -n <dps> --query id -o tsv' to retrieve it)."
         )
-    parts = raw.strip("/").split("/")
+    if not is_valid_resource_id(raw):
+        raise InvalidArgumentValueError(
+            f"'{dps_resource_id}' is not a valid ARM resource ID."
+        )
+    parsed = parse_resource_id(raw)
+    # Reject child resources (e.g. .../provisioningServices/<n>/certificates/<c>) and
+    # any non-DPS resource type.
     if (
-        len(parts) != 8
-        or parts[0].lower() != "subscriptions"
-        or parts[2].lower() != "resourcegroups"
-        or parts[4].lower() != "providers"
-        or parts[5].lower() != "microsoft.devices"
-        or parts[6].lower() != "provisioningservices"
+        (parsed.get("namespace") or "").lower() != "microsoft.devices"
+        or (parsed.get("type") or "").lower() != "provisioningservices"
+        or "child_name_1" in parsed
     ):
         raise InvalidArgumentValueError(
-            f"'{dps_resource_id}' is not a valid Microsoft.Devices/provisioningServices resource ID."
+            f"'{dps_resource_id}' is not a Microsoft.Devices/provisioningServices resource ID."
         )
     return {
-        "subscription_id": parts[1],
-        "resource_group_name": parts[3],
-        "name": parts[7],
+        "subscription_id": parsed["subscription"],
+        "resource_group_name": parsed["resource_group"],
+        "name": parsed["name"],
     }
 
 
 def _build_inbound_identity(mi_system_assigned: bool, mi_user_assigned: Optional[str]) -> dict:
     """Build the InboundCallerIdentity body from CLI flags. Exactly one variant required."""
-    # Treat empty/whitespace UAMI string as "not provided" so a stray '--mi-user-assigned ""'
-    # does not silently emit a malformed identity body.
+    # Normalize empty/whitespace UAMI before the mutex check so a stray
+    # '--mi-user-assigned ""' is treated as not provided.
     if mi_user_assigned is not None and not mi_user_assigned.strip():
         mi_user_assigned = None
-
     if mi_system_assigned and mi_user_assigned:
-        raise ArgumentUsageError(
-            "--mi-system-assigned and --mi-user-assigned are mutually exclusive."
-        )
-    if mi_user_assigned:
-        return {
-            "type": InboundCallerIdentityType.user_assigned.value,
-            "userAssignedIdentity": mi_user_assigned,
-        }
-    if mi_system_assigned:
-        return {"type": InboundCallerIdentityType.system_assigned.value}
-    raise RequiredArgumentMissingError(
-        "Exactly one of --mi-system-assigned or --mi-user-assigned is required."
+        raise ArgumentUsageError(_MI_MUTEX_MSG)
+    body = build_mi_body(
+        mi_system_assigned,
+        mi_user_assigned,
+        sami_type=InboundCallerIdentityType.system_assigned.value,
+        uami_type=InboundCallerIdentityType.user_assigned.value,
     )
+    if body is None:
+        raise RequiredArgumentMissingError(_MI_REQUIRED_MSG)
+    return body
 
 
 def _get_messaging_endpoints(namespace: dict) -> dict:
@@ -107,6 +120,42 @@ def _get_provisioning_endpoints(namespace: dict) -> dict:
     return (((namespace or {}).get("properties") or {}).get("provisioning") or {}).get("endpoints") or {}
 
 
+def _build_hub_endpoint_body(
+    hub_resource_id: str,
+    mi_system_assigned: bool,
+    mi_user_assigned: Optional[str],
+    availability: Optional[str] = None,
+    allocation_weight: Optional[int] = None,
+) -> dict:
+    """Build a full Hub messaging-endpoint body for a namespace PATCH."""
+    body = {
+        "endpointType": IOT_HUB_ENDPOINT_TYPE,
+        "resourceId": hub_resource_id,
+        "inboundCallerIdentity": _build_inbound_identity(mi_system_assigned, mi_user_assigned),
+    }
+    provisioning = {}
+    if availability is not None:
+        provisioning["availability"] = availability
+    if allocation_weight is not None:
+        provisioning["allocationWeight"] = allocation_weight
+    if provisioning:
+        body["provisioning"] = provisioning
+    return body
+
+
+def _build_dps_endpoint_body(
+    dps_resource_id: str,
+    mi_system_assigned: bool,
+    mi_user_assigned: Optional[str],
+) -> dict:
+    """Build a full DPS provisioning-endpoint body for a namespace PATCH."""
+    return {
+        "endpointType": DPS_ENDPOINT_TYPE,
+        "resourceId": dps_resource_id,
+        "inboundCallerIdentity": _build_inbound_identity(mi_system_assigned, mi_user_assigned),
+    }
+
+
 class LinkProvider(ADRProvider):
     def __init__(self, cmd):
         super(LinkProvider, self).__init__(cmd)
@@ -114,8 +163,11 @@ class LinkProvider(ADRProvider):
     # -------------------- helpers --------------------
 
     def _get_namespace(self, namespace_name: str, resource_group_name: str) -> dict:
-        return self.client.namespaces.get(
-            resource_group_name=resource_group_name, namespace_name=namespace_name
+        return dict(
+            self.client.namespaces.get(
+                resource_group_name=resource_group_name, namespace_name=namespace_name
+            )
+            or {}
         )
 
     def _patch_messaging_endpoints(
@@ -154,22 +206,17 @@ class LinkProvider(ADRProvider):
         """Add an IoT Hub messaging endpoint to a namespace (DPS-first preflight)."""
         existing = self._get_namespace(namespace_name, resource_group_name)
 
-        # §2.1 DPS-first: namespace must already have at least one DPS endpoint
+        # DPS-first: namespace must already have at least one DPS endpoint
         if not _get_provisioning_endpoints(existing):
             raise ArgumentUsageError(DPS_FIRST_REQUIRED_MSG)
 
-        endpoint_body = {
-            "endpointType": IOT_HUB_ENDPOINT_TYPE,
-            "resourceId": hub_resource_id,
-            "inboundCallerIdentity": _build_inbound_identity(mi_system_assigned, mi_user_assigned),
-        }
-        provisioning = {}
-        if availability is not None:
-            provisioning["availability"] = availability
-        if allocation_weight is not None:
-            provisioning["allocationWeight"] = allocation_weight
-        if provisioning:
-            endpoint_body["provisioning"] = provisioning
+        endpoint_body = _build_hub_endpoint_body(
+            hub_resource_id,
+            mi_system_assigned,
+            mi_user_assigned,
+            availability=availability,
+            allocation_weight=allocation_weight,
+        )
 
         return self._patch_messaging_endpoints(
             namespace_name=namespace_name,
@@ -191,9 +238,7 @@ class LinkProvider(ADRProvider):
     ):
         """Partial-update an existing IoT Hub messaging endpoint on a namespace."""
         if mi_system_assigned and mi_user_assigned:
-            raise ArgumentUsageError(
-                "--mi-system-assigned and --mi-user-assigned are mutually exclusive."
-            )
+            raise ArgumentUsageError(_MI_MUTEX_MSG)
 
         existing = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_messaging_endpoints(existing)
@@ -223,8 +268,8 @@ class LinkProvider(ADRProvider):
 
         if not endpoint_patch:
             raise RequiredArgumentMissingError(
-                "Provide at least one of --mi-system-assigned, --mi-user-assigned, "
-                "--availability, or --allocation-weight."
+                "Nothing to update. Pass at least one of --mi-system-assigned, "
+                "--mi-user-assigned <uami-resource-id>, --availability, or --allocation-weight."
             )
 
         return self._patch_messaging_endpoints(
@@ -304,21 +349,28 @@ class LinkProvider(ADRProvider):
             return wait_for_terminal_state(poller, **kwargs)
 
     def _side_get_dps_resource(self, dps_resource_id: str) -> dict:
-        """Side-GET the DPS RP to surface brownfield ``properties.iotHubs[]``.
+        """Side-GET the DPS RP to surface existing ``properties.iotHubs[]`` registrations.
 
         Errors here are non-fatal: we surface a warning and return an empty dict so the
         primary projection still succeeds. RBAC on DPS is independent of the namespace.
         """
         try:
             parsed = _parse_dps_resource_id(dps_resource_id)
+        except Exception:  # pragma: no cover - parse already validated upstream
+            return {}
+        dps_name = parsed["name"]
+        try:
             client = iot_service_provisioning_factory(self.cmd.cli_ctx).iot_dps_resource
-            return client.get(
-                resource_group_name=parsed["resource_group_name"],
-                provisioning_service_name=parsed["name"],
-            ) or {}
+            return dict(
+                client.get(
+                    resource_group_name=parsed["resource_group_name"],
+                    provisioning_service_name=dps_name,
+                )
+                or {}
+            )
         except Exception as exc:  # pragma: no cover - defensive logging path
             logger.warning(
-                "Unable to fetch brownfield Hubs from DPS %s: %s", dps_resource_id, exc
+                "Could not list existing IoT Hubs registered on DPS '%s': %s", dps_name, exc
             )
             return {}
 
@@ -339,13 +391,9 @@ class LinkProvider(ADRProvider):
         if _get_provisioning_endpoints(existing):
             raise ArgumentUsageError(DPS_CAP_EXCEEDED_MSG)
 
-        endpoint_body = {
-            "endpointType": DPS_ENDPOINT_TYPE,
-            "resourceId": dps_resource_id,
-            "inboundCallerIdentity": _build_inbound_identity(
-                mi_system_assigned, mi_user_assigned
-            ),
-        }
+        endpoint_body = _build_dps_endpoint_body(
+            dps_resource_id, mi_system_assigned, mi_user_assigned
+        )
         return self._patch_provisioning_endpoints(
             namespace_name=namespace_name,
             resource_group_name=resource_group_name,
@@ -364,9 +412,7 @@ class LinkProvider(ADRProvider):
     ):
         """Partial-update an existing DPS provisioning endpoint on a namespace."""
         if mi_system_assigned and mi_user_assigned:
-            raise ArgumentUsageError(
-                "--mi-system-assigned and --mi-user-assigned are mutually exclusive."
-            )
+            raise ArgumentUsageError(_MI_MUTEX_MSG)
 
         existing = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_provisioning_endpoints(existing)
@@ -388,7 +434,8 @@ class LinkProvider(ADRProvider):
 
         if not endpoint_patch:
             raise RequiredArgumentMissingError(
-                "Provide at least one of --mi-system-assigned or --mi-user-assigned."
+                "Nothing to update. Pass --mi-system-assigned or "
+                "--mi-user-assigned <uami-resource-id> to change the inbound caller identity."
             )
 
         return self._patch_provisioning_endpoints(
@@ -426,7 +473,7 @@ class LinkProvider(ADRProvider):
         )
 
     def dps_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
-        """Project a single DPS provisioning endpoint + brownfield Hub list from the DPS RP."""
+        """Project a single DPS provisioning endpoint, enriched with the DPS RP's existing IoT Hub registrations."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_provisioning_endpoints(ns)
         if endpoint_name not in endpoints:
@@ -438,6 +485,8 @@ class LinkProvider(ADRProvider):
         if dps_resource_id:
             dps = self._side_get_dps_resource(dps_resource_id)
             brownfield_hubs = (dps.get("properties") or {}).get("iotHubs") or []
+            # NOTE: 'brownfieldHubs' is a public response key documented in _help.py and
+            # asserted by tests; do not rename without coordinating those.
             endpoint["brownfieldHubs"] = brownfield_hubs
         return endpoint
 
@@ -451,7 +500,7 @@ class LinkProvider(ADRProvider):
             if (ep or {}).get("endpointType") == DPS_ENDPOINT_TYPE
         }
 
-    # -------------------- bundled link add (P4) --------------------
+    # -------------------- bundled link add --------------------
 
     def link_add(
         self,
@@ -483,27 +532,16 @@ class LinkProvider(ADRProvider):
             raise ArgumentUsageError(DPS_CAP_EXCEEDED_MSG)
 
         # Build the two endpoint bodies (each call validates its own MI flag pair).
-        dps_body = {
-            "endpointType": DPS_ENDPOINT_TYPE,
-            "resourceId": dps_resource_id,
-            "inboundCallerIdentity": _build_inbound_identity(
-                dps_mi_system_assigned, dps_mi_user_assigned
-            ),
-        }
-        hub_body = {
-            "endpointType": IOT_HUB_ENDPOINT_TYPE,
-            "resourceId": hub_resource_id,
-            "inboundCallerIdentity": _build_inbound_identity(
-                hub_mi_system_assigned, hub_mi_user_assigned
-            ),
-        }
-        hub_provisioning = {}
-        if hub_availability is not None:
-            hub_provisioning["availability"] = hub_availability
-        if hub_allocation_weight is not None:
-            hub_provisioning["allocationWeight"] = hub_allocation_weight
-        if hub_provisioning:
-            hub_body["provisioning"] = hub_provisioning
+        dps_body = _build_dps_endpoint_body(
+            dps_resource_id, dps_mi_system_assigned, dps_mi_user_assigned
+        )
+        hub_body = _build_hub_endpoint_body(
+            hub_resource_id,
+            hub_mi_system_assigned,
+            hub_mi_user_assigned,
+            availability=hub_availability,
+            allocation_weight=hub_allocation_weight,
+        )
 
         # DPS-first ordering in the bundled PATCH body.
         properties = {

@@ -123,7 +123,7 @@ class DeviceProvider(ADRProvider):
         are not yet exposed via this extension's SDK surface, so we cannot enumerate
         them. When the assets SDK lands, replace the empty return below with a
         best-effort list/filter call (wrapped in try/except so RBAC failures degrade
-        gracefully per design §2.2).
+        gracefully).
         """
         # TODO: when assets ship, query namespace_assets + namespace_discovered_assets
         # and return [a["name"] for a in ... if deviceRef.deviceName == device_name].

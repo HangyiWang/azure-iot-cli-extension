@@ -24,7 +24,7 @@ from azext_iot.adr.common import (
 )
 
 
-def load_adr_management_arguments(self, _):
+def load_adr_arguments(self, _):
     """Load arguments for ADR namespace commands."""
 
     # Common arguments
@@ -290,7 +290,7 @@ def load_adr_management_arguments(self, _):
             help="Azure resource ID of the IoT Hub to link to this namespace.",
         )
 
-    # Link DPS arguments (P3)
+    # Link DPS arguments
     with self.argument_context("iot adr ns link dps") as context:
         context.argument(
             "namespace_name",
@@ -328,7 +328,7 @@ def load_adr_management_arguments(self, _):
             help="Azure resource ID of the Device Provisioning Service to link to this namespace.",
         )
 
-    # Bundled link add (P4)
+    # Bundled link add
     with self.argument_context("iot adr ns link add") as context:
         context.argument(
             "namespace_name",
@@ -400,7 +400,7 @@ def load_adr_management_arguments(self, _):
             help="User-assigned managed identity resource ID for the DPS inbound caller identity.",
         )
 
-    # Group arguments (P5)
+    # Group arguments
     with self.argument_context("iot adr ns group") as context:
         context.argument(
             "namespace_name",
@@ -457,7 +457,7 @@ def load_adr_management_arguments(self, _):
             help="Human-readable description of the group.",
         )
 
-    # Job arguments (P6)
+    # Job arguments
     with self.argument_context("iot adr ns job") as context:
         context.argument(
             "namespace_name",
@@ -529,7 +529,7 @@ def load_adr_management_arguments(self, _):
                  "(e.g. 'PT1H' for one hour, 'P1D' for one day).",
         )
 
-    # Job run arguments (P7) — read-only surface (show / list / results)
+    # Job run arguments — read-only surface (show / list / results)
     with self.argument_context("iot adr ns job run") as context:
         context.argument(
             "namespace_name",

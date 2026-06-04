@@ -92,7 +92,7 @@ def adr_link_hub_list(cmd, namespace_name: str, resource_group_name: str):
     )
 
 
-# ==================== link dps (P3) ====================
+# ==================== link dps ====================
 
 
 def adr_link_dps_add(
@@ -170,7 +170,7 @@ def adr_link_dps_list(cmd, namespace_name: str, resource_group_name: str):
     )
 
 
-# ==================== link add bundled (P4) ====================
+# ==================== link add (bundled) ====================
 
 
 def adr_link_add(
