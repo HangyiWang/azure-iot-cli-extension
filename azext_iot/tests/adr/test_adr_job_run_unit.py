@@ -137,7 +137,7 @@ def test_job_run_results_handles_empty_envelope(fixture_job_run_provider):
             resource_group_name="test-rg",
         )
     )
-    assert result == []
+    assert not result
 
 
 def test_job_run_results_is_lazy(fixture_job_run_provider):

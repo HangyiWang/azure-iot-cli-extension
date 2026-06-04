@@ -4,7 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from azure.cli.core.azclierror import CLIError
 from knack.log import get_logger
@@ -116,7 +116,7 @@ class DeviceProvider(ADRProvider):
         device_name: str,
         namespace_name: str,
         resource_group_name: str,
-    ) -> list:
+    ) -> List[str]:
         """Return identifiers of resources that reference this device.
 
         Phase 1 stub: assets (and other resources that carry ``deviceRef.deviceName``)
