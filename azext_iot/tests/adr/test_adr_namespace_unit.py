@@ -49,8 +49,8 @@ def test_create_namespace(
     has_policy_args = any([enable_certificate_management, policy_name, cert_key_type, cert_subject, cert_validity_days])
 
     with patch(
-        "azext_iot.adr.providers.credential.CredentialProvider", return_value=fixture_credential_provider
-    ), patch("azext_iot.adr.providers.policy.PolicyProvider", return_value=fixture_policy_provider):
+        "azext_iot.adr.providers.namespace.CredentialProvider", return_value=fixture_credential_provider
+    ), patch("azext_iot.adr.providers.namespace.PolicyProvider", return_value=fixture_policy_provider):
         ns_result_data = {
             "id": (
                 f"/subscriptions/test-sub/resourceGroups/{rg}/"
@@ -223,6 +223,12 @@ def test_create_namespace_outbound_sami(fixture_namespace_provider, mock_poller)
     }
 
 
+UAMI_RESOURCE_ID = (
+    "/subscriptions/x/resourceGroups/y/providers/"
+    "Microsoft.ManagedIdentity/userAssignedIdentities/uami"
+)
+
+
 def test_create_namespace_outbound_uami_rejected(fixture_namespace_provider):
     """UAMI for outbound identity is rejected client-side until backend lands."""
     with pytest.raises(ArgumentUsageError):
@@ -230,7 +236,7 @@ def test_create_namespace_outbound_uami_rejected(fixture_namespace_provider):
             namespace_name="ns",
             resource_group_name="rg",
             location="eastus",
-            outbound_mi_user_assigned="/subscriptions/x/resourceGroups/y/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami",
+            outbound_mi_user_assigned=UAMI_RESOURCE_ID,
         )
 
 
@@ -242,7 +248,7 @@ def test_create_namespace_outbound_mi_mutually_exclusive(fixture_namespace_provi
             resource_group_name="rg",
             location="eastus",
             outbound_mi_system_assigned=True,
-            outbound_mi_user_assigned="/subscriptions/x/resourceGroups/y/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami",
+            outbound_mi_user_assigned=UAMI_RESOURCE_ID,
         )
 
 
@@ -267,7 +273,7 @@ def test_update_namespace_outbound_uami_rejected(fixture_namespace_provider):
         fixture_namespace_provider.update(
             namespace_name="ns",
             resource_group_name="rg",
-            outbound_mi_user_assigned="/subscriptions/x/resourceGroups/y/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami",
+            outbound_mi_user_assigned=UAMI_RESOURCE_ID,
         )
 
 

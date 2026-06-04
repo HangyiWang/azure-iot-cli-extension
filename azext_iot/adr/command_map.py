@@ -33,6 +33,21 @@ adr_link_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
+adr_group_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_group#{}",
+    client_factory=adr_service_factory,
+)
+
+adr_job_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_job#{}",
+    client_factory=adr_service_factory,
+)
+
+adr_job_run_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_job_run#{}",
+    client_factory=adr_service_factory,
+)
+
 
 def load_adr_commands(self, _):
     # Namespace commands
@@ -87,3 +102,31 @@ def load_adr_commands(self, _):
         cmd_group.command("remove", "adr_link_dps_remove", confirmation=True, supports_no_wait=True)
         cmd_group.show_command("show", "adr_link_dps_show")
         cmd_group.command("list", "adr_link_dps_list")
+
+    # Group commands
+    with self.command_group("iot adr ns group", command_type=adr_group_ops) as cmd_group:
+        cmd_group.command("create", "adr_group_create", supports_no_wait=True)
+        cmd_group.command("update", "adr_group_update", supports_no_wait=True)
+        cmd_group.show_command("show", "adr_group_show")
+        cmd_group.command("list", "adr_group_list")
+        cmd_group.command("delete", "adr_group_delete", confirmation=True, supports_no_wait=True)
+        cmd_group.command("refresh", "adr_group_refresh", supports_no_wait=True)
+        cmd_group.command("show-members", "adr_group_show_members")
+        cmd_group.command("count", "adr_group_count")
+        cmd_group.wait_command("wait", "adr_group_show")
+
+    # Job commands
+    with self.command_group("iot adr ns job", command_type=adr_job_ops) as cmd_group:
+        cmd_group.command("create", "adr_job_create", supports_no_wait=True)
+        cmd_group.command("update", "adr_job_update")
+        cmd_group.show_command("show", "adr_job_show")
+        cmd_group.command("list", "adr_job_list")
+        cmd_group.command("delete", "adr_job_delete", confirmation=True, supports_no_wait=True)
+        cmd_group.command("schedule", "adr_job_schedule", supports_no_wait=True)
+        cmd_group.wait_command("wait", "adr_job_show")
+
+    # Job run commands (read-only)
+    with self.command_group("iot adr ns job run", command_type=adr_job_run_ops) as cmd_group:
+        cmd_group.show_command("show", "adr_job_run_show")
+        cmd_group.command("list", "adr_job_run_list")
+        cmd_group.command("results", "adr_job_run_results")

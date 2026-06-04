@@ -20,7 +20,6 @@ from azext_iot.adr.common import (
     DPS_ENDPOINT_TYPE,
     IOT_HUB_ENDPOINT_TYPE,
     InboundCallerIdentityType,
-    LinkingState,
 )
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.common.utility import wait_for_terminal_state
@@ -47,7 +46,18 @@ def _parse_dps_resource_id(dps_resource_id: str) -> dict:
         /subscriptions/<sub>/resourceGroups/<rg>/providers/
             Microsoft.Devices/provisioningServices/<name>
     """
-    parts = (dps_resource_id or "").strip("/").split("/")
+    raw = (dps_resource_id or "").strip()
+    if not raw:
+        raise InvalidArgumentValueError(
+            "--dps-id is required and must be a Microsoft.Devices/provisioningServices ARM resource ID."
+        )
+    # Friendly hint: a bare name (no slashes) is the most common mistake here.
+    if "/" not in raw:
+        raise InvalidArgumentValueError(
+            f"'{raw}' looks like a bare DPS name. Pass the full ARM resource ID instead "
+            "(use 'az iot dps show -n <dps> --query id -o tsv' to retrieve it)."
+        )
+    parts = raw.strip("/").split("/")
     if (
         len(parts) != 8
         or parts[0].lower() != "subscriptions"
@@ -68,6 +78,11 @@ def _parse_dps_resource_id(dps_resource_id: str) -> dict:
 
 def _build_inbound_identity(mi_system_assigned: bool, mi_user_assigned: Optional[str]) -> dict:
     """Build the InboundCallerIdentity body from CLI flags. Exactly one variant required."""
+    # Treat empty/whitespace UAMI string as "not provided" so a stray '--mi-user-assigned ""'
+    # does not silently emit a malformed identity body.
+    if mi_user_assigned is not None and not mi_user_assigned.strip():
+        mi_user_assigned = None
+
     if mi_system_assigned and mi_user_assigned:
         raise ArgumentUsageError(
             "--mi-system-assigned and --mi-user-assigned are mutually exclusive."
@@ -226,30 +241,24 @@ class LinkProvider(ADRProvider):
         resource_group_name: str,
         **kwargs,
     ):
-        """Remove an IoT Hub messaging endpoint from the namespace (sets value to null)."""
-        existing = self._get_namespace(namespace_name, resource_group_name)
-        endpoints = _get_messaging_endpoints(existing)
-        if endpoint_name not in endpoints:
-            raise ResourceNotFoundError(
-                f"Hub endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
-            )
+        """Removing a Hub link entry directly is not supported by design.
 
-        endpoint = endpoints.get(endpoint_name) or {}
-        linking_state = endpoint.get("linkingState")
-        if linking_state == LinkingState.succeeded.value:
-            hub_resource_id = endpoint.get("resourceId") or "<hub-resource-id>"
-            raise ArgumentUsageError(
-                f"Hub endpoint '{endpoint_name}' is in linkingState 'Succeeded'. "
-                "The namespace PATCH path cannot unlink a successfully linked Hub; "
-                "to break the link you must delete the underlying IoT Hub resource. "
-                f"Run: az iot hub delete --ids {hub_resource_id}"
-            )
+        Hub links are bound to the lifecycle of the underlying IoT Hub. To unlink,
+        delete the IoT Hub resource or the namespace itself.
+        """
+        hub_resource_id = "<hub-resource-id>"
+        try:
+            existing = self._get_namespace(namespace_name, resource_group_name)
+            endpoint = _get_messaging_endpoints(existing).get(endpoint_name) or {}
+            hub_resource_id = endpoint.get("resourceId") or hub_resource_id
+        except Exception:  # noqa: BLE001 — best-effort enrichment only
+            pass
 
-        return self._patch_messaging_endpoints(
-            namespace_name=namespace_name,
-            resource_group_name=resource_group_name,
-            endpoints_patch={endpoint_name: None},
-            **kwargs,
+        raise ArgumentUsageError(
+            f"Removing Hub link '{endpoint_name}' directly is not supported. "
+            "Hub links are tied to the underlying IoT Hub lifecycle. To unlink, delete "
+            f"the IoT Hub ('az iot hub delete --ids {hub_resource_id}') or the namespace "
+            f"('az iot adr ns delete -n {namespace_name} -g {resource_group_name}')."
         )
 
     def hub_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
@@ -396,30 +405,24 @@ class LinkProvider(ADRProvider):
         resource_group_name: str,
         **kwargs,
     ):
-        """Remove a DPS provisioning endpoint from the namespace."""
-        existing = self._get_namespace(namespace_name, resource_group_name)
-        endpoints = _get_provisioning_endpoints(existing)
-        if endpoint_name not in endpoints:
-            raise ResourceNotFoundError(
-                f"DPS endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
-            )
+        """Removing a DPS link entry directly is not supported by design.
 
-        endpoint = endpoints.get(endpoint_name) or {}
-        linking_state = endpoint.get("linkingState")
-        if linking_state == LinkingState.succeeded.value:
-            dps_resource_id = endpoint.get("resourceId") or "<dps-resource-id>"
-            raise ArgumentUsageError(
-                f"DPS endpoint '{endpoint_name}' is in linkingState 'Succeeded'. "
-                "The namespace PATCH path cannot unlink a successfully linked DPS; "
-                "to break the link you must delete the underlying DPS resource. "
-                f"Run: az iot dps delete --ids {dps_resource_id}"
-            )
+        DPS links are bound to the lifecycle of the underlying DPS resource. To unlink,
+        delete the DPS resource or the namespace itself.
+        """
+        dps_resource_id = "<dps-resource-id>"
+        try:
+            existing = self._get_namespace(namespace_name, resource_group_name)
+            endpoint = _get_provisioning_endpoints(existing).get(endpoint_name) or {}
+            dps_resource_id = endpoint.get("resourceId") or dps_resource_id
+        except Exception:  # noqa: BLE001 — best-effort enrichment only
+            pass
 
-        return self._patch_provisioning_endpoints(
-            namespace_name=namespace_name,
-            resource_group_name=resource_group_name,
-            endpoints_patch={endpoint_name: None},
-            **kwargs,
+        raise ArgumentUsageError(
+            f"Removing DPS link '{endpoint_name}' directly is not supported. "
+            "DPS links are tied to the underlying DPS lifecycle. To unlink, delete "
+            f"the DPS ('az iot dps delete --ids {dps_resource_id}') or the namespace "
+            f"('az iot adr ns delete -n {namespace_name} -g {resource_group_name}')."
         )
 
     def dps_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):

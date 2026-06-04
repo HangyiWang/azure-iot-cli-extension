@@ -1,0 +1,262 @@
+# coding=utf-8
+# --------------------------------------------------------------------------------------------
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See License.txt in the project root for license information.
+# --------------------------------------------------------------------------------------------
+
+"""
+ADR job integration tests (P6).
+
+Covers the ``iot adr ns job`` surface end-to-end:
+
+* CRUD: create / show / list / update / delete
+* ``schedule`` with optional ``--scheduled-time`` and ``--timeout``
+* Update guards (``Nothing to update``; non-tag fields rejected)
+* ``wait`` (LRO polling)
+* Same-namespace lock on ``--target-group-name`` (no cross-namespace targets)
+
+Jobs require a target Group in the same namespace; they do **not** require
+any Hub/DPS infrastructure. We keep the namespace lightweight (no credential,
+no policy, no linked Hub) since job CRUD does not exercise the credential or
+linking surfaces.
+"""
+
+import datetime
+
+import pytest
+
+from azext_iot.tests import CaptureOutputLiveScenarioTest
+from azext_iot.tests.adr._helpers import ADRHubInfraHelper
+from azext_iot.tests.adr._log import LogKind, _log, timed_step
+from azext_iot.tests.adr.conftest import (
+    TEST_LOCATION,
+    TEST_RG,
+    generate_adr_namespace_name,
+)
+from azext_iot.tests.generators import generate_generic_id
+
+
+def _generate_group_name() -> str:
+    return f"testgrp{generate_generic_id()[:8]}"
+
+
+def _generate_job_name() -> str:
+    return f"testjob{generate_generic_id()[:8]}"
+
+
+@pytest.mark.usefixtures("set_cwd")
+class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+    """End-to-end Job CRUD + schedule + delete."""
+
+    def test_adr_job_lifecycle(self):
+        _log(LogKind.TEST, "test_adr_job_lifecycle")
+        rg = TEST_RG
+        namespace_name = generate_adr_namespace_name()
+        group_name = _generate_group_name()
+        job_name = _generate_job_name()
+
+        try:
+            with timed_step("Setup ❯ Namespace + Group"):
+                self.cmd(
+                    f"iot adr ns create -n {namespace_name} -g {rg} --location {TEST_LOCATION}"
+                )
+                self.cmd(
+                    f"iot adr ns group create -n {group_name} --ns {namespace_name} -g {rg} "
+                    f"--query-string \"SELECT * FROM devices\""
+                )
+                _log(LogKind.OK, "Group '%s' created", group_name)
+
+            with timed_step("Step 1 ❯ job create (Update + ADU update id triple)"):
+                created = self.cmd(
+                    f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--target-group-name {group_name} "
+                    f"--update-id-provider Contoso "
+                    f"--update-id-name gateway-firmware "
+                    f"--update-id-version 1.2.3"
+                ).get_output_in_json()
+                assert created["name"] == job_name
+                assert created["properties"]["provisioningState"] == "Succeeded"
+                # Surface-level: target & update identity should be present in
+                # the response (back-end shape may vary slightly).
+                props = created["properties"]
+                target_id = (props.get("target") or {}).get("targetResourceId", "")
+                assert group_name.lower() in target_id.lower(), (
+                    f"target group not in targetResourceId: {target_id}"
+                )
+                update = (props.get("definition") or {}).get("update") or {}
+                update_id = update.get("updateId") or {}
+                assert update_id.get("provider") == "Contoso"
+                assert update_id.get("name") == "gateway-firmware"
+                assert update_id.get("version") == "1.2.3"
+                _log(
+                    LogKind.OK,
+                    "job created; target=%s update=Contoso/gateway-firmware/1.2.3",
+                    group_name,
+                )
+
+            with timed_step("Step 2 ❯ job show / list"):
+                shown = self.cmd(
+                    f"iot adr ns job show -n {job_name} --ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                assert shown["name"] == job_name
+                listed = self.cmd(
+                    f"iot adr ns job list --ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                assert isinstance(listed, list)
+                assert job_name in [j["name"] for j in listed]
+                _log(LogKind.OK, "job visible in show + list")
+
+            with timed_step("Step 3 ❯ job update (tags only)"):
+                updated = self.cmd(
+                    f"iot adr ns job update -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--tags env=int owner=adr-tests"
+                ).get_output_in_json()
+                assert updated["tags"]["env"] == "int"
+                assert updated["tags"]["owner"] == "adr-tests"
+                _log(LogKind.OK, "tags set: env=int owner=adr-tests")
+
+                # Replace tags
+                updated = self.cmd(
+                    f"iot adr ns job update -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--tags purpose=p6-int"
+                ).get_output_in_json()
+                assert updated["tags"]["purpose"] == "p6-int"
+                assert "env" not in updated.get("tags", {})
+                _log(LogKind.OK, "tags replaced (env removed)")
+
+            with timed_step("Step 4 ❯ job update with NO args raises Nothing to update"):
+                # Provider raises ArgumentUsageError → CLI exits non-zero with
+                # the "Nothing to update. Pass --tags k=v ..." message.
+                self.cmd(
+                    f"iot adr ns job update -n {job_name} --ns {namespace_name} -g {rg}",
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "no-args update correctly rejected")
+
+            with timed_step("Step 5 ❯ job update --tags '' clears all tags"):
+                cleared = self.cmd(
+                    f"iot adr ns job update -n {job_name} --ns {namespace_name} -g {rg} --tags ''"
+                ).get_output_in_json()
+                assert cleared.get("tags") in (None, {}), (
+                    f"Expected tags to be cleared, got {cleared.get('tags')}"
+                )
+                _log(LogKind.OK, "tags cleared with --tags ''")
+
+            with timed_step("Step 6 ❯ job schedule (no args = immediate)"):
+                self.cmd(
+                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg}"
+                )
+                _log(LogKind.OK, "schedule (immediate) returned")
+
+            with timed_step("Step 7 ❯ job schedule with --scheduled-time and --timeout"):
+                # Schedule for ~1 hour from now to keep it well-formed
+                future = (
+                    datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+                ).strftime("%Y-%m-%dT%H:%M:%SZ")
+                self.cmd(
+                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--scheduled-time {future} --timeout PT2H"
+                )
+                _log(
+                    LogKind.OK,
+                    "schedule (--scheduled-time=%s, --timeout=PT2H) returned",
+                    future,
+                )
+
+            with timed_step("Step 8 ❯ job wait --created"):
+                self.cmd(
+                    f"iot adr ns job wait -n {job_name} --ns {namespace_name} -g {rg} --created"
+                )
+                _log(LogKind.OK, "wait --created returned")
+
+            with timed_step("Step 9 ❯ job delete"):
+                self.cmd(
+                    f"iot adr ns job delete -n {job_name} --ns {namespace_name} -g {rg} -y"
+                )
+                self.cmd(
+                    f"iot adr ns job show -n {job_name} --ns {namespace_name} -g {rg}",
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "job deleted")
+
+        finally:
+            self.cleanup_namespace(namespace_name, rg)
+
+
+@pytest.mark.usefixtures("set_cwd")
+class TestADRJobValidation(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+    """Negative / validation tests for ``job create`` and ``job update``.
+
+    These do not require a real namespace for some paths (CLI-side arg parsing
+    fails before any API call), but creating one lets us exercise the cleaner
+    provider-side ArgumentUsageError messages too.
+    """
+
+    def test_adr_job_validation_negatives(self):
+        _log(LogKind.TEST, "test_adr_job_validation_negatives")
+        rg = TEST_RG
+        namespace_name = generate_adr_namespace_name()
+        group_name = _generate_group_name()
+        job_name = _generate_job_name()
+
+        try:
+            with timed_step("Setup ❯ Namespace + Group"):
+                self.cmd(
+                    f"iot adr ns create -n {namespace_name} -g {rg} --location {TEST_LOCATION}"
+                )
+                self.cmd(
+                    f"iot adr ns group create -n {group_name} --ns {namespace_name} -g {rg} "
+                    f"--query-string \"SELECT * FROM devices\""
+                )
+
+            with timed_step("Neg 1 ❯ job create missing --target-group-name"):
+                self.cmd(
+                    f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--update-id-provider Contoso --update-id-name fw --update-id-version 1.0.0",
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "missing --target-group-name rejected")
+
+            with timed_step("Neg 2 ❯ job create with partial --update-id-* triple"):
+                self.cmd(
+                    f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--target-group-name {group_name} "
+                    f"--update-id-provider Contoso --update-id-name fw",  # version missing
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "partial update-id triple rejected")
+
+            with timed_step("Neg 3 ❯ job update with forbidden non-tag field"):
+                # Create a job we can poke at
+                self.cmd(
+                    f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--target-group-name {group_name} "
+                    f"--update-id-provider Contoso --update-id-name fw --update-id-version 1.0.0"
+                )
+                # `--target-group-name` is not a valid `job update` param at the
+                # arg-parser layer; CLI core surfaces an unknown-argument error.
+                self.cmd(
+                    f"iot adr ns job update -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--target-group-name some-other-group",
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "non-tag update field rejected")
+
+            with timed_step("Neg 4 ❯ job schedule with invalid ISO 8601 timeout"):
+                self.cmd(
+                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--timeout 'not-a-duration'",
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "invalid timeout rejected")
+
+            with timed_step("Neg 5 ❯ job schedule with invalid ISO 8601 scheduled-time"):
+                self.cmd(
+                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--scheduled-time 'tomorrow at noon'",
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "invalid scheduled-time rejected")
+
+        finally:
+            self.cleanup_namespace(namespace_name, rg)

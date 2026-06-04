@@ -78,8 +78,7 @@ class PolicyProvider(ADRProvider):
                 policy_name=policy_name,
                 resource=resource,
             )
-            result = wait_for_terminal_state(poller, **kwargs)
-            return result
+            return wait_for_terminal_state(poller, **kwargs)
 
     def show(self, policy_name: str, namespace_name: str, resource_group_name: str):
         # Ensure namespace exists
@@ -138,13 +137,19 @@ class PolicyProvider(ADRProvider):
         certificate_validity_days: Optional[int] = None,
         **kwargs,
     ):
-        # Build certificate update dict if needed
-        resource = {"properties": {}}
+        # Build a sparse PATCH body so we never round-trip empty `properties` blocks
+        # (the backend treats an empty `properties` dict as "no-op" but emitting it
+        # adds noise to telemetry / activity logs).
+        resource: dict = {}
         if tags is not None:
             resource["tags"] = tags
         if certificate_validity_days is not None:
-            resource["properties"]["certificate"] = {
-                "leafCertificateConfiguration": {"validityPeriodInDays": certificate_validity_days}
+            resource["properties"] = {
+                "certificate": {
+                    "leafCertificateConfiguration": {
+                        "validityPeriodInDays": certificate_validity_days,
+                    }
+                }
             }
 
         with console.status(f"Updating policy '{policy_name}' for namespace {namespace_name}..."):

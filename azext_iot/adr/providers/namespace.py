@@ -21,6 +21,8 @@ from azext_iot.adr.common import (
     OutboundIdentityType,
 )
 from azext_iot.adr.providers.base import ADRProvider
+from azext_iot.adr.providers.credential import CredentialProvider
+from azext_iot.adr.providers.policy import PolicyProvider
 from azext_iot.common.utility import wait_for_terminal_state
 
 console = Console()
@@ -140,18 +142,18 @@ class NamespaceProvider(ADRProvider):
 
         if should_create_credential_policy:
             try:
-                from azext_iot.adr.providers.credential import CredentialProvider
-
                 credential_provider = CredentialProvider(self.cmd)
                 credential_provider.create(
                     namespace_name=namespace_name, resource_group_name=resource_group_name, location=location, **kwargs
                 )
-            except Exception as e:
-                logger.error("Error creating default namespace credential: %s", str(e))
+            except Exception as e:  # noqa: BLE001 - namespace itself is created; default cred is best-effort
+                logger.warning(
+                    "Namespace '%s' was created, but default credential creation failed: %s. "
+                    "Retry with 'az iot adr ns credential create --ns %s -g %s'.",
+                    namespace_name, e, namespace_name, resource_group_name,
+                )
 
             try:
-                from azext_iot.adr.providers.policy import PolicyProvider
-
                 policy_provider = PolicyProvider(self.cmd)
                 policy_provider.create(
                     policy_name=policy_name or DEFAULT_NS_POLICY_NAME,
@@ -163,8 +165,12 @@ class NamespaceProvider(ADRProvider):
                     certificate_validity_days=certificate_validity_days,
                     **kwargs,
                 )
-            except Exception as e:
-                logger.error("Error creating credential policy: %s", str(e))
+            except Exception as e:  # noqa: BLE001 - namespace itself is created; default policy is best-effort
+                logger.warning(
+                    "Namespace '%s' was created, but default policy creation failed: %s. "
+                    "Retry with 'az iot adr ns policy create -n %s --ns %s -g %s'.",
+                    namespace_name, e, policy_name or DEFAULT_NS_POLICY_NAME, namespace_name, resource_group_name,
+                )
 
         return namespace_result
 
@@ -224,5 +230,4 @@ class NamespaceProvider(ADRProvider):
         if no_wait:
             return poller
         with console.status(f"Updating namespace {namespace_name}..."):
-            result = wait_for_terminal_state(poller, **kwargs)
-            return result
+            return wait_for_terminal_state(poller, **kwargs)

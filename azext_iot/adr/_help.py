@@ -88,6 +88,12 @@ def load_adr_help():
   examples:
     - name: Update namespace tags
       text: az iot adr ns update -n myNamespace -g myResourceGroup --tags key=value
+    - name: Switch outbound identity to system-assigned managed identity
+      text: az iot adr ns update -n myNamespace -g myResourceGroup --outbound-mi-system-assigned
+    - name: Switch outbound identity to a user-assigned managed identity
+      text: |
+        az iot adr ns update -n myNamespace -g myResourceGroup \\
+          --outbound-mi-user-assigned /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<id>
   """
 
     helps[
@@ -396,12 +402,15 @@ def load_adr_help():
         "iot adr ns link hub remove"
     ] = """
   type: command
-  short-summary: Remove an IoT Hub messaging endpoint from a Device Registry namespace.
+  short-summary: (Not supported by design) Removing a Hub link entry directly is not allowed.
   long-summary: |
-    Removes the named messaging endpoint from the namespace by issuing a PATCH that sets the
-    entry to null. The Hub resource itself is not deleted; only its link to the namespace.
+    This command always fails. By design, Hub link entries are bound to the lifecycle of the
+    underlying IoT Hub and cannot be removed from the namespace in isolation. To unlink:
+      * delete the IoT Hub resource ('az iot hub delete'), or
+      * delete the Device Registry namespace ('az iot adr ns delete').
+    The command is kept so the failure surfaces a clear, actionable error rather than a 'not found'.
   examples:
-    - name: Remove a Hub link
+    - name: Invocation will fail — use one of the suggested commands instead
       text: az iot adr ns link hub remove -n primary --ns myNamespace -g myResourceGroup
   """
 
@@ -474,12 +483,15 @@ def load_adr_help():
         "iot adr ns link dps remove"
     ] = """
   type: command
-  short-summary: Remove a DPS provisioning endpoint from a Device Registry namespace.
+  short-summary: (Not supported by design) Removing a DPS link entry directly is not allowed.
   long-summary: |
-    Removes the named provisioning endpoint from the namespace by issuing a PATCH that sets the
-    entry to null. The DPS resource itself is not deleted; only its link to the namespace.
+    This command always fails. By design, DPS link entries are bound to the lifecycle of the
+    underlying DPS resource and cannot be removed from the namespace in isolation. To unlink:
+      * delete the DPS resource ('az iot dps delete'), or
+      * delete the Device Registry namespace ('az iot adr ns delete').
+    The command is kept so the failure surfaces a clear, actionable error rather than a 'not found'.
   examples:
-    - name: Remove a DPS link
+    - name: Invocation will fail — use one of the suggested commands instead
       text: az iot adr ns link dps remove -n primary --ns myNamespace -g myResourceGroup
   """
 
@@ -530,4 +542,306 @@ def load_adr_help():
           --hub-name primary-hub --hub-id <hub-id> --hub-mi-system-assigned \\
           --hub-availability Available --hub-allocation-weight 1 \\
           --dps-name primary-dps --dps-id <dps-id> --dps-mi-system-assigned
+  """
+
+    helps[
+        "iot adr ns group"
+    ] = """
+    type: group
+    short-summary: Manage Device Registry namespace groups.
+  """
+
+    helps[
+        "iot adr ns group create"
+    ] = """
+  type: command
+  short-summary: Create a group in a Device Registry namespace.
+  long-summary: |
+    PUT is a long-running operation. The group's --group-type and --query-string
+    are immutable after creation. Only 'Device' is supported as the group type
+    in the current preview API.
+  examples:
+    - name: Create a device group with a membership query
+      text: |
+        az iot adr ns group create -n myGroup --ns myNamespace -g myResourceGroup \\
+          --query-string "SELECT * FROM devices WHERE tags.env = 'prod'"
+    - name: Create a device group with a display name and description
+      text: |
+        az iot adr ns group create -n myGroup --ns myNamespace -g myResourceGroup \\
+          --query-string "SELECT * FROM devices WHERE tags.env = 'prod'" \\
+          --display-name "Production devices" --description "All prod-tagged devices"
+  """
+
+    helps[
+        "iot adr ns group update"
+    ] = """
+  type: command
+  short-summary: Update a group in a Device Registry namespace.
+  long-summary: |
+    PATCH is a long-running operation. Only mutable fields are exposed:
+    --display-name, --description, and --tags. The group's type and membership
+    query cannot be changed after creation; recreate the group instead.
+  examples:
+    - name: Update a group's display name
+      text: az iot adr ns group update -n myGroup --ns myNamespace -g myResourceGroup --display-name "New name"
+    - name: Update a group's description and tags
+      text: az iot adr ns group update -n myGroup --ns myNamespace -g myResourceGroup --description "Updated" --tags env=prod
+  """
+
+    helps[
+        "iot adr ns group show"
+    ] = """
+  type: command
+  short-summary: Show a group in a Device Registry namespace.
+  examples:
+    - name: Show group details
+      text: az iot adr ns group show -n myGroup --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns group list"
+    ] = """
+  type: command
+  short-summary: List groups in a Device Registry namespace.
+  examples:
+    - name: List all groups in a namespace
+      text: az iot adr ns group list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns group delete"
+    ] = """
+  type: command
+  short-summary: Delete a group from a Device Registry namespace.
+  long-summary: |
+    DELETE is a long-running operation. Any jobs that target this group will be
+    cascade-deleted first (one sequential DELETE per job, then the group DELETE),
+    because the service rejects deleting a group that still has referencing jobs.
+    The command HARD-BLOCKS the entire operation when any referencing job has:
+      * an in-flight run (status in: Scheduled, Queued, Active), or
+      * a non-terminal provisioningState (Accepted, Creating, Updating, Deleting,
+        Provisioning, Running).
+    In that case nothing is deleted and the error lists the offending jobs so you
+    can wait for them, cancel them, or delete them explicitly before retrying.
+  examples:
+    - name: Delete a group (cascade-deletes referencing jobs if any)
+      text: az iot adr ns group delete -n myGroup --ns myNamespace -g myResourceGroup
+    - name: Delete a group without confirmation prompt
+      text: az iot adr ns group delete -n myGroup --ns myNamespace -g myResourceGroup --yes
+  """
+
+    helps[
+        "iot adr ns group refresh"
+    ] = """
+  type: command
+  short-summary: Trigger an asynchronous refresh of a group's membership.
+  long-summary: |
+    POST /refreshMembers is a long-running operation. Use 'az iot adr ns group wait'
+    to wait for the refresh to complete, or 'az iot adr ns group show' to poll
+    the 'membershipState' field.
+  examples:
+    - name: Refresh group membership
+      text: az iot adr ns group refresh -n myGroup --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns group show-members"
+    ] = """
+  type: command
+  short-summary: Preview a sample of members of a group (up to 10).
+  long-summary: |
+    Returns a synchronous sample of at most 10 current members. This is a preview
+    only; it is not a paginated full membership list. Use 'az iot adr ns group count'
+    for the total member count.
+  examples:
+    - name: Preview group members
+      text: az iot adr ns group show-members -n myGroup --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns group count"
+    ] = """
+  type: command
+  short-summary: Show the current member count of a group.
+  examples:
+    - name: Show member count
+      text: az iot adr ns group count -n myGroup --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns group wait"
+    ] = """
+  type: command
+  short-summary: Wait for a Device Registry group to reach a desired state.
+  examples:
+    - name: Wait until a group is created
+      text: az iot adr ns group wait -n myGroup --ns myNamespace -g myResourceGroup --created
+    - name: Wait until a group's membership refresh completes
+      text: az iot adr ns group wait -n myGroup --ns myNamespace -g myResourceGroup --custom "properties.membershipState=='Ready'"
+  """
+
+    helps[
+        "iot adr ns job"
+    ] = """
+    type: group
+    short-summary: Manage Device Registry namespace jobs.
+  """
+
+    helps[
+        "iot adr ns job create"
+    ] = """
+  type: command
+  short-summary: Create a job in a Device Registry namespace.
+  long-summary: |
+    PUT is a long-running operation. Only --type 'Update' is supported in this
+    preview API ('Action' and 'State' are reserved discriminator values for a
+    future API version). The job's --type, target group, and update identity
+    are immutable after creation; only --tags can be modified later via
+    'az iot adr ns job update'.
+
+    The target group is specified by --target-group-name and must live in the
+    same namespace and resource group as the job (cross-namespace targets are
+    not supported in this preview release). The ADU update identity
+    (--update-id-provider, --update-id-name, --update-id-version) is passed
+    opaquely to the backend; no ADU preflight is performed.
+  examples:
+    - name: Create an Update job targeting a group in the same namespace
+      text: |
+        az iot adr ns job create -n myJob --ns myNamespace -g myResourceGroup \\
+          --target-group-name myGroup \\
+          --update-id-provider Contoso --update-id-name gateway-firmware --update-id-version 1.2.3
+  """
+
+    helps[
+        "iot adr ns job update"
+    ] = """
+  type: command
+  short-summary: Update tags on a job in a Device Registry namespace.
+  long-summary: |
+    PATCH is synchronous and tags-only by design. The job's --type, target
+    group, update identity, and scheduling fields are immutable after creation
+    because mutating them would have unintended effects on already-scheduled
+    runs. To change these, delete and recreate the job.
+  examples:
+    - name: Update job tags
+      text: az iot adr ns job update -n myJob --ns myNamespace -g myResourceGroup --tags env=prod owner=platform
+    - name: Clear all job tags
+      text: az iot adr ns job update -n myJob --ns myNamespace -g myResourceGroup --tags ""
+  """
+
+    helps[
+        "iot adr ns job show"
+    ] = """
+  type: command
+  short-summary: Show a job in a Device Registry namespace.
+  examples:
+    - name: Show job details
+      text: az iot adr ns job show -n myJob --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns job list"
+    ] = """
+  type: command
+  short-summary: List jobs in a Device Registry namespace.
+  examples:
+    - name: List all jobs in a namespace
+      text: az iot adr ns job list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns job delete"
+    ] = """
+  type: command
+  short-summary: Delete a job from a Device Registry namespace.
+  long-summary: |
+    DELETE is a long-running operation. If any in-flight runs (status
+    'Scheduled', 'Queued', or 'Active') exist for this job, a warning is
+    surfaced before deletion; the backend cancels affected runs with reason
+    'CanceledByCustomer'.
+  examples:
+    - name: Delete a job
+      text: az iot adr ns job delete -n myJob --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns job schedule"
+    ] = """
+  type: command
+  short-summary: Schedule a job for execution.
+  long-summary: |
+    POST /schedule is a long-running operation. Both --scheduled-time and
+    --timeout are optional per the spec; omit --scheduled-time to schedule
+    immediately. --timeout is validated client-side as an ISO 8601 duration
+    (e.g. 'PT1H', 'P1D', 'PT30M').
+  examples:
+    - name: Schedule a job to run immediately
+      text: az iot adr ns job schedule -n myJob --ns myNamespace -g myResourceGroup
+    - name: Schedule a job for a specific UTC time with a 2-hour timeout
+      text: |
+        az iot adr ns job schedule -n myJob --ns myNamespace -g myResourceGroup \\
+          --scheduled-time 2025-12-01T08:00:00Z --timeout PT2H
+  """
+
+    helps[
+        "iot adr ns job wait"
+    ] = """
+  type: command
+  short-summary: Wait for a Device Registry job to reach a desired state.
+  examples:
+    - name: Wait until a job is created
+      text: az iot adr ns job wait -n myJob --ns myNamespace -g myResourceGroup --created
+    - name: Wait until a job reaches a terminal provisioning state
+      text: az iot adr ns job wait -n myJob --ns myNamespace -g myResourceGroup --custom "properties.provisioningState=='Succeeded'"
+  """
+
+    helps[
+        "iot adr ns job run"
+    ] = """
+    type: group
+    short-summary: Inspect runs of a Device Registry namespace job.
+    long-summary: |
+      Job runs are spawned by the service when a job is scheduled; they are
+      read-only from the CLI (no `create`, `cancel`, or `delete` \u2014 the spec
+      does not provide a write surface). Use these commands to monitor an
+      Update deployment's progress and to drill into per-device results.
+  """
+
+    helps[
+        "iot adr ns job run show"
+    ] = """
+  type: command
+  short-summary: Show a single run of a Device Registry job.
+  examples:
+    - name: Show a job run
+      text: az iot adr ns job run show -n myRun --job-name myJob --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns job run list"
+    ] = """
+  type: command
+  short-summary: List runs for a Device Registry job.
+  examples:
+    - name: List all runs for a job
+      text: az iot adr ns job run list --job-name myJob --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns job run results"
+    ] = """
+  type: command
+  short-summary: Browse per-device results of a job run.
+  long-summary: |
+    Returns a flat list of per-device results (deviceUuid, status, reason)
+    aggregated across all pages of the service-side `POST .../results`
+    response. Use Azure CLI `--query` to filter or project specific fields,
+    e.g. `--query "[?status=='Failed']"`.
+  examples:
+    - name: List every per-device result for a run
+      text: az iot adr ns job run results -n myRun --job-name myJob --ns myNamespace -g myResourceGroup
+    - name: Show only the failed devices in a run
+      text: |
+        az iot adr ns job run results -n myRun --job-name myJob --ns myNamespace -g myResourceGroup \\
+          --query "[?status=='Failed']"
   """

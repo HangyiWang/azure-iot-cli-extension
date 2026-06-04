@@ -9,6 +9,8 @@ The **Azure IoT extension for Azure CLI** aims to accelerate the development, ma
 
 - ❗ When upgrading your Azure CLI core version, for the best experience and to avoid breaking changes, we recommend updating your `azure-iot` extension to the [latest available](https://github.com/Azure/azure-iot-cli-extension/releases).
 
+- 🆕 **`0.32.0b1` Preview** introduces the **Azure Device Registry (ADR) "Ignite" surface** under `az iot adr ns`: namespace-scoped device management, Hub/DPS linking on namespaces, device groups, and Update-job orchestration (with paged job-run results). Built against the new `2026-11-02-preview` Device Registry management API. See the [HISTORY.rst](HISTORY.rst) entry for the full command list. Install with `az extension add --name azure-iot --allow-preview`.
+
 - Azure CLI `2.24.0` requires an `azure-iot` extension update to `0.10.11` or later for IoT Hub commands to work properly. However **we recommend** at least `azure-iot` `0.10.14`. Updating the extension can be done with `az extension update --name azure-iot`.
 
 > Note: A common error that arises when using an older `azure-iot` with Azure CLI `2.24.0+` shows as follows: `AttributeError: 'IotHubResourceOperations' object has no attribute 'config'`.
@@ -84,6 +86,43 @@ Commands:
                       assets. Currently only supports deleting models and twins.
     show            : Show an existing Digital Twins instance.
     wait            : Wait until an operation on an Digital Twins instance is complete.
+```
+
+</details>
+
+<details>
+  <summary>Azure Device Registry (Preview)</summary>
+
+```text
+$ az iot adr -h
+
+Group
+    az iot adr : Manage Azure Device Registry (ADR) resources.
+
+Subgroups:
+    ns : Manage Device Registry namespaces.
+
+$ az iot adr ns -h
+
+Group
+    az iot adr ns : Manage Device Registry namespaces.
+
+Subgroups:
+    credential : Manage Device Registry namespace credentials.
+    device     : Manage devices under a Device Registry namespace.
+    group      : Manage Device Registry namespace groups.
+    job        : Manage Device Registry namespace jobs (Update deployments).
+    link       : Manage links between a Device Registry namespace and downstream
+                 IoT Hub / DPS resources.
+    policy     : Manage Device Registry namespace credential policies.
+
+Commands:
+    create : Create a Device Registry namespace.
+    delete : Delete a Device Registry namespace.
+    list   : List Device Registry namespaces.
+    show   : Show details of a Device Registry namespace.
+    update : Update a Device Registry namespace.
+    wait   : Wait until an operation on a Device Registry namespace is complete.
 ```
 
 </details>

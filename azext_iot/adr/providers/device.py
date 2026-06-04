@@ -164,17 +164,17 @@ class DeviceProvider(ADRProvider):
         if operating_system_version is not None:
             inner_props["operatingSystemVersion"] = operating_system_version
         if attributes is not None:
+            # Param layer delivers a string; unit-test callers may pass an already-parsed
+            # dict. An empty string is treated as an explicit clear (sends None);
+            # any non-empty string is parsed as JSON.
             if isinstance(attributes, str):
-                if attributes == "":
-                    attributes = None
-                else:
-                    attributes = shell_safe_json_parse(attributes)
-            inner_props["attributes"] = attributes
-        if policy_resource_id is not None:
-            if policy_resource_id == "":
-                inner_props["policy"] = None
+                inner_props["attributes"] = None if attributes == "" else shell_safe_json_parse(attributes)
             else:
-                inner_props["policy"] = {"resourceId": policy_resource_id}
+                inner_props["attributes"] = attributes
+        if policy_resource_id is not None:
+            inner_props["policy"] = (
+                None if policy_resource_id == "" else {"resourceId": policy_resource_id}
+            )
 
         properties = {}
         if inner_props:

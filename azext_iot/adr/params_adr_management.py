@@ -17,6 +17,8 @@ from azure.cli.core.commands.parameters import (
 )
 from azure.cli.core.commands.validators import get_default_location_from_resource_group
 from azext_iot.adr.common import (
+    GroupType,
+    JobType,
     MessagingEndpointAvailability,
     PolicyCertificateKeyType,
 )
@@ -396,4 +398,159 @@ def load_adr_management_arguments(self, _):
             arg_group="DPS",
             options_list=["--dps-mi-user-assigned", "--dps-mi-ua"],
             help="User-assigned managed identity resource ID for the DPS inbound caller identity.",
+        )
+
+    # Group arguments (P5)
+    with self.argument_context("iot adr ns group") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "group_name",
+            options_list=["--group-name", "--gn", "--name", "-n"],
+            help="Name of the group.",
+        )
+
+    with self.argument_context("iot adr ns group create") as context:
+        context.argument(
+            "location",
+            arg_type=get_location_type(self.cli_ctx),
+            validator=get_default_location_from_resource_group,
+        )
+        context.argument("tags", arg_type=tags_type)
+        context.argument(
+            "group_type",
+            options_list=["--group-type", "--gt"],
+            arg_type=get_enum_type(GroupType),
+            help="Type of the group. Only 'Device' is supported in the current preview API; "
+                 "this is immutable after creation.",
+        )
+        context.argument(
+            "query_string",
+            options_list=["--query-string", "--qs"],
+            help="Membership query string used to determine which devices belong to the group. "
+                 "This is immutable after creation.",
+        )
+        context.argument(
+            "display_name",
+            options_list=["--display-name"],
+            help="Human-readable display name for the group.",
+        )
+        context.argument(
+            "description",
+            options_list=["--description"],
+            help="Human-readable description of the group.",
+        )
+
+    with self.argument_context("iot adr ns group update") as context:
+        context.argument("tags", arg_type=tags_type)
+        context.argument(
+            "display_name",
+            options_list=["--display-name"],
+            help="Human-readable display name for the group.",
+        )
+        context.argument(
+            "description",
+            options_list=["--description"],
+            help="Human-readable description of the group.",
+        )
+
+    # Job arguments (P6)
+    with self.argument_context("iot adr ns job") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "job_name",
+            options_list=["--job-name", "--jn", "--name", "-n"],
+            help="Name of the job.",
+        )
+
+    with self.argument_context("iot adr ns job create") as context:
+        context.argument(
+            "location",
+            arg_type=get_location_type(self.cli_ctx),
+            validator=get_default_location_from_resource_group,
+        )
+        context.argument("tags", arg_type=tags_type)
+        context.argument(
+            "job_type",
+            options_list=["--type"],
+            arg_type=get_enum_type(JobType),
+            help="Type of the job. Only 'Update' is supported in the current preview API; "
+                 "'Action' and 'State' are reserved discriminator values and will be enabled in a future API version.",
+        )
+        context.argument(
+            "target_group_name",
+            options_list=["--target-group-name", "--tg"],
+            help="Name of the target group. The group must live in the same namespace and resource group "
+                 "as the job; cross-namespace targets are not supported in this preview release.",
+        )
+        context.argument(
+            "update_provider",
+            arg_group="Update",
+            options_list=["--update-id-provider", "--update-provider", "--up"],
+            help="ADU updateId.provider (e.g. 'Contoso'). The ADU update identity is a {provider, name, version} triple.",
+        )
+        context.argument(
+            "update_name",
+            arg_group="Update",
+            options_list=["--update-id-name", "--update-name", "--un"],
+            help=(
+                "ADU updateId.name (e.g. 'gateway-firmware'). "
+                "This is the update identity's name, distinct from the job's --name."
+            ),
+        )
+        context.argument(
+            "update_version",
+            arg_group="Update",
+            options_list=["--update-id-version", "--update-version", "--uv"],
+            help="ADU updateId.version (e.g. '1.2.3').",
+        )
+
+    with self.argument_context("iot adr ns job update") as context:
+        context.argument("tags", arg_type=tags_type)
+
+    with self.argument_context("iot adr ns job schedule") as context:
+        context.argument(
+            "scheduled_time",
+            options_list=["--scheduled-time", "--st"],
+            help="Optional ISO 8601 UTC timestamp at which the job should be scheduled to run "
+                 "(e.g. '2025-12-01T08:00:00Z'). Omit to schedule immediately.",
+        )
+        context.argument(
+            "timeout",
+            options_list=["--timeout"],
+            help="Optional ISO 8601 duration after which the job execution times out "
+                 "(e.g. 'PT1H' for one hour, 'P1D' for one day).",
+        )
+
+    # Job run arguments (P7) — read-only surface (show / list / results)
+    with self.argument_context("iot adr ns job run") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "job_name",
+            options_list=["--job-name", "--jn"],
+            help="Name of the parent job that owns this run.",
+        )
+        context.argument(
+            "run_name",
+            options_list=["--run-name", "--rn", "--name", "-n"],
+            help="Name of the job run.",
+        )
+
+    with self.argument_context("iot adr ns job run list") as context:
+        # `list` has no run; only job_name is required at the leaf.
+        context.argument(
+            "job_name",
+            options_list=["--job-name", "--jn", "--name", "-n"],
+            help="Name of the parent job whose runs to list.",
         )

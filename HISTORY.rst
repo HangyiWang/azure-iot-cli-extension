@@ -3,6 +3,50 @@
 Release History
 ===============
 
+0.32.0b1 (Preview)
++++++++++++++++
+
+**General updates**
+
+* This is a preview release adding the **Azure Device Registry (ADR) "Ignite" surface** — device lifecycle, hub/DPS linking, groups, and update jobs — built against the new ``2026-11-02-preview`` Device Registry management API.
+* To install preview extensions, you will need to add the ``--allow-preview`` argument to ``az extension add/update`` commands.
+* New management SDK using ``2026-11-02-preview`` API version, covering namespaces (linking properties), namespace devices, groups, jobs, and job runs.
+
+**Azure Device Registry updates**
+
+* **Namespace devices** (new) — manage individual devices under a namespace:
+
+  - ``az iot adr ns device create / show / list / update / delete`` for full CRUD over namespace-scoped devices.
+  - ``az iot adr ns device revoke`` is registered but currently returns a clear "not available yet" error — the underlying Microsoft.DeviceRegistry revoke endpoint is not exposed in ``2026-11-02-preview``. The command stays in the surface (with ``deprecate_info`` semantics) so existing scripts get an explanatory message rather than a generic ``AttributeError``; it will start working without a CLI change once the API is re-introduced.
+
+* **Namespace linking** (new) — link IoT Hubs and Device Provisioning Services to a namespace via the namespace PATCH surface (links live on the namespace, not on the linked Hub/DPS resources):
+
+  - ``az iot adr ns link hub add / update / remove / show / list`` for IoT Hub messaging endpoints. ``add`` requires that at least one DPS is already linked (DPS-first ordering enforced client-side).
+  - ``az iot adr ns link dps add / update / remove / show / list`` for DPS provisioning endpoints (one DPS per namespace).
+  - ``az iot adr ns link add`` to link a Hub and a DPS in a single PATCH round-trip.
+  - Inbound caller identity per linked endpoint is configured via ``--mi-system-assigned`` / ``--mi-user-assigned``.
+
+* **Namespace outbound managed identity** (new) — ``az iot adr ns create`` and ``az iot adr ns update`` gain ``--outbound-mi-system-assigned`` / ``--outbound-mi-user-assigned`` to control the outbound identity the namespace uses to call linked Hubs and DPS.
+
+* **Groups** (new) — manage device groups inside a namespace:
+
+  - ``az iot adr ns group create / show / list / update / delete`` for CRUD. ``--group-type`` and ``--query-string`` are immutable after creation.
+  - ``az iot adr ns group refresh`` triggers an asynchronous refresh of group membership.
+  - ``az iot adr ns group show-members`` / ``az iot adr ns group count`` to inspect membership.
+  - ``az iot adr ns group wait`` for polling provisioning state.
+  - ``group delete`` cascade-deletes referencing jobs (sequentially) before deleting the group itself, and **hard-blocks** the entire operation when any referencing job has an in-flight run (``Scheduled``/``Queued``/``Active``) or a non-terminal ``provisioningState`` (``Accepted``/``Creating``/``Updating``/``Deleting``/``Provisioning``/``Running``). When blocked, the error lists each offending job so you can wait, cancel, or delete them explicitly before retrying.
+
+* **Jobs and job runs** (new) — manage Update deployments against a group:
+
+  - ``az iot adr ns job create / show / list / update / delete`` for CRUD. Only ``--type Update`` is supported in this preview; ``--type``, ``--target-group-name``, and the ADU update identity (``--update-id-provider``/``-name``/``-version``) are immutable after creation. ``--target-group-name`` must point to a group in the same namespace and resource group as the job (cross-namespace targets are not supported).
+  - ``az iot adr ns job update`` is synchronous and **tags-only**; passing no arguments is rejected with a clear ``Nothing to update`` error rather than silently clearing tags. Pass ``--tags ""`` to explicitly clear all tags.
+  - ``az iot adr ns job schedule`` to schedule (or re-schedule) a job, with optional ``--scheduled-time`` (ISO 8601 UTC) and ``--timeout`` (ISO 8601 duration).
+  - ``az iot adr ns job delete`` surfaces a best-effort warning listing any in-flight runs that the backend will cancel (cancellation reason ``CanceledByCustomer``).
+  - ``az iot adr ns job wait`` for polling job provisioning state.
+  - ``az iot adr ns job run show / list / results`` (read-only) for inspecting individual runs. ``results`` aggregates per-device statuses across all ``nextLink`` pages so ``--query`` filters can target the full result set, e.g. ``--query "[?status=='Failed']"``.
+
+* ``az iot adr ns policy revoke-issuer`` and ``az iot adr ns policy activate-byor`` remain registered but currently return a clear "not available yet" error (same rationale as ``device revoke`` above) — their backing endpoints were not regenerated in ``2026-11-02-preview``. They will be re-enabled in a follow-up when the spec lands.
+
 0.31.0b2 (Preview)
 +++++++++++++++
 
