@@ -7,16 +7,16 @@
 # --------------------------------------------------------------------------
 
 from copy import deepcopy
-from typing import Any, TYPE_CHECKING
+from typing import Any, Awaitable, TYPE_CHECKING
 from typing_extensions import Self
 
 from azure.core.pipeline import policies
-from azure.core.rest import HttpRequest, HttpResponse
-from azure.mgmt.core import ARMPipelineClient
-from azure.mgmt.core.policies import ARMAutoResourceProviderRegistrationPolicy
+from azure.core.rest import AsyncHttpResponse, HttpRequest
+from azure.mgmt.core import AsyncARMPipelineClient
+from azure.mgmt.core.policies import AsyncARMAutoResourceProviderRegistrationPolicy
 
+from .._serialization import Deserializer, Serializer
 from ._configuration import MicrosoftDeviceRegistryManagementServiceConfiguration
-from ._serialization import Deserializer, Serializer
 from .operations import (
     CredentialsOperations,
     GroupsOperations,
@@ -28,28 +28,29 @@ from .operations import (
 )
 
 if TYPE_CHECKING:
-    from azure.core.credentials import TokenCredential
+    from azure.core.credentials_async import AsyncTokenCredential
 
 
 class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-instance-attributes
     """Microsoft.DeviceRegistry Resource Provider management API.
 
     :ivar namespaces: NamespacesOperations operations
-    :vartype namespaces: azext_iot.sdk.deviceregistry.operations.NamespacesOperations
+    :vartype namespaces: azext_iot.sdk.deviceregistry.aio.operations.NamespacesOperations
     :ivar credentials: CredentialsOperations operations
-    :vartype credentials: azext_iot.sdk.deviceregistry.operations.CredentialsOperations
+    :vartype credentials: azext_iot.sdk.deviceregistry.aio.operations.CredentialsOperations
     :ivar policies: PoliciesOperations operations
-    :vartype policies: azext_iot.sdk.deviceregistry.operations.PoliciesOperations
+    :vartype policies: azext_iot.sdk.deviceregistry.aio.operations.PoliciesOperations
     :ivar namespace_devices: NamespaceDevicesOperations operations
-    :vartype namespace_devices: azext_iot.sdk.deviceregistry.operations.NamespaceDevicesOperations
+    :vartype namespace_devices:
+     azext_iot.sdk.deviceregistry.aio.operations.NamespaceDevicesOperations
     :ivar groups: GroupsOperations operations
-    :vartype groups: azext_iot.sdk.deviceregistry.operations.GroupsOperations
+    :vartype groups: azext_iot.sdk.deviceregistry.aio.operations.GroupsOperations
     :ivar jobs: JobsOperations operations
-    :vartype jobs: azext_iot.sdk.deviceregistry.operations.JobsOperations
+    :vartype jobs: azext_iot.sdk.deviceregistry.aio.operations.JobsOperations
     :ivar job_runs: JobRunsOperations operations
-    :vartype job_runs: azext_iot.sdk.deviceregistry.operations.JobRunsOperations
+    :vartype job_runs: azext_iot.sdk.deviceregistry.aio.operations.JobRunsOperations
     :param credential: Credential needed for the client to connect to Azure. Required.
-    :type credential: ~azure.core.credentials.TokenCredential
+    :type credential: ~azure.core.credentials_async.AsyncTokenCredential
     :param subscription_id: The ID of the target subscription. The value must be an UUID. Required.
     :type subscription_id: str
     :param endpoint: Service URL. Default value is "https://management.azure.com".
@@ -63,7 +64,7 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
 
     def __init__(
         self,
-        credential: "TokenCredential",
+        credential: "AsyncTokenCredential",
         subscription_id: str,
         endpoint: str = "https://management.azure.com",
         **kwargs: Any
@@ -79,7 +80,7 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
                 self._config.user_agent_policy,
                 self._config.proxy_policy,
                 policies.ContentDecodePolicy(**kwargs),
-                ARMAutoResourceProviderRegistrationPolicy(),
+                AsyncARMAutoResourceProviderRegistrationPolicy(),
                 self._config.redirect_policy,
                 self._config.retry_policy,
                 self._config.authentication_policy,
@@ -89,7 +90,7 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
                 policies.SensitiveHeaderCleanupPolicy(**kwargs) if self._config.redirect_policy else None,
                 self._config.http_logging_policy,
             ]
-        self._client: ARMPipelineClient = ARMPipelineClient(base_url=endpoint, policies=_policies, **kwargs)
+        self._client: AsyncARMPipelineClient = AsyncARMPipelineClient(base_url=endpoint, policies=_policies, **kwargs)
 
         self._serialize = Serializer()
         self._deserialize = Deserializer()
@@ -104,14 +105,16 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
         self.jobs = JobsOperations(self._client, self._config, self._serialize, self._deserialize)
         self.job_runs = JobRunsOperations(self._client, self._config, self._serialize, self._deserialize)
 
-    def send_request(self, request: HttpRequest, *, stream: bool = False, **kwargs: Any) -> HttpResponse:
+    def send_request(
+        self, request: HttpRequest, *, stream: bool = False, **kwargs: Any
+    ) -> Awaitable[AsyncHttpResponse]:
         """Runs the network request through the client's chained policies.
 
         >>> from azure.core.rest import HttpRequest
         >>> request = HttpRequest("GET", "https://www.example.org/")
         <HttpRequest [GET], url: 'https://www.example.org/'>
-        >>> response = client.send_request(request)
-        <HttpResponse: 200 OK>
+        >>> response = await client.send_request(request)
+        <AsyncHttpResponse: 200 OK>
 
         For more information on this code flow, see https://aka.ms/azsdk/dpcodegen/python/send_request
 
@@ -119,19 +122,19 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
         :type request: ~azure.core.rest.HttpRequest
         :keyword bool stream: Whether the response payload will be streamed. Defaults to False.
         :return: The response of your network call. Does not do error handling on your response.
-        :rtype: ~azure.core.rest.HttpResponse
+        :rtype: ~azure.core.rest.AsyncHttpResponse
         """
 
         request_copy = deepcopy(request)
         request_copy.url = self._client.format_url(request_copy.url)
         return self._client.send_request(request_copy, stream=stream, **kwargs)  # type: ignore
 
-    def close(self) -> None:
-        self._client.close()
+    async def close(self) -> None:
+        await self._client.close()
 
-    def __enter__(self) -> Self:
-        self._client.__enter__()
+    async def __aenter__(self) -> Self:
+        await self._client.__aenter__()
         return self
 
-    def __exit__(self, *exc_details: Any) -> None:
-        self._client.__exit__(*exc_details)
+    async def __aexit__(self, *exc_details: Any) -> None:
+        await self._client.__aexit__(*exc_details)

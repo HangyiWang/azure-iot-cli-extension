@@ -6,7 +6,10 @@
 
 from typing import Dict, Optional
 
-from azure.cli.core.azclierror import MutuallyExclusiveArgumentError
+from azure.cli.core.azclierror import (
+    ArgumentUsageError,
+    MutuallyExclusiveArgumentError,
+)
 from knack.log import get_logger
 from rich.console import Console
 
@@ -15,12 +18,40 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_KEY_TYPE,
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     IdentityType,
+    OutboundIdentityType,
 )
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.common.utility import wait_for_terminal_state
 
 console = Console()
 logger = get_logger(__name__)
+
+
+_OUTBOUND_UAMI_PENDING_MSG = (
+    "User-assigned managed identity for outbound identity is not yet supported by the CLI; "
+    "the underlying Microsoft.DeviceRegistry API surface is still being finalized. "
+    "Use --outbound-mi-system-assigned instead."
+)
+
+
+def _resolve_outbound_identity(
+    outbound_mi_system_assigned: Optional[bool],
+    outbound_mi_user_assigned: Optional[str],
+) -> Optional[dict]:
+    """Return the OutboundIdentity body (or None when no flag provided).
+
+    Mutually exclusive between SAMI and UAMI. UAMI is currently rejected per design §2.3 -
+    backend spec still being finalized.
+    """
+    if outbound_mi_system_assigned and outbound_mi_user_assigned:
+        raise MutuallyExclusiveArgumentError(
+            "--outbound-mi-system-assigned and --outbound-mi-user-assigned are mutually exclusive."
+        )
+    if outbound_mi_user_assigned:
+        raise ArgumentUsageError(_OUTBOUND_UAMI_PENDING_MSG)
+    if outbound_mi_system_assigned:
+        return {"type": OutboundIdentityType.system_assigned.value}
+    return None
 
 
 class NamespaceProvider(ADRProvider):
@@ -38,6 +69,8 @@ class NamespaceProvider(ADRProvider):
         certificate_key_type: Optional[str] = None,
         certificate_subject: Optional[str] = None,
         certificate_validity_days: Optional[int] = None,
+        outbound_mi_system_assigned: Optional[bool] = None,
+        outbound_mi_user_assigned: Optional[str] = None,
         **kwargs,
     ):
         # If any policy arguments provided, create policy
@@ -73,18 +106,32 @@ class NamespaceProvider(ADRProvider):
         if tags:
             namespace_resource["tags"] = tags
 
+        outbound_identity = _resolve_outbound_identity(
+            outbound_mi_system_assigned, outbound_mi_user_assigned
+        )
+
         # TODO - CMS Preview - support messaging endpoints create
 
         properties = {}
+        if outbound_identity is not None:
+            properties["outboundIdentity"] = outbound_identity
         if properties:
             namespace_resource["properties"] = properties
 
+        poller = self.client.namespaces.begin_create_or_replace(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            resource=namespace_resource,
+        )
+        no_wait = kwargs.pop("no_wait", False)
+        if no_wait:
+            if should_create_credential_policy:
+                logger.warning(
+                    "--no-wait skips default credential and policy creation; create them "
+                    "manually once the namespace finishes provisioning."
+                )
+            return poller
         with console.status(f"Creating namespace {namespace_name}..."):
-            poller = self.client.namespaces.begin_create_or_replace(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                resource=namespace_resource,
-            )
             namespace_result = wait_for_terminal_state(poller, **kwargs)
 
         # TODO - CMS Preview - create response does not include resource group
@@ -139,24 +186,43 @@ class NamespaceProvider(ADRProvider):
         logger.warning(
             "Deletion will fail if there are DPS or IoT Hub instances linked to this namespace. Unlink them first."
         )
+        poller = self.client.namespaces.begin_delete(
+            resource_group_name=resource_group_name, namespace_name=namespace_name
+        )
+        no_wait = kwargs.pop("no_wait", False)
+        if no_wait:
+            return poller
         with console.status(f"Deleting namespace {namespace_name}..."):
-            poller = self.client.namespaces.begin_delete(
-                resource_group_name=resource_group_name, namespace_name=namespace_name
-            )
             return wait_for_terminal_state(poller, **kwargs)
 
-    def update(self, namespace_name: str, resource_group_name: str, tags: Optional[Dict[str, str]] = None, **kwargs):
-        properties = {}
+    def update(
+        self,
+        namespace_name: str,
+        resource_group_name: str,
+        tags: Optional[Dict[str, str]] = None,
+        outbound_mi_system_assigned: Optional[bool] = None,
+        outbound_mi_user_assigned: Optional[str] = None,
+        **kwargs,
+    ):
+        # NamespaceUpdate body: tags at top, substantive fields nested under "properties".
+        body: dict = {}
         if tags is not None:
-            properties["tags"] = tags
+            body["tags"] = tags
 
-        # TODO - CMS Preview - support messaging endpoints update
+        outbound_identity = _resolve_outbound_identity(
+            outbound_mi_system_assigned, outbound_mi_user_assigned
+        )
+        if outbound_identity is not None:
+            body["properties"] = {"outboundIdentity": outbound_identity}
 
+        poller = self.client.namespaces.begin_update(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            properties=body,
+        )
+        no_wait = kwargs.pop("no_wait", False)
+        if no_wait:
+            return poller
         with console.status(f"Updating namespace {namespace_name}..."):
-            poller = self.client.namespaces.begin_update(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                properties=properties,
-            )
             result = wait_for_terminal_state(poller, **kwargs)
             return result

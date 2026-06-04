@@ -28,15 +28,21 @@ adr_device_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
+adr_link_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_link#{}",
+    client_factory=adr_service_factory,
+)
+
 
 def load_adr_commands(self, _):
     # Namespace commands
     with self.command_group("iot adr ns", command_type=adr_namespace_ops) as cmd_group:
-        cmd_group.command("create", "adr_namespace_create")
+        cmd_group.command("create", "adr_namespace_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_namespace_show")
         cmd_group.command("list", "adr_namespace_list")
-        cmd_group.command("delete", "adr_namespace_delete", confirmation=True)
-        cmd_group.command("update", "adr_namespace_update")
+        cmd_group.command("delete", "adr_namespace_delete", confirmation=True, supports_no_wait=True)
+        cmd_group.command("update", "adr_namespace_update", supports_no_wait=True)
+        cmd_group.wait_command("wait", "adr_namespace_show")
 
     # Credential commands
     with self.command_group("iot adr ns credential", command_type=adr_credential_ops) as cmd_group:
@@ -57,7 +63,27 @@ def load_adr_commands(self, _):
 
     # Device commands
     with self.command_group("iot adr ns device", command_type=adr_device_ops) as cmd_group:
+        cmd_group.command("create", "adr_device_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_device_show")
         cmd_group.command("list", "adr_device_list")
-        cmd_group.command("update", "adr_device_update")
+        cmd_group.command("update", "adr_device_update", supports_no_wait=True)
+        cmd_group.command("delete", "adr_device_delete", confirmation=True, supports_no_wait=True)
         cmd_group.command("revoke", "adr_device_revoke", confirmation=True)
+
+    # Link commands (mutate namespace.properties.messaging.endpoints / provisioning.endpoints)
+    with self.command_group("iot adr ns link", command_type=adr_link_ops) as cmd_group:
+        cmd_group.command("add", "adr_link_add", supports_no_wait=True)
+
+    with self.command_group("iot adr ns link hub", command_type=adr_link_ops) as cmd_group:
+        cmd_group.command("add", "adr_link_hub_add", supports_no_wait=True)
+        cmd_group.command("update", "adr_link_hub_update", supports_no_wait=True)
+        cmd_group.command("remove", "adr_link_hub_remove", confirmation=True, supports_no_wait=True)
+        cmd_group.show_command("show", "adr_link_hub_show")
+        cmd_group.command("list", "adr_link_hub_list")
+
+    with self.command_group("iot adr ns link dps", command_type=adr_link_ops) as cmd_group:
+        cmd_group.command("add", "adr_link_dps_add", supports_no_wait=True)
+        cmd_group.command("update", "adr_link_dps_update", supports_no_wait=True)
+        cmd_group.command("remove", "adr_link_dps_remove", confirmation=True, supports_no_wait=True)
+        cmd_group.show_command("show", "adr_link_dps_show")
+        cmd_group.command("list", "adr_link_dps_list")

@@ -6,7 +6,7 @@
 
 from typing import Dict, Optional
 
-from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
+from azure.cli.core.azclierror import AzureResponseError, CLIError, ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 from rich.console import Console
 
@@ -163,17 +163,11 @@ class PolicyProvider(ADRProvider):
 
     def revoke_issuer(self, policy_name: str, namespace_name: str, resource_group_name: str, **kwargs):
         """Revoke the CA certificate for a policy, triggering regeneration of a new CA."""
-        with console.status(f"Revoking issuer certificate for policy '{policy_name}' in namespace {namespace_name}..."):
-            poller = self.client.policies.begin_revoke_issuer(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                policy_name=policy_name,
-            )
-            wait_for_terminal_state(poller, **kwargs)
-
-        # Fetch updated resource after revocation
-        return self.show(
-            policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
+        # API endpoint not yet available in current Microsoft.DeviceRegistry preview.
+        raise CLIError(
+            "'az iot adr ns policy revoke-issuer' is not available yet: the underlying "
+            "Microsoft.DeviceRegistry API is still being finalized. Please try again "
+            "in a future release."
         )
 
     def activate_byor(
@@ -185,18 +179,9 @@ class PolicyProvider(ADRProvider):
         **kwargs,
     ):
         """Activate or renew a Bring Your Own Root policy with a signed certificate chain."""
-        with console.status(
-            f"Activating BYOR certificate for policy '{policy_name}' in namespace {namespace_name}..."
-        ):
-            poller = self.client.policies.begin_activate_bring_your_own_root(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                policy_name=policy_name,
-                body={"certificateChain": certificate_chain},
-            )
-            wait_for_terminal_state(poller, **kwargs)
-
-        # Fetch updated resource after activation
-        return self.show(
-            policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
+        # API endpoint not yet available in current Microsoft.DeviceRegistry preview.
+        raise CLIError(
+            "'az iot adr ns policy activate-byor' is not available yet: the underlying "
+            "Microsoft.DeviceRegistry API is still being finalized. Please try again "
+            "in a future release."
         )

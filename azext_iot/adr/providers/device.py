@@ -6,6 +6,7 @@
 
 from typing import Dict, Optional
 
+from azure.cli.core.azclierror import CLIError
 from knack.log import get_logger
 from rich.console import Console
 
@@ -19,6 +20,114 @@ logger = get_logger(__name__)
 class DeviceProvider(ADRProvider):
     def __init__(self, cmd):
         super(DeviceProvider, self).__init__(cmd)
+
+    def create(
+        self,
+        device_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+        location: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+        manufacturer: Optional[str] = None,
+        model: Optional[str] = None,
+        operating_system: Optional[str] = None,
+        operating_system_version: Optional[str] = None,
+        discovered_device_ref: Optional[str] = None,
+        policy_resource_id: Optional[str] = None,
+        **kwargs,
+    ):
+        """Create a device in the namespace."""
+        if not location:
+            location = self._ensure_location(self.cmd.cli_ctx, resource_group_name, location)
+
+        inner_props = {}
+        if manufacturer is not None:
+            inner_props["manufacturer"] = manufacturer
+        if model is not None:
+            inner_props["model"] = model
+        if operating_system is not None:
+            inner_props["operatingSystem"] = operating_system
+        if operating_system_version is not None:
+            inner_props["operatingSystemVersion"] = operating_system_version
+        if discovered_device_ref is not None:
+            inner_props["discoveredDeviceRef"] = discovered_device_ref
+        if policy_resource_id is not None:
+            inner_props["policy"] = {"resourceId": policy_resource_id}
+
+        resource = {"location": location}
+        if inner_props:
+            resource["properties"] = inner_props
+        if tags:
+            resource["tags"] = tags
+
+        poller = self.client.namespace_devices.begin_create_or_replace(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            device_name=device_name,
+            resource=resource,
+        )
+        no_wait = kwargs.pop("no_wait", False)
+        if no_wait:
+            return poller
+        with console.status(
+            f"Creating device '{device_name}' in namespace {namespace_name}..."
+        ):
+            return wait_for_terminal_state(poller, **kwargs)
+
+    def delete(
+        self,
+        device_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+        **kwargs,
+    ):
+        """Delete a device from the namespace."""
+        # Best-effort dependency check (assets reference devices via deviceRef.deviceName).
+        # Today the assets surface is not yet in this extension's SDK, so this is a no-op;
+        # when assets ship, this hook surfaces a warning before the standard confirmation.
+        dependents = self._check_dependent_resources(
+            device_name=device_name,
+            namespace_name=namespace_name,
+            resource_group_name=resource_group_name,
+        )
+        if dependents:
+            logger.warning(
+                "%d resource(s) reference device '%s'; deleting will orphan them: %s",
+                len(dependents),
+                device_name,
+                ", ".join(dependents),
+            )
+
+        poller = self.client.namespace_devices.begin_delete(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            device_name=device_name,
+        )
+        no_wait = kwargs.pop("no_wait", False)
+        if no_wait:
+            return poller
+        with console.status(
+            f"Deleting device '{device_name}' from namespace {namespace_name}..."
+        ):
+            return wait_for_terminal_state(poller, **kwargs)
+
+    def _check_dependent_resources(
+        self,
+        device_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+    ) -> list:
+        """Return identifiers of resources that reference this device.
+
+        Phase 1 stub: assets (and other resources that carry ``deviceRef.deviceName``)
+        are not yet exposed via this extension's SDK surface, so we cannot enumerate
+        them. When the assets SDK lands, replace the empty return below with a
+        best-effort list/filter call (wrapped in try/except so RBAC failures degrade
+        gracefully per design §2.2).
+        """
+        # TODO: when assets ship, query namespace_assets + namespace_discovered_assets
+        # and return [a["name"] for a in ... if deviceRef.deviceName == device_name].
+        return []
 
     def show(self, device_name: str, namespace_name: str, resource_group_name: str):
         return self.client.namespace_devices.get(
@@ -73,15 +182,18 @@ class DeviceProvider(ADRProvider):
         if tags is not None:
             properties["tags"] = tags
 
+        poller = self.client.namespace_devices.begin_update(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            device_name=device_name,
+            properties=properties,
+        )
+        no_wait = kwargs.pop("no_wait", False)
+        if no_wait:
+            return poller
         with console.status(
             f"Updating device '{device_name}' in namespace {namespace_name}..."
         ):
-            poller = self.client.namespace_devices.begin_update(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                device_name=device_name,
-                properties=properties,
-            )
             return wait_for_terminal_state(poller, **kwargs)
 
     def revoke(
@@ -93,16 +205,9 @@ class DeviceProvider(ADRProvider):
         **kwargs,
     ):
         """Revoke credentials for a device in the namespace."""
-        body = {}
-        if disable:
-            body["disable"] = True
-        with console.status(
-            f"Revoking credentials for device '{device_name}' in namespace {namespace_name}..."
-        ):
-            poller = self.client.namespace_devices.begin_revoke(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                device_name=device_name,
-                body=body,
-            )
-            return wait_for_terminal_state(poller, **kwargs)
+        # API endpoint not yet available in current Microsoft.DeviceRegistry preview.
+        raise CLIError(
+            "'az iot adr ns device revoke' is not available yet: the underlying "
+            "Microsoft.DeviceRegistry API is still being finalized. Please try again "
+            "in a future release."
+        )

@@ -1,0 +1,836 @@
+# coding=utf-8
+# --------------------------------------------------------------------------------------------
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See License.txt in the project root for license information.
+# --------------------------------------------------------------------------------------------
+
+"""Unit tests for Azure Device Registry namespace link providers (Hub).
+
+These tests target P2 functionality: `az iot adr ns link hub add/update/remove/show/list`.
+"""
+
+import pytest
+from azure.cli.core.azclierror import (
+    ArgumentUsageError,
+    InvalidArgumentValueError,
+    RequiredArgumentMissingError,
+    ResourceNotFoundError,
+)
+
+from azext_iot.adr.common import (
+    DPS_ENDPOINT_TYPE,
+    IOT_HUB_ENDPOINT_TYPE,
+    InboundCallerIdentityType,
+    MessagingEndpointAvailability,
+)
+
+
+HUB_RESOURCE_ID = (
+    "/subscriptions/sub-id/resourceGroups/rg/providers/Microsoft.Devices/IotHubs/myhub"
+)
+UAMI_RESOURCE_ID = (
+    "/subscriptions/sub-id/resourceGroups/rg/providers/Microsoft.ManagedIdentity/"
+    "userAssignedIdentities/myuami"
+)
+DPS_RESOURCE_ID = (
+    "/subscriptions/sub-id/resourceGroups/rg/providers/"
+    "Microsoft.Devices/provisioningServices/mydps"
+)
+
+
+def _ns_with_dps(extra_messaging_endpoints=None):
+    """Return a namespace dict that already has a linked DPS (DPS-first satisfied)."""
+    messaging = {"endpoints": dict(extra_messaging_endpoints or {})}
+    return {
+        "name": "ns",
+        "properties": {
+            "messaging": messaging,
+            "provisioning": {
+                "endpoints": {
+                    "primary": {
+                        "endpointType": "Microsoft.Devices/provisioningServices",
+                        "resourceId": DPS_RESOURCE_ID,
+                    }
+                }
+            },
+        },
+    }
+
+
+def _ns_without_dps():
+    return {
+        "name": "ns",
+        "properties": {
+            "messaging": {"endpoints": {}},
+            "provisioning": {"endpoints": {}},
+        },
+    }
+
+
+# ==================== Add ====================
+
+
+def test_hub_add_rejects_when_no_dps_linked(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_dps()
+
+    with pytest.raises(ArgumentUsageError, match="Link a DPS"):
+        fixture_link_provider.hub_add(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            hub_resource_id=HUB_RESOURCE_ID,
+            mi_system_assigned=True,
+        )
+
+    fixture_link_provider.client.namespaces.begin_update.assert_not_called()
+
+
+def test_hub_add_sami_writes_expected_patch_body(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "ns"}
+    )
+
+    fixture_link_provider.hub_add(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        hub_resource_id=HUB_RESOURCE_ID,
+        mi_system_assigned=True,
+        availability=MessagingEndpointAvailability.available.value,
+        allocation_weight=1,
+    )
+
+    body = fixture_link_provider.client.namespaces.begin_update.call_args[1]["properties"]
+    endpoint = body["properties"]["messaging"]["endpoints"]["primary"]
+    assert endpoint["endpointType"] == IOT_HUB_ENDPOINT_TYPE
+    assert endpoint["resourceId"] == HUB_RESOURCE_ID
+    assert endpoint["inboundCallerIdentity"] == {
+        "type": InboundCallerIdentityType.system_assigned.value
+    }
+    assert endpoint["provisioning"] == {"availability": "Available", "allocationWeight": 1}
+
+
+def test_hub_add_uami_writes_user_assigned_identity(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "ns"}
+    )
+
+    fixture_link_provider.hub_add(
+        endpoint_name="secondary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        hub_resource_id=HUB_RESOURCE_ID,
+        mi_user_assigned=UAMI_RESOURCE_ID,
+    )
+
+    endpoint = fixture_link_provider.client.namespaces.begin_update.call_args[1][
+        "properties"
+    ]["properties"]["messaging"]["endpoints"]["secondary"]
+    assert endpoint["inboundCallerIdentity"] == {
+        "type": InboundCallerIdentityType.user_assigned.value,
+        "userAssignedIdentity": UAMI_RESOURCE_ID,
+    }
+    # No provisioning fields provided -> not emitted
+    assert "provisioning" not in endpoint
+
+
+def test_hub_add_mi_mutually_exclusive(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
+    with pytest.raises(ArgumentUsageError, match="mutually exclusive"):
+        fixture_link_provider.hub_add(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            hub_resource_id=HUB_RESOURCE_ID,
+            mi_system_assigned=True,
+            mi_user_assigned=UAMI_RESOURCE_ID,
+        )
+
+
+def test_hub_add_requires_inbound_identity(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
+    with pytest.raises(RequiredArgumentMissingError):
+        fixture_link_provider.hub_add(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            hub_resource_id=HUB_RESOURCE_ID,
+        )
+
+
+# ==================== Update ====================
+
+
+def test_hub_update_partial_patch(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+                "inboundCallerIdentity": {"type": "SystemAssigned"},
+            }
+        }
+    )
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.hub_update(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        availability=MessagingEndpointAvailability.disabled.value,
+    )
+
+    endpoint_patch = fixture_link_provider.client.namespaces.begin_update.call_args[1][
+        "properties"
+    ]["properties"]["messaging"]["endpoints"]["primary"]
+    assert endpoint_patch == {"provisioning": {"availability": "Disabled"}}
+
+
+def test_hub_update_missing_endpoint_raises(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
+    with pytest.raises(ResourceNotFoundError):
+        fixture_link_provider.hub_update(
+            endpoint_name="missing",
+            namespace_name="ns",
+            resource_group_name="rg",
+            mi_system_assigned=True,
+        )
+
+
+def test_hub_update_requires_at_least_one_field(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+                "inboundCallerIdentity": {"type": "SystemAssigned"},
+            }
+        }
+    )
+    with pytest.raises(RequiredArgumentMissingError):
+        fixture_link_provider.hub_update(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+
+
+# ==================== Remove ====================
+
+
+def test_hub_remove_emits_null_patch(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+                "inboundCallerIdentity": {"type": "SystemAssigned"},
+            }
+        }
+    )
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.hub_remove(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+    )
+
+    body = fixture_link_provider.client.namespaces.begin_update.call_args[1]["properties"]
+    assert body["properties"]["messaging"]["endpoints"] == {"primary": None}
+
+
+def test_hub_remove_missing_endpoint_raises(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
+    with pytest.raises(ResourceNotFoundError):
+        fixture_link_provider.hub_remove(
+            endpoint_name="missing",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+
+
+# ==================== Show / List ====================
+
+
+def test_hub_show_returns_endpoint(fixture_link_provider):
+    endpoint = {
+        "endpointType": IOT_HUB_ENDPOINT_TYPE,
+        "resourceId": HUB_RESOURCE_ID,
+        "inboundCallerIdentity": {"type": "SystemAssigned"},
+    }
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {"primary": endpoint}
+    )
+
+    assert (
+        fixture_link_provider.hub_show(
+            endpoint_name="primary", namespace_name="ns", resource_group_name="rg"
+        )
+        == endpoint
+    )
+
+
+def test_hub_show_missing_raises(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
+    with pytest.raises(ResourceNotFoundError):
+        fixture_link_provider.hub_show(
+            endpoint_name="missing", namespace_name="ns", resource_group_name="rg"
+        )
+
+
+def test_hub_list_filters_non_hub_endpoints(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+                "inboundCallerIdentity": {"type": "SystemAssigned"},
+            },
+            "other": {
+                "endpointType": "Microsoft.SomethingElse/other",
+                "resourceId": "/sub/foo",
+            },
+        }
+    )
+
+    result = fixture_link_provider.hub_list(namespace_name="ns", resource_group_name="rg")
+    assert set(result.keys()) == {"primary"}
+
+
+def test_hub_list_empty(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
+    assert fixture_link_provider.hub_list(namespace_name="ns", resource_group_name="rg") == {}
+
+
+# ==================== DPS add (P3) ====================
+
+
+def _ns_with_no_dps_or_hub():
+    return {
+        "name": "ns",
+        "properties": {
+            "messaging": {"endpoints": {}},
+            "provisioning": {"endpoints": {}},
+        },
+    }
+
+
+def _ns_with_only_dps(name="primary"):
+    return {
+        "name": "ns",
+        "properties": {
+            "messaging": {"endpoints": {}},
+            "provisioning": {
+                "endpoints": {
+                    name: {
+                        "endpointType": DPS_ENDPOINT_TYPE,
+                        "resourceId": DPS_RESOURCE_ID,
+                        "inboundCallerIdentity": {"type": "SystemAssigned"},
+                    }
+                }
+            },
+        },
+    }
+
+
+def test_dps_add_writes_expected_patch_body(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "ns"}
+    )
+
+    fixture_link_provider.dps_add(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        dps_resource_id=DPS_RESOURCE_ID,
+        mi_system_assigned=True,
+    )
+
+    body = fixture_link_provider.client.namespaces.begin_update.call_args[1]["properties"]
+    endpoint = body["properties"]["provisioning"]["endpoints"]["primary"]
+    assert endpoint["endpointType"] == DPS_ENDPOINT_TYPE
+    assert endpoint["resourceId"] == DPS_RESOURCE_ID
+    assert endpoint["inboundCallerIdentity"] == {
+        "type": InboundCallerIdentityType.system_assigned.value
+    }
+    # DPS endpoints do not get availability / allocationWeight
+    assert "provisioning" not in endpoint
+
+
+def test_dps_add_rejects_when_dps_cap_exceeded(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_only_dps()
+    with pytest.raises(ArgumentUsageError, match="already has a linked DPS"):
+        fixture_link_provider.dps_add(
+            endpoint_name="secondary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            dps_resource_id=DPS_RESOURCE_ID,
+            mi_system_assigned=True,
+        )
+    fixture_link_provider.client.namespaces.begin_update.assert_not_called()
+
+
+def test_dps_add_rejects_invalid_dps_resource_id(fixture_link_provider):
+    with pytest.raises(InvalidArgumentValueError):
+        fixture_link_provider.dps_add(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            dps_resource_id="/not/a/real/dps/id",
+            mi_system_assigned=True,
+        )
+    fixture_link_provider.client.namespaces.get.assert_not_called()
+
+
+def test_dps_add_mi_mutually_exclusive(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    with pytest.raises(ArgumentUsageError, match="mutually exclusive"):
+        fixture_link_provider.dps_add(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            dps_resource_id=DPS_RESOURCE_ID,
+            mi_system_assigned=True,
+            mi_user_assigned=UAMI_RESOURCE_ID,
+        )
+
+
+# ==================== DPS update / remove / show / list ====================
+
+
+def test_dps_update_partial_patch(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_only_dps("primary")
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.dps_update(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        mi_user_assigned=UAMI_RESOURCE_ID,
+    )
+
+    endpoint_patch = fixture_link_provider.client.namespaces.begin_update.call_args[1][
+        "properties"
+    ]["properties"]["provisioning"]["endpoints"]["primary"]
+    assert endpoint_patch == {
+        "inboundCallerIdentity": {
+            "type": InboundCallerIdentityType.user_assigned.value,
+            "userAssignedIdentity": UAMI_RESOURCE_ID,
+        }
+    }
+
+
+def test_dps_update_requires_an_identity_flag(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_only_dps("primary")
+    with pytest.raises(RequiredArgumentMissingError):
+        fixture_link_provider.dps_update(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+
+
+def test_dps_update_missing_endpoint_raises(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    with pytest.raises(ResourceNotFoundError):
+        fixture_link_provider.dps_update(
+            endpoint_name="missing",
+            namespace_name="ns",
+            resource_group_name="rg",
+            mi_system_assigned=True,
+        )
+
+
+def test_dps_remove_emits_null_patch(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_only_dps("primary")
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.dps_remove(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+    )
+
+    body = fixture_link_provider.client.namespaces.begin_update.call_args[1]["properties"]
+    assert body["properties"]["provisioning"]["endpoints"] == {"primary": None}
+
+
+def test_dps_remove_missing_endpoint_raises(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    with pytest.raises(ResourceNotFoundError):
+        fixture_link_provider.dps_remove(
+            endpoint_name="missing",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+
+
+def test_dps_show_surfaces_brownfield_hubs(fixture_link_provider, monkeypatch):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_only_dps("primary")
+
+    # Patch the factory call inside link.py so we don't touch the real DPS client.
+    monkeypatch.setattr(
+        "azext_iot.adr.providers.link.iot_service_provisioning_factory",
+        lambda cli_ctx: type(
+            "FakeFactory",
+            (),
+            {
+                "iot_dps_resource": type(
+                    "FakeRes",
+                    (),
+                    {
+                        "get": staticmethod(
+                            lambda resource_group_name, provisioning_service_name: {
+                                "properties": {
+                                    "iotHubs": [
+                                        {"name": "existing-hub-1", "location": "eastus"},
+                                        {"name": "existing-hub-2", "location": "westus"},
+                                    ]
+                                }
+                            }
+                        )
+                    },
+                )()
+            },
+        )(),
+    )
+
+    result = fixture_link_provider.dps_show(
+        endpoint_name="primary", namespace_name="ns", resource_group_name="rg"
+    )
+    assert result["endpointType"] == DPS_ENDPOINT_TYPE
+    assert result["resourceId"] == DPS_RESOURCE_ID
+    assert result["brownfieldHubs"] == [
+        {"name": "existing-hub-1", "location": "eastus"},
+        {"name": "existing-hub-2", "location": "westus"},
+    ]
+
+
+def test_dps_show_brownfield_failure_is_non_fatal(fixture_link_provider, monkeypatch):
+    """If the side-GET against the DPS RP throws, dps_show still returns the endpoint."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_only_dps("primary")
+
+    def _boom(*_a, **_kw):
+        raise RuntimeError("RBAC denied on DPS RP")
+
+    monkeypatch.setattr(
+        "azext_iot.adr.providers.link.iot_service_provisioning_factory", _boom
+    )
+
+    result = fixture_link_provider.dps_show(
+        endpoint_name="primary", namespace_name="ns", resource_group_name="rg"
+    )
+    # Endpoint still returned; brownfieldHubs defaults to empty list.
+    assert result["resourceId"] == DPS_RESOURCE_ID
+    assert result["brownfieldHubs"] == []
+
+
+def test_dps_show_missing_endpoint_raises(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    with pytest.raises(ResourceNotFoundError):
+        fixture_link_provider.dps_show(
+            endpoint_name="missing", namespace_name="ns", resource_group_name="rg"
+        )
+
+
+def test_dps_list_filters_non_dps_endpoints(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = {
+        "name": "ns",
+        "properties": {
+            "messaging": {"endpoints": {}},
+            "provisioning": {
+                "endpoints": {
+                    "primary": {
+                        "endpointType": DPS_ENDPOINT_TYPE,
+                        "resourceId": DPS_RESOURCE_ID,
+                    },
+                    "other": {
+                        "endpointType": "Microsoft.SomethingElse/other",
+                        "resourceId": "/sub/foo",
+                    },
+                }
+            },
+        },
+    }
+
+    result = fixture_link_provider.dps_list(namespace_name="ns", resource_group_name="rg")
+    assert set(result.keys()) == {"primary"}
+
+
+def test_dps_list_empty(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    assert fixture_link_provider.dps_list(namespace_name="ns", resource_group_name="rg") == {}
+
+
+# ==================== link add bundled (P4) ====================
+
+
+def test_link_add_emits_bundled_patch_body(fixture_link_provider, mock_poller):
+    """Bundled add composes a single PATCH that writes both DPS + Hub endpoints."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.link_add(
+        namespace_name="ns",
+        resource_group_name="rg",
+        hub_endpoint_name="primary-hub",
+        hub_resource_id=HUB_RESOURCE_ID,
+        dps_endpoint_name="primary-dps",
+        dps_resource_id=DPS_RESOURCE_ID,
+        hub_mi_system_assigned=True,
+        dps_mi_system_assigned=True,
+        hub_availability=MessagingEndpointAvailability.available.value,
+        hub_allocation_weight=1,
+    )
+
+    body = fixture_link_provider.client.namespaces.begin_update.call_args[1]["properties"]
+    inner = body["properties"]
+
+    # DPS-first ordering: provisioning key appears before messaging key.
+    assert list(inner.keys()) == ["provisioning", "messaging"]
+
+    dps_entry = inner["provisioning"]["endpoints"]["primary-dps"]
+    assert dps_entry["endpointType"] == DPS_ENDPOINT_TYPE
+    assert dps_entry["resourceId"] == DPS_RESOURCE_ID
+    assert dps_entry["inboundCallerIdentity"] == {
+        "type": InboundCallerIdentityType.system_assigned.value
+    }
+
+    hub_entry = inner["messaging"]["endpoints"]["primary-hub"]
+    assert hub_entry["endpointType"] == IOT_HUB_ENDPOINT_TYPE
+    assert hub_entry["resourceId"] == HUB_RESOURCE_ID
+    assert hub_entry["provisioning"] == {"availability": "Available", "allocationWeight": 1}
+
+
+def test_link_add_rejects_when_dps_cap_exceeded(fixture_link_provider):
+    """Cannot bundle when the namespace already has a linked DPS."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_only_dps("existing-dps")
+    with pytest.raises(ArgumentUsageError, match="already has a linked DPS"):
+        fixture_link_provider.link_add(
+            namespace_name="ns",
+            resource_group_name="rg",
+            hub_endpoint_name="primary-hub",
+            hub_resource_id=HUB_RESOURCE_ID,
+            dps_endpoint_name="primary-dps",
+            dps_resource_id=DPS_RESOURCE_ID,
+            hub_mi_system_assigned=True,
+            dps_mi_system_assigned=True,
+        )
+    fixture_link_provider.client.namespaces.begin_update.assert_not_called()
+
+
+def test_link_add_rejects_invalid_dps_resource_id(fixture_link_provider):
+    with pytest.raises(InvalidArgumentValueError):
+        fixture_link_provider.link_add(
+            namespace_name="ns",
+            resource_group_name="rg",
+            hub_endpoint_name="primary-hub",
+            hub_resource_id=HUB_RESOURCE_ID,
+            dps_endpoint_name="primary-dps",
+            dps_resource_id="/not/a/real/dps/id",
+            hub_mi_system_assigned=True,
+            dps_mi_system_assigned=True,
+        )
+    fixture_link_provider.client.namespaces.get.assert_not_called()
+
+
+def test_link_add_hub_mi_mutually_exclusive(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    with pytest.raises(ArgumentUsageError, match="mutually exclusive"):
+        fixture_link_provider.link_add(
+            namespace_name="ns",
+            resource_group_name="rg",
+            hub_endpoint_name="primary-hub",
+            hub_resource_id=HUB_RESOURCE_ID,
+            dps_endpoint_name="primary-dps",
+            dps_resource_id=DPS_RESOURCE_ID,
+            hub_mi_system_assigned=True,
+            hub_mi_user_assigned=UAMI_RESOURCE_ID,
+            dps_mi_system_assigned=True,
+        )
+
+
+def test_link_add_dps_mi_required(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    with pytest.raises(RequiredArgumentMissingError):
+        fixture_link_provider.link_add(
+            namespace_name="ns",
+            resource_group_name="rg",
+            hub_endpoint_name="primary-hub",
+            hub_resource_id=HUB_RESOURCE_ID,
+            dps_endpoint_name="primary-dps",
+            dps_resource_id=DPS_RESOURCE_ID,
+            hub_mi_system_assigned=True,
+            # no dps_mi_*
+        )
+
+
+# ==================== --no-wait short-circuit ====================
+
+
+def test_hub_add_no_wait_returns_poller(fixture_link_provider, mock_poller):
+    """no_wait=True should return the poller directly without invoking wait_for_terminal_state."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
+    poller = mock_poller({"name": "ns"})
+    fixture_link_provider.client.namespaces.begin_update.return_value = poller
+
+    result = fixture_link_provider.hub_add(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        hub_resource_id=HUB_RESOURCE_ID,
+        mi_system_assigned=True,
+        no_wait=True,
+    )
+
+    # When no_wait is set we get the poller object back, NOT poller.result().
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_dps_add_no_wait_returns_poller(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_dps()
+    poller = mock_poller({"name": "ns"})
+    fixture_link_provider.client.namespaces.begin_update.return_value = poller
+
+    result = fixture_link_provider.dps_add(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        dps_resource_id=DPS_RESOURCE_ID,
+        mi_system_assigned=True,
+        no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_link_add_no_wait_returns_poller(fixture_link_provider, mock_poller):
+    """Bundled link add (hub + dps in one PATCH) should also honor no_wait."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_dps()
+    poller = mock_poller({"name": "ns"})
+    fixture_link_provider.client.namespaces.begin_update.return_value = poller
+
+    result = fixture_link_provider.link_add(
+        namespace_name="ns",
+        resource_group_name="rg",
+        hub_endpoint_name="primary-hub",
+        hub_resource_id=HUB_RESOURCE_ID,
+        dps_endpoint_name="primary-dps",
+        dps_resource_id=DPS_RESOURCE_ID,
+        hub_mi_system_assigned=True,
+        dps_mi_system_assigned=True,
+        no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_hub_remove_no_wait_returns_poller(fixture_link_provider, mock_poller):
+    ns_with_hub = _ns_with_dps(
+        extra_messaging_endpoints={
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+            }
+        }
+    )
+    fixture_link_provider.client.namespaces.get.return_value = ns_with_hub
+    poller = mock_poller({"name": "ns"})
+    fixture_link_provider.client.namespaces.begin_update.return_value = poller
+
+    result = fixture_link_provider.hub_remove(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+# ==================== linkingState pre-check on remove ====================
+
+
+def test_hub_remove_rejects_succeeded_linking_state(fixture_link_provider):
+    """Once a Hub link has reached linkingState=Succeeded the namespace PATCH path
+    cannot unlink it; user must delete the underlying IoT Hub resource."""
+    ns_with_hub = _ns_with_dps(
+        extra_messaging_endpoints={
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+                "linkingState": "Succeeded",
+            }
+        }
+    )
+    fixture_link_provider.client.namespaces.get.return_value = ns_with_hub
+
+    with pytest.raises(ArgumentUsageError, match="Succeeded"):
+        fixture_link_provider.hub_remove(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+
+    fixture_link_provider.client.namespaces.begin_update.assert_not_called()
+
+
+def test_hub_remove_allows_failed_linking_state(fixture_link_provider, mock_poller):
+    """Failed/InProgress endpoints should be removable so users can recover."""
+    ns_with_hub = _ns_with_dps(
+        extra_messaging_endpoints={
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+                "linkingState": "Failed",
+            }
+        }
+    )
+    fixture_link_provider.client.namespaces.get.return_value = ns_with_hub
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.hub_remove(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+    )
+
+    fixture_link_provider.client.namespaces.begin_update.assert_called_once()
+
+
+def test_dps_remove_rejects_succeeded_linking_state(fixture_link_provider):
+    """Once a DPS link has reached linkingState=Succeeded the namespace PATCH path
+    cannot unlink it; user must delete the underlying DPS resource."""
+    ns_with_dps = {
+        "name": "ns",
+        "properties": {
+            "messaging": {"endpoints": {}},
+            "provisioning": {
+                "endpoints": {
+                    "primary": {
+                        "endpointType": "Microsoft.Devices/provisioningServices",
+                        "resourceId": DPS_RESOURCE_ID,
+                        "linkingState": "Succeeded",
+                    }
+                }
+            },
+        },
+    }
+    fixture_link_provider.client.namespaces.get.return_value = ns_with_dps
+
+    with pytest.raises(ArgumentUsageError, match="Succeeded"):
+        fixture_link_provider.dps_remove(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+
+    fixture_link_provider.client.namespaces.begin_update.assert_not_called()

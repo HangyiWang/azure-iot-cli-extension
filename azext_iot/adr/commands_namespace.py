@@ -24,6 +24,9 @@ def adr_namespace_create(
     certificate_key_type: Optional[str] = None,
     certificate_subject: Optional[str] = None,
     certificate_validity_days: Optional[int] = None,
+    outbound_mi_system_assigned: Optional[bool] = None,
+    outbound_mi_user_assigned: Optional[str] = None,
+    no_wait: bool = False,
 ):
     provider = NamespaceProvider(cmd)
     return provider.create(
@@ -36,6 +39,9 @@ def adr_namespace_create(
         certificate_key_type=certificate_key_type,
         certificate_subject=certificate_subject,
         certificate_validity_days=certificate_validity_days,
+        outbound_mi_system_assigned=outbound_mi_system_assigned,
+        outbound_mi_user_assigned=outbound_mi_user_assigned,
+        no_wait=no_wait,
     )
 
 
@@ -49,11 +55,30 @@ def adr_namespace_list(cmd, resource_group_name: Optional[str] = None):
     return provider.list(resource_group_name=resource_group_name)
 
 
-def adr_namespace_delete(cmd, namespace_name: str, resource_group_name: str):
+def adr_namespace_delete(cmd, namespace_name: str, resource_group_name: str, no_wait: bool = False):
     provider = NamespaceProvider(cmd)
-    return provider.delete(namespace_name=namespace_name, resource_group_name=resource_group_name)
+    return provider.delete(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        no_wait=no_wait,
+    )
 
 
-def adr_namespace_update(cmd, namespace_name: str, resource_group_name: str, tags: Optional[Dict[str, str]] = None):
+def adr_namespace_update(
+    cmd,
+    namespace_name: str,
+    resource_group_name: str,
+    tags: Optional[Dict[str, str]] = None,
+    outbound_mi_system_assigned: Optional[bool] = None,
+    outbound_mi_user_assigned: Optional[str] = None,
+    no_wait: bool = False,
+):
     provider = NamespaceProvider(cmd)
-    return provider.update(namespace_name=namespace_name, resource_group_name=resource_group_name, tags=tags)
+    return provider.update(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        tags=tags,
+        outbound_mi_system_assigned=outbound_mi_system_assigned,
+        outbound_mi_user_assigned=outbound_mi_user_assigned,
+        no_wait=no_wait,
+    )

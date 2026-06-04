@@ -7,13 +7,17 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from azure.cli.core.azclierror import MutuallyExclusiveArgumentError
+from azure.cli.core.azclierror import (
+    ArgumentUsageError,
+    MutuallyExclusiveArgumentError,
+)
 
 from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_KEY_TYPE,
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     DEFAULT_NS_POLICY_NAME,
     IdentityType,
+    OutboundIdentityType,
 )
 
 
@@ -197,3 +201,127 @@ def test_update_namespace(fixture_namespace_provider, mock_poller, namespace_nam
         assert kw["properties"]["tags"] == tags
     else:
         assert kw["properties"] == {}
+
+
+# ==================== Outbound Identity (P2) ====================
+
+
+def test_create_namespace_outbound_sami(fixture_namespace_provider, mock_poller):
+    """Passing --outbound-mi-system-assigned writes OutboundIdentity SAMI under properties."""
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
+        {"name": "ns", "location": "eastus", "resourceGroup": "rg"}
+    )
+    fixture_namespace_provider.create(
+        namespace_name="ns",
+        resource_group_name="rg",
+        location="eastus",
+        outbound_mi_system_assigned=True,
+    )
+    body = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]["resource"]
+    assert body["properties"]["outboundIdentity"] == {
+        "type": OutboundIdentityType.system_assigned.value
+    }
+
+
+def test_create_namespace_outbound_uami_rejected(fixture_namespace_provider):
+    """UAMI for outbound identity is rejected client-side until backend lands."""
+    with pytest.raises(ArgumentUsageError):
+        fixture_namespace_provider.create(
+            namespace_name="ns",
+            resource_group_name="rg",
+            location="eastus",
+            outbound_mi_user_assigned="/subscriptions/x/resourceGroups/y/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami",
+        )
+
+
+def test_create_namespace_outbound_mi_mutually_exclusive(fixture_namespace_provider):
+    """SAMI + UAMI together raises MutuallyExclusiveArgumentError."""
+    with pytest.raises(MutuallyExclusiveArgumentError):
+        fixture_namespace_provider.create(
+            namespace_name="ns",
+            resource_group_name="rg",
+            location="eastus",
+            outbound_mi_system_assigned=True,
+            outbound_mi_user_assigned="/subscriptions/x/resourceGroups/y/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami",
+        )
+
+
+def test_update_namespace_outbound_sami(fixture_namespace_provider, mock_poller):
+    """Updating with --outbound-mi-system-assigned nests OutboundIdentity under properties.properties."""
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "ns"}
+    )
+    fixture_namespace_provider.update(
+        namespace_name="ns",
+        resource_group_name="rg",
+        outbound_mi_system_assigned=True,
+    )
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args[1]["properties"]
+    assert body["properties"]["outboundIdentity"] == {
+        "type": OutboundIdentityType.system_assigned.value
+    }
+
+
+def test_update_namespace_outbound_uami_rejected(fixture_namespace_provider):
+    with pytest.raises(ArgumentUsageError):
+        fixture_namespace_provider.update(
+            namespace_name="ns",
+            resource_group_name="rg",
+            outbound_mi_user_assigned="/subscriptions/x/resourceGroups/y/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami",
+        )
+
+
+# ==================== --no-wait short-circuit ====================
+
+
+def test_namespace_delete_no_wait_returns_poller(fixture_namespace_provider, mock_poller):
+    poller = mock_poller(None)
+    fixture_namespace_provider.client.namespaces.begin_delete.return_value = poller
+
+    result = fixture_namespace_provider.delete(
+        namespace_name="ns", resource_group_name="rg", no_wait=True
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_namespace_update_no_wait_returns_poller(fixture_namespace_provider, mock_poller):
+    poller = mock_poller({"name": "ns"})
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = poller
+
+    result = fixture_namespace_provider.update(
+        namespace_name="ns",
+        resource_group_name="rg",
+        outbound_mi_system_assigned=True,
+        no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_namespace_create_no_wait_skips_credential_policy_chain(
+    fixture_namespace_provider, mock_poller
+):
+    """When --no-wait is set, chained credential+policy creates must be skipped
+    (otherwise they race the still-provisioning namespace)."""
+    poller = mock_poller({"name": "ns", "resourceGroup": "rg"})
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = poller
+
+    result = fixture_namespace_provider.create(
+        namespace_name="ns",
+        resource_group_name="rg",
+        location="eastus",
+        enable_certificate_management=True,
+        no_wait=True,
+    )
+
+    # Returned the poller, no chained calls happened.
+    assert result is poller
+    poller.result.assert_not_called()
+    # Credential/policy provider methods would have hit the same client surface;
+    # since we never imported them, the easiest check is that no namespace_credential
+    # or namespace_policy calls were issued on the shared mock client.
+    fixture_namespace_provider.client.namespace_credential.begin_create_or_replace.assert_not_called()
+    fixture_namespace_provider.client.namespace_policies.begin_create_or_replace.assert_not_called()

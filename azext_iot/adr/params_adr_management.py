@@ -17,6 +17,7 @@ from azure.cli.core.commands.parameters import (
 )
 from azure.cli.core.commands.validators import get_default_location_from_resource_group
 from azext_iot.adr.common import (
+    MessagingEndpointAvailability,
     PolicyCertificateKeyType,
 )
 
@@ -175,4 +176,224 @@ def load_adr_management_arguments(self, _):
             action="store_true",
             help="Disable the device after revoking credentials. "
                  "Prevents new credentials from being issued.",
+        )
+
+    # Device create arguments
+    with self.argument_context("iot adr ns device create") as context:
+        context.argument(
+            "location",
+            arg_type=get_location_type(self.cli_ctx),
+            validator=get_default_location_from_resource_group,
+        )
+        context.argument("tags", arg_type=tags_type)
+        context.argument(
+            "manufacturer",
+            options_list=["--manufacturer"],
+            help="Manufacturer of the device.",
+        )
+        context.argument(
+            "model",
+            options_list=["--model"],
+            help="Model of the device.",
+        )
+        context.argument(
+            "operating_system",
+            options_list=["--os"],
+            help="Operating system of the device.",
+        )
+        context.argument(
+            "operating_system_version",
+            options_list=["--os-version"],
+            help="Operating system version of the device.",
+        )
+        context.argument(
+            "discovered_device_ref",
+            options_list=["--discovered-device-ref", "--ddr"],
+            help="Reference to the discovered device this namespace device was provisioned from.",
+        )
+        context.argument(
+            "policy_resource_id",
+            options_list=["--policy-resource-id"],
+            help="Resource ID of the credential policy to associate with the device.",
+        )
+
+    # Outbound managed identity arguments (namespace create + update)
+    for cmd in ["iot adr ns create", "iot adr ns update"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "outbound_mi_system_assigned",
+                arg_group="Outbound Identity",
+                options_list=["--outbound-mi-system-assigned", "--omi-sa"],
+                arg_type=get_three_state_flag(),
+                help="Enable the system-assigned managed identity as the outbound identity used by "
+                     "this namespace when calling linked Hub/DPS resources.",
+            )
+            context.argument(
+                "outbound_mi_user_assigned",
+                arg_group="Outbound Identity",
+                options_list=["--outbound-mi-user-assigned", "--omi-ua"],
+                help="User-assigned managed identity resource ID for the outbound identity. "
+                     "NOTE: Currently unsupported; the underlying API surface is still being finalized.",
+            )
+
+    # Link hub arguments
+    with self.argument_context("iot adr ns link hub") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace that owns the link.",
+        )
+        context.argument(
+            "endpoint_name",
+            options_list=["--endpoint-name", "--en", "--name", "-n"],
+            help="Logical name of the messaging endpoint entry on the namespace.",
+        )
+
+    for cmd in ["iot adr ns link hub add", "iot adr ns link hub update"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "mi_system_assigned",
+                arg_group="Inbound Caller Identity",
+                options_list=["--mi-system-assigned", "--mi-sa"],
+                arg_type=get_three_state_flag(),
+                help="Use the namespace's system-assigned managed identity as the inbound caller "
+                     "identity on this messaging endpoint.",
+            )
+            context.argument(
+                "mi_user_assigned",
+                arg_group="Inbound Caller Identity",
+                options_list=["--mi-user-assigned", "--mi-ua"],
+                help="Resource ID of the user-assigned managed identity to use as the inbound caller "
+                     "identity on this messaging endpoint.",
+            )
+            context.argument(
+                "availability",
+                arg_group="Provisioning",
+                options_list=["--availability"],
+                arg_type=get_enum_type(MessagingEndpointAvailability),
+                help="Whether the endpoint is available for provisioning new devices.",
+            )
+            context.argument(
+                "allocation_weight",
+                arg_group="Provisioning",
+                options_list=["--allocation-weight", "--weight"],
+                type=int,
+                help="Relative allocation weight used when distributing devices across endpoints.",
+            )
+
+    with self.argument_context("iot adr ns link hub add") as context:
+        context.argument(
+            "hub_resource_id",
+            options_list=["--hub-resource-id", "--hub-id"],
+            help="Azure resource ID of the IoT Hub to link to this namespace.",
+        )
+
+    # Link DPS arguments (P3)
+    with self.argument_context("iot adr ns link dps") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace that owns the link.",
+        )
+        context.argument(
+            "endpoint_name",
+            options_list=["--endpoint-name", "--en", "--name", "-n"],
+            help="Logical name of the provisioning endpoint entry on the namespace.",
+        )
+
+    for cmd in ["iot adr ns link dps add", "iot adr ns link dps update"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "mi_system_assigned",
+                arg_group="Inbound Caller Identity",
+                options_list=["--mi-system-assigned", "--mi-sa"],
+                arg_type=get_three_state_flag(),
+                help="Use the namespace's system-assigned managed identity as the inbound caller "
+                     "identity on this DPS endpoint.",
+            )
+            context.argument(
+                "mi_user_assigned",
+                arg_group="Inbound Caller Identity",
+                options_list=["--mi-user-assigned", "--mi-ua"],
+                help="Resource ID of the user-assigned managed identity to use as the inbound caller "
+                     "identity on this DPS endpoint.",
+            )
+
+    with self.argument_context("iot adr ns link dps add") as context:
+        context.argument(
+            "dps_resource_id",
+            options_list=["--dps-resource-id", "--dps-id"],
+            help="Azure resource ID of the Device Provisioning Service to link to this namespace.",
+        )
+
+    # Bundled link add (P4)
+    with self.argument_context("iot adr ns link add") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace that will own both new links.",
+        )
+        context.argument(
+            "hub_endpoint_name",
+            arg_group="Hub",
+            options_list=["--hub-name", "--hn"],
+            help="Logical name of the Hub messaging endpoint entry on the namespace.",
+        )
+        context.argument(
+            "hub_resource_id",
+            arg_group="Hub",
+            options_list=["--hub-resource-id", "--hub-id"],
+            help="Azure resource ID of the IoT Hub to link.",
+        )
+        context.argument(
+            "hub_mi_system_assigned",
+            arg_group="Hub",
+            options_list=["--hub-mi-system-assigned", "--hub-mi-sa"],
+            arg_type=get_three_state_flag(),
+            help="Use the namespace's system-assigned managed identity as the Hub inbound caller identity.",
+        )
+        context.argument(
+            "hub_mi_user_assigned",
+            arg_group="Hub",
+            options_list=["--hub-mi-user-assigned", "--hub-mi-ua"],
+            help="User-assigned managed identity resource ID for the Hub inbound caller identity.",
+        )
+        context.argument(
+            "hub_availability",
+            arg_group="Hub",
+            options_list=["--hub-availability"],
+            arg_type=get_enum_type(MessagingEndpointAvailability),
+            help="Hub messaging endpoint availability.",
+        )
+        context.argument(
+            "hub_allocation_weight",
+            arg_group="Hub",
+            options_list=["--hub-allocation-weight", "--hub-weight"],
+            type=int,
+            help="Hub messaging endpoint allocation weight.",
+        )
+        context.argument(
+            "dps_endpoint_name",
+            arg_group="DPS",
+            options_list=["--dps-name", "--dn"],
+            help="Logical name of the DPS provisioning endpoint entry on the namespace.",
+        )
+        context.argument(
+            "dps_resource_id",
+            arg_group="DPS",
+            options_list=["--dps-resource-id", "--dps-id"],
+            help="Azure resource ID of the Device Provisioning Service to link.",
+        )
+        context.argument(
+            "dps_mi_system_assigned",
+            arg_group="DPS",
+            options_list=["--dps-mi-system-assigned", "--dps-mi-sa"],
+            arg_type=get_three_state_flag(),
+            help="Use the namespace's system-assigned managed identity as the DPS inbound caller identity.",
+        )
+        context.argument(
+            "dps_mi_user_assigned",
+            arg_group="DPS",
+            options_list=["--dps-mi-user-assigned", "--dps-mi-ua"],
+            help="User-assigned managed identity resource ID for the DPS inbound caller identity.",
         )

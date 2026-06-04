@@ -11,9 +11,36 @@ class IdentityType(Enum):
     system_assigned = "SystemAssigned"
 
 
+class InboundCallerIdentityType(Enum):
+    system_assigned = "SystemAssigned"
+    user_assigned = "UserAssigned"
+
+
+class OutboundIdentityType(Enum):
+    system_assigned = "SystemAssigned"
+    user_assigned = "UserAssigned"
+
+
+class MessagingEndpointAvailability(Enum):
+    available = "Available"
+    disabled = "Disabled"
+
+
+class LinkingState(Enum):
+    """Linking state of a messaging/provisioning endpoint entry on a Namespace."""
+    in_progress = "InProgress"
+    succeeded = "Succeeded"
+    failed = "Failed"
+
+
 class PolicyCertificateKeyType(Enum):
     ecc = "ECC"
     rsa = "RSA"
+
+
+# Endpoint type discriminators on Namespace messaging / provisioning endpoints
+IOT_HUB_ENDPOINT_TYPE = "Microsoft.Devices/IotHubs"
+DPS_ENDPOINT_TYPE = "Microsoft.Devices/provisioningServices"
 
 
 DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS = 30

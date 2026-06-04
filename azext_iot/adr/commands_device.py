@@ -9,6 +9,54 @@ from typing import Dict, Optional
 from azext_iot.adr.providers.device import DeviceProvider
 
 
+def adr_device_create(
+    cmd,
+    device_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+    location: Optional[str] = None,
+    tags: Optional[Dict[str, str]] = None,
+    manufacturer: Optional[str] = None,
+    model: Optional[str] = None,
+    operating_system: Optional[str] = None,
+    operating_system_version: Optional[str] = None,
+    discovered_device_ref: Optional[str] = None,
+    policy_resource_id: Optional[str] = None,
+    no_wait: bool = False,
+):
+    provider = DeviceProvider(cmd)
+    return provider.create(
+        device_name=device_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        location=location,
+        tags=tags,
+        manufacturer=manufacturer,
+        model=model,
+        operating_system=operating_system,
+        operating_system_version=operating_system_version,
+        discovered_device_ref=discovered_device_ref,
+        policy_resource_id=policy_resource_id,
+        no_wait=no_wait,
+    )
+
+
+def adr_device_delete(
+    cmd,
+    device_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+    no_wait: bool = False,
+):
+    provider = DeviceProvider(cmd)
+    return provider.delete(
+        device_name=device_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        no_wait=no_wait,
+    )
+
+
 def adr_device_show(cmd, device_name: str, namespace_name: str, resource_group_name: str):
     provider = DeviceProvider(cmd)
     return provider.show(
@@ -36,6 +84,7 @@ def adr_device_update(
     operating_system_version: Optional[str] = None,
     attributes: Optional[str] = None,
     policy_resource_id: Optional[str] = None,
+    no_wait: bool = False,
 ):
     provider = DeviceProvider(cmd)
     return provider.update(
@@ -47,6 +96,7 @@ def adr_device_update(
         operating_system_version=operating_system_version,
         attributes=attributes,
         policy_resource_id=policy_resource_id,
+        no_wait=no_wait,
     )
 
 
