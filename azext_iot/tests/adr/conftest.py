@@ -34,7 +34,10 @@ CUSTOM_CERT_UPDATE_VALIDITY_DAYS = 20
 CUSTOM_CERT_KEY_TYPE = "ECC"
 CUSTOM_CERT_SUBJECT = "CN=test-device"
 
-TEST_LOCATION = os.getenv("azext_iot_adr_location", "westus")
+# ADR ships against a canary api-version (Microsoft.DeviceRegistry/2026-11-02-preview)
+# that is currently only deployed to centraluseuap. Override via the
+# `azext_iot_adr_location` env var (the CI pipeline pins this for ADR jobs).
+TEST_LOCATION = os.getenv("azext_iot_adr_location", "centraluseuap")
 
 
 def pytest_runtest_logreport(report):

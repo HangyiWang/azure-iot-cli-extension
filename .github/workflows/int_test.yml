@@ -53,9 +53,9 @@ on:
         type: boolean
         default: true
       testADR:
-        description: "Run ADR tests"
+        description: "Run ADR tests (canary api-version — opt-in)"
         type: boolean
-        default: true
+        default: false
       python-versions:
         description: "Python versions (comma-separated: 3.10,3.11,3.12,3.13)"
         type: string
@@ -133,9 +133,14 @@ jobs:
               [ "${toggles[$svc]}" = "true" ] && [ -d "$test_dir" ] && services="${services}${svc},"
             done
           elif [ "$input_services" = "auto" ]; then
-            # auto: include all services whose test directory exists on this branch
+            # auto: include all services whose test directory exists on this branch.
+            # ADR is intentionally excluded from auto because it targets a canary
+            # api-version (Microsoft.DeviceRegistry/2026-11-02-preview) deployed only
+            # to centraluseuap; opt in explicitly via `-f test-services=ADR` or via
+            # the workflow_dispatch checkbox.
             for entry in "${all_services[@]}"; do
               IFS='|' read -r svc test_dir tox_env timeout <<< "$entry"
+              [ "$svc" = "ADR" ] && continue
               [ -d "$test_dir" ] && services="${services}${svc},"
             done
           else
@@ -181,8 +186,19 @@ jobs:
               for region in "${REGION_ARRAY[@]}"; do
                 region=$(echo "$region" | xargs)
 
+                # Per-service region pinning: ADR ships against a canary
+                # api-version (Microsoft.DeviceRegistry / 2026-11-02-preview)
+                # that is only deployed to centraluseuap today. Force the ADR
+                # matrix entry to centraluseuap regardless of the caller's
+                # `regions` input so we never schedule a job that is guaranteed
+                # to fail with NoRegisteredProviderFound.
+                effective_region="$region"
+                if [ "$svc" = "ADR" ]; then
+                  effective_region="centraluseuap"
+                fi
+
                 if [ "$first" = true ]; then first=false; else matrix="$matrix,"; fi
-                matrix="$matrix{\"service\":\"$svc\",\"tox_env\":\"$tox_env\",\"timeout\":$timeout,\"python\":\"$py\",\"region\":\"$region\"}"
+                matrix="$matrix{\"service\":\"$svc\",\"tox_env\":\"$tox_env\",\"timeout\":$timeout,\"python\":\"$py\",\"region\":\"$effective_region\"}"
               done
             done
           done
@@ -239,7 +255,7 @@ jobs:
 
   int-test:
     name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{ matrix.config.region }})"
-    needs: [ setup, unit-test ]
+    needs: [setup, unit-test]
     if: ${{ needs.setup.result == 'success' && (needs.setup.outputs.matrix || '[]') != '[]' }}
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -287,6 +303,61 @@ jobs:
         run: |
           az account show -o table
           az group show -n ${{ env.RESOURCE_GROUP }} -o table
+
+      - name: "ADR preflight (RP registration + API-version availability)"
+        if: ${{ matrix.config.service == 'ADR' }}
+        id: adr_preflight
+        env:
+          ADR_REGION: ${{ matrix.config.region }}
+        run: |
+          set -euo pipefail
+          # ADR ships against a private/canary API version (Microsoft.DeviceRegistry).
+          # Pin this to whatever the bundled SDK targets — keep in sync with
+          # azext_iot/sdk/deviceregistry/_configuration.py:api_version.
+          required_api="2026-11-02-preview"
+          rp="Microsoft.DeviceRegistry"
+          resource_type="namespaces"
+
+          echo "## ADR preflight" >> $GITHUB_STEP_SUMMARY
+
+          # 1. Ensure RP is registered (idempotent; no-op if already registered).
+          state=$(az provider show -n "$rp" --query registrationState -o tsv 2>/dev/null || echo "NotRegistered")
+          if [ "$state" != "Registered" ]; then
+            echo "Registering $rp (current state: $state)..."
+            az provider register -n "$rp" --wait
+          fi
+          echo "- Resource provider: \`$rp\` Registered" >> $GITHUB_STEP_SUMMARY
+
+          # 2. Confirm the SDK's pinned API version is exposed for ${resource_type}
+          #    in the chosen region. ADR preview API versions roll out region-by-region;
+          #    if the backend hasn't published $required_api yet, every test will fail
+          #    with NoRegisteredProviderFound — fail fast here with a clear message.
+          supported_apis=$(az provider show -n "$rp" \
+            --query "resourceTypes[?resourceType=='${resource_type}'].apiVersions | [0]" -o tsv)
+          supported_locations=$(az provider show -n "$rp" \
+            --query "resourceTypes[?resourceType=='${resource_type}'].locations | [0]" -o tsv)
+
+          if ! echo "$supported_apis" | tr '\t' '\n' | grep -qx "$required_api"; then
+            echo "::error::ADR API version '$required_api' is not yet deployed."
+            echo "    Supported API versions for $rp/$resource_type: $supported_apis"
+            echo "    Action: wait for backend deployment, or update the bundled SDK"
+            echo "    (azext_iot/sdk/deviceregistry) to a deployed api-version."
+            echo "- API version: \`$required_api\` ❌ not yet available" >> $GITHUB_STEP_SUMMARY
+            echo "- Supported: $supported_apis" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          if ! echo "$supported_locations" | tr '\t' '\n' | grep -iqx "$ADR_REGION"; then
+            echo "::error::ADR region '$ADR_REGION' is not supported by $rp/$resource_type."
+            echo "    Supported locations: $supported_locations"
+            echo "    Action: re-run the workflow with -f regions=<supported-region>."
+            echo "- Region: \`$ADR_REGION\` ❌ not supported" >> $GITHUB_STEP_SUMMARY
+            echo "- Supported: $supported_locations" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "- API version: \`$required_api\` available" >> $GITHUB_STEP_SUMMARY
+          echo "- Region: \`$ADR_REGION\` supported" >> $GITHUB_STEP_SUMMARY
 
       - name: "OIDC Token refresh service"
         run: |
@@ -346,7 +417,7 @@ jobs:
 
   int-test-gate:
     name: "Integration test gate"
-    needs: [ int-test ]
+    needs: [int-test]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
@@ -440,7 +511,7 @@ jobs:
   combine-coverage:
     name: "Combine coverage reports"
     if: always()
-    needs: [ unit-test, int-test, int-test-gate ]
+    needs: [unit-test, int-test, int-test-gate]
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout source"
