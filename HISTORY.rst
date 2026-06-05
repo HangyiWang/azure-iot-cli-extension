@@ -3,7 +3,7 @@
 Release History
 ===============
 
-0.32.0b1 (Preview)
+0.33.0b2 (Preview)
 +++++++++++++++
 
 **General updates**
@@ -17,7 +17,7 @@ Release History
 * **Namespace devices** (new) — manage individual devices under a namespace:
 
   - ``az iot adr ns device create / show / list / update / delete`` for full CRUD over namespace-scoped devices.
-  - ``az iot adr ns device revoke`` is registered but currently returns a clear "not available yet" error — the underlying Microsoft.DeviceRegistry revoke endpoint is not exposed in ``2026-11-02-preview``. The command stays in the surface (with ``deprecate_info`` semantics) so existing scripts get an explanatory message rather than a generic ``AttributeError``; it will start working without a CLI change once the API is re-introduced.
+  - ``az iot adr ns device revoke`` is registered but currently raises a clear "not available yet" ``CLIError`` — the underlying Microsoft.DeviceRegistry revoke endpoint is not exposed in ``2026-11-02-preview``. The command will start working without a CLI change once the backend API ships.
 
 * **Namespace linking** (new) — link IoT Hubs and Device Provisioning Services to a namespace via the namespace PATCH surface (links live on the namespace, not on the linked Hub/DPS resources):
 
@@ -45,7 +45,7 @@ Release History
   - ``az iot adr ns job wait`` for polling job provisioning state.
   - ``az iot adr ns job run show / list / results`` (read-only) for inspecting individual runs. ``results`` aggregates per-device statuses across all ``nextLink`` pages so ``--query`` filters can target the full result set, e.g. ``--query "[?status=='Failed']"``.
 
-* ``az iot adr ns policy revoke-issuer`` and ``az iot adr ns policy activate-byor`` remain registered but currently return a clear "not available yet" error (same rationale as ``device revoke`` above) — their backing endpoints were not regenerated in ``2026-11-02-preview``. They will be re-enabled in a follow-up when the spec lands.
+* ``az iot adr ns policy revoke-issuer`` and ``az iot adr ns policy activate-byor`` are registered but currently raise the same "not available yet" ``CLIError`` as ``device revoke`` — their backing endpoints were not regenerated in ``2026-11-02-preview`` and will be re-enabled once the spec lands.
 
 0.31.0b2 (Preview)
 +++++++++++++++

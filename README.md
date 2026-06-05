@@ -9,7 +9,7 @@ The **Azure IoT extension for Azure CLI** aims to accelerate the development, ma
 
 - ❗ When upgrading your Azure CLI core version, for the best experience and to avoid breaking changes, we recommend updating your `azure-iot` extension to the [latest available](https://github.com/Azure/azure-iot-cli-extension/releases).
 
-- 🆕 **`0.32.0b1` Preview** introduces the **Azure Device Registry (ADR) "Ignite" surface** under `az iot adr ns`: namespace-scoped device management, Hub/DPS linking on namespaces, device groups, and Update-job orchestration (with paged job-run results). Built against the new `2026-11-02-preview` Device Registry management API. See the [HISTORY.rst](HISTORY.rst) entry for the full command list. Install with `az extension add --name azure-iot --allow-preview`.
+- 🆕 **`0.33.0b2` Preview** introduces the **Azure Device Registry (ADR) "Ignite" surface** under `az iot adr ns`: namespace-scoped device management, Hub/DPS linking on namespaces, device groups, and Update-job orchestration (with paged job-run results). Built against the new `2026-11-02-preview` Device Registry management API. See the [HISTORY.rst](HISTORY.rst) entry for the full command list. Install with `az extension add --name azure-iot --allow-preview`.
 
 - Azure CLI `2.24.0` requires an `azure-iot` extension update to `0.10.11` or later for IoT Hub commands to work properly. However **we recommend** at least `azure-iot` `0.10.14`. Updating the extension can be done with `az extension update --name azure-iot`.
 
