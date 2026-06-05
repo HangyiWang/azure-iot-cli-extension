@@ -145,6 +145,7 @@ def build_mi_body(
         return {"type": sami_type}
     return None
 
+
 # Error message templates
 CREDENTIAL_NOT_FOUND_MSG = (
     "No credential found for namespace '{namespace_name}' in resource group '{resource_group_name}'. "

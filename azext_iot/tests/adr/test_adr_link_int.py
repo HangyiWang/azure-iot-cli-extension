@@ -5,13 +5,16 @@
 # --------------------------------------------------------------------------------------------
 
 """
-ADR link integration tests (P2/P3/P4).
+ADR link integration tests.
 
 Validates the namespace-linking surface exposed as ``iot adr ns link ...``:
 
-* ``link dps add / update / show / list`` (P3); ``remove`` is rejected by design
-* ``link hub add / update / show / list`` (P2); ``remove`` is rejected by design — including DPS-first ordering
-* ``link add`` bundled Hub+DPS PATCH in a single round trip (P4)
+* ``link dps add / update / show / list`` — including the ``brownfieldHubs``
+  enumeration surfaced by ``dps show`` (DPS-side ``properties.iotHubs[]``)
+* ``link hub add / update / show / list`` — both UAMI and SAMI inbound caller
+  identities, multi-hub list, identity rotation via ``hub update``
+* ``link add`` bundled Hub+DPS PATCH in a single round trip
+* ``remove`` for both endpoint types is rejected by design
 
 These tests require real Hub and DPS resources to be linked to a real ADR
 namespace, so they re-use :class:`ADRHubInfraHelper` to provision the full
@@ -24,9 +27,11 @@ What is intentionally NOT covered here (covered by unit tests):
 - DPS-first ordering reject (``test_hub_add_rejects_when_no_dps_linked``)
 - One-DPS-per-namespace cap rejection
 - MI mutually-exclusive rejection
+- Invalid DPS resource id rejection
 """
 
 import time
+from typing import Optional
 
 import pytest
 
@@ -46,17 +51,21 @@ from azext_iot.tests.adr.conftest import (
 class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     """End-to-end lifecycle of namespace-side Hub and DPS link entries.
 
-    The flow follows the design's enforced DPS-first ordering:
+    The flow follows the design's enforced DPS-first ordering and exercises
+    both inbound caller identity variants (UAMI and SAMI):
 
-    1. Setup: provision ADR + UAMI + Hub (Hub auto-links to ADR via ``iot hub create``)
-    2. Setup: create a standalone DPS for the namespace to link
-    3. ``link dps add`` to attach the DPS
-    4. ``link hub add`` to attach a second Hub messaging endpoint (validates DPS-first
-       ordering passes once a DPS is present)
-    5. Exercise ``show`` / ``list`` / ``update`` on both endpoint types
-    6. ``link hub remove`` and ``link dps remove`` (both must fail with the
-       'not supported by design' error — the namespace cleanup path is the
-       only way to remove the link entries)
+    1. Setup: provision ADR + UAMI + primary Hub (Hub auto-links to ADR via ``iot hub create``)
+    2. Step 1: create a standalone DPS, pre-register the primary Hub on it via
+       ``iot dps linked-hub create`` (seeds the brownfield list), then
+       ``link dps add`` to attach the DPS to the namespace
+    3. Step 2: ``link dps show`` asserts ``brownfieldHubs`` enumerates the Hub
+    4. Step 3-4: secondary Hub linked with **UAMI** + show/list (single entry)
+    5. Step 5-6: tertiary Hub linked with **SAMI** + multi-hub list assertion
+    6. Step 7: ``link hub update`` flips availability/weight on secondary
+    7. Step 8: ``link hub update`` rotates tertiary's identity SAMI ↔ UAMI ↔ SAMI
+    8. Step 9: ``link dps update`` rotates DPS identity
+    9. Step 10-11: ``link hub remove`` and ``link dps remove`` must fail (rejected
+       by design — namespace cleanup is the only removal path)
     """
 
     def test_adr_link_lifecycle(self):
@@ -64,12 +73,20 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
         primary_hub = generate_hub_name()  # auto-linked at hub-create time
-        secondary_hub = generate_hub_name()  # linked via `link hub add`
+        secondary_hub = generate_hub_name()  # linked via `link hub add` (UAMI)
+        tertiary_hub = generate_hub_name()  # linked via `link hub add` (SAMI)
         dps_name = generate_dps_name()
         identity_name = generate_identity_name()
 
         secondary_endpoint = "secondary"
+        tertiary_endpoint = "tertiary"
         dps_endpoint = "dps-primary"
+
+        def _names_in(listed):
+            """Normalize `link * list` payload (dict or list) to a set of endpoint names."""
+            if isinstance(listed, dict):
+                return set(listed.keys())
+            return {item.get("name") or item.get("endpointName") for item in (listed or [])}
 
         try:
             infra = self.setup_full_infra(
@@ -88,9 +105,11 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             # we don't make any assumptions about the auto-linked endpoint name —
             # the link tests add their own endpoints explicitly.
 
-            # Step 1: link DPS (P3) — DPS-first ordering means this must
-            # succeed before any `link hub add`.
-            with timed_step("Step 1 ❯ link dps add"):
+            # Step 1: link DPS — DPS-first ordering means this must succeed
+            # before any `link hub add`. We also pre-register the primary Hub on
+            # the DPS via `iot dps linked-hub create` so the `dps show` brownfield
+            # enumeration in Step 2 has a real entry to surface.
+            with timed_step("Step 1 ❯ link dps add (+ seed DPS-side Hub registration)"):
                 cmd = (
                     f"iot dps create --name {dps_name} -g {rg} "
                     f"--location {infra['adr_resource_id'].split('/')[-3]} "
@@ -104,6 +123,19 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 dps_id = dps_show["id"]
                 _log(LogKind.RESULT, "dps_id=%s", dps_id)
 
+                # Register the primary Hub on the DPS so `iot adr ns link dps show`
+                # has a non-empty `brownfieldHubs` list to surface.
+                linked_hub_cmd = (
+                    f"iot dps linked-hub create --dps-name {dps_name} -g {rg} "
+                    f"--hub-name {primary_hub}"
+                )
+                _log(LogKind.CMD, "az %s", linked_hub_cmd)
+                try:
+                    self.cmd(linked_hub_cmd)
+                    _log(LogKind.RESULT, "Primary Hub registered on DPS (seeds brownfield list)")
+                except Exception as e:  # noqa: BLE001 — best-effort seed
+                    _log(LogKind.WARN, "DPS linked-hub create failed (brownfield assertion may skip): %s", e)
+
                 add_cmd = (
                     f"iot adr ns link dps add --ns {namespace_name} -g {rg} "
                     f"-n {dps_endpoint} --dps-id {dps_id} "
@@ -113,26 +145,49 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 self.cmd(add_cmd)
                 _log(LogKind.OK, "DPS link '%s' created", dps_endpoint)
 
-            with timed_step("Step 2 ❯ link dps show / list"):
+            with timed_step("Step 2 ❯ link dps show (+ brownfield Hubs) / list"):
                 shown = self.cmd(
                     f"iot adr ns link dps show --ns {namespace_name} -g {rg} -n {dps_endpoint}"
                 ).get_output_in_json()
                 assert shown.get("name") == dps_endpoint or shown.get("endpointName") == dps_endpoint, (
                     f"link dps show did not surface name field: {shown}"
                 )
-                _log(LogKind.OK, "DPS link visible on namespace")
+
+                # Strengthened: assert brownfieldHubs is enumerated. The Hub was
+                # registered via `iot dps linked-hub create` in Step 1, so the
+                # side-GET against the DPS RP must surface it.
+                brownfield = shown.get("brownfieldHubs")
+                assert brownfield is not None, (
+                    f"link dps show must always set 'brownfieldHubs' key (may be empty list); got: {shown}"
+                )
+                brownfield_names = {
+                    ((h.get("name") if isinstance(h, dict) else h) or "").lower()
+                    for h in (brownfield or [])
+                }
+                # Each entry is the iotHubs[] record from the DPS — its `name` field
+                # is typically the hub hostname (e.g. `myhub.azure-devices.net`) or
+                # the bare hub name depending on backend serialization. Accept either.
+                primary_lower = primary_hub.lower()
+                assert any(primary_lower in n for n in brownfield_names) or any(
+                    primary_lower == n.split(".")[0] for n in brownfield_names
+                ), (
+                    f"Expected primary Hub '{primary_hub}' in brownfieldHubs, "
+                    f"got: {brownfield_names}"
+                )
+                _log(
+                    LogKind.OK,
+                    "DPS link visible; brownfieldHubs contains primary Hub (%d entry/entries)",
+                    len(brownfield_names),
+                )
 
                 listed = self.cmd(
                     f"iot adr ns link dps list --ns {namespace_name} -g {rg}"
                 ).get_output_in_json()
-                assert isinstance(listed, list) and len(listed) == 1, (
-                    f"Expected exactly one DPS link, got {listed}"
-                )
+                assert len(listed or []) == 1, f"Expected exactly one DPS link, got {listed}"
                 _log(LogKind.OK, "DPS list returned 1 entry")
 
-            # Step 3: link hub (P2) — should now succeed since a DPS is linked.
-            with timed_step("Step 3 ❯ link hub add (DPS-first satisfied)"):
-                # Create a second Hub Gen2 (lightweight — no namespace link, no MI)
+            # Step 3: link hub (UAMI) — should now succeed since a DPS is linked.
+            with timed_step("Step 3 ❯ link hub add - secondary, UAMI (DPS-first satisfied)"):
                 hub_cmd = (
                     f"iot hub create -n {secondary_hub} -g {rg} --sku GEN2 "
                     f"--mi-user-assigned {identity_resource_id}"
@@ -150,9 +205,9 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", add_cmd)
                 self.cmd(add_cmd)
-                _log(LogKind.OK, "Hub link '%s' created", secondary_endpoint)
+                _log(LogKind.OK, "Hub link '%s' created (UAMI)", secondary_endpoint)
 
-            with timed_step("Step 4 ❯ link hub show / list"):
+            with timed_step("Step 4 ❯ link hub show / list (single entry)"):
                 shown = self.cmd(
                     f"iot adr ns link hub show --ns {namespace_name} -g {rg} -n {secondary_endpoint}"
                 ).get_output_in_json()
@@ -160,22 +215,50 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     shown.get("name") == secondary_endpoint
                     or shown.get("endpointName") == secondary_endpoint
                 ), f"link hub show did not surface name field: {shown}"
-                _log(LogKind.OK, "Hub link visible on namespace")
 
                 listed = self.cmd(
                     f"iot adr ns link hub list --ns {namespace_name} -g {rg}"
                 ).get_output_in_json()
-                assert isinstance(listed, list), f"Expected list, got {type(listed)}"
-                hub_names = {
-                    h.get("name") or h.get("endpointName") for h in listed
-                }
-                assert secondary_endpoint in hub_names, (
-                    f"Hub link '{secondary_endpoint}' missing from list: {hub_names}"
+                names = _names_in(listed)
+                assert secondary_endpoint in names, (
+                    f"Hub link '{secondary_endpoint}' missing from list: {names}"
                 )
-                _log(LogKind.OK, "Hub list returned %d entry/entries", len(listed))
+                _log(LogKind.OK, "Hub list returned %d entry/entries", len(names))
 
-            with timed_step("Step 5 ❯ link hub update (partial patch)"):
-                # Flip availability to Unavailable and bump weight
+            # Step 5: link hub (SAMI) — second Hub uses --mi-system-assigned.
+            # The tertiary Hub is provisioned with a system-assigned identity so
+            # the inbound caller identity write reflects a real principal.
+            with timed_step("Step 5 ❯ link hub add - tertiary, SAMI"):
+                hub_cmd = (
+                    f"iot hub create -n {tertiary_hub} -g {rg} --sku GEN2 "
+                    f"--mi-system-assigned"
+                )
+                _log(LogKind.CMD, "az %s", hub_cmd)
+                hub = self.cmd(hub_cmd).get_output_in_json()
+                tertiary_hub_id = hub["id"]
+                _log(LogKind.RESULT, "Tertiary Hub '%s' created (SAMI)", tertiary_hub)
+
+                add_cmd = (
+                    f"iot adr ns link hub add --ns {namespace_name} -g {rg} "
+                    f"-n {tertiary_endpoint} --hub-id {tertiary_hub_id} "
+                    f"--mi-system-assigned "
+                    f"--availability Available --weight 2"
+                )
+                _log(LogKind.CMD, "az %s", add_cmd)
+                self.cmd(add_cmd)
+                _log(LogKind.OK, "Hub link '%s' created (SAMI)", tertiary_endpoint)
+
+            with timed_step("Step 6 ❯ link hub list (multi-hub, both endpoints)"):
+                listed = self.cmd(
+                    f"iot adr ns link hub list --ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                names = _names_in(listed)
+                assert {secondary_endpoint, tertiary_endpoint}.issubset(names), (
+                    f"Expected both hub links present, got: {names}"
+                )
+                _log(LogKind.OK, "Hub list returned %d entries (both endpoints present)", len(names))
+
+            with timed_step("Step 7 ❯ link hub update (availability + weight on secondary)"):
                 update_cmd = (
                     f"iot adr ns link hub update --ns {namespace_name} -g {rg} "
                     f"-n {secondary_endpoint} --availability Unavailable --weight 5"
@@ -185,8 +268,6 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 updated = self.cmd(
                     f"iot adr ns link hub show --ns {namespace_name} -g {rg} -n {secondary_endpoint}"
                 ).get_output_in_json()
-                # The shape of the surfaced provisioning fields depends on backend serialization;
-                # accept either nested or flat representation defensively.
                 prov = updated.get("properties", updated).get("provisioning") or updated.get(
                     "provisioning"
                 ) or {}
@@ -196,7 +277,46 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 assert weight == 5, f"Weight not updated, saw {weight}"
                 _log(LogKind.OK, "Hub link updated: availability=Unavailable, weight=5")
 
-            with timed_step("Step 6 ❯ link dps update (rotate identity)"):
+            # Step 8: rotate the tertiary Hub's inbound identity SAMI → UAMI → SAMI.
+            # Exercises the --mi-system-assigned / --mi-user-assigned branches of
+            # hub_update which Step 7 (provisioning-only patch) does not touch.
+            with timed_step("Step 8 ❯ link hub update (rotate identity SAMI → UAMI → SAMI)"):
+                def _identity_type(endpoint: dict) -> Optional[str]:
+                    ici = (endpoint.get("properties", endpoint).get("inboundCallerIdentity")
+                           or endpoint.get("inboundCallerIdentity") or {})
+                    return ici.get("type")
+
+                # SAMI → UAMI
+                update_cmd = (
+                    f"iot adr ns link hub update --ns {namespace_name} -g {rg} "
+                    f"-n {tertiary_endpoint} --mi-user-assigned {identity_resource_id}"
+                )
+                _log(LogKind.CMD, "az %s", update_cmd)
+                self.cmd(update_cmd)
+                shown = self.cmd(
+                    f"iot adr ns link hub show --ns {namespace_name} -g {rg} -n {tertiary_endpoint}"
+                ).get_output_in_json()
+                assert _identity_type(shown) == "UserAssigned", (
+                    f"Expected UserAssigned after rotation, saw: {_identity_type(shown)}"
+                )
+                _log(LogKind.OK, "Rotated SAMI → UAMI")
+
+                # UAMI → SAMI
+                update_cmd = (
+                    f"iot adr ns link hub update --ns {namespace_name} -g {rg} "
+                    f"-n {tertiary_endpoint} --mi-system-assigned"
+                )
+                _log(LogKind.CMD, "az %s", update_cmd)
+                self.cmd(update_cmd)
+                shown = self.cmd(
+                    f"iot adr ns link hub show --ns {namespace_name} -g {rg} -n {tertiary_endpoint}"
+                ).get_output_in_json()
+                assert _identity_type(shown) == "SystemAssigned", (
+                    f"Expected SystemAssigned after rotation, saw: {_identity_type(shown)}"
+                )
+                _log(LogKind.OK, "Rotated UAMI → SAMI")
+
+            with timed_step("Step 9 ❯ link dps update (rotate identity)"):
                 update_cmd = (
                     f"iot adr ns link dps update --ns {namespace_name} -g {rg} "
                     f"-n {dps_endpoint} --mi-user-assigned {identity_resource_id}"
@@ -205,24 +325,23 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 self.cmd(update_cmd)
                 _log(LogKind.OK, "DPS link identity rotated (idempotent)")
 
-            with timed_step("Step 7 ❯ link hub remove (must fail by design)"):
+            with timed_step("Step 10 ❯ link hub remove (must fail by design)"):
                 remove_cmd = (
                     f"iot adr ns link hub remove --ns {namespace_name} -g {rg} "
                     f"-n {secondary_endpoint} -y"
                 )
                 _log(LogKind.CMD, "az %s", remove_cmd)
                 self.cmd(remove_cmd, expect_failure=True)
-                # Verify endpoint is still present — the command must not mutate state
                 listed = self.cmd(
                     f"iot adr ns link hub list --ns {namespace_name} -g {rg}"
                 ).get_output_in_json()
-                names = {h.get("name") or h.get("endpointName") for h in (listed or [])}
+                names = _names_in(listed)
                 assert secondary_endpoint in names, (
                     f"Hub link '{secondary_endpoint}' was unexpectedly removed: {names}"
                 )
                 _log(LogKind.OK, "Hub link remove rejected as designed; entry untouched")
 
-            with timed_step("Step 8 ❯ link dps remove (must fail by design)"):
+            with timed_step("Step 11 ❯ link dps remove (must fail by design)"):
                 remove_cmd = (
                     f"iot adr ns link dps remove --ns {namespace_name} -g {rg} "
                     f"-n {dps_endpoint} -y"
@@ -232,7 +351,7 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 listed = self.cmd(
                     f"iot adr ns link dps list --ns {namespace_name} -g {rg}"
                 ).get_output_in_json()
-                names = {d.get("name") or d.get("endpointName") for d in (listed or [])}
+                names = _names_in(listed)
                 assert dps_endpoint in names, (
                     f"DPS link '{dps_endpoint}' was unexpectedly removed: {names}"
                 )
@@ -248,13 +367,14 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 identity_name=identity_name,
                 dps_name=dps_name,
             )
-            # Best-effort cleanup of the secondary Hub
-            with timed_step("Cleanup ❯ Delete secondary Hub"):
-                try:
-                    self.cmd(f"iot hub delete -n {secondary_hub} -g {rg}")
-                    _log(LogKind.RESULT, "Secondary Hub deleted")
-                except Exception as e:
-                    _log(LogKind.WARN, "Secondary Hub cleanup failed: %s", e)
+            # Best-effort cleanup of the secondary + tertiary Hubs
+            for label, hub in (("secondary", secondary_hub), ("tertiary", tertiary_hub)):
+                with timed_step(f"Cleanup ❯ Delete {label} Hub"):
+                    try:
+                        self.cmd(f"iot hub delete -n {hub} -g {rg}")
+                        _log(LogKind.RESULT, "%s Hub deleted", label.capitalize())
+                    except Exception as e:
+                        _log(LogKind.WARN, "%s Hub cleanup failed: %s", label.capitalize(), e)
 
 
 @pytest.mark.usefixtures("set_cwd")
