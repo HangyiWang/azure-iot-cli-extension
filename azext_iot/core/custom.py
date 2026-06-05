@@ -488,6 +488,8 @@ def iot_dps_linked_hub_create(
                     "Service hostname is not supported for DPS hub linking. "
                     "Use a connection string with device or classic hostname."
                 )
+            parsed_cs = validate_key_value_pairs(connection_string)
+            host_name = parsed_cs.get("HostName")
             if not location:
                 if not hub_name:
                     try:
@@ -507,6 +509,7 @@ def iot_dps_linked_hub_create(
         linked_hub_entry = {
             "connectionString": connection_string,
             "location": location,
+            "hostName": host_name,
         }
 
     if apply_allocation_policy is not None:

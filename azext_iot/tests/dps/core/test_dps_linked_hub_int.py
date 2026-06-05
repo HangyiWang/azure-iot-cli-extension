@@ -229,3 +229,49 @@ def test_linked_hub_update_combined_migration(provisioned_iot_dps_no_hub_module)
     finally:
         for hostname in cleanup_targets:
             _cleanup_linked_hub(dps_name, dps_rg, hostname)
+
+
+def test_linked_hub_create_keybased_then_switch_to_mi(provisioned_iot_dps_no_hub_module):
+    """KeyBased create -> auth-only SystemAssigned swap (no hostname change)."""
+    dps_name = provisioned_iot_dps_no_hub_module["name"]
+    dps_rg = provisioned_iot_dps_no_hub_module["resourceGroup"]
+
+    gwv2_hub = _find_gwv2_hub(dps_rg)
+    if not gwv2_hub:
+        pytest.skip("No GWv2 hub available in resource group")
+
+    hub_name = gwv2_hub["name"]
+    device_hostname = gwv2_hub["properties"]["deviceHostName"]
+
+    cli.invoke(f"iot dps identity assign --name {dps_name} -g {dps_rg} --system-assigned")
+
+    try:
+        cli.invoke(
+            f"iot dps linked-hub create --dps-name {dps_name} -g {dps_rg} "
+            f"--hub-name {hub_name}"
+        )
+        initial = cli.invoke(
+            f"iot dps linked-hub list --dps-name {dps_name} -g {dps_rg}"
+        ).as_json()
+        matching = [h for h in initial if h["name"] == device_hostname]
+        assert len(matching) == 1, \
+            f"Expected linked hub with name '{device_hostname}'. Got: {[h['name'] for h in initial]}"
+        assert matching[0]["authenticationType"] == "KeyBased"
+        assert matching[0].get("hostName") == device_hostname, \
+            f"hostName should be set on KeyBased create; got: {matching[0].get('hostName')!r}"
+
+        cli.invoke(
+            f"iot dps linked-hub update --dps-name {dps_name} -g {dps_rg} "
+            f"--hub-name {hub_name} --authentication-type SystemAssigned"
+        )
+
+        after = cli.invoke(
+            f"iot dps linked-hub list --dps-name {dps_name} -g {dps_rg}"
+        ).as_json()
+        matching = [h for h in after if h["name"] == device_hostname]
+        assert len(matching) == 1, \
+            f"Expected linked hub with name '{device_hostname}'. Got: {[h['name'] for h in after]}"
+        assert matching[0]["authenticationType"] == "SystemAssigned"
+        assert matching[0].get("connectionString", "") == ""
+    finally:
+        _cleanup_linked_hub(dps_name, dps_rg, device_hostname)
