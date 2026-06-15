@@ -1,4 +1,4 @@
-# pylint: disable=line-too-long,useless-suppression,too-many-lines
+# pylint: disable=too-many-lines
 # coding=utf-8
 # --------------------------------------------------------------------------
 # Copyright (c) Microsoft Corporation. All rights reserved.
@@ -8,10 +8,11 @@
 # --------------------------------------------------------------------------
 from collections.abc import MutableMapping
 from io import IOBase
-from typing import Any, Callable, Dict, IO, Iterable, Iterator, Optional, TypeVar, Union, cast, overload
+from typing import Any, AsyncIterable, AsyncIterator, Callable, Dict, IO, Optional, TypeVar, Union, cast, overload
 import urllib.parse
 
-from azure.core import PipelineClient
+from azure.core import AsyncPipelineClient
+from azure.core.async_paging import AsyncItemPaged, AsyncList
 from azure.core.exceptions import (
     ClientAuthenticationError,
     HttpResponseError,
@@ -22,907 +23,46 @@ from azure.core.exceptions import (
     StreamConsumedError,
     map_error,
 )
-from azure.core.paging import ItemPaged
 from azure.core.pipeline import PipelineResponse
-from azure.core.polling import LROPoller, NoPolling, PollingMethod
-from azure.core.rest import HttpRequest, HttpResponse
+from azure.core.polling import AsyncLROPoller, AsyncNoPolling, AsyncPollingMethod
+from azure.core.rest import AsyncHttpResponse, HttpRequest
 from azure.core.tracing.decorator import distributed_trace
+from azure.core.tracing.decorator_async import distributed_trace_async
 from azure.core.utils import case_insensitive_dict
 from azure.mgmt.core.exceptions import ARMErrorFormat
-from azure.mgmt.core.polling.arm_polling import ARMPolling
+from azure.mgmt.core.polling.async_arm_polling import AsyncARMPolling
 
+from ..._serialization import Deserializer, Serializer
+from ...operations._operations import (
+    build_credentials_create_or_update_request,
+    build_credentials_delete_request,
+    build_credentials_get_request,
+    build_credentials_list_by_namespace_request,
+    build_credentials_synchronize_request,
+    build_credentials_update_request,
+    build_namespace_devices_create_or_replace_request,
+    build_namespace_devices_delete_request,
+    build_namespace_devices_get_request,
+    build_namespace_devices_list_by_resource_group_request,
+    build_namespace_devices_update_request,
+    build_namespaces_create_or_replace_request,
+    build_namespaces_delete_request,
+    build_namespaces_get_request,
+    build_namespaces_list_by_resource_group_request,
+    build_namespaces_list_by_subscription_request,
+    build_namespaces_migrate_request,
+    build_namespaces_update_request,
+    build_policies_create_or_update_request,
+    build_policies_delete_request,
+    build_policies_get_request,
+    build_policies_list_by_credential_request,
+    build_policies_update_request,
+)
 from .._configuration import MicrosoftDeviceRegistryManagementServiceConfiguration
-from .._serialization import Deserializer, Serializer
 
 JSON = MutableMapping[str, Any]
 T = TypeVar("T")
-ClsType = Optional[Callable[[PipelineResponse[HttpRequest, HttpResponse], T, Dict[str, Any]], Any]]
-
-_SERIALIZER = Serializer()
-_SERIALIZER.client_side_validation = False
-
-
-def build_namespaces_list_by_subscription_request(  # pylint: disable=name-too-long
-    subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/providers/Microsoft.DeviceRegistry/namespaces"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespaces_list_by_resource_group_request(  # pylint: disable=name-too-long
-    resource_group_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespaces_get_request(
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespaces_create_or_replace_request(  # pylint: disable=name-too-long
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespaces_update_request(
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="PATCH", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespaces_delete_request(
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespaces_migrate_request(
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/migrate"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="POST", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_credentials_list_by_namespace_request(  # pylint: disable=name-too-long
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_credentials_get_request(
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_credentials_create_or_update_request(  # pylint: disable=name-too-long
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_credentials_update_request(
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="PATCH", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_credentials_delete_request(
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_credentials_synchronize_request(
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default/synchronize"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="POST", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_policies_list_by_credential_request(  # pylint: disable=name-too-long
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default/policies"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_policies_get_request(
-    resource_group_name: str, namespace_name: str, policy_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default/policies/{policyName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-        "policyName": _SERIALIZER.url(
-            "policy_name", policy_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_policies_create_or_update_request(
-    resource_group_name: str, namespace_name: str, policy_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default/policies/{policyName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-        "policyName": _SERIALIZER.url(
-            "policy_name", policy_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_policies_update_request(
-    resource_group_name: str, namespace_name: str, policy_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default/policies/{policyName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-        "policyName": _SERIALIZER.url(
-            "policy_name", policy_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="PATCH", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_policies_delete_request(
-    resource_group_name: str, namespace_name: str, policy_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/credentials/default/policies/{policyName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-        "policyName": _SERIALIZER.url(
-            "policy_name", policy_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespace_devices_list_by_resource_group_request(  # pylint: disable=name-too-long
-    resource_group_name: str, namespace_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/devices"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespace_devices_get_request(
-    resource_group_name: str, namespace_name: str, device_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/devices/{deviceName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-        "deviceName": _SERIALIZER.url(
-            "device_name", device_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespace_devices_create_or_replace_request(  # pylint: disable=name-too-long
-    resource_group_name: str, namespace_name: str, device_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/devices/{deviceName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-        "deviceName": _SERIALIZER.url(
-            "device_name", device_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespace_devices_update_request(
-    resource_group_name: str, namespace_name: str, device_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/devices/{deviceName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-        "deviceName": _SERIALIZER.url(
-            "device_name", device_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="PATCH", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_namespace_devices_delete_request(
-    resource_group_name: str, namespace_name: str, device_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-01-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/devices/{deviceName}"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-        "deviceName": _SERIALIZER.url(
-            "device_name", device_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
+ClsType = Optional[Callable[[PipelineResponse[HttpRequest, AsyncHttpResponse], T, Dict[str, Any]], Any]]
 
 
 class NamespacesOperations:
@@ -931,13 +71,13 @@ class NamespacesOperations:
         **DO NOT** instantiate this class directly.
 
         Instead, you should access the following operations through
-        :class:`~azext_iot.sdk.deviceregistry.MicrosoftDeviceRegistryManagementService`'s
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
         :attr:`namespaces` attribute.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         input_args = list(args)
-        self._client: PipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
         self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
             input_args.pop(0) if input_args else kwargs.pop("config")
         )
@@ -945,11 +85,11 @@ class NamespacesOperations:
         self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
 
     @distributed_trace
-    def list_by_subscription(self, **kwargs: Any) -> Iterable[JSON]:
+    def list_by_subscription(self, **kwargs: Any) -> AsyncIterable[JSON]:
         """List Namespace resources by subscription ID.
 
         :return: An iterator like instance of JSON object
-        :rtype: ~azure.core.paging.ItemPaged[JSON]
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -1093,18 +233,18 @@ class NamespacesOperations:
 
             return _request
 
-        def extract_data(pipeline_response):
+        async def extract_data(pipeline_response):
             deserialized = pipeline_response.http_response.json()
             list_of_elem = deserialized.get("value", [])
             if cls:
                 list_of_elem = cls(list_of_elem)  # type: ignore
-            return deserialized.get("nextLink") or None, iter(list_of_elem)
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
 
-        def get_next(next_link=None):
+        async def get_next(next_link=None):
             _request = prepare_request(next_link)
 
             _stream = False
-            pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
                 _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
@@ -1115,17 +255,17 @@ class NamespacesOperations:
 
             return pipeline_response
 
-        return ItemPaged(get_next, extract_data)
+        return AsyncItemPaged(get_next, extract_data)
 
     @distributed_trace
-    def list_by_resource_group(self, resource_group_name: str, **kwargs: Any) -> Iterable[JSON]:
+    def list_by_resource_group(self, resource_group_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
         """List Namespace resources by resource group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
         :type resource_group_name: str
         :return: An iterator like instance of JSON object
-        :rtype: ~azure.core.paging.ItemPaged[JSON]
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -1270,18 +410,18 @@ class NamespacesOperations:
 
             return _request
 
-        def extract_data(pipeline_response):
+        async def extract_data(pipeline_response):
             deserialized = pipeline_response.http_response.json()
             list_of_elem = deserialized.get("value", [])
             if cls:
                 list_of_elem = cls(list_of_elem)  # type: ignore
-            return deserialized.get("nextLink") or None, iter(list_of_elem)
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
 
-        def get_next(next_link=None):
+        async def get_next(next_link=None):
             _request = prepare_request(next_link)
 
             _stream = False
-            pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
                 _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
@@ -1292,10 +432,10 @@ class NamespacesOperations:
 
             return pipeline_response
 
-        return ItemPaged(get_next, extract_data)
+        return AsyncItemPaged(get_next, extract_data)
 
-    @distributed_trace
-    def get(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> JSON:
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> JSON:
         """Get a Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -1431,7 +571,7 @@ class NamespacesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = False
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -1451,9 +591,9 @@ class NamespacesOperations:
 
         return cast(JSON, deserialized)  # type: ignore
 
-    def _create_or_replace_initial(
+    async def _create_or_replace_initial(
         self, resource_group_name: str, namespace_name: str, resource: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -1466,7 +606,7 @@ class NamespacesOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -1490,7 +630,7 @@ class NamespacesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -1498,7 +638,7 @@ class NamespacesOperations:
 
         if response.status_code not in [200, 201]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -1514,12 +654,12 @@ class NamespacesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_create_or_replace(
+    async def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -1527,7 +667,7 @@ class NamespacesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -1540,8 +680,8 @@ class NamespacesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -1743,7 +883,7 @@ class NamespacesOperations:
         """
 
     @overload
-    def begin_create_or_replace(
+    async def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -1751,7 +891,7 @@ class NamespacesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -1764,8 +904,8 @@ class NamespacesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -1869,10 +1009,10 @@ class NamespacesOperations:
                 }
         """
 
-    @distributed_trace
-    def begin_create_or_replace(
+    @distributed_trace_async
+    async def begin_create_or_replace(
         self, resource_group_name: str, namespace_name: str, resource: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -1883,8 +1023,8 @@ class NamespacesOperations:
         :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
          Required.
         :type resource: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -2089,11 +1229,11 @@ class NamespacesOperations:
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
         cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._create_or_replace_initial(
+            raw_result = await self._create_or_replace_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 resource=resource,
@@ -2103,7 +1243,7 @@ class NamespacesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
@@ -2117,25 +1257,26 @@ class NamespacesOperations:
             return deserialized
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[JSON].from_continuation_token(
+            return AsyncLROPoller[JSON].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _update_initial(
+    async def _update_initial(
         self, resource_group_name: str, namespace_name: str, properties: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -2148,7 +1289,7 @@ class NamespacesOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -2172,7 +1313,7 @@ class NamespacesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -2180,7 +1321,7 @@ class NamespacesOperations:
 
         if response.status_code not in [200, 202]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -2194,12 +1335,12 @@ class NamespacesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_update(
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -2207,7 +1348,7 @@ class NamespacesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -2220,8 +1361,8 @@ class NamespacesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -2417,7 +1558,7 @@ class NamespacesOperations:
         """
 
     @overload
-    def begin_update(
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -2425,7 +1566,7 @@ class NamespacesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -2438,8 +1579,8 @@ class NamespacesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -2543,10 +1684,10 @@ class NamespacesOperations:
                 }
         """
 
-    @distributed_trace
-    def begin_update(
+    @distributed_trace_async
+    async def begin_update(
         self, resource_group_name: str, namespace_name: str, properties: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -2557,8 +1698,8 @@ class NamespacesOperations:
         :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
          type. Required.
         :type properties: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -2757,11 +1898,11 @@ class NamespacesOperations:
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
         cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._update_initial(
+            raw_result = await self._update_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 properties=properties,
@@ -2771,7 +1912,7 @@ class NamespacesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
@@ -2785,23 +1926,25 @@ class NamespacesOperations:
             return deserialized
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[JSON].from_continuation_token(
+            return AsyncLROPoller[JSON].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _delete_initial(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> Iterator[bytes]:
+    async def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -2813,7 +1956,7 @@ class NamespacesOperations:
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         _request = build_namespaces_delete_request(
             resource_group_name=resource_group_name,
@@ -2826,7 +1969,7 @@ class NamespacesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -2834,7 +1977,7 @@ class NamespacesOperations:
 
         if response.status_code not in [202, 204]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -2848,12 +1991,12 @@ class NamespacesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
-    @distributed_trace
-    def begin_delete(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> LROPoller[None]:
+    @distributed_trace_async
+    async def begin_delete(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncLROPoller[None]:
         """Delete a Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -2861,19 +2004,19 @@ class NamespacesOperations:
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :return: An instance of LROPoller that returns None
-        :rtype: ~azure.core.polling.LROPoller[None]
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
         """
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
         cls: ClsType[None] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._delete_initial(
+            raw_result = await self._delete_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 cls=lambda x, y, z: x,
@@ -2881,7 +2024,7 @@ class NamespacesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
@@ -2889,25 +2032,25 @@ class NamespacesOperations:
                 return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[None].from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _migrate_initial(
+    async def _migrate_initial(
         self, resource_group_name: str, namespace_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -2920,7 +2063,7 @@ class NamespacesOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -2944,7 +2087,7 @@ class NamespacesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -2952,7 +2095,7 @@ class NamespacesOperations:
 
         if response.status_code not in [200, 202]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -2969,12 +2112,12 @@ class NamespacesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_migrate(
+    async def begin_migrate(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -2982,7 +2125,7 @@ class NamespacesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Migrate the resources into Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -2995,8 +2138,8 @@ class NamespacesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3034,7 +2177,7 @@ class NamespacesOperations:
         """
 
     @overload
-    def begin_migrate(
+    async def begin_migrate(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -3042,7 +2185,7 @@ class NamespacesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Migrate the resources into Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3055,8 +2198,8 @@ class NamespacesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3085,10 +2228,10 @@ class NamespacesOperations:
                 }
         """
 
-    @distributed_trace
-    def begin_migrate(
+    @distributed_trace_async
+    async def begin_migrate(
         self, resource_group_name: str, namespace_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Migrate the resources into Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3099,8 +2242,8 @@ class NamespacesOperations:
         :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
          Required.
         :type body: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3141,11 +2284,11 @@ class NamespacesOperations:
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
         cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._migrate_initial(
+            raw_result = await self._migrate_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 body=body,
@@ -3155,7 +2298,7 @@ class NamespacesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
@@ -3169,21 +2312,21 @@ class NamespacesOperations:
             return deserialized
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[JSON].from_continuation_token(
+            return AsyncLROPoller[JSON].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
 
 class CredentialsOperations:
@@ -3192,13 +2335,13 @@ class CredentialsOperations:
         **DO NOT** instantiate this class directly.
 
         Instead, you should access the following operations through
-        :class:`~azext_iot.sdk.deviceregistry.MicrosoftDeviceRegistryManagementService`'s
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
         :attr:`credentials` attribute.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         input_args = list(args)
-        self._client: PipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
         self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
             input_args.pop(0) if input_args else kwargs.pop("config")
         )
@@ -3206,7 +2349,7 @@ class CredentialsOperations:
         self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
 
     @distributed_trace
-    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> Iterable[JSON]:
+    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
         """List Credential resources by Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3215,7 +2358,7 @@ class CredentialsOperations:
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
         :return: An iterator like instance of JSON object
-        :rtype: ~azure.core.paging.ItemPaged[JSON]
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3287,18 +2430,18 @@ class CredentialsOperations:
 
             return _request
 
-        def extract_data(pipeline_response):
+        async def extract_data(pipeline_response):
             deserialized = pipeline_response.http_response.json()
             list_of_elem = deserialized.get("value", [])
             if cls:
                 list_of_elem = cls(list_of_elem)  # type: ignore
-            return deserialized.get("nextLink") or None, iter(list_of_elem)
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
 
-        def get_next(next_link=None):
+        async def get_next(next_link=None):
             _request = prepare_request(next_link)
 
             _stream = False
-            pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
                 _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
@@ -3309,10 +2452,10 @@ class CredentialsOperations:
 
             return pipeline_response
 
-        return ItemPaged(get_next, extract_data)
+        return AsyncItemPaged(get_next, extract_data)
 
-    @distributed_trace
-    def get(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> JSON:
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> JSON:
         """Get a Credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3374,7 +2517,7 @@ class CredentialsOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = False
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -3394,9 +2537,9 @@ class CredentialsOperations:
 
         return cast(JSON, deserialized)  # type: ignore
 
-    def _create_or_update_initial(
+    async def _create_or_update_initial(
         self, resource_group_name: str, namespace_name: str, resource: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -3409,7 +2552,7 @@ class CredentialsOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -3433,7 +2576,7 @@ class CredentialsOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -3441,7 +2584,7 @@ class CredentialsOperations:
 
         if response.status_code not in [200, 201]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -3457,12 +2600,12 @@ class CredentialsOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_create_or_update(
+    async def begin_create_or_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -3470,7 +2613,7 @@ class CredentialsOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a Credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3483,8 +2626,8 @@ class CredentialsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3538,7 +2681,7 @@ class CredentialsOperations:
         """
 
     @overload
-    def begin_create_or_update(
+    async def begin_create_or_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -3546,7 +2689,7 @@ class CredentialsOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a Credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3559,8 +2702,8 @@ class CredentialsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3590,10 +2733,10 @@ class CredentialsOperations:
                 }
         """
 
-    @distributed_trace
-    def begin_create_or_update(
+    @distributed_trace_async
+    async def begin_create_or_update(
         self, resource_group_name: str, namespace_name: str, resource: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a Credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3604,8 +2747,8 @@ class CredentialsOperations:
         :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
          Required.
         :type resource: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3662,11 +2805,11 @@ class CredentialsOperations:
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
         cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._create_or_update_initial(
+            raw_result = await self._create_or_update_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 resource=resource,
@@ -3676,7 +2819,7 @@ class CredentialsOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
@@ -3690,25 +2833,26 @@ class CredentialsOperations:
             return deserialized
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[JSON].from_continuation_token(
+            return AsyncLROPoller[JSON].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _update_initial(
+    async def _update_initial(
         self, resource_group_name: str, namespace_name: str, properties: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -3721,7 +2865,7 @@ class CredentialsOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -3745,7 +2889,7 @@ class CredentialsOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -3753,7 +2897,7 @@ class CredentialsOperations:
 
         if response.status_code not in [200, 202]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -3767,12 +2911,12 @@ class CredentialsOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_update(
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -3780,7 +2924,7 @@ class CredentialsOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a Credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3793,8 +2937,8 @@ class CredentialsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3847,7 +2991,7 @@ class CredentialsOperations:
         """
 
     @overload
-    def begin_update(
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -3855,7 +2999,7 @@ class CredentialsOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a Credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3868,8 +3012,8 @@ class CredentialsOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3899,10 +3043,10 @@ class CredentialsOperations:
                 }
         """
 
-    @distributed_trace
-    def begin_update(
+    @distributed_trace_async
+    async def begin_update(
         self, resource_group_name: str, namespace_name: str, properties: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a Credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -3913,8 +3057,8 @@ class CredentialsOperations:
         :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
          type. Required.
         :type properties: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -3970,11 +3114,11 @@ class CredentialsOperations:
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
         cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._update_initial(
+            raw_result = await self._update_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 properties=properties,
@@ -3984,7 +3128,7 @@ class CredentialsOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
@@ -3998,23 +3142,25 @@ class CredentialsOperations:
             return deserialized
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[JSON].from_continuation_token(
+            return AsyncLROPoller[JSON].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _delete_initial(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> Iterator[bytes]:
+    async def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -4026,7 +3172,7 @@ class CredentialsOperations:
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         _request = build_credentials_delete_request(
             resource_group_name=resource_group_name,
@@ -4039,7 +3185,7 @@ class CredentialsOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -4047,7 +3193,7 @@ class CredentialsOperations:
 
         if response.status_code not in [202, 204]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -4061,12 +3207,12 @@ class CredentialsOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
-    @distributed_trace
-    def begin_delete(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> LROPoller[None]:
+    @distributed_trace_async
+    async def begin_delete(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncLROPoller[None]:
         """Delete a Credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -4074,19 +3220,19 @@ class CredentialsOperations:
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :return: An instance of LROPoller that returns None
-        :rtype: ~azure.core.polling.LROPoller[None]
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
         """
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
         cls: ClsType[None] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._delete_initial(
+            raw_result = await self._delete_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 cls=lambda x, y, z: x,
@@ -4094,7 +3240,7 @@ class CredentialsOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
@@ -4102,23 +3248,25 @@ class CredentialsOperations:
                 return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[None].from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _synchronize_initial(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> Iterator[bytes]:
+    async def _synchronize_initial(
+        self, resource_group_name: str, namespace_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -4130,7 +3278,7 @@ class CredentialsOperations:
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         _request = build_credentials_synchronize_request(
             resource_group_name=resource_group_name,
@@ -4143,7 +3291,7 @@ class CredentialsOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -4151,7 +3299,7 @@ class CredentialsOperations:
 
         if response.status_code not in [202]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -4164,12 +3312,14 @@ class CredentialsOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
-    @distributed_trace
-    def begin_synchronize(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> LROPoller[None]:
+    @distributed_trace_async
+    async def begin_synchronize(
+        self, resource_group_name: str, namespace_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
         """A long-running resource action.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -4177,19 +3327,19 @@ class CredentialsOperations:
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :return: An instance of LROPoller that returns None
-        :rtype: ~azure.core.polling.LROPoller[None]
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
         """
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
         cls: ClsType[None] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._synchronize_initial(
+            raw_result = await self._synchronize_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 cls=lambda x, y, z: x,
@@ -4197,7 +3347,7 @@ class CredentialsOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
@@ -4205,21 +3355,21 @@ class CredentialsOperations:
                 return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[None].from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
 
 class PoliciesOperations:
@@ -4228,13 +3378,13 @@ class PoliciesOperations:
         **DO NOT** instantiate this class directly.
 
         Instead, you should access the following operations through
-        :class:`~azext_iot.sdk.deviceregistry.MicrosoftDeviceRegistryManagementService`'s
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
         :attr:`policies` attribute.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         input_args = list(args)
-        self._client: PipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
         self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
             input_args.pop(0) if input_args else kwargs.pop("config")
         )
@@ -4242,7 +3392,7 @@ class PoliciesOperations:
         self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
 
     @distributed_trace
-    def list_by_credential(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> Iterable[JSON]:
+    def list_by_credential(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
         """List Policy resources by Credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -4251,7 +3401,7 @@ class PoliciesOperations:
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
         :return: An iterator like instance of JSON object
-        :rtype: ~azure.core.paging.ItemPaged[JSON]
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -4334,18 +3484,18 @@ class PoliciesOperations:
 
             return _request
 
-        def extract_data(pipeline_response):
+        async def extract_data(pipeline_response):
             deserialized = pipeline_response.http_response.json()
             list_of_elem = deserialized.get("value", [])
             if cls:
                 list_of_elem = cls(list_of_elem)  # type: ignore
-            return deserialized.get("nextLink") or None, iter(list_of_elem)
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
 
-        def get_next(next_link=None):
+        async def get_next(next_link=None):
             _request = prepare_request(next_link)
 
             _stream = False
-            pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
                 _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
@@ -4356,10 +3506,10 @@ class PoliciesOperations:
 
             return pipeline_response
 
-        return ItemPaged(get_next, extract_data)
+        return AsyncItemPaged(get_next, extract_data)
 
-    @distributed_trace
-    def get(self, resource_group_name: str, namespace_name: str, policy_name: str, **kwargs: Any) -> JSON:
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, namespace_name: str, policy_name: str, **kwargs: Any) -> JSON:
         """Get a Policy.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -4435,7 +3585,7 @@ class PoliciesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = False
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -4455,14 +3605,14 @@ class PoliciesOperations:
 
         return cast(JSON, deserialized)  # type: ignore
 
-    def _create_or_update_initial(
+    async def _create_or_update_initial(
         self,
         resource_group_name: str,
         namespace_name: str,
         policy_name: str,
         resource: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -4475,7 +3625,7 @@ class PoliciesOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -4500,7 +3650,7 @@ class PoliciesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -4508,7 +3658,7 @@ class PoliciesOperations:
 
         if response.status_code not in [200, 201]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -4524,12 +3674,12 @@ class PoliciesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_create_or_update(
+    async def begin_create_or_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -4538,7 +3688,7 @@ class PoliciesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a Policy.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -4553,8 +3703,8 @@ class PoliciesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -4630,7 +3780,7 @@ class PoliciesOperations:
         """
 
     @overload
-    def begin_create_or_update(
+    async def begin_create_or_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -4639,7 +3789,7 @@ class PoliciesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a Policy.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -4654,8 +3804,8 @@ class PoliciesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -4696,15 +3846,15 @@ class PoliciesOperations:
                 }
         """
 
-    @distributed_trace
-    def begin_create_or_update(
+    @distributed_trace_async
+    async def begin_create_or_update(
         self,
         resource_group_name: str,
         namespace_name: str,
         policy_name: str,
         resource: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a Policy.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -4717,8 +3867,8 @@ class PoliciesOperations:
         :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
          Required.
         :type resource: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -4797,11 +3947,11 @@ class PoliciesOperations:
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
         cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._create_or_update_initial(
+            raw_result = await self._create_or_update_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,
@@ -4812,7 +3962,7 @@ class PoliciesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
@@ -4826,30 +3976,31 @@ class PoliciesOperations:
             return deserialized
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[JSON].from_continuation_token(
+            return AsyncLROPoller[JSON].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _update_initial(
+    async def _update_initial(
         self,
         resource_group_name: str,
         namespace_name: str,
         policy_name: str,
         properties: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -4862,7 +4013,7 @@ class PoliciesOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -4887,7 +4038,7 @@ class PoliciesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -4895,7 +4046,7 @@ class PoliciesOperations:
 
         if response.status_code not in [200, 202]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -4909,12 +4060,12 @@ class PoliciesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_update(
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -4923,7 +4074,7 @@ class PoliciesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a Policy.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -4938,8 +4089,8 @@ class PoliciesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -4995,7 +4146,7 @@ class PoliciesOperations:
         """
 
     @overload
-    def begin_update(
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -5004,7 +4155,7 @@ class PoliciesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a Policy.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -5019,8 +4170,8 @@ class PoliciesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -5061,15 +4212,15 @@ class PoliciesOperations:
                 }
         """
 
-    @distributed_trace
-    def begin_update(
+    @distributed_trace_async
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
         policy_name: str,
         properties: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a Policy.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -5082,8 +4233,8 @@ class PoliciesOperations:
         :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
          type. Required.
         :type properties: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -5142,11 +4293,11 @@ class PoliciesOperations:
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
         cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._update_initial(
+            raw_result = await self._update_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,
@@ -5157,7 +4308,7 @@ class PoliciesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
@@ -5171,25 +4322,25 @@ class PoliciesOperations:
             return deserialized
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[JSON].from_continuation_token(
+            return AsyncLROPoller[JSON].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _delete_initial(
+    async def _delete_initial(
         self, resource_group_name: str, namespace_name: str, policy_name: str, **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -5201,7 +4352,7 @@ class PoliciesOperations:
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         _request = build_policies_delete_request(
             resource_group_name=resource_group_name,
@@ -5215,7 +4366,7 @@ class PoliciesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -5223,7 +4374,7 @@ class PoliciesOperations:
 
         if response.status_code not in [202, 204]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -5237,14 +4388,14 @@ class PoliciesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
-    @distributed_trace
-    def begin_delete(
+    @distributed_trace_async
+    async def begin_delete(
         self, resource_group_name: str, namespace_name: str, policy_name: str, **kwargs: Any
-    ) -> LROPoller[None]:
+    ) -> AsyncLROPoller[None]:
         """Delete a Policy.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -5254,19 +4405,19 @@ class PoliciesOperations:
         :type namespace_name: str
         :param policy_name: The name of the Policy tracked resource. Required.
         :type policy_name: str
-        :return: An instance of LROPoller that returns None
-        :rtype: ~azure.core.polling.LROPoller[None]
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
         """
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
         cls: ClsType[None] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._delete_initial(
+            raw_result = await self._delete_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,
@@ -5275,7 +4426,7 @@ class PoliciesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
@@ -5283,21 +4434,21 @@ class PoliciesOperations:
                 return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[None].from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
 
 class NamespaceDevicesOperations:
@@ -5306,13 +4457,13 @@ class NamespaceDevicesOperations:
         **DO NOT** instantiate this class directly.
 
         Instead, you should access the following operations through
-        :class:`~azext_iot.sdk.deviceregistry.MicrosoftDeviceRegistryManagementService`'s
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
         :attr:`namespace_devices` attribute.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         input_args = list(args)
-        self._client: PipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
         self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
             input_args.pop(0) if input_args else kwargs.pop("config")
         )
@@ -5320,7 +4471,9 @@ class NamespaceDevicesOperations:
         self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
 
     @distributed_trace
-    def list_by_resource_group(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> Iterable[JSON]:
+    def list_by_resource_group(
+        self, resource_group_name: str, namespace_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
         """List NamespaceDevice resources by Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -5329,7 +4482,7 @@ class NamespaceDevicesOperations:
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
         :return: An iterator like instance of JSON object
-        :rtype: ~azure.core.paging.ItemPaged[JSON]
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -5507,18 +4660,18 @@ class NamespaceDevicesOperations:
 
             return _request
 
-        def extract_data(pipeline_response):
+        async def extract_data(pipeline_response):
             deserialized = pipeline_response.http_response.json()
             list_of_elem = deserialized.get("value", [])
             if cls:
                 list_of_elem = cls(list_of_elem)  # type: ignore
-            return deserialized.get("nextLink") or None, iter(list_of_elem)
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
 
-        def get_next(next_link=None):
+        async def get_next(next_link=None):
             _request = prepare_request(next_link)
 
             _stream = False
-            pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
                 _request, stream=_stream, **kwargs
             )
             response = pipeline_response.http_response
@@ -5529,10 +4682,10 @@ class NamespaceDevicesOperations:
 
             return pipeline_response
 
-        return ItemPaged(get_next, extract_data)
+        return AsyncItemPaged(get_next, extract_data)
 
-    @distributed_trace
-    def get(self, resource_group_name: str, namespace_name: str, device_name: str, **kwargs: Any) -> JSON:
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, namespace_name: str, device_name: str, **kwargs: Any) -> JSON:
         """Get a NamespaceDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -5703,7 +4856,7 @@ class NamespaceDevicesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = False
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -5723,14 +4876,14 @@ class NamespaceDevicesOperations:
 
         return cast(JSON, deserialized)  # type: ignore
 
-    def _create_or_replace_initial(
+    async def _create_or_replace_initial(
         self,
         resource_group_name: str,
         namespace_name: str,
         device_name: str,
         resource: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -5743,7 +4896,7 @@ class NamespaceDevicesOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -5768,7 +4921,7 @@ class NamespaceDevicesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -5776,7 +4929,7 @@ class NamespaceDevicesOperations:
 
         if response.status_code not in [200, 201]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -5792,12 +4945,12 @@ class NamespaceDevicesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_create_or_replace(
+    async def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -5806,7 +4959,7 @@ class NamespaceDevicesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a NamespaceDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -5821,8 +4974,8 @@ class NamespaceDevicesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -6088,7 +5241,7 @@ class NamespaceDevicesOperations:
         """
 
     @overload
-    def begin_create_or_replace(
+    async def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -6097,7 +5250,7 @@ class NamespaceDevicesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a NamespaceDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -6112,8 +5265,8 @@ class NamespaceDevicesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -6249,15 +5402,15 @@ class NamespaceDevicesOperations:
                 }
         """
 
-    @distributed_trace
-    def begin_create_or_replace(
+    @distributed_trace_async
+    async def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
         device_name: str,
         resource: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Create a NamespaceDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -6270,8 +5423,8 @@ class NamespaceDevicesOperations:
         :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
          Required.
         :type resource: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -6540,11 +5693,11 @@ class NamespaceDevicesOperations:
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
         cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._create_or_replace_initial(
+            raw_result = await self._create_or_replace_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 device_name=device_name,
@@ -6555,7 +5708,7 @@ class NamespaceDevicesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
@@ -6569,30 +5722,31 @@ class NamespaceDevicesOperations:
             return deserialized
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[JSON].from_continuation_token(
+            return AsyncLROPoller[JSON].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _update_initial(
+    async def _update_initial(
         self,
         resource_group_name: str,
         namespace_name: str,
         device_name: str,
         properties: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -6605,7 +5759,7 @@ class NamespaceDevicesOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -6630,7 +5784,7 @@ class NamespaceDevicesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -6638,7 +5792,7 @@ class NamespaceDevicesOperations:
 
         if response.status_code not in [200, 202]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -6652,12 +5806,12 @@ class NamespaceDevicesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_update(
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -6666,7 +5820,7 @@ class NamespaceDevicesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a NamespaceDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -6681,8 +5835,8 @@ class NamespaceDevicesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -6876,7 +6030,7 @@ class NamespaceDevicesOperations:
         """
 
     @overload
-    def begin_update(
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -6885,7 +6039,7 @@ class NamespaceDevicesOperations:
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a NamespaceDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -6900,8 +6054,8 @@ class NamespaceDevicesOperations:
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -7037,15 +6191,15 @@ class NamespaceDevicesOperations:
                 }
         """
 
-    @distributed_trace
-    def begin_update(
+    @distributed_trace_async
+    async def begin_update(
         self,
         resource_group_name: str,
         namespace_name: str,
         device_name: str,
         properties: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> LROPoller[JSON]:
+    ) -> AsyncLROPoller[JSON]:
         """Update a NamespaceDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -7058,8 +6212,8 @@ class NamespaceDevicesOperations:
         :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
          type. Required.
         :type properties: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
@@ -7256,11 +6410,11 @@ class NamespaceDevicesOperations:
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
         cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._update_initial(
+            raw_result = await self._update_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 device_name=device_name,
@@ -7271,7 +6425,7 @@ class NamespaceDevicesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):
@@ -7285,25 +6439,25 @@ class NamespaceDevicesOperations:
             return deserialized
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[JSON].from_continuation_token(
+            return AsyncLROPoller[JSON].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _delete_initial(
+    async def _delete_initial(
         self, resource_group_name: str, namespace_name: str, device_name: str, **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -7315,7 +6469,7 @@ class NamespaceDevicesOperations:
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
         _request = build_namespace_devices_delete_request(
             resource_group_name=resource_group_name,
@@ -7329,7 +6483,7 @@ class NamespaceDevicesOperations:
         _request.url = self._client.format_url(_request.url)
 
         _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
@@ -7337,7 +6491,7 @@ class NamespaceDevicesOperations:
 
         if response.status_code not in [202, 204]:
             try:
-                response.read()  # Load the body in memory and close the socket
+                await response.read()  # Load the body in memory and close the socket
             except (StreamConsumedError, StreamClosedError):
                 pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
@@ -7351,14 +6505,14 @@ class NamespaceDevicesOperations:
         deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
 
-    @distributed_trace
-    def begin_delete(
+    @distributed_trace_async
+    async def begin_delete(
         self, resource_group_name: str, namespace_name: str, device_name: str, **kwargs: Any
-    ) -> LROPoller[None]:
+    ) -> AsyncLROPoller[None]:
         """Delete a NamespaceDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -7368,19 +6522,19 @@ class NamespaceDevicesOperations:
         :type namespace_name: str
         :param device_name: The name of the device. Required.
         :type device_name: str
-        :return: An instance of LROPoller that returns None
-        :rtype: ~azure.core.polling.LROPoller[None]
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
         """
         _headers = kwargs.pop("headers", {}) or {}
         _params = kwargs.pop("params", {}) or {}
 
         cls: ClsType[None] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._delete_initial(
+            raw_result = await self._delete_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 device_name=device_name,
@@ -7389,7 +6543,7 @@ class NamespaceDevicesOperations:
                 params=_params,
                 **kwargs
             )
-            raw_result.http_response.read()  # type: ignore
+            await raw_result.http_response.read()  # type: ignore
         kwargs.pop("error_map", None)
 
         def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
@@ -7397,18 +6551,18 @@ class NamespaceDevicesOperations:
                 return cls(pipeline_response, None, {})  # type: ignore
 
         if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
             )
         elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
         else:
             polling_method = polling
         if cont_token:
-            return LROPoller[None].from_continuation_token(
+            return AsyncLROPoller[None].from_continuation_token(
                 polling_method=polling_method,
                 continuation_token=cont_token,
                 client=self._client,
                 deserialization_callback=get_long_running_output,
             )
-        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
