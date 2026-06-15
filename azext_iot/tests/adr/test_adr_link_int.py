@@ -14,6 +14,9 @@ Validates the namespace-linking surface exposed as ``iot adr ns link ...``:
 * ``link hub add / update / show / list`` — both UAMI and SAMI inbound caller
   identities, multi-hub list, identity rotation via ``hub update``
 * ``link add`` bundled Hub+DPS PATCH in a single round trip
+* ``link adu add / update / show / list`` — ADU (device update) updating
+  endpoints with UAMI/SAMI identity rotation (currently skipped — ADU linked
+  account provisioning is not yet available in the test environment)
 * ``remove`` for both endpoint types is rejected by design
 
 These tests require real Hub and DPS resources to be linked to a real ADR
@@ -465,3 +468,164 @@ class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 identity_name=identity_name,
                 dps_name=dps_name,
             )
+
+
+@pytest.mark.skip(
+    reason="ADU (Microsoft.DeviceUpdate/linkedAccounts) provisioning is not yet "
+    "available in the test subscription/region. Enable once a linkable ADU account "
+    "can be created in the integration environment."
+)
+@pytest.mark.usefixtures("set_cwd")
+class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+    """End-to-end lifecycle of namespace-side ADU (device update) link entries.
+
+    Mirrors the Hub/DPS link lifecycle for the ``iot adr ns link adu`` surface:
+
+    1. Setup: provision a UAMI and an ADR namespace (no Hub/DPS needed — ADU
+       linking has no DPS-first ordering constraint).
+    2. Create a ``Microsoft.DeviceUpdate/linkedAccounts`` resource to link.
+    3. Step 1: ``link adu add`` (UAMI) attaches the ADU updating endpoint.
+    4. Step 2: ``link adu show`` / ``list`` surface the single entry.
+    5. Step 3: ``link adu update`` rotates the inbound caller identity UAMI → SAMI.
+    6. Step 4: ``link adu remove`` must fail (rejected by design — namespace
+       cleanup is the only removal path).
+
+    What is intentionally NOT covered here (covered by unit tests):
+    - Duplicate endpoint-name rejection
+    - MI mutually-exclusive rejection
+    - Invalid / wrong-type ADU resource id rejection
+    """
+
+    def test_adr_link_adu_lifecycle(self):
+        _log(LogKind.TEST, "test_adr_link_adu_lifecycle")
+        from azext_iot.tests.adr.conftest import TEST_LOCATION
+
+        rg = TEST_RG
+        namespace_name = generate_adr_namespace_name()
+        identity_name = generate_identity_name()
+        adu_account_name = f"testadu{generate_adr_namespace_name()[-8:]}"
+        adu_endpoint = "adu-primary"
+
+        def _names_in(listed):
+            if isinstance(listed, dict):
+                return set(listed.keys())
+            return {item.get("name") or item.get("endpointName") for item in (listed or [])}
+
+        def _identity_type(endpoint: dict) -> Optional[str]:
+            ici = (endpoint.get("properties", endpoint).get("inboundCallerIdentity")
+                   or endpoint.get("inboundCallerIdentity") or {})
+            return ici.get("type")
+
+        adu_id = None
+        try:
+            with timed_step("Setup 1/3 ❯ Create UAMI"):
+                identity = self.cmd(
+                    f"identity create -n {identity_name} -g {rg} --location {TEST_LOCATION}"
+                ).get_output_in_json()
+                identity_resource_id = identity["id"]
+                identity_principal_id = identity["principalId"]
+
+            with timed_step("Setup 2/3 ❯ Create ADR namespace"):
+                ns = self.cmd(
+                    f"iot adr ns create -n {namespace_name} -g {rg} --location {TEST_LOCATION}"
+                ).get_output_in_json()
+                self.assign_adr_roles_to_identity(identity_principal_id, ns["id"])
+
+            with timed_step("Setup 3/3 ❯ Create ADU linked account"):
+                # No first-class CLI verb for linkedAccounts; create via generic ARM.
+                adu = self.cmd(
+                    f"resource create -g {rg} -n {adu_account_name} "
+                    f"--resource-type Microsoft.DeviceUpdate/linkedAccounts "
+                    f"--location {TEST_LOCATION} --properties {{}}"
+                ).get_output_in_json()
+                adu_id = adu["id"]
+                _log(LogKind.RESULT, "ADU linked account '%s' created (id=%s)", adu_account_name, adu_id)
+
+            # Allow role assignments to propagate
+            time.sleep(30)
+
+            with timed_step("Step 1 ❯ link adu add (UAMI)"):
+                add_cmd = (
+                    f"iot adr ns link adu add --ns {namespace_name} -g {rg} "
+                    f"-n {adu_endpoint} --adu-id {adu_id} "
+                    f"--mi-user-assigned {identity_resource_id}"
+                )
+                _log(LogKind.CMD, "az %s", add_cmd)
+                self.cmd(add_cmd)
+                _log(LogKind.OK, "ADU link '%s' created (UAMI)", adu_endpoint)
+
+            with timed_step("Step 2 ❯ link adu show / list (single entry)"):
+                shown = self.cmd(
+                    f"iot adr ns link adu show --ns {namespace_name} -g {rg} -n {adu_endpoint}"
+                ).get_output_in_json()
+                assert (
+                    shown.get("name") == adu_endpoint
+                    or shown.get("endpointName") == adu_endpoint
+                ), f"link adu show did not surface name field: {shown}"
+                assert _identity_type(shown) == "UserAssigned", (
+                    f"Expected UserAssigned inbound identity, saw: {_identity_type(shown)}"
+                )
+
+                listed = self.cmd(
+                    f"iot adr ns link adu list --ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                names = _names_in(listed)
+                assert adu_endpoint in names, (
+                    f"ADU link '{adu_endpoint}' missing from list: {names}"
+                )
+                assert len(names) == 1, f"Expected exactly one ADU link, got {names}"
+                _log(LogKind.OK, "ADU list returned 1 entry")
+
+            with timed_step("Step 3 ❯ link adu update (rotate identity UAMI → SAMI)"):
+                update_cmd = (
+                    f"iot adr ns link adu update --ns {namespace_name} -g {rg} "
+                    f"-n {adu_endpoint} --mi-system-assigned"
+                )
+                _log(LogKind.CMD, "az %s", update_cmd)
+                self.cmd(update_cmd)
+                shown = self.cmd(
+                    f"iot adr ns link adu show --ns {namespace_name} -g {rg} -n {adu_endpoint}"
+                ).get_output_in_json()
+                assert _identity_type(shown) == "SystemAssigned", (
+                    f"Expected SystemAssigned after rotation, saw: {_identity_type(shown)}"
+                )
+                _log(LogKind.OK, "Rotated UAMI → SAMI")
+
+            with timed_step("Step 4 ❯ link adu remove (must fail by design)"):
+                remove_cmd = (
+                    f"iot adr ns link adu remove --ns {namespace_name} -g {rg} "
+                    f"-n {adu_endpoint} -y"
+                )
+                _log(LogKind.CMD, "az %s", remove_cmd)
+                self.cmd(remove_cmd, expect_failure=True)
+                listed = self.cmd(
+                    f"iot adr ns link adu list --ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                names = _names_in(listed)
+                assert adu_endpoint in names, (
+                    f"ADU link '{adu_endpoint}' was unexpectedly removed: {names}"
+                )
+                _log(LogKind.OK, "ADU link remove rejected as designed; entry untouched")
+
+            _log(LogKind.OK, "ADU link lifecycle passed")
+
+        finally:
+            with timed_step("Cleanup ❯ Delete ADR namespace"):
+                try:
+                    self.cmd(f"iot adr ns delete -n {namespace_name} -g {rg} -y")
+                    _log(LogKind.RESULT, "ADR namespace deleted")
+                except Exception as e:  # noqa: BLE001 — best-effort cleanup
+                    _log(LogKind.WARN, "Namespace cleanup failed: %s", e)
+            if adu_id:
+                with timed_step("Cleanup ❯ Delete ADU linked account"):
+                    try:
+                        self.cmd(f"resource delete --ids {adu_id}")
+                        _log(LogKind.RESULT, "ADU linked account deleted")
+                    except Exception as e:  # noqa: BLE001 — best-effort cleanup
+                        _log(LogKind.WARN, "ADU cleanup failed: %s", e)
+            with timed_step("Cleanup ❯ Delete UAMI"):
+                try:
+                    self.cmd(f"identity delete -n {identity_name} -g {rg}")
+                    _log(LogKind.RESULT, "UAMI deleted")
+                except Exception as e:  # noqa: BLE001 — best-effort cleanup
+                    _log(LogKind.WARN, "UAMI cleanup failed: %s", e)

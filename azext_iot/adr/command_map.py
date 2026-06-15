@@ -103,6 +103,13 @@ def load_adr_commands(self, _):
         cmd_group.show_command("show", "adr_link_dps_show")
         cmd_group.command("list", "adr_link_dps_list")
 
+    with self.command_group("iot adr ns link adu", command_type=adr_link_ops) as cmd_group:
+        cmd_group.command("add", "adr_link_adu_add", supports_no_wait=True)
+        cmd_group.command("update", "adr_link_adu_update", supports_no_wait=True)
+        cmd_group.command("remove", "adr_link_adu_remove", confirmation=True, supports_no_wait=True)
+        cmd_group.show_command("show", "adr_link_adu_show")
+        cmd_group.command("list", "adr_link_adu_list")
+
     # Group commands
     with self.command_group("iot adr ns group", command_type=adr_group_ops) as cmd_group:
         cmd_group.command("create", "adr_group_create", supports_no_wait=True)

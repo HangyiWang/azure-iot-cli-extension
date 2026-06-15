@@ -20,6 +20,7 @@ from azure.cli.core.azclierror import (
 from azext_iot.adr.common import (
     DPS_ENDPOINT_TYPE,
     IOT_HUB_ENDPOINT_TYPE,
+    ADU_ENDPOINT_TYPE,
     InboundCallerIdentityType,
     MessagingEndpointAvailability,
 )
@@ -35,6 +36,10 @@ UAMI_RESOURCE_ID = (
 DPS_RESOURCE_ID = (
     "/subscriptions/sub-id/resourceGroups/rg/providers/"
     "Microsoft.Devices/provisioningServices/mydps"
+)
+ADU_RESOURCE_ID = (
+    "/subscriptions/sub-id/resourceGroups/rg/providers/"
+    "Microsoft.DeviceUpdate/linkedAccounts/myadu"
 )
 
 
@@ -858,3 +863,321 @@ def test_hub_add_with_only_allocation_weight_no_availability(fixture_link_provid
     endpoint = body["properties"]["messaging"]["endpoints"]["primary"]
     assert endpoint["provisioning"] == {"allocationWeight": 7}
     assert "availability" not in endpoint["provisioning"]
+
+
+# ==================== ADU add / update / remove / show / list ====================
+
+
+def _ns_with_adu(name="my-adu", identity=None):
+    """Return a namespace dict with a linked ADU updating endpoint."""
+    return {
+        "name": "ns",
+        "properties": {
+            "updating": {
+                "endpoints": {
+                    name: {
+                        "endpointType": ADU_ENDPOINT_TYPE,
+                        "resourceId": ADU_RESOURCE_ID,
+                        "inboundCallerIdentity": identity or {"type": "SystemAssigned"},
+                    }
+                }
+            },
+        },
+    }
+
+
+def _ns_without_adu():
+    return {"name": "ns", "properties": {"updating": {"endpoints": {}}}}
+
+
+def test_adu_add_sami_writes_expected_patch_body(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_adu()
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "ns"}
+    )
+
+    fixture_link_provider.adu_add(
+        endpoint_name="my-adu",
+        namespace_name="ns",
+        resource_group_name="rg",
+        adu_resource_id=ADU_RESOURCE_ID,
+        mi_system_assigned=True,
+    )
+
+    body = fixture_link_provider.client.namespaces.begin_update.call_args[1]["properties"]
+    endpoint = body["properties"]["updating"]["endpoints"]["my-adu"]
+    assert endpoint["endpointType"] == ADU_ENDPOINT_TYPE
+    assert endpoint["resourceId"] == ADU_RESOURCE_ID
+    assert endpoint["inboundCallerIdentity"] == {
+        "type": InboundCallerIdentityType.system_assigned.value
+    }
+
+
+def test_adu_add_uami_writes_user_assigned_identity(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_adu()
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "ns"}
+    )
+
+    fixture_link_provider.adu_add(
+        endpoint_name="my-adu",
+        namespace_name="ns",
+        resource_group_name="rg",
+        adu_resource_id=ADU_RESOURCE_ID,
+        mi_user_assigned=UAMI_RESOURCE_ID,
+    )
+
+    endpoint = fixture_link_provider.client.namespaces.begin_update.call_args[1][
+        "properties"
+    ]["properties"]["updating"]["endpoints"]["my-adu"]
+    assert endpoint["inboundCallerIdentity"] == {
+        "type": InboundCallerIdentityType.user_assigned.value,
+        "userAssignedIdentity": UAMI_RESOURCE_ID,
+    }
+
+
+def test_adu_add_rejects_invalid_adu_resource_id(fixture_link_provider):
+    with pytest.raises(InvalidArgumentValueError):
+        fixture_link_provider.adu_add(
+            endpoint_name="my-adu",
+            namespace_name="ns",
+            resource_group_name="rg",
+            adu_resource_id="/not/a/real/adu/id",
+            mi_system_assigned=True,
+        )
+    fixture_link_provider.client.namespaces.get.assert_not_called()
+
+
+def test_adu_add_rejects_wrong_resource_type(fixture_link_provider):
+    """A valid ARM id of the wrong RP/type is rejected."""
+    with pytest.raises(InvalidArgumentValueError):
+        fixture_link_provider.adu_add(
+            endpoint_name="my-adu",
+            namespace_name="ns",
+            resource_group_name="rg",
+            adu_resource_id=HUB_RESOURCE_ID,
+            mi_system_assigned=True,
+        )
+    fixture_link_provider.client.namespaces.get.assert_not_called()
+
+
+def test_adu_add_rejects_duplicate_endpoint_name(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_adu("my-adu")
+    with pytest.raises(ArgumentUsageError, match="already exists"):
+        fixture_link_provider.adu_add(
+            endpoint_name="my-adu",
+            namespace_name="ns",
+            resource_group_name="rg",
+            adu_resource_id=ADU_RESOURCE_ID,
+            mi_system_assigned=True,
+        )
+    fixture_link_provider.client.namespaces.begin_update.assert_not_called()
+
+
+def test_adu_add_mi_mutually_exclusive(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_adu()
+    with pytest.raises(ArgumentUsageError, match="mutually exclusive"):
+        fixture_link_provider.adu_add(
+            endpoint_name="my-adu",
+            namespace_name="ns",
+            resource_group_name="rg",
+            adu_resource_id=ADU_RESOURCE_ID,
+            mi_system_assigned=True,
+            mi_user_assigned=UAMI_RESOURCE_ID,
+        )
+
+
+def test_adu_add_requires_inbound_identity(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_adu()
+    with pytest.raises(RequiredArgumentMissingError):
+        fixture_link_provider.adu_add(
+            endpoint_name="my-adu",
+            namespace_name="ns",
+            resource_group_name="rg",
+            adu_resource_id=ADU_RESOURCE_ID,
+        )
+
+
+def test_adu_update_partial_patch(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_adu("my-adu")
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "ns"}
+    )
+
+    fixture_link_provider.adu_update(
+        endpoint_name="my-adu",
+        namespace_name="ns",
+        resource_group_name="rg",
+        mi_user_assigned=UAMI_RESOURCE_ID,
+    )
+
+    endpoint_patch = fixture_link_provider.client.namespaces.begin_update.call_args[1][
+        "properties"
+    ]["properties"]["updating"]["endpoints"]["my-adu"]
+    assert endpoint_patch == {
+        "inboundCallerIdentity": {
+            "type": InboundCallerIdentityType.user_assigned.value,
+            "userAssignedIdentity": UAMI_RESOURCE_ID,
+        }
+    }
+
+
+def test_adu_update_requires_an_identity_flag(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_adu("my-adu")
+    with pytest.raises(RequiredArgumentMissingError):
+        fixture_link_provider.adu_update(
+            endpoint_name="my-adu",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+
+
+def test_adu_update_missing_endpoint_raises(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_adu()
+    with pytest.raises(ResourceNotFoundError):
+        fixture_link_provider.adu_update(
+            endpoint_name="missing",
+            namespace_name="ns",
+            resource_group_name="rg",
+            mi_system_assigned=True,
+        )
+
+
+def test_adu_update_mi_mutually_exclusive(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_adu("my-adu")
+    with pytest.raises(ArgumentUsageError, match="mutually exclusive"):
+        fixture_link_provider.adu_update(
+            endpoint_name="my-adu",
+            namespace_name="ns",
+            resource_group_name="rg",
+            mi_system_assigned=True,
+            mi_user_assigned=UAMI_RESOURCE_ID,
+        )
+
+
+def test_adu_remove_always_raises_even_when_endpoint_exists(fixture_link_provider):
+    """ADU link entries cannot be removed directly — must delete underlying account or namespace."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_adu("my-adu")
+
+    with pytest.raises(ArgumentUsageError, match="not supported"):
+        fixture_link_provider.adu_remove(
+            endpoint_name="my-adu",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+
+    fixture_link_provider.client.namespaces.begin_update.assert_not_called()
+
+
+def test_adu_remove_raises_when_endpoint_missing(fixture_link_provider):
+    """Even when the named ADU endpoint does not exist, raise the same actionable error."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_adu()
+    with pytest.raises(ArgumentUsageError, match="not supported"):
+        fixture_link_provider.adu_remove(
+            endpoint_name="missing",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+    fixture_link_provider.client.namespaces.begin_update.assert_not_called()
+
+
+def test_adu_show_returns_endpoint(fixture_link_provider):
+    endpoint = {
+        "endpointType": ADU_ENDPOINT_TYPE,
+        "resourceId": ADU_RESOURCE_ID,
+        "inboundCallerIdentity": {"type": "SystemAssigned"},
+    }
+    fixture_link_provider.client.namespaces.get.return_value = {
+        "name": "ns",
+        "properties": {"updating": {"endpoints": {"my-adu": endpoint}}},
+    }
+
+    assert (
+        fixture_link_provider.adu_show(
+            endpoint_name="my-adu", namespace_name="ns", resource_group_name="rg"
+        )
+        == endpoint
+    )
+
+
+def test_adu_show_missing_raises(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_adu()
+    with pytest.raises(ResourceNotFoundError):
+        fixture_link_provider.adu_show(
+            endpoint_name="missing", namespace_name="ns", resource_group_name="rg"
+        )
+
+
+def test_adu_list_filters_non_adu_endpoints(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = {
+        "name": "ns",
+        "properties": {
+            "updating": {
+                "endpoints": {
+                    "my-adu": {
+                        "endpointType": ADU_ENDPOINT_TYPE,
+                        "resourceId": ADU_RESOURCE_ID,
+                    },
+                    "other": {
+                        "endpointType": "Microsoft.SomethingElse/other",
+                        "resourceId": "/sub/foo",
+                    },
+                }
+            }
+        },
+    }
+
+    result = fixture_link_provider.adu_list(namespace_name="ns", resource_group_name="rg")
+    assert set(result.keys()) == {"my-adu"}
+
+
+def test_adu_list_empty(fixture_link_provider):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_adu()
+    assert fixture_link_provider.adu_list(namespace_name="ns", resource_group_name="rg") == {}
+
+
+def test_adu_add_no_wait_returns_poller(fixture_link_provider, mock_poller):
+    """no_wait=True should return the poller directly without invoking wait_for_terminal_state."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_without_adu()
+    poller = mock_poller({"name": "ns"})
+    fixture_link_provider.client.namespaces.begin_update.return_value = poller
+
+    result = fixture_link_provider.adu_add(
+        endpoint_name="my-adu",
+        namespace_name="ns",
+        resource_group_name="rg",
+        adu_resource_id=ADU_RESOURCE_ID,
+        mi_system_assigned=True,
+        no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_adu_update_with_system_assigned_mi(fixture_link_provider, mock_poller):
+    """SAMI variant of adu_update — emits only ``type`` in inboundCallerIdentity."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_adu(
+        "my-adu",
+        identity={
+            "type": InboundCallerIdentityType.user_assigned.value,
+            "userAssignedIdentity": UAMI_RESOURCE_ID,
+        },
+    )
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "ns"}
+    )
+
+    fixture_link_provider.adu_update(
+        endpoint_name="my-adu",
+        namespace_name="ns",
+        resource_group_name="rg",
+        mi_system_assigned=True,
+    )
+
+    endpoint_patch = fixture_link_provider.client.namespaces.begin_update.call_args[1][
+        "properties"
+    ]["properties"]["updating"]["endpoints"]["my-adu"]
+    assert endpoint_patch == {
+        "inboundCallerIdentity": {"type": InboundCallerIdentityType.system_assigned.value}
+    }

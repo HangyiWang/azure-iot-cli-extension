@@ -328,6 +328,44 @@ def load_adr_arguments(self, _):
             help="Azure resource ID of the Device Provisioning Service to link to this namespace.",
         )
 
+    # Link ADU arguments
+    with self.argument_context("iot adr ns link adu") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace that owns the link.",
+        )
+        context.argument(
+            "endpoint_name",
+            options_list=["--endpoint-name", "--en", "--name", "-n"],
+            help="Logical name of the device update (ADU) endpoint entry on the namespace.",
+        )
+
+    for cmd in ["iot adr ns link adu add", "iot adr ns link adu update"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "mi_system_assigned",
+                arg_group="Inbound Caller Identity",
+                options_list=["--mi-system-assigned", "--mi-sa"],
+                arg_type=get_three_state_flag(),
+                help="Use the namespace's system-assigned managed identity as the inbound caller "
+                     "identity on this device update endpoint.",
+            )
+            context.argument(
+                "mi_user_assigned",
+                arg_group="Inbound Caller Identity",
+                options_list=["--mi-user-assigned", "--mi-ua"],
+                help="Resource ID of the user-assigned managed identity to use as the inbound caller "
+                     "identity on this device update endpoint.",
+            )
+
+    with self.argument_context("iot adr ns link adu add") as context:
+        context.argument(
+            "adu_resource_id",
+            options_list=["--adu-resource-id", "--adu-id"],
+            help="Azure resource ID of the Device Update (ADU) linked account to link to this namespace.",
+        )
+
     # Bundled link add
     with self.argument_context("iot adr ns link add") as context:
         context.argument(

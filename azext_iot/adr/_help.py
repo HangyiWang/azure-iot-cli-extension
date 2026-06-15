@@ -521,6 +521,90 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns link adu"
+    ] = """
+  type: group
+  short-summary: Manage Azure Device Update (ADU) links (updating endpoints) on a Device Registry namespace.
+  long-summary: |
+    Links an ADU 'Microsoft.DeviceUpdate/linkedAccounts' resource to the namespace as an
+    updating endpoint under properties.updating.endpoints. Links live on the namespace, not on
+    the ADU resource. Linking is asynchronous; read-only address fields (serviceAddress,
+    deviceAddress, legacyDeviceAddress) are resolved once linking succeeds.
+  """
+
+    helps[
+        "iot adr ns link adu add"
+    ] = """
+  type: command
+  short-summary: Link an Azure Device Update (ADU) account to a Device Registry namespace.
+  long-summary: |
+    Adds an ADU updating endpoint entry under the namespace's properties.updating.endpoints.
+    Exactly one of --mi-system-assigned or --mi-user-assigned must be provided to set the
+    inbound caller identity that the ADU account will use to call back into the namespace.
+  examples:
+    - name: Link an ADU account using the namespace's system-assigned identity for inbound calls
+      text: |
+        az iot adr ns link adu add -n my-adu --ns myNamespace -g myResourceGroup \\
+          --adu-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/linkedAccounts/<account> \\
+          --mi-system-assigned
+    - name: Link an ADU account with a user-assigned identity
+      text: |
+        az iot adr ns link adu add -n my-adu --ns myNamespace -g myResourceGroup \\
+          --adu-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/linkedAccounts/<account> \\
+          --mi-user-assigned /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<id>
+  """
+
+    helps[
+        "iot adr ns link adu update"
+    ] = """
+  type: command
+  short-summary: Update an existing ADU updating endpoint on a Device Registry namespace.
+  long-summary: |
+    Only the inbound caller identity may be updated. The linked ADU account cannot be changed;
+    to point the endpoint at a different account, remove and re-add it.
+  examples:
+    - name: Rotate to a system-assigned identity on an existing ADU link
+      text: az iot adr ns link adu update -n my-adu --ns myNamespace -g myResourceGroup --mi-system-assigned
+  """
+
+    helps[
+        "iot adr ns link adu remove"
+    ] = """
+  type: command
+  short-summary: (Not supported by design) Removing an ADU link entry directly is not allowed.
+  long-summary: |
+    This command always fails. By design, ADU link entries are bound to the lifecycle of the
+    underlying Device Update linked account and cannot be removed from the namespace in isolation.
+    To unlink:
+      * delete the ADU linked account resource ('az resource delete'), or
+      * delete the Device Registry namespace ('az iot adr ns delete').
+    The command is kept so the failure surfaces a clear, actionable error rather than a 'not found'.
+  examples:
+    - name: Invocation will fail — use one of the suggested commands instead
+      text: az iot adr ns link adu remove -n my-adu --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns link adu show"
+    ] = """
+  type: command
+  short-summary: Show a single ADU updating endpoint on a Device Registry namespace.
+  examples:
+    - name: Show an ADU link by endpoint name
+      text: az iot adr ns link adu show -n my-adu --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns link adu list"
+    ] = """
+  type: command
+  short-summary: List ADU updating endpoints on a Device Registry namespace.
+  examples:
+    - name: List all ADU links on a namespace
+      text: az iot adr ns link adu list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
         "iot adr ns link add"
     ] = """
   type: command

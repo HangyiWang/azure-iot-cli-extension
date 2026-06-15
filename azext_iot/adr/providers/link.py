@@ -20,6 +20,7 @@ from azext_iot._factory import iot_service_provisioning_factory
 from azext_iot.adr.common import (
     DPS_ENDPOINT_TYPE,
     IOT_HUB_ENDPOINT_TYPE,
+    ADU_ENDPOINT_TYPE,
     InboundCallerIdentityType,
     build_mi_body,
 )
@@ -93,6 +94,44 @@ def _parse_dps_resource_id(dps_resource_id: str) -> dict:
     }
 
 
+def _parse_adu_resource_id(adu_resource_id: str) -> dict:
+    """Parse an ADU (Device Update) linked account ARM resource ID into its components.
+
+    Expected shape:
+        /subscriptions/<sub>/resourceGroups/<rg>/providers/
+            Microsoft.DeviceUpdate/linkedAccounts/<name>
+    """
+    raw = (adu_resource_id or "").strip()
+    if not raw:
+        raise InvalidArgumentValueError(
+            "--adu-id is required and must be a Microsoft.DeviceUpdate/linkedAccounts ARM resource ID."
+        )
+    # Friendly hint: a bare name (no slashes) is the most common mistake here.
+    if "/" not in raw:
+        raise InvalidArgumentValueError(
+            f"'{raw}' looks like a bare ADU account name. Pass the full ARM resource ID instead."
+        )
+    if not is_valid_resource_id(raw):
+        raise InvalidArgumentValueError(
+            f"'{adu_resource_id}' is not a valid ARM resource ID."
+        )
+    parsed = parse_resource_id(raw)
+    # Reject child resources and any non-linkedAccounts resource type.
+    if (
+        (parsed.get("namespace") or "").lower() != "microsoft.deviceupdate"
+        or (parsed.get("type") or "").lower() != "linkedaccounts"
+        or "child_name_1" in parsed
+    ):
+        raise InvalidArgumentValueError(
+            f"'{adu_resource_id}' is not a Microsoft.DeviceUpdate/linkedAccounts resource ID."
+        )
+    return {
+        "subscription_id": parsed["subscription"],
+        "resource_group_name": parsed["resource_group"],
+        "name": parsed["name"],
+    }
+
+
 def _build_inbound_identity(mi_system_assigned: bool, mi_user_assigned: Optional[str]) -> dict:
     """Build the InboundCallerIdentity body from CLI flags. Exactly one variant required."""
     # Normalize empty/whitespace UAMI before the mutex check so a stray
@@ -118,6 +157,10 @@ def _get_messaging_endpoints(namespace: dict) -> dict:
 
 def _get_provisioning_endpoints(namespace: dict) -> dict:
     return (((namespace or {}).get("properties") or {}).get("provisioning") or {}).get("endpoints") or {}
+
+
+def _get_updating_endpoints(namespace: dict) -> dict:
+    return (((namespace or {}).get("properties") or {}).get("updating") or {}).get("endpoints") or {}
 
 
 def _build_hub_endpoint_body(
@@ -152,6 +195,19 @@ def _build_dps_endpoint_body(
     return {
         "endpointType": DPS_ENDPOINT_TYPE,
         "resourceId": dps_resource_id,
+        "inboundCallerIdentity": _build_inbound_identity(mi_system_assigned, mi_user_assigned),
+    }
+
+
+def _build_adu_endpoint_body(
+    adu_resource_id: str,
+    mi_system_assigned: bool,
+    mi_user_assigned: Optional[str],
+) -> dict:
+    """Build a full ADU updating-endpoint body for a namespace PATCH."""
+    return {
+        "endpointType": ADU_ENDPOINT_TYPE,
+        "resourceId": adu_resource_id,
         "inboundCallerIdentity": _build_inbound_identity(mi_system_assigned, mi_user_assigned),
     }
 
@@ -498,6 +554,148 @@ class LinkProvider(ADRProvider):
             name: ep
             for name, ep in endpoints.items()
             if (ep or {}).get("endpointType") == DPS_ENDPOINT_TYPE
+        }
+
+    # -------------------- adu commands --------------------
+
+    def _patch_updating_endpoints(
+        self,
+        namespace_name: str,
+        resource_group_name: str,
+        endpoints_patch: dict,
+        no_wait: bool = False,
+        **kwargs,
+    ):
+        properties = {"properties": {"updating": {"endpoints": endpoints_patch}}}
+        poller = self.client.namespaces.begin_update(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            properties=properties,
+        )
+        if no_wait:
+            return poller
+        with console.status(f"Updating device update endpoints on namespace {namespace_name}..."):
+            return wait_for_terminal_state(poller, **kwargs)
+
+    def adu_add(
+        self,
+        endpoint_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+        adu_resource_id: str,
+        mi_system_assigned: bool = False,
+        mi_user_assigned: Optional[str] = None,
+        **kwargs,
+    ):
+        """Add an Azure Device Update (ADU) updating endpoint to a namespace."""
+        _parse_adu_resource_id(adu_resource_id)  # validate ARM ID shape up front
+
+        existing = self._get_namespace(namespace_name, resource_group_name)
+        if endpoint_name in _get_updating_endpoints(existing):
+            raise ArgumentUsageError(
+                f"Device update endpoint '{endpoint_name}' already exists on namespace "
+                f"'{namespace_name}'. Use 'az iot adr ns link adu update' to modify it."
+            )
+
+        endpoint_body = _build_adu_endpoint_body(
+            adu_resource_id, mi_system_assigned, mi_user_assigned
+        )
+        return self._patch_updating_endpoints(
+            namespace_name=namespace_name,
+            resource_group_name=resource_group_name,
+            endpoints_patch={endpoint_name: endpoint_body},
+            **kwargs,
+        )
+
+    def adu_update(
+        self,
+        endpoint_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+        mi_system_assigned: bool = False,
+        mi_user_assigned: Optional[str] = None,
+        **kwargs,
+    ):
+        """Partial-update an existing ADU updating endpoint on a namespace."""
+        if mi_system_assigned and mi_user_assigned:
+            raise ArgumentUsageError(_MI_MUTEX_MSG)
+
+        existing = self._get_namespace(namespace_name, resource_group_name)
+        endpoints = _get_updating_endpoints(existing)
+        if endpoint_name not in endpoints:
+            raise ResourceNotFoundError(
+                f"Device update endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
+            )
+
+        endpoint_patch: dict = {}
+        if mi_user_assigned:
+            endpoint_patch["inboundCallerIdentity"] = {
+                "type": InboundCallerIdentityType.user_assigned.value,
+                "userAssignedIdentity": mi_user_assigned,
+            }
+        elif mi_system_assigned:
+            endpoint_patch["inboundCallerIdentity"] = {
+                "type": InboundCallerIdentityType.system_assigned.value
+            }
+
+        if not endpoint_patch:
+            raise RequiredArgumentMissingError(
+                "Nothing to update. Pass --mi-system-assigned or "
+                "--mi-user-assigned <uami-resource-id> to change the inbound caller identity."
+            )
+
+        return self._patch_updating_endpoints(
+            namespace_name=namespace_name,
+            resource_group_name=resource_group_name,
+            endpoints_patch={endpoint_name: endpoint_patch},
+            **kwargs,
+        )
+
+    def adu_remove(
+        self,
+        endpoint_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+        **kwargs,
+    ):
+        """Removing an ADU link entry directly is not supported by design.
+
+        ADU links are bound to the lifecycle of the underlying Device Update linked account.
+        To unlink, delete the linked account resource or the namespace itself.
+        """
+        adu_resource_id = "<adu-resource-id>"
+        try:
+            existing = self._get_namespace(namespace_name, resource_group_name)
+            endpoint = _get_updating_endpoints(existing).get(endpoint_name) or {}
+            adu_resource_id = endpoint.get("resourceId") or adu_resource_id
+        except Exception:  # noqa: BLE001 — best-effort enrichment only
+            pass
+
+        raise ArgumentUsageError(
+            f"Removing device update link '{endpoint_name}' directly is not supported. "
+            "ADU links are tied to the underlying Device Update linked account lifecycle. To unlink, "
+            f"delete the linked account ('az resource delete --ids {adu_resource_id}') or the namespace "
+            f"('az iot adr ns delete -n {namespace_name} -g {resource_group_name}')."
+        )
+
+    def adu_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
+        """Project a single ADU updating endpoint from the namespace."""
+        ns = self._get_namespace(namespace_name, resource_group_name)
+        endpoints = _get_updating_endpoints(ns)
+        if endpoint_name not in endpoints:
+            raise ResourceNotFoundError(
+                f"Device update endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
+            )
+        return endpoints[endpoint_name]
+
+    def adu_list(self, namespace_name: str, resource_group_name: str):
+        """List all ADU updating endpoints on the namespace."""
+        ns = self._get_namespace(namespace_name, resource_group_name)
+        endpoints = _get_updating_endpoints(ns)
+        return {
+            name: ep
+            for name, ep in endpoints.items()
+            if (ep or {}).get("endpointType") == ADU_ENDPOINT_TYPE
         }
 
     # -------------------- bundled link add --------------------

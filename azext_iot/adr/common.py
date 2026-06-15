@@ -109,9 +109,10 @@ class PolicyCertificateKeyType(Enum):
     rsa = "RSA"
 
 
-# Endpoint type discriminators on Namespace messaging / provisioning endpoints
+# Endpoint type discriminators on Namespace messaging / provisioning / updating endpoints
 IOT_HUB_ENDPOINT_TYPE = "Microsoft.Devices/IotHubs"
 DPS_ENDPOINT_TYPE = "Microsoft.Devices/provisioningServices"
+ADU_ENDPOINT_TYPE = "Microsoft.DeviceUpdate/linkedAccounts"
 
 
 DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS = 30

@@ -170,6 +170,84 @@ def adr_link_dps_list(cmd, namespace_name: str, resource_group_name: str):
     )
 
 
+# ==================== link adu ====================
+
+
+def adr_link_adu_add(
+    cmd,
+    endpoint_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+    adu_resource_id: str,
+    mi_system_assigned: bool = False,
+    mi_user_assigned: Optional[str] = None,
+    no_wait: bool = False,
+):
+    provider = LinkProvider(cmd)
+    return provider.adu_add(
+        endpoint_name=endpoint_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        adu_resource_id=adu_resource_id,
+        mi_system_assigned=mi_system_assigned,
+        mi_user_assigned=mi_user_assigned,
+        no_wait=no_wait,
+    )
+
+
+def adr_link_adu_update(
+    cmd,
+    endpoint_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+    mi_system_assigned: bool = False,
+    mi_user_assigned: Optional[str] = None,
+    no_wait: bool = False,
+):
+    provider = LinkProvider(cmd)
+    return provider.adu_update(
+        endpoint_name=endpoint_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        mi_system_assigned=mi_system_assigned,
+        mi_user_assigned=mi_user_assigned,
+        no_wait=no_wait,
+    )
+
+
+def adr_link_adu_remove(
+    cmd,
+    endpoint_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+    no_wait: bool = False,
+):
+    provider = LinkProvider(cmd)
+    return provider.adu_remove(
+        endpoint_name=endpoint_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        no_wait=no_wait,
+    )
+
+
+def adr_link_adu_show(cmd, endpoint_name: str, namespace_name: str, resource_group_name: str):
+    provider = LinkProvider(cmd)
+    return provider.adu_show(
+        endpoint_name=endpoint_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+    )
+
+
+def adr_link_adu_list(cmd, namespace_name: str, resource_group_name: str):
+    provider = LinkProvider(cmd)
+    return provider.adu_list(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+    )
+
+
 # ==================== link add (bundled) ====================
 
 
