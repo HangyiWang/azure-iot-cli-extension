@@ -239,7 +239,7 @@ jobs:
 
   int-test:
     name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{ matrix.config.region }})"
-    needs: [ setup, unit-test ]
+    needs: [setup, unit-test]
     if: ${{ needs.setup.result == 'success' && (needs.setup.outputs.matrix || '[]') != '[]' }}
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -346,7 +346,7 @@ jobs:
 
   int-test-gate:
     name: "Integration test gate"
-    needs: [ int-test ]
+    needs: [int-test]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
@@ -440,7 +440,7 @@ jobs:
   combine-coverage:
     name: "Combine coverage reports"
     if: always()
-    needs: [ unit-test, int-test, int-test-gate ]
+    needs: [unit-test, int-test, int-test-gate]
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout source"
