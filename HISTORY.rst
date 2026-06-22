@@ -8,6 +8,10 @@ Release History
 
 **Bug fixes**
 
+* ``az iot edge devices create`` now writes the device-facing hostname (``deviceHostName``) into the generated ``config.toml`` on GWv2/TLS 1.3 hubs, so edge devices can connect. Classic hubs are unaffected.
+
+* ``az iot device simulate`` and ``az iot device send-d2c-message`` now connect over MQTT using the device-facing hostname on GWv2/TLS 1.3 hubs, fixing "not authorised" failures for x509 and symmetric-key devices. Classic hubs are unaffected.
+
 * ``az iot du account create`` no longer fails with ``TypeError: unhashable type: 'dict'`` when assigning a single user-assigned managed identity via ``--assign-identity``.
 
 * ``az iot hub device-identity connection-string show`` and ``az iot hub module-identity connection-string show`` now reject ``--hostname-type service``. Use ``auto``, ``device`` or ``classic`` instead.

@@ -315,7 +315,7 @@ class DeviceIdentityProvider(IoTHubProvider):
                 # edge device config
                 create_edge_device_config(
                     device_id=device_id,
-                    hub_hostname=self.target["entity"],
+                    hub_hostname=self.target.get("deviceHostName") or self.target["entity"],
                     auth_method=config.auth_method,
                     default_edge_agent=config.default_edge_agent,
                     device_config=device_config_dict[device_id],

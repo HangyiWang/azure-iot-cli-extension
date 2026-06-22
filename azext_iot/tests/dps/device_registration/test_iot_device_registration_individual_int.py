@@ -15,10 +15,7 @@ from azure.cli.core.azclierror import (
 import pytest
 from azext_iot.common.embedded_cli import EmbeddedCLI
 from azext_iot.common.shared import EntityStatusType, AttestationType
-from azext_iot.tests.dps import (
-    DATAPLANE_AUTH_TYPES,
-    clean_dps_dataplane
-)
+from azext_iot.tests.dps import DATAPLANE_AUTH_TYPES
 from azext_iot.tests.dps.device_registration import compare_registrations, check_hub_device
 from azext_iot.tests.helpers import CERT_ENDING, KEY_ENDING, create_test_cert, set_cmd_auth_type
 from azext_iot.tests.generators import generate_names
@@ -33,7 +30,6 @@ def test_dps_device_registration_symmetrickey_lifecycle(provisioned_iot_dps_modu
     dps_cstring = provisioned_iot_dps_module["connectionString"]
     hub_cstring = provisioned_iot_dps_module["hubConnectionString"]
     id_scope = provisioned_iot_dps_module["dps"]["properties"]["idScope"]
-    clean_dps_dataplane(cli, dps_cstring)
 
     attestation_type = AttestationType.symmetricKey.value
     for auth_phase in DATAPLANE_AUTH_TYPES:
@@ -234,7 +230,6 @@ def test_dps_device_registration_x509_lifecycle(provisioned_iot_dps_module):
     hub_cstring = provisioned_iot_dps_module["hubConnectionString"]
     id_scope = provisioned_iot_dps_module["dps"]["properties"]["idScope"]
     tracked_certs = provisioned_iot_dps_module["certificates"]
-    clean_dps_dataplane(cli, dps_cstring)
 
     # Create two test certs - have the same subject but a different file name
     cert_name = generate_names()
@@ -418,7 +413,6 @@ def test_dps_device_registration_unlinked_hub(provisioned_iot_dps_no_hub_module)
     dps_rg = provisioned_iot_dps_no_hub_module['resourceGroup']
     dps_cstring = provisioned_iot_dps_no_hub_module["connectionString"]
     id_scope = provisioned_iot_dps_no_hub_module["dps"]["properties"]["idScope"]
-    clean_dps_dataplane(cli, dps_cstring)
 
     attestation_type = AttestationType.symmetricKey.value
     for auth_phase in DATAPLANE_AUTH_TYPES:
@@ -472,7 +466,6 @@ def test_dps_device_registration_disabled_enrollment(provisioned_iot_dps_module)
     dps_name = provisioned_iot_dps_module['name']
     dps_rg = provisioned_iot_dps_module['resourceGroup']
     dps_cstring = provisioned_iot_dps_module["connectionString"]
-    clean_dps_dataplane(cli, dps_cstring)
 
     attestation_type = AttestationType.symmetricKey.value
     for auth_phase in DATAPLANE_AUTH_TYPES:

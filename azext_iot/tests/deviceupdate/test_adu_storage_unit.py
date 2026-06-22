@@ -49,7 +49,8 @@ def test_get_sas_blob_service_client(mocker):
     acc.id = "/subscriptions/x/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/target"
     acc.primary_endpoints.blob = "https://target.blob.core.windows.net/"
     mgr.client.storage_accounts.list.return_value = [acc]
-    mgr.client.storage_accounts.list_keys.return_value.keys = [MagicMock(value="key123")]
+    # list_keys returns a dict at runtime, so the provider indexes it as ["keys"][0]["value"].
+    mgr.client.storage_accounts.list_keys.return_value = {"keys": [{"value": "key123"}]}
     mocker.patch.object(subject, "parse_resource_id", return_value={"resource_group": "rg"})
     bsc = mocker.patch.object(subject, "BlobServiceClient")
     result = mgr.get_sas_blob_service_client("target")

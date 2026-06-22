@@ -354,10 +354,10 @@ class TestNestedEdgeHierarchy(IoTLiveScenarioTest):
                     assert config["provisioning"]["authentication"]["method"] == (
                         "x509" if cert_auth else "sas"
                     )
-                    # hub hostname
+                    # hub hostname (edge config.toml targets the device-facing hostname)
                     assert (
                         config["provisioning"]["iothub_hostname"]
-                        == self.host_name
+                        == self.device_host_name
                     )
                     # device_id
                     assert config["provisioning"]["device_id"] == device_id
