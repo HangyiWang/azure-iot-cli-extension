@@ -34,23 +34,3 @@ TEST_ENDORSEMENT_KEY = (
 )
 TEST_KEY_REGISTRATION_ID = "myarbitrarydeviceId"
 GENERATED_KEY = "cT/EXZvsplPEpT//p98Pc6sKh8mY3kYgSxavHwMkl7w="
-
-
-def clean_dps_dataplane(cli, dps_cstring):
-    # Individual Enrollments
-    enrollment_list = cli.invoke(
-        f"iot dps enrollment list --login {dps_cstring}"
-    ).as_json()
-    for enrollment in enrollment_list:
-        cli.invoke(
-            f"iot dps enrollment delete --login {dps_cstring} --eid {enrollment['registrationId']}"
-        )
-
-    # Enrollment Groups
-    enrollment_list = cli.invoke(
-        f"iot dps enrollment-group list --login {dps_cstring}"
-    ).as_json()
-    for enrollment in enrollment_list:
-        cli.invoke(
-            f"iot dps enrollment-group delete --login {dps_cstring} --eid {enrollment['enrollmentGroupId']}"
-        )

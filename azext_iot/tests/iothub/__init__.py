@@ -101,6 +101,8 @@ class IoTLiveScenarioTest(CaptureOutputLiveScenarioTest):
             self._add_data_contributor(target_hub)
 
         self.host_name = target_hub["properties"]["hostName"]
+        # Device-facing hostname (GWv2 hubs expose a distinct deviceHostName; classic hubs reuse hostName)
+        self.device_host_name = target_hub["properties"].get("deviceHostName") or self.host_name
         self.region = self.get_region()
         self.connection_string = self.get_hub_cstring()
         add_test_tag(
