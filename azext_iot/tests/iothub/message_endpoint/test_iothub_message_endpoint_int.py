@@ -1041,7 +1041,7 @@ def test_iot_cosmos_endpoint_lifecycle(provisioned_cosmosdb_with_identity_module
     ).as_json()
 
     assert len(cosmos_list) == 3
-    expected_list = endpoint_list.get("cosmosDbSqlCollections", []) + endpoint_list.get("cosmosDbSqlContainers", [])
+    expected_list = endpoint_list.get("cosmosDBSqlCollections", []) + endpoint_list.get("cosmosDBSqlContainers", [])
     assert cosmos_list == expected_list
 
     # Update

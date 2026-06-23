@@ -19,13 +19,12 @@ from azext_iot.common.embedded_cli import EmbeddedCLI
 cli = EmbeddedCLI()
 
 
-def _find_gwv2_hub(rg):
-    """Find a GWv2 hub in the RG"""
-    hubs = cli.invoke(f"iot hub list -g {rg}").as_json()
-    for hub in hubs:
-        if hub.get("properties", {}).get("deviceHostName"):
-            return hub
-    return None
+def _require_gwv2_hub(provisioned_hub):
+    """Return the provisioned hub resource, skipping if it is not a GWv2 (TLS 1.3) hub."""
+    hub = cli.invoke(f"iot hub show -n {provisioned_hub['name']}").as_json()
+    if not hub.get("properties", {}).get("deviceHostName"):
+        pytest.skip("Provisioned hub is not GWv2 — TLS 1.3 linked-hub tests require a GWv2 hub")
+    return hub
 
 
 def _cleanup_linked_hub(dps_name, rg, linked_hub_name):
@@ -35,14 +34,12 @@ def _cleanup_linked_hub(dps_name, rg, linked_hub_name):
     )
 
 
-def test_linked_hub_create_auto_hostname(provisioned_iot_dps_no_hub_module):
+def test_linked_hub_create_auto_hostname(provisioned_iot_dps_no_hub_module, provisioned_only_iot_hubs_session):
     """On a GWv2 hub, auto (default) should resolve to the device hostname."""
     dps_name = provisioned_iot_dps_no_hub_module["name"]
     dps_rg = provisioned_iot_dps_no_hub_module["resourceGroup"]
 
-    gwv2_hub = _find_gwv2_hub(dps_rg)
-    if not gwv2_hub:
-        pytest.skip("No GWv2 hub available in resource group for TLS 1.3 testing")
+    gwv2_hub = _require_gwv2_hub(provisioned_only_iot_hubs_session)
 
     hub_name = gwv2_hub["name"]
     device_hostname = gwv2_hub["properties"]["deviceHostName"]
@@ -64,14 +61,12 @@ def test_linked_hub_create_auto_hostname(provisioned_iot_dps_no_hub_module):
         _cleanup_linked_hub(dps_name, dps_rg, device_hostname)
 
 
-def test_linked_hub_create_classic_hostname(provisioned_iot_dps_no_hub_module):
+def test_linked_hub_create_classic_hostname(provisioned_iot_dps_no_hub_module, provisioned_only_iot_hubs_session):
     """Create linked hub with explicit classic hostname type."""
     dps_name = provisioned_iot_dps_no_hub_module["name"]
     dps_rg = provisioned_iot_dps_no_hub_module["resourceGroup"]
 
-    gwv2_hub = _find_gwv2_hub(dps_rg)
-    if not gwv2_hub:
-        pytest.skip("No GWv2 hub available in resource group")
+    gwv2_hub = _require_gwv2_hub(provisioned_only_iot_hubs_session)
 
     hub_name = gwv2_hub["name"]
     classic_hostname = gwv2_hub["properties"]["hostName"]
@@ -93,14 +88,12 @@ def test_linked_hub_create_classic_hostname(provisioned_iot_dps_no_hub_module):
         _cleanup_linked_hub(dps_name, dps_rg, classic_hostname)
 
 
-def test_linked_hub_create_device_hostname(provisioned_iot_dps_no_hub_module):
+def test_linked_hub_create_device_hostname(provisioned_iot_dps_no_hub_module, provisioned_only_iot_hubs_session):
     """Create linked hub with explicit device hostname type on a GWv2 hub."""
     dps_name = provisioned_iot_dps_no_hub_module["name"]
     dps_rg = provisioned_iot_dps_no_hub_module["resourceGroup"]
 
-    gwv2_hub = _find_gwv2_hub(dps_rg)
-    if not gwv2_hub:
-        pytest.skip("No GWv2 hub available in resource group")
+    gwv2_hub = _require_gwv2_hub(provisioned_only_iot_hubs_session)
 
     hub_name = gwv2_hub["name"]
     device_hostname = gwv2_hub["properties"]["deviceHostName"]
@@ -122,17 +115,12 @@ def test_linked_hub_create_device_hostname(provisioned_iot_dps_no_hub_module):
         _cleanup_linked_hub(dps_name, dps_rg, device_hostname)
 
 
-def test_hub_show_returns_tls13_hostnames(provisioned_iot_dps_no_hub_module):
+def test_hub_show_returns_tls13_hostnames(provisioned_only_iot_hubs_session):
     """Verify hub show returns TLS 1.3 hostname properties for GWv2 hubs."""
-    dps_rg = provisioned_iot_dps_no_hub_module["resourceGroup"]
-
-    gwv2_hub = _find_gwv2_hub(dps_rg)
-    if not gwv2_hub:
-        pytest.skip("No GWv2 hub available in resource group")
+    gwv2_hub = _require_gwv2_hub(provisioned_only_iot_hubs_session)
 
     hub_name = gwv2_hub["name"]
-    result = cli.invoke(f"iot hub show -n {hub_name}").as_json()
-    props = result["properties"]
+    props = gwv2_hub["properties"]
 
     assert props.get("hostName"), "hostName (classic) should be present"
     assert props.get("deviceHostName"), "deviceHostName should be present for GWv2 hub"
@@ -145,14 +133,12 @@ def test_hub_show_returns_tls13_hostnames(provisioned_iot_dps_no_hub_module):
     assert hub_name in props["serviceHostName"]
 
 
-def test_linked_hub_list_shows_hostname(provisioned_iot_dps_no_hub_module):
+def test_linked_hub_list_shows_hostname(provisioned_iot_dps_no_hub_module, provisioned_only_iot_hubs_session):
     """Verify linked hub list returns the correct hostname after linking."""
     dps_name = provisioned_iot_dps_no_hub_module["name"]
     dps_rg = provisioned_iot_dps_no_hub_module["resourceGroup"]
 
-    gwv2_hub = _find_gwv2_hub(dps_rg)
-    if not gwv2_hub:
-        pytest.skip("No GWv2 hub available in resource group")
+    gwv2_hub = _require_gwv2_hub(provisioned_only_iot_hubs_session)
 
     hub_name = gwv2_hub["name"]
     device_hostname = gwv2_hub["properties"]["deviceHostName"]
@@ -174,16 +160,14 @@ def test_linked_hub_list_shows_hostname(provisioned_iot_dps_no_hub_module):
         _cleanup_linked_hub(dps_name, dps_rg, device_hostname)
 
 
-def test_linked_hub_update_combined_migration(provisioned_iot_dps_no_hub_module):
+def test_linked_hub_update_combined_migration(provisioned_iot_dps_no_hub_module, provisioned_only_iot_hubs_session):
     """Migrate a hub link from KeyBased + classic endpoint to
     SystemAssigned + device endpoint in a single update call.
     """
     dps_name = provisioned_iot_dps_no_hub_module["name"]
     dps_rg = provisioned_iot_dps_no_hub_module["resourceGroup"]
 
-    gwv2_hub = _find_gwv2_hub(dps_rg)
-    if not gwv2_hub:
-        pytest.skip("No GWv2 hub available in resource group")
+    gwv2_hub = _require_gwv2_hub(provisioned_only_iot_hubs_session)
 
     hub_name = gwv2_hub["name"]
     classic_hostname = gwv2_hub["properties"]["hostName"]
@@ -229,3 +213,47 @@ def test_linked_hub_update_combined_migration(provisioned_iot_dps_no_hub_module)
     finally:
         for hostname in cleanup_targets:
             _cleanup_linked_hub(dps_name, dps_rg, hostname)
+
+
+def test_linked_hub_create_keybased_then_switch_to_mi(provisioned_iot_dps_no_hub_module, provisioned_only_iot_hubs_session):
+    """KeyBased create -> auth-only SystemAssigned swap (no hostname change)."""
+    dps_name = provisioned_iot_dps_no_hub_module["name"]
+    dps_rg = provisioned_iot_dps_no_hub_module["resourceGroup"]
+
+    gwv2_hub = _require_gwv2_hub(provisioned_only_iot_hubs_session)
+
+    hub_name = gwv2_hub["name"]
+    device_hostname = gwv2_hub["properties"]["deviceHostName"]
+
+    cli.invoke(f"iot dps identity assign --name {dps_name} -g {dps_rg} --system-assigned")
+
+    try:
+        cli.invoke(
+            f"iot dps linked-hub create --dps-name {dps_name} -g {dps_rg} "
+            f"--hub-name {hub_name}"
+        )
+        initial = cli.invoke(
+            f"iot dps linked-hub list --dps-name {dps_name} -g {dps_rg}"
+        ).as_json()
+        matching = [h for h in initial if h["name"] == device_hostname]
+        assert len(matching) == 1, \
+            f"Expected linked hub with name '{device_hostname}'. Got: {[h['name'] for h in initial]}"
+        assert matching[0]["authenticationType"] == "KeyBased"
+        assert matching[0].get("hostName") == device_hostname, \
+            f"hostName should be set on KeyBased create; got: {matching[0].get('hostName')!r}"
+
+        cli.invoke(
+            f"iot dps linked-hub update --dps-name {dps_name} -g {dps_rg} "
+            f"--hub-name {hub_name} --authentication-type SystemAssigned"
+        )
+
+        after = cli.invoke(
+            f"iot dps linked-hub list --dps-name {dps_name} -g {dps_rg}"
+        ).as_json()
+        matching = [h for h in after if h["name"] == device_hostname]
+        assert len(matching) == 1, \
+            f"Expected linked hub with name '{device_hostname}'. Got: {[h['name'] for h in after]}"
+        assert matching[0]["authenticationType"] == "SystemAssigned"
+        assert matching[0].get("connectionString", "") == ""
+    finally:
+        _cleanup_linked_hub(dps_name, dps_rg, device_hostname)

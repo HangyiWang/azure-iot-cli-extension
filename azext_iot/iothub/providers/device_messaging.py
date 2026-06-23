@@ -53,6 +53,13 @@ class DeviceMessagingProvider(IoTHubProvider):
         self.device_resolver = SdkResolver(target=self.target, device_id=device_id)
         self.device_sdk = self.device_resolver.get_sdk(SdkType.device_sdk)
 
+    @property
+    def _device_hostname(self) -> str:
+        # Device-facing MQTT connect must target the device hostname. On GWv2 hubs
+        # target['entity'] is the SERVICE hostname, which rejects device credentials
+        # ("not authorised"); deviceHostName is the correct device-facing endpoint.
+        return self.target.get("deviceHostName") or self.target["entity"]
+
     def device_send_message(
         self,
         data: str = "Ping from Az CLI IoT Extension",
@@ -76,9 +83,11 @@ class DeviceMessagingProvider(IoTHubProvider):
         if properties:
             properties = validate_key_value_pairs(properties)
 
-        device_connection_string = _build_device_or_module_connection_string(device, KeyType.primary.value)
+        device_connection_string = _build_device_or_module_connection_string(
+            device, KeyType.primary.value, hostname_override=self._device_hostname
+        )
         client_mqtt = MQTTProvider(
-            hub_hostname=self.target["entity"],
+            hub_hostname=self._device_hostname,
             device_conn_string=device_connection_string,
             x509_files=device["authentication"].get("x509_files"),
             device_id=self.device_id,
@@ -399,10 +408,12 @@ class DeviceMessagingProvider(IoTHubProvider):
                 passphrase=passphrase
             )
             if protocol_type == ProtocolType.mqtt.name:
-                device_connection_string = _build_device_or_module_connection_string(device, KeyType.primary.value)
+                device_connection_string = _build_device_or_module_connection_string(
+                    device, KeyType.primary.value, hostname_override=self._device_hostname
+                )
 
                 client_mqtt = MQTTProvider(
-                    hub_hostname=self.target["entity"],
+                    hub_hostname=self._device_hostname,
                     device_conn_string=device_connection_string,
                     x509_files=device["authentication"].get("x509_files"),
                     device_id=self.device_id,

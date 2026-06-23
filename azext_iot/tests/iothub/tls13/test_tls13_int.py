@@ -17,20 +17,9 @@ import pytest
 from azure.cli.testsdk.reverse_dependency import get_dummy_cli
 from azext_iot.common.embedded_cli import EmbeddedCLI
 from azext_iot.iothub.providers.discovery import IotHubDiscovery
-from azext_iot.tests.settings import (
-    DynamoSettings,
-    Setting,
-    ENV_SET_TEST_IOTHUB_REQUIRED,
-    ENV_SET_TEST_IOTHUB_OPTIONAL,
-)
+from azext_iot.tests.settings import Setting
 
 cli = EmbeddedCLI()
-settings = DynamoSettings(
-    req_env_set=ENV_SET_TEST_IOTHUB_REQUIRED,
-    opt_env_set=ENV_SET_TEST_IOTHUB_OPTIONAL,
-)
-ENTITY_RG = settings.env.azext_iot_testrg
-ENTITY_NAME = settings.env.azext_iot_testhub
 
 
 @pytest.fixture(scope="module")
@@ -40,12 +29,11 @@ def discovery():
     return IotHubDiscovery(cmd_shell)
 
 
-def test_find_resource_returns_hostname_properties(discovery):
+def test_find_resource_returns_hostname_properties(discovery, provisioned_only_iot_hubs_module):
     """Verify find_resource returns TLS 1.3 hostname properties."""
-    if not ENTITY_NAME:
-        pytest.skip("azext_iot_testhub not set")
+    hub_name = provisioned_only_iot_hubs_module[0]["name"]
 
-    resource = discovery.find_resource(resource_name=ENTITY_NAME)
+    resource = discovery.find_resource(resource_name=hub_name)
     props = resource.get("properties", {})
 
     assert props.get("hostName"), "hostName (classic) should be present"
@@ -53,20 +41,20 @@ def test_find_resource_returns_hostname_properties(discovery):
     device_hostname = props.get("deviceHostName")
     service_hostname = props.get("serviceHostName")
     if device_hostname:
-        assert ENTITY_NAME in device_hostname
+        assert hub_name in device_hostname
         assert ".device." in device_hostname
     if service_hostname:
-        assert ENTITY_NAME in service_hostname
+        assert hub_name in service_hostname
         assert ".service." in service_hostname
 
 
-def test_build_target_includes_hostname_fields(discovery):
+def test_build_target_includes_hostname_fields(discovery, provisioned_only_iot_hubs_module):
     """Verify _build_target populates deviceHostName and serviceHostName."""
-    if not ENTITY_NAME:
-        pytest.skip("azext_iot_testhub not set")
+    hub_name = provisioned_only_iot_hubs_module[0]["name"]
+    hub_rg = provisioned_only_iot_hubs_module[0]["rg"]
 
-    resource = discovery.find_resource(resource_name=ENTITY_NAME)
-    policy = discovery.find_policy(resource_name=ENTITY_NAME, rg=ENTITY_RG)
+    resource = discovery.find_resource(resource_name=hub_name)
+    policy = discovery.find_policy(resource_name=hub_name, rg=hub_rg)
     target = discovery._build_target(resource=resource, policy=policy)
 
     assert target.get("entity"), "entity (hostname) should be set"
@@ -75,12 +63,12 @@ def test_build_target_includes_hostname_fields(discovery):
     assert "serviceHostName" in target, "target should include serviceHostName key"
 
 
-def test_gwv2_target_uses_service_hostname(discovery):
+def test_gwv2_target_uses_service_hostname(discovery, provisioned_only_iot_hubs_module):
     """For GWv2 hubs, _build_target should use service hostname for entity."""
-    if not ENTITY_NAME:
-        pytest.skip("azext_iot_testhub not set")
+    hub_name = provisioned_only_iot_hubs_module[0]["name"]
+    hub_rg = provisioned_only_iot_hubs_module[0]["rg"]
 
-    resource = discovery.find_resource(resource_name=ENTITY_NAME)
+    resource = discovery.find_resource(resource_name=hub_name)
     props = resource.get("properties", {})
     gw_version = props.get("iotHubDetails", {}).get("gatewayVersion")
     service_hostname = props.get("serviceHostName")
@@ -88,7 +76,7 @@ def test_gwv2_target_uses_service_hostname(discovery):
     if gw_version != "V2" or not service_hostname:
         pytest.skip("Hub is not GWv2 — skipping service hostname test")
 
-    policy = discovery.find_policy(resource_name=ENTITY_NAME, rg=ENTITY_RG)
+    policy = discovery.find_policy(resource_name=hub_name, rg=hub_rg)
     target = discovery._build_target(resource=resource, policy=policy)
 
     assert target["entity"] == service_hostname, \
@@ -97,16 +85,15 @@ def test_gwv2_target_uses_service_hostname(discovery):
         "Connection string should use service hostname for GWv2 hub"
 
 
-def test_connection_string_uses_gwv2_hostname():
+def test_connection_string_uses_gwv2_hostname(provisioned_only_iot_hubs_module):
     """Verify connection-string show uses the device hostname for GWv2 hubs."""
-    if not ENTITY_NAME:
-        pytest.skip("azext_iot_testhub not set")
+    hub_name = provisioned_only_iot_hubs_module[0]["name"]
 
-    hub = cli.invoke(f"iot hub show -n {ENTITY_NAME}").as_json()
+    hub = cli.invoke(f"iot hub show -n {hub_name}").as_json()
     props = hub.get("properties", {})
     device_hostname = props.get("deviceHostName")
 
-    result = cli.invoke(f"iot hub connection-string show -n {ENTITY_NAME}").as_json()
+    result = cli.invoke(f"iot hub connection-string show -n {hub_name}").as_json()
     cs = result["connectionString"]
     assert "HostName=" in cs
 

@@ -37,4 +37,4 @@ class StorageAccountManager(object):
         storage_keys = self.client.storage_accounts.list_keys(
             resource_group_name=storage_rg, account_name=account.name)
         return BlobServiceClient(
-            account_url=account.primary_endpoints.blob, credential=storage_keys.keys[0].value)
+            account_url=account.primary_endpoints.blob, credential=storage_keys["keys"][0]["value"])

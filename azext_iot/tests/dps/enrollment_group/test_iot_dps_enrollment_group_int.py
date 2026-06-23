@@ -13,7 +13,6 @@ from azext_iot.tests.dps import (
     API_VERSION,
     DATAPLANE_AUTH_TYPES,
     WEBHOOK_URL,
-    clean_dps_dataplane,
 )
 from azext_iot.tests.helpers import CERT_ENDING, create_test_cert, set_cmd_auth_type
 from azext_iot.tests.generators import generate_generic_id, generate_names
@@ -27,7 +26,6 @@ def test_dps_enrollment_group_x509_lifecycle(provisioned_iot_dps_module):
     dps_host_name = provisioned_iot_dps_module['dps']['properties']['serviceOperationsHostName']
     hub_hostname = provisioned_iot_dps_module['hubHostName']
     dps_cstring = provisioned_iot_dps_module["connectionString"]
-    clean_dps_dataplane(cli, dps_cstring)
 
     cert_name = generate_names()
     cert_path = cert_name + CERT_ENDING
@@ -174,7 +172,6 @@ def test_dps_enrollment_group_symmetrickey_lifecycle(provisioned_iot_dps_module)
     dps_host_name = provisioned_iot_dps_module['dps']['properties']['serviceOperationsHostName']
     hub_hostname = provisioned_iot_dps_module['hubHostName']
     dps_cstring = provisioned_iot_dps_module["connectionString"]
-    clean_dps_dataplane(cli, dps_cstring)
     generic_dict = {
         generate_generic_id(): generate_generic_id(),
         "key": "value",
@@ -361,7 +358,6 @@ def test_dps_enrollment_twin_array(provisioned_iot_dps_module):
     dps_host_name = provisioned_iot_dps_module['dps']['properties']['serviceOperationsHostName']
     hub_hostname = provisioned_iot_dps_module['hubHostName']
     dps_cstring = provisioned_iot_dps_module["connectionString"]
-    clean_dps_dataplane(cli, dps_cstring)
     base_enrollment_props = {
         "count": None,
         "metadata": None,
