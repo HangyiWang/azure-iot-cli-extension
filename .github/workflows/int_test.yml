@@ -87,7 +87,7 @@ jobs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - name: "Checkout source"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           sparse-checkout: |
             azext_iot/tests
@@ -212,10 +212,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout source"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: "Setup Python 3.13"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: "pip" # Cache pip downloads to avoid re-downloading packages across runs
@@ -230,7 +230,7 @@ jobs:
 
       - name: "Upload coverage report"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-unit
           path: ./.coverage
@@ -239,7 +239,7 @@ jobs:
 
   int-test:
     name: "${{ matrix.config.service }} py${{ matrix.config.python }} (${{ matrix.config.region }})"
-    needs: [ setup, unit-test ]
+    needs: [setup, unit-test]
     if: ${{ needs.setup.result == 'success' && (needs.setup.outputs.matrix || '[]') != '[]' }}
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -250,10 +250,10 @@ jobs:
         config: ${{ fromJson(needs.setup.outputs.matrix || '[]') }}
     steps:
       - name: "Checkout source"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: "Setup Python ${{ matrix.config.python }}"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "${{ matrix.config.python }}"
           cache: "pip" # Saves ~30-60s per matrix job by caching pip downloads
@@ -277,7 +277,7 @@ jobs:
           tox r -vv -e ${{ matrix.config.tox_env }} --notest
 
       - name: "Az CLI login"
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -329,7 +329,7 @@ jobs:
 
       - name: "Upload test result"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: test-result-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{ matrix.config.region }}
           path: test-result/
@@ -337,7 +337,7 @@ jobs:
 
       - name: "Upload coverage artifact"
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-${{ matrix.config.service }}-py${{ matrix.config.python }}-${{ matrix.config.region }}
           path: ./.coverage
@@ -346,12 +346,12 @@ jobs:
 
   int-test-gate:
     name: "Integration test gate"
-    needs: [ int-test ]
+    needs: [int-test]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     steps:
       - name: "Download all test results"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         continue-on-error: true
         with:
           pattern: test-result-*
@@ -440,14 +440,14 @@ jobs:
   combine-coverage:
     name: "Combine coverage reports"
     if: always()
-    needs: [ unit-test, int-test, int-test-gate ]
+    needs: [unit-test, int-test, int-test-gate]
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout source"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: "Download all coverage artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: coverage-*
           path: ./coverage_parts
@@ -476,7 +476,7 @@ jobs:
           fi
 
       - name: "Upload combined coverage artifact"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: combined-coverage
           path: ./htmlcov
