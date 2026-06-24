@@ -4,6 +4,12 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
+# Dormant provider: the job/job-run operations were dropped from the regenerated
+# 2026-11-01-preview SDK but the code is retained for a future re-introduction. The SDK
+# client no longer exposes the `jobs` or `job_runs` members, so suppress the resulting
+# false positive.
+# pylint: disable=no-member
+
 from typing import Dict, List, Optional
 
 import isodate
