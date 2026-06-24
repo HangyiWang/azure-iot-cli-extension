@@ -11,6 +11,9 @@ from unittest.mock import Mock, patch
 import pytest
 
 from azext_iot.adr.providers.base import ADRProvider
+from azext_iot.adr.providers.adaptive_device import AdaptiveDeviceProvider
+from azext_iot.adr.providers.certificate_authority import CertificateAuthorityProvider
+from azext_iot.adr.providers.certificate_policy import CertificatePolicyProvider
 from azext_iot.adr.providers.credential import CredentialProvider
 from azext_iot.adr.providers.device import DeviceProvider
 from azext_iot.adr.providers.group import GroupProvider
@@ -84,6 +87,9 @@ def mock_wait_for_terminal_state(request, monkeypatch):
     monkeypatch.setattr("azext_iot.adr.providers.link.wait_for_terminal_state", fast_wait)
     monkeypatch.setattr("azext_iot.adr.providers.group.wait_for_terminal_state", fast_wait)
     monkeypatch.setattr("azext_iot.adr.providers.job.wait_for_terminal_state", fast_wait)
+    monkeypatch.setattr("azext_iot.adr.providers.certificate_authority.wait_for_terminal_state", fast_wait)
+    monkeypatch.setattr("azext_iot.adr.providers.certificate_policy.wait_for_terminal_state", fast_wait)
+    monkeypatch.setattr("azext_iot.adr.providers.adaptive_device.wait_for_terminal_state", fast_wait)
 
 
 @pytest.fixture()
@@ -138,6 +144,39 @@ def fixture_policy_provider(fixture_cmd):
         mock_client = Mock()
         mock_factory.return_value = mock_client
         provider = PolicyProvider(fixture_cmd)
+        provider.client = mock_client
+        return provider
+
+
+@pytest.fixture()
+def fixture_ca_provider(fixture_cmd):
+    """Certificate authority provider fixture for testing."""
+    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
+        mock_client = Mock()
+        mock_factory.return_value = mock_client
+        provider = CertificateAuthorityProvider(fixture_cmd)
+        provider.client = mock_client
+        return provider
+
+
+@pytest.fixture()
+def fixture_ca_policy_provider(fixture_cmd):
+    """Certificate policy provider fixture for testing."""
+    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
+        mock_client = Mock()
+        mock_factory.return_value = mock_client
+        provider = CertificatePolicyProvider(fixture_cmd)
+        provider.client = mock_client
+        return provider
+
+
+@pytest.fixture()
+def fixture_adaptive_device_provider(fixture_cmd):
+    """Adaptive device provider fixture for testing."""
+    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
+        mock_client = Mock()
+        mock_factory.return_value = mock_client
+        provider = AdaptiveDeviceProvider(fixture_cmd)
         provider.client = mock_client
         return provider
 

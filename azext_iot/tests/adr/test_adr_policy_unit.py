@@ -7,7 +7,7 @@
 from unittest.mock import Mock
 
 import pytest
-from azure.cli.core.azclierror import AzureResponseError, CLIError, ResourceNotFoundError
+from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 
 from azext_iot.adr.common import DEFAULT_NS_POLICY_CERT_KEY_TYPE, DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
@@ -182,7 +182,7 @@ def test_list_policies(fixture_policy_provider):
 def test_list_policies_reraises_non_parent_error(fixture_policy_provider):
     """List re-raises HttpResponseError when not a ParentResourceNotFound 404."""
     fixture_policy_provider.client.namespaces.get.return_value = {}
-    fixture_policy_provider.client.policies.list_by_resource_group.side_effect = HttpResponseError(
+    fixture_policy_provider.client.policies.list_by_credential.side_effect = HttpResponseError(
         response=Mock(status_code=500)
     )
 
@@ -246,26 +246,42 @@ def test_update_policy_with_tags(fixture_policy_provider, mock_poller):
 # ==================== Revoke Issuer ====================
 
 
-def test_revoke_issuer_not_available(fixture_policy_provider):
-    """revoke-issuer endpoint not yet exposed by Microsoft.DeviceRegistry API; provider raises CLIError."""
-    with pytest.raises(CLIError, match=r"not available yet"):
-        fixture_policy_provider.revoke_issuer(
-            policy_name="p", namespace_name="ns", resource_group_name="rg",
-        )
-    fixture_policy_provider.client.policies.begin_revoke_issuer.assert_not_called()
+def test_revoke_issuer(fixture_policy_provider, mock_poller):
+    """revoke-issuer triggers begin_revoke_issuer LRO and returns the result."""
+    sentinel = Mock()
+    fixture_policy_provider.client.policies.begin_revoke_issuer.return_value = mock_poller(sentinel)
+
+    result = fixture_policy_provider.revoke_issuer(
+        policy_name="p", namespace_name="ns", resource_group_name="rg",
+    )
+
+    assert result == sentinel
+    fixture_policy_provider.client.policies.begin_revoke_issuer.assert_called_once_with(
+        resource_group_name="rg", namespace_name="ns", policy_name="p",
+    )
 
 
 # ==================== Activate BYOR ====================
 
 
-def test_activate_byor_not_available(fixture_policy_provider):
-    """activate-byor endpoint not yet exposed by Microsoft.DeviceRegistry API; provider raises CLIError."""
-    with pytest.raises(CLIError, match=r"not available yet"):
-        fixture_policy_provider.activate_byor(
-            policy_name="p", namespace_name="ns", resource_group_name="rg",
-            certificate_chain="-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
-        )
-    fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.assert_not_called()
+def test_activate_byor(fixture_policy_provider, mock_poller):
+    """activate-byor triggers begin_activate_bring_your_own_root with the chain body."""
+    sentinel = Mock()
+    chain = "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+    fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.return_value = mock_poller(
+        sentinel
+    )
+
+    result = fixture_policy_provider.activate_byor(
+        policy_name="p", namespace_name="ns", resource_group_name="rg",
+        certificate_chain=chain,
+    )
+
+    assert result == sentinel
+    fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.assert_called_once_with(
+        resource_group_name="rg", namespace_name="ns", policy_name="p",
+        body={"certificateChain": chain},
+    )
 
 
 # ==================== Error Scenarios ====================

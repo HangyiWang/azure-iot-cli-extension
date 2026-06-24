@@ -17,17 +17,38 @@ from azure.mgmt.core.policies import ARMAutoResourceProviderRegistrationPolicy
 
 from ._configuration import MicrosoftDeviceRegistryManagementServiceConfiguration
 from ._serialization import Deserializer, Serializer
-from .operations import CredentialsOperations, NamespaceDevicesOperations, NamespacesOperations, PoliciesOperations
+from .operations import (
+    AsyncOperationStatusOperations,
+    CertificateAuthoritiesOperations,
+    CertificatePoliciesOperations,
+    CredentialsOperations,
+    NamespaceAdaptiveDevicesOperations,
+    NamespaceDevicesOperations,
+    NamespacesOperations,
+    PoliciesOperations,
+)
 
 if TYPE_CHECKING:
     from azure.core.credentials import TokenCredential
 
 
-class MicrosoftDeviceRegistryManagementService:
+class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-instance-attributes
     """Microsoft.DeviceRegistry Resource Provider management API.
 
+    :ivar async_operation_status: AsyncOperationStatusOperations operations
+    :vartype async_operation_status:
+     azext_iot.sdk.deviceregistry.operations.AsyncOperationStatusOperations
     :ivar namespaces: NamespacesOperations operations
     :vartype namespaces: azext_iot.sdk.deviceregistry.operations.NamespacesOperations
+    :ivar namespace_adaptive_devices: NamespaceAdaptiveDevicesOperations operations
+    :vartype namespace_adaptive_devices:
+     azext_iot.sdk.deviceregistry.operations.NamespaceAdaptiveDevicesOperations
+    :ivar certificate_authorities: CertificateAuthoritiesOperations operations
+    :vartype certificate_authorities:
+     azext_iot.sdk.deviceregistry.operations.CertificateAuthoritiesOperations
+    :ivar certificate_policies: CertificatePoliciesOperations operations
+    :vartype certificate_policies:
+     azext_iot.sdk.deviceregistry.operations.CertificatePoliciesOperations
     :ivar credentials: CredentialsOperations operations
     :vartype credentials: azext_iot.sdk.deviceregistry.operations.CredentialsOperations
     :ivar policies: PoliciesOperations operations
@@ -80,7 +101,19 @@ class MicrosoftDeviceRegistryManagementService:
         self._serialize = Serializer()
         self._deserialize = Deserializer()
         self._serialize.client_side_validation = False
+        self.async_operation_status = AsyncOperationStatusOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
         self.namespaces = NamespacesOperations(self._client, self._config, self._serialize, self._deserialize)
+        self.namespace_adaptive_devices = NamespaceAdaptiveDevicesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.certificate_authorities = CertificateAuthoritiesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.certificate_policies = CertificatePoliciesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
         self.credentials = CredentialsOperations(self._client, self._config, self._serialize, self._deserialize)
         self.policies = PoliciesOperations(self._client, self._config, self._serialize, self._deserialize)
         self.namespace_devices = NamespaceDevicesOperations(

@@ -280,6 +280,38 @@ def test_hub_show_returns_endpoint(fixture_link_provider):
     )
 
 
+def test_hub_show_passes_through_new_readonly_fields(fixture_link_provider):
+    """New 2026-11-01-preview read-only link fields must survive show() unchanged."""
+    endpoint = {
+        "endpointType": IOT_HUB_ENDPOINT_TYPE,
+        "resourceId": HUB_RESOURCE_ID,
+        "inboundCallerIdentity": {"type": "SystemAssigned"},
+        # New read-only fields introduced in 2026-11-01-preview
+        "linkingState": "Linked",
+        "linkingError": None,
+        "deviceAddress": "device-addr",
+        "serviceAddress": "service-addr",
+        "legacyDeviceAddress": "legacy-addr",
+    }
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {"primary": endpoint}
+    )
+
+    result = fixture_link_provider.hub_show(
+        endpoint_name="primary", namespace_name="ns", resource_group_name="rg"
+    )
+
+    for field in [
+        "linkingState",
+        "linkingError",
+        "deviceAddress",
+        "serviceAddress",
+        "legacyDeviceAddress",
+    ]:
+        assert field in result
+    assert result == endpoint
+
+
 def test_hub_show_missing_raises(fixture_link_provider):
     fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
     with pytest.raises(ResourceNotFoundError):

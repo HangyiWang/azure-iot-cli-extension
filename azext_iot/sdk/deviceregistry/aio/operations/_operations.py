@@ -34,12 +34,30 @@ from azure.mgmt.core.polling.async_arm_polling import AsyncARMPolling
 
 from ..._serialization import Deserializer, Serializer
 from ...operations._operations import (
+    build_async_operation_status_get_request,
+    build_certificate_authorities_activate_request,
+    build_certificate_authorities_create_or_replace_request,
+    build_certificate_authorities_delete_request,
+    build_certificate_authorities_get_request,
+    build_certificate_authorities_list_by_namespace_request,
+    build_certificate_authorities_revoke_request,
+    build_certificate_authorities_update_request,
+    build_certificate_policies_create_or_update_request,
+    build_certificate_policies_delete_request,
+    build_certificate_policies_get_request,
+    build_certificate_policies_list_by_certificate_authority_request,
+    build_certificate_policies_update_request,
     build_credentials_create_or_update_request,
     build_credentials_delete_request,
     build_credentials_get_request,
     build_credentials_list_by_namespace_request,
     build_credentials_synchronize_request,
     build_credentials_update_request,
+    build_namespace_adaptive_devices_create_or_replace_request,
+    build_namespace_adaptive_devices_delete_request,
+    build_namespace_adaptive_devices_get_request,
+    build_namespace_adaptive_devices_list_by_namespace_request,
+    build_namespace_adaptive_devices_update_request,
     build_namespace_devices_create_or_replace_request,
     build_namespace_devices_delete_request,
     build_namespace_devices_get_request,
@@ -52,10 +70,12 @@ from ...operations._operations import (
     build_namespaces_list_by_subscription_request,
     build_namespaces_migrate_request,
     build_namespaces_update_request,
+    build_policies_activate_bring_your_own_root_request,
     build_policies_create_or_update_request,
     build_policies_delete_request,
     build_policies_get_request,
     build_policies_list_by_credential_request,
+    build_policies_revoke_issuer_request,
     build_policies_update_request,
 )
 from .._configuration import MicrosoftDeviceRegistryManagementServiceConfiguration
@@ -63,6 +83,113 @@ from .._configuration import MicrosoftDeviceRegistryManagementServiceConfigurati
 JSON = MutableMapping[str, Any]
 T = TypeVar("T")
 ClsType = Optional[Callable[[PipelineResponse[HttpRequest, AsyncHttpResponse], T, Dict[str, Any]], Any]]
+
+
+class AsyncOperationStatusOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`async_operation_status` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace_async
+    async def get(self, location: str, operation_id: str, **kwargs: Any) -> JSON:
+        """Returns the current status of an async operation.
+
+        :param location: The name of the Azure region. Required.
+        :type location: str
+        :param operation_id: The ID of an ongoing async operation. Required.
+        :type operation_id: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "status": "str",
+                    "endTime": "2020-02-20 00:00:00",
+                    "error": {
+                        "additionalInfo": [
+                            {
+                                "info": {},
+                                "type": "str"
+                            }
+                        ],
+                        "code": "str",
+                        "details": [
+                            ...
+                        ],
+                        "message": "str",
+                        "target": "str"
+                    },
+                    "id": "str",
+                    "name": "str",
+                    "operations": [
+                        ...
+                    ],
+                    "percentComplete": 0.0,
+                    "resourceId": "str",
+                    "startTime": "2020-02-20 00:00:00"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_async_operation_status_get_request(
+            location=location,
+            operation_id=operation_id,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
 
 
 class NamespacesOperations:
@@ -112,6 +239,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -133,6 +261,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -155,6 +287,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -171,6 +307,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -288,6 +428,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -309,6 +450,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -331,6 +476,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -347,6 +496,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -467,6 +620,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -488,6 +642,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -510,6 +668,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -526,6 +688,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -704,6 +870,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -725,6 +892,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -747,6 +918,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -763,6 +938,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -801,6 +980,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -822,6 +1002,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -844,6 +1028,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -860,6 +1048,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -928,6 +1120,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -949,6 +1142,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -971,6 +1168,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -987,6 +1188,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -1047,6 +1252,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -1068,6 +1274,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -1090,6 +1300,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -1106,6 +1320,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -1144,6 +1362,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -1165,6 +1384,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -1187,6 +1410,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -1203,6 +1430,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -1382,6 +1613,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -1402,6 +1634,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -1424,6 +1660,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -1439,6 +1679,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -1476,6 +1720,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -1497,6 +1742,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -1519,6 +1768,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -1535,6 +1788,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -1603,6 +1860,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -1624,6 +1882,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -1646,6 +1908,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -1662,6 +1928,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -1719,6 +1989,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -1739,6 +2010,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -1761,6 +2036,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -1776,6 +2055,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -1813,6 +2096,7 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
+                        "certificateManagement": "str",
                         "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
@@ -1834,6 +2118,10 @@ class NamespacesOperations:
                                     "address": "str",
                                     "deviceAddress": "str",
                                     "endpointType": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "provisioning": {
                                         "allocationWeight": 0,
@@ -1856,6 +2144,10 @@ class NamespacesOperations:
                                         "userAssignedIdentity": "str"
                                     },
                                     "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str"
                                 }
                             }
@@ -1872,6 +2164,10 @@ class NamespacesOperations:
                                     "resourceId": "str",
                                     "deviceAddress": "str",
                                     "legacyDeviceAddress": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
                                     "linkingState": "str",
                                     "serviceAddress": "str"
                                 }
@@ -2327,6 +2623,3771 @@ class NamespacesOperations:
                 deserialization_callback=get_long_running_output,
             )
         return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class NamespaceAdaptiveDevicesOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`namespace_adaptive_devices` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List NamespaceAdaptiveDevice resources by Namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_namespace_adaptive_devices_list_by_namespace_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self, resource_group_name: str, namespace_name: str, adaptive_device_name: str, **kwargs: Any
+    ) -> JSON:
+        """Get a NamespaceAdaptiveDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param adaptive_device_name: The name of the new device. Required.
+        :type adaptive_device_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_namespace_adaptive_devices_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            adaptive_device_name=adaptive_device_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    @overload
+    async def create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        adaptive_device_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a NamespaceAdaptiveDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param adaptive_device_name: The name of the new device. Required.
+        :type adaptive_device_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        adaptive_device_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a NamespaceAdaptiveDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param adaptive_device_name: The name of the new device. Required.
+        :type adaptive_device_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        adaptive_device_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> JSON:
+        """Create a NamespaceAdaptiveDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param adaptive_device_name: The name of the new device. Required.
+        :type adaptive_device_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_namespace_adaptive_devices_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            adaptive_device_name=adaptive_device_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    @overload
+    async def update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        adaptive_device_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Update a NamespaceAdaptiveDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param adaptive_device_name: The name of the new device. Required.
+        :type adaptive_device_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        adaptive_device_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Update a NamespaceAdaptiveDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param adaptive_device_name: The name of the new device. Required.
+        :type adaptive_device_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        adaptive_device_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> JSON:
+        """Update a NamespaceAdaptiveDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param adaptive_device_name: The name of the new device. Required.
+        :type adaptive_device_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_namespace_adaptive_devices_update_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            adaptive_device_name=adaptive_device_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, adaptive_device_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_namespace_adaptive_devices_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            adaptive_device_name=adaptive_device_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, namespace_name: str, adaptive_device_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a NamespaceAdaptiveDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param adaptive_device_name: The name of the new device. Required.
+        :type adaptive_device_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                adaptive_device_name=adaptive_device_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class CertificateAuthoritiesOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`certificate_authorities` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List CertificateAuthority resources by Namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_certificate_authorities_list_by_namespace_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self, resource_group_name: str, namespace_name: str, certificate_authority_name: str, **kwargs: Any
+    ) -> JSON:
+        """Get a CertificateAuthority.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_certificate_authorities_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_replace_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_certificate_authorities_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a CertificateAuthority.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a CertificateAuthority.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a CertificateAuthority.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                certificate_authority_name=certificate_authority_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _update_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_certificate_authorities_update_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a CertificateAuthority.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a CertificateAuthority.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a CertificateAuthority.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "certificateAuthorityType":
+
+                # JSON input template for discriminator value "BringYourOwn":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "BringYourOwn",
+                    "keyType": "str",
+                    "bringYourOwn": {
+                        "certificateSigningRequest": "str",
+                        "status": "str",
+                        "thumbprint": "str"
+                    },
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "ICA":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "ICA",
+                    "issuerCertificateAuthorityUuid": "str",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # JSON input template for discriminator value "Root":
+                certificate_authority_properties = {
+                    "certificateAuthorityType": "Root",
+                    "keyType": "str",
+                    "provisioningState": "str",
+                    "subject": "str",
+                    "uuid": "str",
+                    "validityNotAfter": "2020-02-20 00:00:00",
+                    "validityNotBefore": "2020-02-20 00:00:00"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": certificate_authority_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._update_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                certificate_authority_name=certificate_authority_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, certificate_authority_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_certificate_authorities_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, namespace_name: str, certificate_authority_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a CertificateAuthority.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                certificate_authority_name=certificate_authority_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _activate_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        body: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(body, (IOBase, bytes)):
+            _content = body
+        else:
+            _json = body
+
+        _request = build_certificate_authorities_activate_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_activate(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        body: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Activates the Certificate Authority signed by external PKI.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param body: The content of the action request. Required.
+        :type body: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "certificateChain": "str"
+                }
+        """
+
+    @overload
+    async def begin_activate(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        body: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Activates the Certificate Authority signed by external PKI.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param body: The content of the action request. Required.
+        :type body: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+
+    @distributed_trace_async
+    async def begin_activate(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        body: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Activates the Certificate Authority signed by external PKI.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type body: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "certificateChain": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._activate_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                certificate_authority_name=certificate_authority_name,
+                body=body,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _revoke_initial(
+        self, resource_group_name: str, namespace_name: str, certificate_authority_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_certificate_authorities_revoke_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_revoke(
+        self, resource_group_name: str, namespace_name: str, certificate_authority_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Revokes the Certificate Authority issued by Microsoft PKI.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._revoke_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                certificate_authority_name=certificate_authority_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class CertificatePoliciesOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`certificate_policies` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_certificate_authority(
+        self, resource_group_name: str, namespace_name: str, certificate_authority_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List CertificatePolicy resources by CertificateAuthority.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_certificate_policies_list_by_certificate_authority_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    certificate_authority_name=certificate_authority_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        **kwargs: Any
+    ) -> JSON:
+        """Get a CertificatePolicy.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param certificate_policy_name: The name of the Certificate Policy resource. Required.
+        :type certificate_policy_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_certificate_policies_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            certificate_policy_name=certificate_policy_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_update_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_certificate_policies_create_or_update_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            certificate_policy_name=certificate_policy_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a CertificatePolicy.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param certificate_policy_name: The name of the Certificate Policy resource. Required.
+        :type certificate_policy_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a CertificatePolicy.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param certificate_policy_name: The name of the Certificate Policy resource. Required.
+        :type certificate_policy_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a CertificatePolicy.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param certificate_policy_name: The name of the Certificate Policy resource. Required.
+        :type certificate_policy_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_update_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                certificate_authority_name=certificate_authority_name,
+                certificate_policy_name=certificate_policy_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _update_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_certificate_policies_update_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            certificate_policy_name=certificate_policy_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a CertificatePolicy.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param certificate_policy_name: The name of the Certificate Policy resource. Required.
+        :type certificate_policy_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a CertificatePolicy.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param certificate_policy_name: The name of the Certificate Policy resource. Required.
+        :type certificate_policy_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a CertificatePolicy.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param certificate_policy_name: The name of the Certificate Policy resource. Required.
+        :type certificate_policy_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        },
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._update_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                certificate_authority_name=certificate_authority_name,
+                certificate_policy_name=certificate_policy_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _delete_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_certificate_policies_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            certificate_authority_name=certificate_authority_name,
+            certificate_policy_name=certificate_policy_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        certificate_authority_name: str,
+        certificate_policy_name: str,
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a CertificatePolicy.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param certificate_authority_name: The name of the Certificate Authority resource. Required.
+        :type certificate_authority_name: str
+        :param certificate_policy_name: The name of the Certificate Policy resource. Required.
+        :type certificate_policy_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                certificate_authority_name=certificate_authority_name,
+                certificate_policy_name=certificate_policy_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
 
 class CredentialsOperations:
@@ -3416,6 +7477,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -3535,6 +7602,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -3719,6 +7792,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -3753,6 +7832,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -3820,6 +7905,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -3883,6 +7974,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -3917,6 +8014,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -4119,6 +8222,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -4186,6 +8295,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -4263,6 +8378,12 @@ class PoliciesOperations:
                         "certificate": {
                             "certificateAuthorityConfiguration": {
                                 "keyType": "str",
+                                "bringYourOwnRoot": {
+                                    "enabled": bool,
+                                    "certificateSigningRequest": "str",
+                                    "issuingCertificateThumbprint": "str",
+                                    "status": "str"
+                                },
                                 "subject": "str",
                                 "validityNotAfter": "2020-02-20 00:00:00",
                                 "validityNotBefore": "2020-02-20 00:00:00"
@@ -4418,6 +8539,337 @@ class PoliciesOperations:
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
             raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                policy_name=policy_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _activate_bring_your_own_root_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        policy_name: str,
+        body: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(body, (IOBase, bytes)):
+            _content = body
+        else:
+            _json = body
+
+        _request = build_policies_activate_bring_your_own_root_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            policy_name=policy_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_activate_bring_your_own_root(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        policy_name: str,
+        body: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Activates a Bring Your Own Root (BYOR) certificate authority on a Credential Policy by merging
+        a customer-supplied certificate chain into the policy's ICA.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param policy_name: The name of the Policy tracked resource. Required.
+        :type policy_name: str
+        :param body: The content of the action request. Required.
+        :type body: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "certificateChain": "str"
+                }
+        """
+
+    @overload
+    async def begin_activate_bring_your_own_root(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        policy_name: str,
+        body: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Activates a Bring Your Own Root (BYOR) certificate authority on a Credential Policy by merging
+        a customer-supplied certificate chain into the policy's ICA.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param policy_name: The name of the Policy tracked resource. Required.
+        :type policy_name: str
+        :param body: The content of the action request. Required.
+        :type body: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+
+    @distributed_trace_async
+    async def begin_activate_bring_your_own_root(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        policy_name: str,
+        body: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Activates a Bring Your Own Root (BYOR) certificate authority on a Credential Policy by merging
+        a customer-supplied certificate chain into the policy's ICA.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param policy_name: The name of the Policy tracked resource. Required.
+        :type policy_name: str
+        :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type body: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "certificateChain": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._activate_bring_your_own_root_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                policy_name=policy_name,
+                body=body,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _revoke_issuer_initial(
+        self, resource_group_name: str, namespace_name: str, policy_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_policies_revoke_issuer_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            policy_name=policy_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_revoke_issuer(
+        self, resource_group_name: str, namespace_name: str, policy_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Revokes the current issuing certificate authority for a Credential Policy.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param policy_name: The name of the Policy tracked resource. Required.
+        :type policy_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._revoke_issuer_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 policy_name=policy_name,

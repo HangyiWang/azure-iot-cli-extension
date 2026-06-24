@@ -17,6 +17,8 @@ from azure.cli.core.commands.parameters import (
 )
 from azure.cli.core.commands.validators import get_default_location_from_resource_group
 from azext_iot.adr.common import (
+    CertificateAuthorityKeyType,
+    CertificateAuthorityType,
     GroupType,
     JobType,
     MessagingEndpointAvailability,
@@ -44,14 +46,14 @@ def load_adr_arguments(self, _):
             arg_type=get_location_type(self.cli_ctx),
             validator=get_default_location_from_resource_group,
         )
-        # Enable certificate management and policy creation
+        # Enable certificate management (namespace-level certificateManagement state)
         context.argument(
             "enable_certificate_management",
             arg_group="Credential",
             options_list=["--enable-certificate-management", "--ecm"],
             arg_type=get_three_state_flag(),
-            help="Create a credential and credential policy for this Device Registry namespace. "
-                 "This is also enabled when any custom policy parameters are provided.",
+            help="Set the namespace certificate management state. When enabled, the namespace uses "
+                 "cloud PKI-backed certificate lifecycle operations managed via 'iot adr ns ca'.",
         )
         context.argument(
             "policy_name",
@@ -130,6 +132,128 @@ def load_adr_arguments(self, _):
                  "The file must contain the signed certificate (matching the CSR from policy show), "
                  "followed by any intermediate CAs, and optionally the root CA. "
                  "Certificates must be ordered from leaf to root.",
+        )
+
+    # Certificate Authority (CMS remodel) arguments
+    with self.argument_context("iot adr ns ca") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "certificate_authority_name",
+            options_list=["--name", "-n", "--ca-name"],
+            help="Name of the certificate authority.",
+        )
+        context.argument("tags", arg_type=tags_type)
+
+    with self.argument_context("iot adr ns ca create") as context:
+        context.argument(
+            "location",
+            arg_type=get_location_type(self.cli_ctx),
+            validator=get_default_location_from_resource_group,
+        )
+        context.argument(
+            "certificate_authority_type",
+            options_list=["--type", "--ca-type"],
+            arg_type=get_enum_type(CertificateAuthorityType),
+            help="The certificate authority type. Use 'Root' for a service-managed self-signed root CA, "
+                 "'ICA' for an intermediate CA signed by another same-namespace CA, or 'BringYourOwn' "
+                 "for a CA certificate signed by an external issuer.",
+        )
+        context.argument(
+            "key_type",
+            options_list=["--key-type"],
+            arg_type=get_enum_type(CertificateAuthorityKeyType),
+            help="The cryptographic key type for the certificate authority.",
+        )
+
+    with self.argument_context("iot adr ns ca activate") as context:
+        context.argument(
+            "certificate_chain_file",
+            options_list=["--certificate-chain-file", "--ccf"],
+            help="Path to a PEM file containing the signed certificate chain for a 'BringYourOwn' "
+                 "certificate authority. Certificates must be ordered from leaf to root.",
+        )
+
+    # Certificate Policy (nested under a certificate authority) arguments
+    with self.argument_context("iot adr ns ca policy") as context:
+        context.argument(
+            "certificate_policy_name",
+            options_list=["--name", "-n", "--policy-name", "--pn"],
+            help="Name of the certificate policy.",
+        )
+        context.argument(
+            "certificate_authority_name",
+            options_list=["--ca-name", "--ca"],
+            help="Name of the parent certificate authority.",
+        )
+        context.argument("tags", arg_type=tags_type)
+
+    for cmd in ["iot adr ns ca policy create", "iot adr ns ca policy update"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "validity_days",
+                options_list=["--validity-days", "--vd"],
+                type=int,
+                help="Leaf certificate validity period in days.",
+            )
+
+    with self.argument_context("iot adr ns ca policy create") as context:
+        context.argument(
+            "location",
+            arg_type=get_location_type(self.cli_ctx),
+            validator=get_default_location_from_resource_group,
+        )
+
+    # Adaptive Device arguments
+    with self.argument_context("iot adr ns adaptive-device") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "adaptive_device_name",
+            options_list=["--name", "-n"],
+            help="Name of the adaptive device.",
+        )
+        context.argument("tags", arg_type=tags_type)
+
+    for cmd in ["iot adr ns adaptive-device create", "iot adr ns adaptive-device update"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "external_device_id",
+                options_list=["--external-device-id", "--ext-id"],
+                help="External identifier of the device in its source system.",
+            )
+            context.argument(
+                "manufacturer",
+                options_list=["--manufacturer"],
+                help="Device manufacturer.",
+            )
+            context.argument(
+                "model",
+                options_list=["--model"],
+                help="Device model.",
+            )
+            context.argument(
+                "hardware_revision",
+                options_list=["--hardware-revision", "--hw-rev"],
+                help="Device hardware revision.",
+            )
+            context.argument(
+                "software_revision",
+                options_list=["--software-revision", "--sw-rev"],
+                help="Device software revision.",
+            )
+
+    with self.argument_context("iot adr ns adaptive-device create") as context:
+        context.argument(
+            "location",
+            arg_type=get_location_type(self.cli_ctx),
+            validator=get_default_location_from_resource_group,
         )
 
     # Device arguments
@@ -237,6 +361,15 @@ def load_adr_arguments(self, _):
                 help="User-assigned managed identity resource ID for the outbound identity. "
                      "NOTE: Currently unsupported; the underlying API surface is still being finalized.",
             )
+
+    with self.argument_context("iot adr ns update") as context:
+        context.argument(
+            "enable_certificate_management",
+            arg_group="Credential",
+            options_list=["--enable-certificate-management", "--ecm"],
+            arg_type=get_three_state_flag(),
+            help="Enable or disable certificate management state for this Device Registry namespace.",
+        )
 
     # Link hub arguments
     with self.argument_context("iot adr ns link hub") as context:

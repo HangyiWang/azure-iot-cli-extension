@@ -6,7 +6,7 @@
 
 from typing import Dict, Optional
 
-from azure.cli.core.azclierror import AzureResponseError, CLIError, ResourceNotFoundError
+from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 from rich.console import Console
 
@@ -168,12 +168,15 @@ class PolicyProvider(ADRProvider):
 
     def revoke_issuer(self, policy_name: str, namespace_name: str, resource_group_name: str, **kwargs):
         """Revoke the CA certificate for a policy, triggering regeneration of a new CA."""
-        # API endpoint not yet available in current Microsoft.DeviceRegistry preview.
-        raise CLIError(
-            "'az iot adr ns policy revoke-issuer' is not available yet: the underlying "
-            "Microsoft.DeviceRegistry API is still being finalized. Please try again "
-            "in a future release."
-        )
+        with console.status(
+            f"Revoking issuer for policy '{policy_name}' on namespace {namespace_name}..."
+        ):
+            poller = self.client.policies.begin_revoke_issuer(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                policy_name=policy_name,
+            )
+            return wait_for_terminal_state(poller, **kwargs)
 
     def activate_byor(
         self,
@@ -184,9 +187,14 @@ class PolicyProvider(ADRProvider):
         **kwargs,
     ):
         """Activate or renew a Bring Your Own Root policy with a signed certificate chain."""
-        # API endpoint not yet available in current Microsoft.DeviceRegistry preview.
-        raise CLIError(
-            "'az iot adr ns policy activate-byor' is not available yet: the underlying "
-            "Microsoft.DeviceRegistry API is still being finalized. Please try again "
-            "in a future release."
-        )
+        body = {"certificateChain": certificate_chain}
+        with console.status(
+            f"Activating Bring Your Own Root for policy '{policy_name}' on namespace {namespace_name}..."
+        ):
+            poller = self.client.policies.begin_activate_bring_your_own_root(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                policy_name=policy_name,
+                body=body,
+            )
+            return wait_for_terminal_state(poller, **kwargs)

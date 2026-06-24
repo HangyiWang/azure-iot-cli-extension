@@ -17,6 +17,7 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_NAME,
     DEFAULT_NS_POLICY_CERT_KEY_TYPE,
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
+    CertificateManagementState,
     IdentityType,
     OutboundIdentityType,
     build_mi_body,
@@ -87,9 +88,11 @@ class NamespaceProvider(ADRProvider):
         outbound_mi_user_assigned: Optional[str] = None,
         **kwargs,
     ):
-        # If any policy arguments provided, create policy
+        # Legacy credential/policy bootstrap (DEPRECATED): triggered only by explicit legacy policy
+        # args. `--enable-certificate-management` no longer drives this; it now solely sets the
+        # namespace-level `certificateManagement` state (the real API field). Certificate authorities
+        # and policies are managed via `iot adr ns ca` in the CMS model.
         should_create_credential_policy = any([
-            enable_certificate_management,
             policy_name,
             certificate_key_type,
             certificate_subject,
@@ -97,11 +100,18 @@ class NamespaceProvider(ADRProvider):
         ])
 
         if should_create_credential_policy:
-            # user provided policy inputs but enable is strictly false
+            # Contradictory inputs: cannot bootstrap a credential policy while disabling cert management
             if enable_certificate_management is False:
                 raise MutuallyExclusiveArgumentError(
-                    "Cannot create a custom policy if `--enable-certificate-management` is false."
+                    "Cannot create a custom credential policy while "
+                    "`--enable-certificate-management` is false."
                 )
+
+            logger.warning(
+                "Creating a default credential and credential policy is deprecated and will be "
+                "removed in a future release. Use 'az iot adr ns ca' to manage certificate "
+                "authorities and policies instead."
+            )
 
             # Set defaults for certificate parameters if not provided
             if certificate_key_type is None:
@@ -127,6 +137,12 @@ class NamespaceProvider(ADRProvider):
         # TODO - CMS Preview - support messaging endpoints create
 
         properties = {}
+        if enable_certificate_management is not None:
+            properties["certificateManagement"] = (
+                CertificateManagementState.enabled.value
+                if enable_certificate_management
+                else CertificateManagementState.disabled.value
+            )
         if outbound_identity is not None:
             properties["outboundIdentity"] = outbound_identity
         if properties:
@@ -218,6 +234,7 @@ class NamespaceProvider(ADRProvider):
         namespace_name: str,
         resource_group_name: str,
         tags: Optional[Dict[str, str]] = None,
+        enable_certificate_management: Optional[bool] = None,
         outbound_mi_system_assigned: Optional[bool] = None,
         outbound_mi_user_assigned: Optional[str] = None,
         **kwargs,
@@ -227,11 +244,21 @@ class NamespaceProvider(ADRProvider):
         if tags is not None:
             body["tags"] = tags
 
+        properties: dict = {}
+        if enable_certificate_management is not None:
+            properties["certificateManagement"] = (
+                CertificateManagementState.enabled.value
+                if enable_certificate_management
+                else CertificateManagementState.disabled.value
+            )
+
         outbound_identity = _resolve_outbound_identity(
             outbound_mi_system_assigned, outbound_mi_user_assigned
         )
         if outbound_identity is not None:
-            body["properties"] = {"outboundIdentity": outbound_identity}
+            properties["outboundIdentity"] = outbound_identity
+        if properties:
+            body["properties"] = properties
 
         poller = self.client.namespaces.begin_update(
             resource_group_name=resource_group_name,

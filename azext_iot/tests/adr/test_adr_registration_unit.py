@@ -17,12 +17,12 @@ from unittest.mock import MagicMock
 
 import azext_iot.adr._help  # noqa: F401  (covered on import)
 from azext_iot.adr.command_map import load_adr_commands
-from azext_iot.adr.params_adr_management import load_adr_management_arguments
+from azext_iot.adr.params import load_adr_arguments
 
 
 def test_load_adr_commands():
     load_adr_commands(MagicMock(), None)
 
 
-def test_load_adr_management_arguments():
-    load_adr_management_arguments(MagicMock(), None)
+def test_load_adr_arguments():
+    load_adr_arguments(MagicMock(), None)

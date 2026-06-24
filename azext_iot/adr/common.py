@@ -109,6 +109,21 @@ class PolicyCertificateKeyType(Enum):
     rsa = "RSA"
 
 
+class CertificateAuthorityType(Enum):
+    root = "Root"
+    ica = "ICA"
+    bring_your_own = "BringYourOwn"
+
+
+class CertificateAuthorityKeyType(Enum):
+    ecc = "ECC"
+
+
+class CertificateManagementState(Enum):
+    enabled = "Enabled"
+    disabled = "Disabled"
+
+
 # Endpoint type discriminators on Namespace messaging / provisioning / updating endpoints
 IOT_HUB_ENDPOINT_TYPE = "Microsoft.Devices/IotHubs"
 DPS_ENDPOINT_TYPE = "Microsoft.Devices/provisioningServices"
@@ -119,6 +134,7 @@ DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS = 30
 DEFAULT_NS_CREDENTIAL_NAME = "default"
 DEFAULT_NS_POLICY_NAME = "default"
 DEFAULT_NS_POLICY_CERT_KEY_TYPE = PolicyCertificateKeyType.ecc.value
+DEFAULT_NS_CA_KEY_TYPE = CertificateAuthorityKeyType.ecc.value
 
 
 def build_mi_body(
@@ -156,4 +172,11 @@ POLICY_PARENT_RESOURCE_NOT_FOUND_MSG = (
     "No credential exists on namespace '{namespace_name}' in resource group '{resource_group_name}'. "
     "Please create a credential using 'az iot adr ns credential create --ns {namespace_name} -g {resource_group_name}' "
     "to manage credential policies."
+)
+
+CA_PARENT_RESOURCE_NOT_FOUND_MSG = (
+    "No certificate authority '{certificate_authority_name}' exists on namespace '{namespace_name}' "
+    "in resource group '{resource_group_name}'. "
+    "Please create one using 'az iot adr ns ca create --name {certificate_authority_name} "
+    "--ns {namespace_name} -g {resource_group_name}' to manage certificate policies."
 )

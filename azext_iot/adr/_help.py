@@ -247,6 +247,214 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns ca"
+    ] = """
+  type: group
+  short-summary: Manage certificate authorities for a Device Registry namespace.
+  long-summary: |
+    Certificate authorities (CMS) require certificate management to be enabled on the namespace
+    (see 'az iot adr ns create --enable-certificate-management').
+  """
+
+    helps[
+        "iot adr ns ca create"
+    ] = """
+  type: command
+  short-summary: Create a certificate authority for a Device Registry namespace.
+  long-summary: |
+    The certificate authority type determines the required associated properties:
+    - Root: a service-managed self-signed root CA.
+    - ICA: an intermediate CA signed by another CA in the same namespace.
+    - BringYourOwn: a CA certificate signed by an external issuer. After creation the service
+      returns a CSR; sign it with your PKI and complete activation with 'az iot adr ns ca activate'.
+  examples:
+    - name: Create a service-managed root certificate authority
+      text: az iot adr ns ca create -n myRootCA --ns myNamespace -g myResourceGroup --type Root
+    - name: Create a Bring Your Own certificate authority
+      text: az iot adr ns ca create -n myByoCA --ns myNamespace -g myResourceGroup --type BringYourOwn
+  """
+
+    helps[
+        "iot adr ns ca show"
+    ] = """
+  type: command
+  short-summary: Show a certificate authority for a Device Registry namespace.
+  examples:
+    - name: Show a certificate authority
+      text: az iot adr ns ca show -n myCA --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns ca list"
+    ] = """
+  type: command
+  short-summary: List the certificate authorities for a Device Registry namespace.
+  examples:
+    - name: List certificate authorities
+      text: az iot adr ns ca list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns ca update"
+    ] = """
+  type: command
+  short-summary: Update a certificate authority for a Device Registry namespace.
+  examples:
+    - name: Update certificate authority tags
+      text: az iot adr ns ca update -n myCA --ns myNamespace -g myResourceGroup --tags env=prod
+  """
+
+    helps[
+        "iot adr ns ca delete"
+    ] = """
+  type: command
+  short-summary: Delete a certificate authority from a Device Registry namespace.
+  examples:
+    - name: Delete a certificate authority
+      text: az iot adr ns ca delete -n myCA --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns ca activate"
+    ] = """
+  type: command
+  short-summary: Activate a Bring Your Own certificate authority with a signed certificate chain.
+  long-summary: |
+    Use this after creating a 'BringYourOwn' certificate authority and signing the
+    service-generated CSR with your external PKI. The certificate chain file must be in PEM
+    format with certificates ordered from leaf to root.
+  examples:
+    - name: Activate a BringYourOwn certificate authority
+      text: az iot adr ns ca activate -n myByoCA --ns myNamespace -g myResourceGroup --certificate-chain-file ./signed-chain.pem
+  """
+
+    helps[
+        "iot adr ns ca revoke"
+    ] = """
+  type: command
+  short-summary: Revoke a certificate authority issued by Microsoft PKI.
+  examples:
+    - name: Revoke a certificate authority
+      text: az iot adr ns ca revoke -n myCA --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns ca policy"
+    ] = """
+  type: group
+  short-summary: Manage certificate policies for a certificate authority.
+  long-summary: |
+    A certificate policy carries the leaf certificate issuance settings for a certificate authority.
+  """
+
+    helps[
+        "iot adr ns ca policy create"
+    ] = """
+  type: command
+  short-summary: Create a certificate policy for a certificate authority.
+  examples:
+    - name: Create a certificate policy with a 10 day leaf certificate validity period
+      text: az iot adr ns ca policy create -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup --validity-days 10
+  """
+
+    helps[
+        "iot adr ns ca policy show"
+    ] = """
+  type: command
+  short-summary: Show a certificate policy for a certificate authority.
+  examples:
+    - name: Show a certificate policy
+      text: az iot adr ns ca policy show -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns ca policy list"
+    ] = """
+  type: command
+  short-summary: List the certificate policies for a certificate authority.
+  examples:
+    - name: List certificate policies
+      text: az iot adr ns ca policy list --ca-name myCA --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns ca policy update"
+    ] = """
+  type: command
+  short-summary: Update a certificate policy for a certificate authority.
+  examples:
+    - name: Update the leaf certificate validity period
+      text: az iot adr ns ca policy update -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup --validity-days 20
+  """
+
+    helps[
+        "iot adr ns ca policy delete"
+    ] = """
+  type: command
+  short-summary: Delete a certificate policy from a certificate authority.
+  examples:
+    - name: Delete a certificate policy
+      text: az iot adr ns ca policy delete -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns adaptive-device"
+    ] = """
+    type: group
+    short-summary: Manage Device Registry namespace adaptive devices.
+  """
+
+    helps[
+        "iot adr ns adaptive-device create"
+    ] = """
+  type: command
+  short-summary: Create an adaptive device in a Device Registry namespace.
+  examples:
+    - name: Create an adaptive device with descriptive metadata
+      text: az iot adr ns adaptive-device create -n myDevice --ns myNamespace -g myResourceGroup --manufacturer Contoso --model X1 --external-device-id ext-123
+  """
+
+    helps[
+        "iot adr ns adaptive-device show"
+    ] = """
+  type: command
+  short-summary: Show the details of an adaptive device.
+  examples:
+    - name: Show an adaptive device
+      text: az iot adr ns adaptive-device show -n myDevice --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns adaptive-device list"
+    ] = """
+  type: command
+  short-summary: List the adaptive devices in a Device Registry namespace.
+  examples:
+    - name: List adaptive devices
+      text: az iot adr ns adaptive-device list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns adaptive-device update"
+    ] = """
+  type: command
+  short-summary: Update an adaptive device.
+  examples:
+    - name: Update an adaptive device's software revision
+      text: az iot adr ns adaptive-device update -n myDevice --ns myNamespace -g myResourceGroup --software-revision 2.0
+  """
+
+    helps[
+        "iot adr ns adaptive-device delete"
+    ] = """
+  type: command
+  short-summary: Delete an adaptive device from a Device Registry namespace.
+  examples:
+    - name: Delete an adaptive device
+      text: az iot adr ns adaptive-device delete -n myDevice --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
         "iot adr ns device"
     ] = """
     type: group

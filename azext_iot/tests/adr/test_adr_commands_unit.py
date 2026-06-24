@@ -92,6 +92,7 @@ class TestDeviceCommands:
             operating_system_version="1.0",
             attributes="{}",
             policy_resource_id="pid",
+            no_wait=False,
         )
 
     def test_revoke(self, mocker, cmd):
@@ -129,6 +130,9 @@ class TestNamespaceCommands:
             certificate_key_type="ECC",
             certificate_subject="CN=x",
             certificate_validity_days=30,
+            outbound_mi_system_assigned=None,
+            outbound_mi_user_assigned=None,
+            no_wait=False,
         )
 
     def test_show(self, mocker, cmd):
@@ -144,12 +148,20 @@ class TestNamespaceCommands:
     def test_delete(self, mocker, cmd):
         _, provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
         commands_namespace.adr_namespace_delete(cmd, namespace_name=NS, resource_group_name=RG)
-        provider.delete.assert_called_once_with(namespace_name=NS, resource_group_name=RG)
+        provider.delete.assert_called_once_with(namespace_name=NS, resource_group_name=RG, no_wait=False)
 
     def test_update(self, mocker, cmd):
         _, provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
         commands_namespace.adr_namespace_update(cmd, namespace_name=NS, resource_group_name=RG, tags={"a": "b"})
-        provider.update.assert_called_once_with(namespace_name=NS, resource_group_name=RG, tags={"a": "b"})
+        provider.update.assert_called_once_with(
+            namespace_name=NS,
+            resource_group_name=RG,
+            tags={"a": "b"},
+            enable_certificate_management=None,
+            outbound_mi_system_assigned=None,
+            outbound_mi_user_assigned=None,
+            no_wait=False,
+        )
 
 
 class TestPolicyCommands:
