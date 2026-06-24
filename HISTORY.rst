@@ -3,21 +3,21 @@
 Release History
 ===============
 
-0.33.0b2 (Preview)
+0.33.0b3 (Preview)
 +++++++++++++++
 
 **General updates**
 
-* This is a preview release adding the **Azure Device Registry (ADR) "Ignite" surface** — device lifecycle, hub/DPS linking, groups, and update jobs — built against the new ``2026-11-02-preview`` Device Registry management API.
+* This is a preview release adding the **Azure Device Registry (ADR) "Ignite" surface** — device lifecycle, hub/DPS linking, groups, update jobs, certificate management (CMS), and adaptive devices — built against the new ``2026-11-01-preview`` Device Registry management API.
 * To install preview extensions, you will need to add the ``--allow-preview`` argument to ``az extension add/update`` commands.
-* New management SDK using ``2026-11-02-preview`` API version, covering namespaces (linking properties), namespace devices, groups, jobs, and job runs.
+* New management SDK using ``2026-11-01-preview`` API version, covering namespaces (linking and certificate-management properties), namespace devices, certificate authorities and policies, adaptive devices, groups, jobs, and job runs.
 
 **Azure Device Registry updates**
 
 * **Namespace devices** (new) — manage individual devices under a namespace:
 
   - ``az iot adr ns device create / show / list / update / delete`` for full CRUD over namespace-scoped devices.
-  - ``az iot adr ns device revoke`` is registered but currently raises a clear "not available yet" ``CLIError`` — the underlying Microsoft.DeviceRegistry revoke endpoint is not exposed in ``2026-11-02-preview``. The command will start working without a CLI change once the backend API ships.
+  - ``az iot adr ns device revoke`` is registered but currently raises a clear "not available yet" ``CLIError`` — the underlying Microsoft.DeviceRegistry revoke endpoint is not exposed in ``2026-11-01-preview``. The command will start working without a CLI change once the backend API ships.
 
 * **Namespace linking** (new) — link IoT Hubs and Device Provisioning Services to a namespace via the namespace PATCH surface (links live on the namespace, not on the linked Hub/DPS resources):
 
@@ -27,6 +27,8 @@ Release History
   - Inbound caller identity per linked endpoint is configured via ``--mi-system-assigned`` / ``--mi-user-assigned``.
 
 * **Namespace outbound managed identity** (new) — ``az iot adr ns create`` and ``az iot adr ns update`` gain ``--outbound-mi-system-assigned`` / ``--outbound-mi-user-assigned`` to control the outbound identity the namespace uses to call linked Hubs and DPS.
+
+* **Namespace certificate management** (new) — ``az iot adr ns create`` and ``az iot adr ns update`` gain ``--enable-certificate-management`` / ``--ecm`` to toggle the namespace ``certificateManagement`` state (``Enabled``/``Disabled``). This is the master switch that gates the certificate authority (CMS) surface. The legacy default credential/policy bootstrap is now decoupled from this flag and emits a deprecation warning pointing to ``az iot adr ns ca``.
 
 * **Groups** (new) — manage device groups inside a namespace:
 
@@ -45,7 +47,22 @@ Release History
   - ``az iot adr ns job wait`` for polling job provisioning state.
   - ``az iot adr ns job run show / list / results`` (read-only) for inspecting individual runs. ``results`` aggregates per-device statuses across all ``nextLink`` pages so ``--query`` filters can target the full result set, e.g. ``--query "[?status=='Failed']"``.
 
-* ``az iot adr ns policy revoke-issuer`` and ``az iot adr ns policy activate-byor`` are registered but currently raise the same "not available yet" ``CLIError`` as ``device revoke`` — their backing endpoints were not regenerated in ``2026-11-02-preview`` and will be re-enabled once the spec lands.
+* **Certificate management / CMS** (new) — manage cloud PKI-backed certificate authorities and issuance policies (requires certificate management enabled on the namespace):
+
+  - ``az iot adr ns ca create / show / list / update / delete`` to manage certificate authorities. ``create`` takes ``--type`` (e.g. ``Root``); ``update`` is tags-only.
+  - ``az iot adr ns ca activate`` / ``az iot adr ns ca revoke`` to activate (with a signed certificate chain) or revoke a certificate authority.
+  - ``az iot adr ns ca policy create / show / list / update / delete`` to manage leaf certificate issuance policies under a certificate authority (``--validity-days``, ``--tags``).
+  - All long-running ``ca`` / ``ca policy`` commands honor ``--no-wait``.
+
+* **Adaptive devices** (new) — manage adaptive devices under a namespace:
+
+  - ``az iot adr ns adaptive-device create / show / list / update / delete`` for CRUD over namespace-scoped adaptive devices (``--ext-id``, ``--manufacturer``, ``--model``, ``--hw-rev``, ``--sw-rev``, ``--tags``).
+  - ``delete`` honors ``--no-wait``; ``update`` rejects no-op calls with a clear error.
+
+**Deprecations**
+
+* ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups are deprecated and superseded by the CMS remodel under ``az iot adr ns ca`` (and ``az iot adr ns ca policy``). They remain registered during the transition and emit a redirect warning.
+* ``az iot adr ns policy revoke-issuer`` and ``az iot adr ns policy activate-byor`` are deprecated alongside the ``policy`` group; their backing endpoints were not regenerated in ``2026-11-01-preview``.
 
 0.31.0b2 (Preview)
 +++++++++++++++
