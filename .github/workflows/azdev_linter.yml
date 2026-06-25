@@ -17,17 +17,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # checkout source (for linter_exclusions)
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # download built wheel (from ./release_build.yml)
       - name: Download Wheel
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: azure-iot-cli-ext
           path: ./extension
 
       # Install python
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         name: Setup python
         with:
           python-version: "3.13"
