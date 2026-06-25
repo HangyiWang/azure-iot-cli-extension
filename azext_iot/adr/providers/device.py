@@ -8,12 +8,10 @@ from typing import Dict, List, Optional
 
 from azure.cli.core.azclierror import CLIError
 from knack.log import get_logger
-from rich.console import Console
 
 from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import shell_safe_json_parse, wait_for_terminal_state
+from azext_iot.common.utility import shell_safe_json_parse
 
-console = Console()
 logger = get_logger(__name__)
 
 
@@ -66,13 +64,9 @@ class DeviceProvider(ADRProvider):
             device_name=device_name,
             resource=resource,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Creating device '{device_name}' in namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller, f"Creating device '{device_name}' in namespace {namespace_name}...", **kwargs
+        )
 
     def delete(
         self,
@@ -103,13 +97,9 @@ class DeviceProvider(ADRProvider):
             namespace_name=namespace_name,
             device_name=device_name,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Deleting device '{device_name}' from namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller, f"Deleting device '{device_name}' from namespace {namespace_name}...", **kwargs
+        )
 
     def _check_dependent_resources(
         self,
@@ -188,13 +178,9 @@ class DeviceProvider(ADRProvider):
             device_name=device_name,
             properties=properties,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Updating device '{device_name}' in namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller, f"Updating device '{device_name}' in namespace {namespace_name}...", **kwargs
+        )
 
     def revoke(
         self,

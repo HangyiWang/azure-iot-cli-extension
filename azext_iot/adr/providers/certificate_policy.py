@@ -6,15 +6,11 @@
 
 from typing import Dict, Optional
 
-from azure.cli.core.azclierror import RequiredArgumentMissingError, ResourceNotFoundError
+from azure.cli.core.azclierror import RequiredArgumentMissingError
 from azure.core.exceptions import HttpResponseError
 
 from azext_iot.adr.common import CA_PARENT_RESOURCE_NOT_FOUND_MSG
 from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import wait_for_terminal_state
-from rich.console import Console
-
-console = Console()
 
 
 class CertificatePolicyProvider(ADRProvider):
@@ -22,15 +18,16 @@ class CertificatePolicyProvider(ADRProvider):
         super(CertificatePolicyProvider, self).__init__(cmd)
 
     def _handle_parent_not_found(self, e, certificate_authority_name, namespace_name, resource_group_name):
-        if e.status_code == 404 and "ParentResourceNotFound" in str(e):
-            raise ResourceNotFoundError(
-                CA_PARENT_RESOURCE_NOT_FOUND_MSG.format(
-                    certificate_authority_name=certificate_authority_name,
-                    namespace_name=namespace_name,
-                    resource_group_name=resource_group_name,
-                )
-            )
-        raise e
+        # Translate the backend's opaque "ParentResourceNotFound" 404 (missing certificate
+        # authority) into a friendly error via the shared base helper.
+        self._raise_if_parent_not_found(
+            e,
+            CA_PARENT_RESOURCE_NOT_FOUND_MSG.format(
+                certificate_authority_name=certificate_authority_name,
+                namespace_name=namespace_name,
+                resource_group_name=resource_group_name,
+            ),
+        )
 
     def create(
         self,
@@ -66,13 +63,13 @@ class CertificatePolicyProvider(ADRProvider):
                 e, certificate_authority_name, namespace_name, resource_group_name
             )
 
-        if no_wait:
-            return poller
-        with console.status(
+        return self._wait(
+            poller,
             f"Creating certificate policy '{certificate_policy_name}' on certificate authority "
-            f"{certificate_authority_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+            f"{certificate_authority_name}...",
+            no_wait=no_wait,
+            **kwargs,
+        )
 
     def show(
         self,
@@ -138,12 +135,13 @@ class CertificatePolicyProvider(ADRProvider):
 
         if no_wait:
             return poller
-        with console.status(
+        self._wait(
+            poller,
             f"Updating certificate policy '{certificate_policy_name}' on certificate authority "
-            f"{certificate_authority_name}..."
-        ):
-            wait_for_terminal_state(poller, **kwargs)
-
+            f"{certificate_authority_name}...",
+            **kwargs,
+        )
+        # Update contract: the LRO body may be incomplete, so return a fresh GET of the resource.
         return self.show(
             certificate_policy_name=certificate_policy_name,
             certificate_authority_name=certificate_authority_name,
@@ -172,8 +170,9 @@ class CertificatePolicyProvider(ADRProvider):
 
         if no_wait:
             return poller
-        with console.status(
+        return self._wait(
+            poller,
             f"Deleting certificate policy '{certificate_policy_name}' from certificate authority "
-            f"{certificate_authority_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+            f"{certificate_authority_name}...",
+            **kwargs,
+        )

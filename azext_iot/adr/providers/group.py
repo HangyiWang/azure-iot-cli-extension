@@ -12,7 +12,6 @@ from typing import Dict, List, Optional
 
 from azure.cli.core.azclierror import ArgumentUsageError
 from knack.log import get_logger
-from rich.console import Console
 
 from azext_iot.adr.common import (
     JOB_ACTIVE_PROVISIONING_STATES,
@@ -22,7 +21,6 @@ from azext_iot.adr.common import (
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.common.utility import wait_for_terminal_state
 
-console = Console()
 logger = get_logger(__name__)
 
 
@@ -75,13 +73,9 @@ class GroupProvider(ADRProvider):
             group_name=group_name,
             resource=resource,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Creating group '{group_name}' in namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller, f"Creating group '{group_name}' in namespace {namespace_name}...", **kwargs
+        )
 
     def update(
         self,
@@ -117,13 +111,9 @@ class GroupProvider(ADRProvider):
             group_name=group_name,
             properties=properties,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Updating group '{group_name}' in namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller, f"Updating group '{group_name}' in namespace {namespace_name}...", **kwargs
+        )
 
     def show(self, group_name: str, namespace_name: str, resource_group_name: str):
         return self.client.groups.get(
@@ -189,13 +179,9 @@ class GroupProvider(ADRProvider):
             namespace_name=namespace_name,
             group_name=group_name,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Deleting group '{group_name}' from namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller, f"Deleting group '{group_name}' from namespace {namespace_name}...", **kwargs
+        )
 
     def _list_referencing_jobs(
         self,
@@ -357,13 +343,11 @@ class GroupProvider(ADRProvider):
             namespace_name=namespace_name,
             group_name=group_name,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Refreshing members of group '{group_name}' in namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller,
+            f"Refreshing members of group '{group_name}' in namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def show_members(
         self,

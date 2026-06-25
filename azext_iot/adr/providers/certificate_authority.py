@@ -10,10 +10,6 @@ from azure.cli.core.azclierror import RequiredArgumentMissingError
 
 from azext_iot.adr.common import DEFAULT_NS_CA_KEY_TYPE
 from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import wait_for_terminal_state
-from rich.console import Console
-
-console = Console()
 
 
 class CertificateAuthorityProvider(ADRProvider):
@@ -43,19 +39,17 @@ class CertificateAuthorityProvider(ADRProvider):
         if tags is not None:
             resource["tags"] = tags
 
-        no_wait = kwargs.pop("no_wait", False)
         poller = self.client.certificate_authorities.begin_create_or_replace(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             certificate_authority_name=certificate_authority_name,
             resource=resource,
         )
-        if no_wait:
-            return poller
-        with console.status(
-            f"Creating certificate authority '{certificate_authority_name}' on namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller,
+            f"Creating certificate authority '{certificate_authority_name}' on namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def show(self, certificate_authority_name: str, namespace_name: str, resource_group_name: str):
         return self.client.certificate_authorities.get(
@@ -96,11 +90,12 @@ class CertificateAuthorityProvider(ADRProvider):
         )
         if no_wait:
             return poller
-        with console.status(
-            f"Updating certificate authority '{certificate_authority_name}' on namespace {namespace_name}..."
-        ):
-            wait_for_terminal_state(poller, **kwargs)
-
+        self._wait(
+            poller,
+            f"Updating certificate authority '{certificate_authority_name}' on namespace {namespace_name}...",
+            **kwargs,
+        )
+        # Update contract: the LRO body may be incomplete, so return a fresh GET of the resource.
         return self.show(
             certificate_authority_name=certificate_authority_name,
             namespace_name=namespace_name,
@@ -108,18 +103,16 @@ class CertificateAuthorityProvider(ADRProvider):
         )
 
     def delete(self, certificate_authority_name: str, namespace_name: str, resource_group_name: str, **kwargs):
-        no_wait = kwargs.pop("no_wait", False)
         poller = self.client.certificate_authorities.begin_delete(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             certificate_authority_name=certificate_authority_name,
         )
-        if no_wait:
-            return poller
-        with console.status(
-            f"Deleting certificate authority '{certificate_authority_name}' from namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller,
+            f"Deleting certificate authority '{certificate_authority_name}' from namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def activate(
         self,
@@ -130,30 +123,26 @@ class CertificateAuthorityProvider(ADRProvider):
         **kwargs,
     ):
         body = {"certificateChain": certificate_chain}
-        no_wait = kwargs.pop("no_wait", False)
         poller = self.client.certificate_authorities.begin_activate(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             certificate_authority_name=certificate_authority_name,
             body=body,
         )
-        if no_wait:
-            return poller
-        with console.status(
-            f"Activating certificate authority '{certificate_authority_name}' on namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller,
+            f"Activating certificate authority '{certificate_authority_name}' on namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def revoke(self, certificate_authority_name: str, namespace_name: str, resource_group_name: str, **kwargs):
-        no_wait = kwargs.pop("no_wait", False)
         poller = self.client.certificate_authorities.begin_revoke(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             certificate_authority_name=certificate_authority_name,
         )
-        if no_wait:
-            return poller
-        with console.status(
-            f"Revoking certificate authority '{certificate_authority_name}' on namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller,
+            f"Revoking certificate authority '{certificate_authority_name}' on namespace {namespace_name}...",
+            **kwargs,
+        )

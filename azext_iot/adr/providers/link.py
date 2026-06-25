@@ -14,7 +14,6 @@ from azure.cli.core.azclierror import (
 )
 from knack.log import get_logger
 from msrestazure.tools import is_valid_resource_id, parse_resource_id
-from rich.console import Console
 
 from azext_iot._factory import iot_service_provisioning_factory
 from azext_iot.adr.common import (
@@ -25,9 +24,7 @@ from azext_iot.adr.common import (
     build_mi_body,
 )
 from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import wait_for_terminal_state
 
-console = Console()
 logger = get_logger(__name__)
 
 
@@ -133,35 +130,55 @@ def _parse_adu_resource_id(adu_resource_id: str) -> dict:
     }
 
 
-def _build_inbound_identity(mi_system_assigned: bool, mi_user_assigned: Optional[str]) -> dict:
-    """Build the InboundCallerIdentity body from CLI flags. Exactly one variant required."""
+def _resolve_inbound_identity(
+    mi_system_assigned: bool, mi_user_assigned: Optional[str]
+) -> Optional[dict]:
+    """Build the InboundCallerIdentity body from CLI flags, or None when neither is given.
+
+    SAMI and UAMI are mutually exclusive. This does not require an identity (returns None when
+    no flag is supplied) so it can be shared by both ``add`` (which requires one, via
+    ``_build_inbound_identity``) and ``update`` (where the caller may change other fields only).
+    """
     # Normalize empty/whitespace UAMI before the mutex check so a stray
     # '--mi-user-assigned ""' is treated as not provided.
     if mi_user_assigned is not None and not mi_user_assigned.strip():
         mi_user_assigned = None
     if mi_system_assigned and mi_user_assigned:
         raise ArgumentUsageError(_MI_MUTEX_MSG)
-    body = build_mi_body(
+    return build_mi_body(
         mi_system_assigned,
         mi_user_assigned,
         sami_type=IdentityType.system_assigned.value,
         uami_type=IdentityType.user_assigned.value,
     )
+
+
+def _build_inbound_identity(mi_system_assigned: bool, mi_user_assigned: Optional[str]) -> dict:
+    """Build the InboundCallerIdentity body for ``add`` flows. Exactly one variant required."""
+    body = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
     if body is None:
         raise RequiredArgumentMissingError(_MI_REQUIRED_MSG)
     return body
 
 
+def _get_endpoints(namespace: dict, section: str) -> dict:
+    """Return ``properties.<section>.endpoints`` from a namespace, defaulting to {} at each hop.
+
+    ``section`` is one of "messaging" (Hub), "provisioning" (DPS) or "updating" (ADU).
+    """
+    return ((((namespace or {}).get("properties") or {}).get(section) or {}).get("endpoints")) or {}
+
+
 def _get_messaging_endpoints(namespace: dict) -> dict:
-    return (((namespace or {}).get("properties") or {}).get("messaging") or {}).get("endpoints") or {}
+    return _get_endpoints(namespace, "messaging")
 
 
 def _get_provisioning_endpoints(namespace: dict) -> dict:
-    return (((namespace or {}).get("properties") or {}).get("provisioning") or {}).get("endpoints") or {}
+    return _get_endpoints(namespace, "provisioning")
 
 
 def _get_updating_endpoints(namespace: dict) -> dict:
-    return (((namespace or {}).get("properties") or {}).get("updating") or {}).get("endpoints") or {}
+    return _get_endpoints(namespace, "updating")
 
 
 def _build_hub_endpoint_body(
@@ -241,10 +258,12 @@ class LinkProvider(ADRProvider):
             namespace_name=namespace_name,
             properties=properties,
         )
-        if no_wait:
-            return poller
-        with console.status(f"Updating messaging endpoints on namespace {namespace_name}..."):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller,
+            f"Updating messaging endpoints on namespace {namespace_name}...",
+            no_wait=no_wait,
+            **kwargs,
+        )
 
     # Hub commands
 
@@ -305,15 +324,9 @@ class LinkProvider(ADRProvider):
             )
 
         endpoint_patch: dict = {}
-        if mi_user_assigned:
-            endpoint_patch["inboundCallerIdentity"] = {
-                "type": IdentityType.user_assigned.value,
-                "userAssignedIdentity": mi_user_assigned,
-            }
-        elif mi_system_assigned:
-            endpoint_patch["inboundCallerIdentity"] = {
-                "type": IdentityType.system_assigned.value
-            }
+        inbound_identity = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
+        if inbound_identity is not None:
+            endpoint_patch["inboundCallerIdentity"] = inbound_identity
 
         provisioning_patch = {}
         if availability is not None:
@@ -400,10 +413,12 @@ class LinkProvider(ADRProvider):
             namespace_name=namespace_name,
             properties=properties,
         )
-        if no_wait:
-            return poller
-        with console.status(f"Updating provisioning endpoints on namespace {namespace_name}..."):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller,
+            f"Updating provisioning endpoints on namespace {namespace_name}...",
+            no_wait=no_wait,
+            **kwargs,
+        )
 
     def _side_get_dps_resource(self, dps_resource_id: str) -> dict:
         """Side-GET the DPS RP to surface existing ``properties.iotHubs[]`` registrations.
@@ -483,15 +498,9 @@ class LinkProvider(ADRProvider):
             )
 
         endpoint_patch: dict = {}
-        if mi_user_assigned:
-            endpoint_patch["inboundCallerIdentity"] = {
-                "type": IdentityType.user_assigned.value,
-                "userAssignedIdentity": mi_user_assigned,
-            }
-        elif mi_system_assigned:
-            endpoint_patch["inboundCallerIdentity"] = {
-                "type": IdentityType.system_assigned.value
-            }
+        inbound_identity = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
+        if inbound_identity is not None:
+            endpoint_patch["inboundCallerIdentity"] = inbound_identity
 
         if not endpoint_patch:
             raise RequiredArgumentMissingError(
@@ -577,10 +586,12 @@ class LinkProvider(ADRProvider):
             namespace_name=namespace_name,
             properties=properties,
         )
-        if no_wait:
-            return poller
-        with console.status(f"Updating device update endpoints on namespace {namespace_name}..."):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller,
+            f"Updating device update endpoints on namespace {namespace_name}...",
+            no_wait=no_wait,
+            **kwargs,
+        )
 
     def adu_add(
         self,
@@ -633,15 +644,9 @@ class LinkProvider(ADRProvider):
             )
 
         endpoint_patch: dict = {}
-        if mi_user_assigned:
-            endpoint_patch["inboundCallerIdentity"] = {
-                "type": IdentityType.user_assigned.value,
-                "userAssignedIdentity": mi_user_assigned,
-            }
-        elif mi_system_assigned:
-            endpoint_patch["inboundCallerIdentity"] = {
-                "type": IdentityType.system_assigned.value
-            }
+        inbound_identity = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
+        if inbound_identity is not None:
+            endpoint_patch["inboundCallerIdentity"] = inbound_identity
 
         if not endpoint_patch:
             raise RequiredArgumentMissingError(
@@ -758,8 +763,4 @@ class LinkProvider(ADRProvider):
             namespace_name=namespace_name,
             properties=properties,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(f"Linking Hub + DPS on namespace {namespace_name}..."):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(poller, f"Linking Hub + DPS on namespace {namespace_name}...", **kwargs)

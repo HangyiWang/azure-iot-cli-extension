@@ -17,7 +17,6 @@ from azure.cli.core.azclierror import (
 )
 from azure.cli.core.commands.client_factory import get_subscription_id
 from knack.log import get_logger
-from rich.console import Console
 
 from azext_iot.adr.common import (
     JOB_RUN_IN_FLIGHT_STATUSES,
@@ -25,9 +24,7 @@ from azext_iot.adr.common import (
     JobType,
 )
 from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import wait_for_terminal_state
 
-console = Console()
 logger = get_logger(__name__)
 
 
@@ -150,13 +147,9 @@ class JobProvider(ADRProvider):
             job_name=job_name,
             resource=resource,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Creating job '{job_name}' in namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller, f"Creating job '{job_name}' in namespace {namespace_name}...", **kwargs
+        )
 
     def update(
         self,
@@ -244,13 +237,9 @@ class JobProvider(ADRProvider):
             namespace_name=namespace_name,
             job_name=job_name,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Deleting job '{job_name}' from namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller, f"Deleting job '{job_name}' from namespace {namespace_name}...", **kwargs
+        )
 
     def schedule(
         self,
@@ -284,13 +273,9 @@ class JobProvider(ADRProvider):
             job_name=job_name,
             body=body,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(
-            f"Scheduling job '{job_name}' in namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller, f"Scheduling job '{job_name}' in namespace {namespace_name}...", **kwargs
+        )
 
     def _check_in_flight_runs(
         self,

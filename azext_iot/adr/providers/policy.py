@@ -6,19 +6,16 @@
 
 from typing import Dict, Optional
 
-from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
+from azure.cli.core.azclierror import AzureResponseError
 from azure.core.exceptions import HttpResponseError
-from rich.console import Console
 
 from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_KEY_TYPE,
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     POLICY_PARENT_RESOURCE_NOT_FOUND_MSG,
 )
-from azext_iot.adr.providers.base import ADRProvider
+from azext_iot.adr.providers.base import ADRProvider, console
 from azext_iot.common.utility import wait_for_terminal_state
-
-console = Console()
 
 
 class PolicyProvider(ADRProvider):
@@ -91,13 +88,12 @@ class PolicyProvider(ADRProvider):
                 policy_name=policy_name,
             )
         except HttpResponseError as e:
-            if e.status_code == 404 and "ParentResourceNotFound" in str(e):
-                raise ResourceNotFoundError(
-                    POLICY_PARENT_RESOURCE_NOT_FOUND_MSG.format(
-                        namespace_name=namespace_name, resource_group_name=resource_group_name
-                    )
-                )
-            raise
+            self._raise_if_parent_not_found(
+                e,
+                POLICY_PARENT_RESOURCE_NOT_FOUND_MSG.format(
+                    namespace_name=namespace_name, resource_group_name=resource_group_name
+                ),
+            )
 
     def list(self, namespace_name: str, resource_group_name: str):
         # Ensure namespace exists
@@ -110,13 +106,12 @@ class PolicyProvider(ADRProvider):
             )
             return list(results)
         except HttpResponseError as e:
-            if e.status_code == 404 and "ParentResourceNotFound" in str(e):
-                raise ResourceNotFoundError(
-                    POLICY_PARENT_RESOURCE_NOT_FOUND_MSG.format(
-                        namespace_name=namespace_name, resource_group_name=resource_group_name
-                    )
-                )
-            raise
+            self._raise_if_parent_not_found(
+                e,
+                POLICY_PARENT_RESOURCE_NOT_FOUND_MSG.format(
+                    namespace_name=namespace_name, resource_group_name=resource_group_name
+                ),
+            )
 
     def delete(self, policy_name: str, namespace_name: str, resource_group_name: str, **kwargs):
         with console.status(f"Deleting policy '{policy_name}' from namespace {namespace_name}..."):

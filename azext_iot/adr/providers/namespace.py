@@ -11,7 +11,6 @@ from azure.cli.core.azclierror import (
     MutuallyExclusiveArgumentError,
 )
 from knack.log import get_logger
-from rich.console import Console
 
 from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_NAME,
@@ -21,12 +20,11 @@ from azext_iot.adr.common import (
     IdentityType,
     build_mi_body,
 )
-from azext_iot.adr.providers.base import ADRProvider
+from azext_iot.adr.providers.base import ADRProvider, console
 from azext_iot.adr.providers.credential import CredentialProvider
 from azext_iot.adr.providers.policy import PolicyProvider
 from azext_iot.common.utility import wait_for_terminal_state
 
-console = Console()
 logger = get_logger(__name__)
 
 
@@ -220,11 +218,7 @@ class NamespaceProvider(ADRProvider):
         poller = self.client.namespaces.begin_delete(
             resource_group_name=resource_group_name, namespace_name=namespace_name
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(f"Deleting namespace {namespace_name}..."):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(poller, f"Deleting namespace {namespace_name}...", **kwargs)
 
     def update(
         self,
@@ -262,8 +256,4 @@ class NamespaceProvider(ADRProvider):
             namespace_name=namespace_name,
             properties=body,
         )
-        no_wait = kwargs.pop("no_wait", False)
-        if no_wait:
-            return poller
-        with console.status(f"Updating namespace {namespace_name}..."):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(poller, f"Updating namespace {namespace_name}...", **kwargs)

@@ -9,16 +9,14 @@ from typing import TYPE_CHECKING, Dict, Optional
 from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 from knack.log import get_logger
-from rich.console import Console
 
 from azext_iot.adr.common import CREDENTIAL_NOT_FOUND_MSG
-from azext_iot.adr.providers.base import ADRProvider
+from azext_iot.adr.providers.base import ADRProvider, console
 from azext_iot.common.utility import wait_for_terminal_state
 
 if TYPE_CHECKING:
     from azure.core.polling import LROPoller
 
-console = Console()
 logger = get_logger(__name__)
 
 

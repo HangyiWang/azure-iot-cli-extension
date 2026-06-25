@@ -8,11 +8,7 @@ from typing import Dict, Optional
 
 from azure.cli.core.azclierror import RequiredArgumentMissingError
 
-from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import wait_for_terminal_state
-from rich.console import Console
-
-console = Console()
+from azext_iot.adr.providers.base import ADRProvider, console
 
 
 class AdaptiveDeviceProvider(ADRProvider):
@@ -135,15 +131,13 @@ class AdaptiveDeviceProvider(ADRProvider):
             )
 
     def delete(self, adaptive_device_name: str, namespace_name: str, resource_group_name: str, **kwargs):
-        no_wait = kwargs.pop("no_wait", False)
         poller = self.client.namespace_adaptive_devices.begin_delete(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             adaptive_device_name=adaptive_device_name,
         )
-        if no_wait:
-            return poller
-        with console.status(
-            f"Deleting adaptive device '{adaptive_device_name}' from namespace {namespace_name}..."
-        ):
-            return wait_for_terminal_state(poller, **kwargs)
+        return self._wait(
+            poller,
+            f"Deleting adaptive device '{adaptive_device_name}' from namespace {namespace_name}...",
+            **kwargs,
+        )
