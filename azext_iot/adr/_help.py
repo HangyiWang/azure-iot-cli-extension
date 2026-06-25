@@ -252,7 +252,7 @@ def load_adr_help():
   type: group
   short-summary: Manage certificate authorities for a Device Registry namespace.
   long-summary: |
-    Certificate authorities (CMS) require certificate management to be enabled on the namespace
+    Certificate authorities require certificate management to be enabled on the namespace
     (see 'az iot adr ns create --enable-certificate-management').
   """
 
@@ -618,7 +618,7 @@ def load_adr_help():
       * delete the Device Registry namespace ('az iot adr ns delete').
     The command is kept so the failure surfaces a clear, actionable error rather than a 'not found'.
   examples:
-    - name: Invocation will fail — use one of the suggested commands instead
+    - name: Invocation will fail - use one of the suggested commands instead
       text: az iot adr ns link hub remove -n primary --ns myNamespace -g myResourceGroup
   """
 
@@ -699,7 +699,7 @@ def load_adr_help():
       * delete the Device Registry namespace ('az iot adr ns delete').
     The command is kept so the failure surfaces a clear, actionable error rather than a 'not found'.
   examples:
-    - name: Invocation will fail — use one of the suggested commands instead
+    - name: Invocation will fail - use one of the suggested commands instead
       text: az iot adr ns link dps remove -n primary --ns myNamespace -g myResourceGroup
   """
 
@@ -788,7 +788,7 @@ def load_adr_help():
       * delete the Device Registry namespace ('az iot adr ns delete').
     The command is kept so the failure surfaces a clear, actionable error rather than a 'not found'.
   examples:
-    - name: Invocation will fail — use one of the suggested commands instead
+    - name: Invocation will fail - use one of the suggested commands instead
       text: az iot adr ns link adu remove -n my-adu --ns myNamespace -g myResourceGroup
   """
 
@@ -928,7 +928,7 @@ def load_adr_help():
   type: command
   short-summary: Trigger an asynchronous refresh of a group's membership.
   long-summary: |
-    POST /refreshMembers is a long-running operation. Use 'az iot adr ns group wait'
+    Refreshing membership is a long-running operation. Use 'az iot adr ns group wait'
     to wait for the refresh to complete, or 'az iot adr ns group show' to poll
     the 'membershipState' field.
   examples:
@@ -1062,9 +1062,9 @@ def load_adr_help():
   type: command
   short-summary: Schedule a job for execution.
   long-summary: |
-    POST /schedule is a long-running operation. Both --scheduled-time and
-    --timeout are optional per the spec; omit --scheduled-time to schedule
-    immediately. --timeout is validated client-side as an ISO 8601 duration
+    Scheduling is a long-running operation. Both --scheduled-time and
+    --timeout are optional; omit --scheduled-time to schedule immediately.
+    --timeout is validated client-side as an ISO 8601 duration
     (e.g. 'PT1H', 'P1D', 'PT30M').
   examples:
     - name: Schedule a job to run immediately
@@ -1094,8 +1094,8 @@ def load_adr_help():
     short-summary: Inspect runs of a Device Registry namespace job.
     long-summary: |
       Job runs are spawned by the service when a job is scheduled; they are
-      read-only from the CLI (no `create`, `cancel`, or `delete` \u2014 the spec
-      does not provide a write surface). Use these commands to monitor an
+      read-only from the CLI (no `create`, `cancel`, or `delete` - there is no
+      supported write surface). Use these commands to monitor an
       Update deployment's progress and to drill into per-device results.
   """
 

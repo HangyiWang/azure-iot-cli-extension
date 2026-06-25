@@ -21,7 +21,7 @@ from azext_iot.adr.common import (
     DPS_ENDPOINT_TYPE,
     IOT_HUB_ENDPOINT_TYPE,
     ADU_ENDPOINT_TYPE,
-    InboundCallerIdentityType,
+    IdentityType,
     build_mi_body,
 )
 from azext_iot.adr.providers.base import ADRProvider
@@ -123,7 +123,8 @@ def _parse_adu_resource_id(adu_resource_id: str) -> dict:
         or "child_name_1" in parsed
     ):
         raise InvalidArgumentValueError(
-            f"'{adu_resource_id}' is not a Microsoft.DeviceUpdate/linkedAccounts resource ID."
+            f"'{adu_resource_id}' is not a Microsoft.DeviceUpdate/linkedAccounts resource ID. "
+            "Pass the full ARM resource ID of the linked Device Update account."
         )
     return {
         "subscription_id": parsed["subscription"],
@@ -143,8 +144,8 @@ def _build_inbound_identity(mi_system_assigned: bool, mi_user_assigned: Optional
     body = build_mi_body(
         mi_system_assigned,
         mi_user_assigned,
-        sami_type=InboundCallerIdentityType.system_assigned.value,
-        uami_type=InboundCallerIdentityType.user_assigned.value,
+        sami_type=IdentityType.system_assigned.value,
+        uami_type=IdentityType.user_assigned.value,
     )
     if body is None:
         raise RequiredArgumentMissingError(_MI_REQUIRED_MSG)
@@ -216,7 +217,7 @@ class LinkProvider(ADRProvider):
     def __init__(self, cmd):
         super(LinkProvider, self).__init__(cmd)
 
-    # -------------------- helpers --------------------
+    # Helpers
 
     def _get_namespace(self, namespace_name: str, resource_group_name: str) -> dict:
         return dict(
@@ -245,7 +246,7 @@ class LinkProvider(ADRProvider):
         with console.status(f"Updating messaging endpoints on namespace {namespace_name}..."):
             return wait_for_terminal_state(poller, **kwargs)
 
-    # -------------------- hub commands --------------------
+    # Hub commands
 
     def hub_add(
         self,
@@ -306,12 +307,12 @@ class LinkProvider(ADRProvider):
         endpoint_patch: dict = {}
         if mi_user_assigned:
             endpoint_patch["inboundCallerIdentity"] = {
-                "type": InboundCallerIdentityType.user_assigned.value,
+                "type": IdentityType.user_assigned.value,
                 "userAssignedIdentity": mi_user_assigned,
             }
         elif mi_system_assigned:
             endpoint_patch["inboundCallerIdentity"] = {
-                "type": InboundCallerIdentityType.system_assigned.value
+                "type": IdentityType.system_assigned.value
             }
 
         provisioning_patch = {}
@@ -352,7 +353,7 @@ class LinkProvider(ADRProvider):
             existing = self._get_namespace(namespace_name, resource_group_name)
             endpoint = _get_messaging_endpoints(existing).get(endpoint_name) or {}
             hub_resource_id = endpoint.get("resourceId") or hub_resource_id
-        except Exception:  # noqa: BLE001 — best-effort enrichment only
+        except Exception:  # noqa: BLE001 - best-effort enrichment only
             pass
 
         raise ArgumentUsageError(
@@ -383,7 +384,7 @@ class LinkProvider(ADRProvider):
             if (ep or {}).get("endpointType") == IOT_HUB_ENDPOINT_TYPE
         }
 
-    # -------------------- dps commands --------------------
+    # DPS commands
 
     def _patch_provisioning_endpoints(
         self,
@@ -440,7 +441,11 @@ class LinkProvider(ADRProvider):
         mi_user_assigned: Optional[str] = None,
         **kwargs,
     ):
-        """Add a DPS provisioning endpoint to a namespace (DPS cap = 1)."""
+        """Add a DPS provisioning endpoint to a namespace.
+
+        Only one DPS endpoint may be linked per namespace; the existence check
+        below rejects a second one.
+        """
         _parse_dps_resource_id(dps_resource_id)  # validate ARM ID shape up front
 
         existing = self._get_namespace(namespace_name, resource_group_name)
@@ -480,12 +485,12 @@ class LinkProvider(ADRProvider):
         endpoint_patch: dict = {}
         if mi_user_assigned:
             endpoint_patch["inboundCallerIdentity"] = {
-                "type": InboundCallerIdentityType.user_assigned.value,
+                "type": IdentityType.user_assigned.value,
                 "userAssignedIdentity": mi_user_assigned,
             }
         elif mi_system_assigned:
             endpoint_patch["inboundCallerIdentity"] = {
-                "type": InboundCallerIdentityType.system_assigned.value
+                "type": IdentityType.system_assigned.value
             }
 
         if not endpoint_patch:
@@ -518,7 +523,7 @@ class LinkProvider(ADRProvider):
             existing = self._get_namespace(namespace_name, resource_group_name)
             endpoint = _get_provisioning_endpoints(existing).get(endpoint_name) or {}
             dps_resource_id = endpoint.get("resourceId") or dps_resource_id
-        except Exception:  # noqa: BLE001 — best-effort enrichment only
+        except Exception:  # noqa: BLE001 - best-effort enrichment only
             pass
 
         raise ArgumentUsageError(
@@ -556,7 +561,7 @@ class LinkProvider(ADRProvider):
             if (ep or {}).get("endpointType") == DPS_ENDPOINT_TYPE
         }
 
-    # -------------------- adu commands --------------------
+    # ADU commands
 
     def _patch_updating_endpoints(
         self,
@@ -630,12 +635,12 @@ class LinkProvider(ADRProvider):
         endpoint_patch: dict = {}
         if mi_user_assigned:
             endpoint_patch["inboundCallerIdentity"] = {
-                "type": InboundCallerIdentityType.user_assigned.value,
+                "type": IdentityType.user_assigned.value,
                 "userAssignedIdentity": mi_user_assigned,
             }
         elif mi_system_assigned:
             endpoint_patch["inboundCallerIdentity"] = {
-                "type": InboundCallerIdentityType.system_assigned.value
+                "type": IdentityType.system_assigned.value
             }
 
         if not endpoint_patch:
@@ -668,7 +673,7 @@ class LinkProvider(ADRProvider):
             existing = self._get_namespace(namespace_name, resource_group_name)
             endpoint = _get_updating_endpoints(existing).get(endpoint_name) or {}
             adu_resource_id = endpoint.get("resourceId") or adu_resource_id
-        except Exception:  # noqa: BLE001 — best-effort enrichment only
+        except Exception:  # noqa: BLE001 - best-effort enrichment only
             pass
 
         raise ArgumentUsageError(
@@ -698,7 +703,7 @@ class LinkProvider(ADRProvider):
             if (ep or {}).get("endpointType") == ADU_ENDPOINT_TYPE
         }
 
-    # -------------------- bundled link add --------------------
+    # Bundled link add
 
     def link_add(
         self,
@@ -719,9 +724,9 @@ class LinkProvider(ADRProvider):
         """Bundled link: add a Hub + DPS in a single namespace PATCH.
 
         The DPS entry is serialized into ``properties.provisioning.endpoints`` and the Hub
-        entry into ``properties.messaging.endpoints`` in the same request. DPS-first is
-        guaranteed by the spec because provisioning endpoints land before messaging
-        endpoints in the materialized body order below.
+        entry into ``properties.messaging.endpoints`` in the same request. DPS is applied
+        first because provisioning endpoints land before messaging endpoints in the
+        materialized body order below.
         """
         # Validate DPS ARM ID up front; reject overflow before composing the body.
         _parse_dps_resource_id(dps_resource_id)

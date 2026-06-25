@@ -4,7 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 # pylint: disable=no-member,line-too-long,too-few-public-methods,too-many-lines,too-many-arguments,too-many-locals
-# TODO - CMS Preview - Remove / fix linting
+# TODO: tighten the broad lint disables above
 # flake8: noqa
 import json
 import re
@@ -199,7 +199,7 @@ def iot_dps_create(
     location = _ensure_location(cli_ctx, resource_group_name, location)
     dps_property = {"enableDataResidency": enable_data_residency}
 
-    # TODO - CMS Preview - DPS ADR properties
+    # Device Registry namespace properties for DPS
     if adr_ns_id:
         dps_property["deviceRegistryNamespace"] = _build_dps_adr_properties(
             existing_namespace=None,
@@ -1033,7 +1033,7 @@ def iot_hub_create(
                     "disableModuleSAS": disable_module_sas}
     properties["enableFileUploadNotifications"] = enable_fileupload_notifications
 
-    # TODO - CMS Preview - Hub Create ADR property validation
+    # Device Registry namespace property validation for hub create
     _validate_and_set_adr_properties(
         instance=properties,
         sku=sku["name"],
@@ -1195,7 +1195,7 @@ def update_iot_hub_custom(instance,
         disable_module_sas=disable_module_sas
     )
 
-    # TODO - CMS Preview - Prevent Generation2 SKU change
+    # Prevent Generation2 SKU change
     existing_sku_name = instance["sku"]["name"]
     final_sku_name = sku or existing_sku_name
 
@@ -2028,7 +2028,7 @@ def _build_identity(system=False, identities=None):
     return identity
 
 
-# TODO - CMS Preview - Hub ADR property validation logic
+# Device Registry namespace property validation for hub
 def _validate_and_set_adr_properties(
     instance: dict,
     sku: str,

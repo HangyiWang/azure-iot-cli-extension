@@ -16,7 +16,7 @@ from azext_iot.core._params import load_arguments
 
 def load_core_arguments(self, _):
 
-    # TODO - CMS Preview - load default CLI Core args
+    # Load default CLI core args
     load_arguments(self, _)
 
     # IoT Hub ADR params

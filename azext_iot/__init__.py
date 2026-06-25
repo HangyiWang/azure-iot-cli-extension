@@ -9,7 +9,7 @@ from azure.cli.core.commands import CliCommandType
 from azext_iot.constants import VERSION
 import azext_iot._help  # noqa: F401
 
-# TODO - CMS Preview - imports / command types
+# Core and Device Registry (ADR) command and argument loaders
 from azext_iot.core.command_map import load_core_commands
 from azext_iot.adr.command_map import load_adr_commands
 from azext_iot.core.params import load_core_arguments
@@ -38,7 +38,7 @@ class IoTExtCommandsLoader(AzCommandsLoader):
         load_digitaltwins_commands(self, args)
         load_dps_commands(self, args)
 
-        # TODO - CMS Preview - commands
+        # Core and Device Registry (ADR) commands
         load_core_commands(self, args)
         load_adr_commands(self, args)
 
@@ -59,7 +59,7 @@ class IoTExtCommandsLoader(AzCommandsLoader):
         load_dps_arguments(self, command)
         load_deviceupdate_arguments(self, command)
 
-        # TODO - CMS Preview - arguments
+        # Core and Device Registry (ADR) arguments
         load_core_arguments(self, command)
         load_adr_arguments(self, command)
 

@@ -6,7 +6,7 @@
 
 """Unit tests verifying that legacy ADR command groups are marked deprecated.
 
-The CMS remodel introduces `iot adr ns ca` (+ `iot adr ns ca policy`) which supersede the
+The `iot adr ns ca` (+ `iot adr ns ca policy`) command groups supersede the
 `iot adr ns credential` and `iot adr ns policy` command groups. These remain usable during the
 transition (not hidden) but must redirect users to the replacement.
 """

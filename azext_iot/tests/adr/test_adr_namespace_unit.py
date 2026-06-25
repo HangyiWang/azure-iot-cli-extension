@@ -17,7 +17,6 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     DEFAULT_NS_POLICY_NAME,
     IdentityType,
-    OutboundIdentityType,
 )
 
 
@@ -100,8 +99,8 @@ def test_create_namespace(
         assert call_args["resource"]["identity"] == {"type": IdentityType.system_assigned.value}
 
         # certificateManagement reflects the enable_certificate_management flag
-        expected_cms = "Enabled" if enable_certificate_management else "Disabled"
-        assert call_args["resource"]["properties"]["certificateManagement"] == expected_cms
+        expected_cert_mgmt = "Enabled" if enable_certificate_management else "Disabled"
+        assert call_args["resource"]["properties"]["certificateManagement"] == expected_cert_mgmt
 
         if has_policy_args:
             fixture_credential_provider.create.assert_called_once_with(
@@ -296,7 +295,7 @@ def test_create_namespace_outbound_sami(fixture_namespace_provider, mock_poller)
     )
     body = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]["resource"]
     assert body["properties"]["outboundIdentity"] == {
-        "type": OutboundIdentityType.system_assigned.value
+        "type": IdentityType.system_assigned.value
     }
 
 
@@ -341,7 +340,7 @@ def test_update_namespace_outbound_sami(fixture_namespace_provider, mock_poller)
     )
     body = fixture_namespace_provider.client.namespaces.begin_update.call_args[1]["properties"]
     assert body["properties"]["outboundIdentity"] == {
-        "type": OutboundIdentityType.system_assigned.value
+        "type": IdentityType.system_assigned.value
     }
 
 

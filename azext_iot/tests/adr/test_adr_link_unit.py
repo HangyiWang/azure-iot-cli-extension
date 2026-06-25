@@ -21,7 +21,7 @@ from azext_iot.adr.common import (
     DPS_ENDPOINT_TYPE,
     IOT_HUB_ENDPOINT_TYPE,
     ADU_ENDPOINT_TYPE,
-    InboundCallerIdentityType,
+    IdentityType,
     MessagingEndpointAvailability,
 )
 
@@ -111,7 +111,7 @@ def test_hub_add_sami_writes_expected_patch_body(fixture_link_provider, mock_pol
     assert endpoint["endpointType"] == IOT_HUB_ENDPOINT_TYPE
     assert endpoint["resourceId"] == HUB_RESOURCE_ID
     assert endpoint["inboundCallerIdentity"] == {
-        "type": InboundCallerIdentityType.system_assigned.value
+        "type": IdentityType.system_assigned.value
     }
     assert endpoint["provisioning"] == {"availability": "Available", "allocationWeight": 1}
 
@@ -134,7 +134,7 @@ def test_hub_add_uami_writes_user_assigned_identity(fixture_link_provider, mock_
         "properties"
     ]["properties"]["messaging"]["endpoints"]["secondary"]
     assert endpoint["inboundCallerIdentity"] == {
-        "type": InboundCallerIdentityType.user_assigned.value,
+        "type": IdentityType.user_assigned.value,
         "userAssignedIdentity": UAMI_RESOURCE_ID,
     }
     # No provisioning fields provided -> not emitted
@@ -394,7 +394,7 @@ def test_dps_add_writes_expected_patch_body(fixture_link_provider, mock_poller):
     assert endpoint["endpointType"] == DPS_ENDPOINT_TYPE
     assert endpoint["resourceId"] == DPS_RESOURCE_ID
     assert endpoint["inboundCallerIdentity"] == {
-        "type": InboundCallerIdentityType.system_assigned.value
+        "type": IdentityType.system_assigned.value
     }
     # DPS endpoints do not get availability / allocationWeight
     assert "provisioning" not in endpoint
@@ -457,7 +457,7 @@ def test_dps_update_partial_patch(fixture_link_provider, mock_poller):
     ]["properties"]["provisioning"]["endpoints"]["primary"]
     assert endpoint_patch == {
         "inboundCallerIdentity": {
-            "type": InboundCallerIdentityType.user_assigned.value,
+            "type": IdentityType.user_assigned.value,
             "userAssignedIdentity": UAMI_RESOURCE_ID,
         }
     }
@@ -638,7 +638,7 @@ def test_link_add_emits_bundled_patch_body(fixture_link_provider, mock_poller):
     assert dps_entry["endpointType"] == DPS_ENDPOINT_TYPE
     assert dps_entry["resourceId"] == DPS_RESOURCE_ID
     assert dps_entry["inboundCallerIdentity"] == {
-        "type": InboundCallerIdentityType.system_assigned.value
+        "type": IdentityType.system_assigned.value
     }
 
     hub_entry = inner["messaging"]["endpoints"]["primary-hub"]
@@ -794,7 +794,7 @@ def test_dps_add_with_user_assigned_mi(fixture_link_provider, mock_poller):
     body = fixture_link_provider.client.namespaces.begin_update.call_args[1]["properties"]
     endpoint = body["properties"]["provisioning"]["endpoints"]["primary"]
     assert endpoint["inboundCallerIdentity"] == {
-        "type": InboundCallerIdentityType.user_assigned.value,
+        "type": IdentityType.user_assigned.value,
         "userAssignedIdentity": UAMI_RESOURCE_ID,
     }
 
@@ -818,7 +818,7 @@ def test_dps_update_with_system_assigned_mi(fixture_link_provider, mock_poller):
         "properties"
     ]["properties"]["provisioning"]["endpoints"]["primary"]
     assert endpoint_patch == {
-        "inboundCallerIdentity": {"type": InboundCallerIdentityType.system_assigned.value}
+        "inboundCallerIdentity": {"type": IdentityType.system_assigned.value}
     }
 
 
@@ -844,11 +844,11 @@ def test_link_add_with_user_assigned_mi_on_both_sides(fixture_link_provider, moc
     dps_entry = body["properties"]["provisioning"]["endpoints"]["primary-dps"]
     hub_entry = body["properties"]["messaging"]["endpoints"]["primary-hub"]
     assert dps_entry["inboundCallerIdentity"] == {
-        "type": InboundCallerIdentityType.user_assigned.value,
+        "type": IdentityType.user_assigned.value,
         "userAssignedIdentity": UAMI_RESOURCE_ID,
     }
     assert hub_entry["inboundCallerIdentity"] == {
-        "type": InboundCallerIdentityType.user_assigned.value,
+        "type": IdentityType.user_assigned.value,
         "userAssignedIdentity": UAMI_RESOURCE_ID,
     }
 
@@ -941,7 +941,7 @@ def test_adu_add_sami_writes_expected_patch_body(fixture_link_provider, mock_pol
     assert endpoint["endpointType"] == ADU_ENDPOINT_TYPE
     assert endpoint["resourceId"] == ADU_RESOURCE_ID
     assert endpoint["inboundCallerIdentity"] == {
-        "type": InboundCallerIdentityType.system_assigned.value
+        "type": IdentityType.system_assigned.value
     }
 
 
@@ -963,7 +963,7 @@ def test_adu_add_uami_writes_user_assigned_identity(fixture_link_provider, mock_
         "properties"
     ]["properties"]["updating"]["endpoints"]["my-adu"]
     assert endpoint["inboundCallerIdentity"] == {
-        "type": InboundCallerIdentityType.user_assigned.value,
+        "type": IdentityType.user_assigned.value,
         "userAssignedIdentity": UAMI_RESOURCE_ID,
     }
 
@@ -1048,7 +1048,7 @@ def test_adu_update_partial_patch(fixture_link_provider, mock_poller):
     ]["properties"]["updating"]["endpoints"]["my-adu"]
     assert endpoint_patch == {
         "inboundCallerIdentity": {
-            "type": InboundCallerIdentityType.user_assigned.value,
+            "type": IdentityType.user_assigned.value,
             "userAssignedIdentity": UAMI_RESOURCE_ID,
         }
     }
@@ -1192,7 +1192,7 @@ def test_adu_update_with_system_assigned_mi(fixture_link_provider, mock_poller):
     fixture_link_provider.client.namespaces.get.return_value = _ns_with_adu(
         "my-adu",
         identity={
-            "type": InboundCallerIdentityType.user_assigned.value,
+            "type": IdentityType.user_assigned.value,
             "userAssignedIdentity": UAMI_RESOURCE_ID,
         },
     )
@@ -1211,5 +1211,5 @@ def test_adu_update_with_system_assigned_mi(fixture_link_provider, mock_poller):
         "properties"
     ]["properties"]["updating"]["endpoints"]["my-adu"]
     assert endpoint_patch == {
-        "inboundCallerIdentity": {"type": InboundCallerIdentityType.system_assigned.value}
+        "inboundCallerIdentity": {"type": IdentityType.system_assigned.value}
     }

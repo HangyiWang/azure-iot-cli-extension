@@ -19,7 +19,6 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     CertificateManagementState,
     IdentityType,
-    OutboundIdentityType,
     build_mi_body,
 )
 from azext_iot.adr.providers.base import ADRProvider
@@ -38,8 +37,7 @@ _OUTBOUND_MI_MUTEX_MSG = (
 )
 
 _OUTBOUND_UAMI_PENDING_MSG = (
-    "User-assigned managed identity for outbound identity is not yet available from the backend; "
-    "the underlying Microsoft.DeviceRegistry API surface is still being finalized. "
+    "User-assigned managed identity for outbound identity is not yet available from the backend. "
     "Use --outbound-mi-system-assigned instead."
 )
 
@@ -51,10 +49,11 @@ def _resolve_outbound_identity(
     """Return the OutboundIdentity body (or None when no flag provided).
 
     SAMI and UAMI are mutually exclusive. UAMI is currently rejected because
-    the backend spec is still being finalized.
+    it is not yet available from the backend.
     """
-    # Normalize empty/whitespace UAMI before the mutex check so a stray
-    # '--outbound-mi-user-assigned ""' is treated as not provided.
+    # An empty/whitespace UAMI (e.g. `--outbound-mi-user-assigned ""`) means the caller
+    # did not actually supply one. Clear it first so it neither trips the SAMI/UAMI
+    # mutually-exclusive check below nor reaches build_mi_body as a malformed value.
     if outbound_mi_user_assigned is not None and not outbound_mi_user_assigned.strip():
         outbound_mi_user_assigned = None
     if outbound_mi_system_assigned and outbound_mi_user_assigned:
@@ -64,8 +63,8 @@ def _resolve_outbound_identity(
     return build_mi_body(
         outbound_mi_system_assigned,
         outbound_mi_user_assigned,
-        sami_type=OutboundIdentityType.system_assigned.value,
-        uami_type=OutboundIdentityType.user_assigned.value,
+        sami_type=IdentityType.system_assigned.value,
+        uami_type=IdentityType.user_assigned.value,
     )
 
 
@@ -91,7 +90,7 @@ class NamespaceProvider(ADRProvider):
         # Legacy credential/policy bootstrap (DEPRECATED): triggered only by explicit legacy policy
         # args. `--enable-certificate-management` no longer drives this; it now solely sets the
         # namespace-level `certificateManagement` state (the real API field). Certificate authorities
-        # and policies are managed via `iot adr ns ca` in the CMS model.
+        # and policies are managed via `iot adr ns ca`.
         should_create_credential_policy = any([
             policy_name,
             certificate_key_type,
@@ -134,8 +133,6 @@ class NamespaceProvider(ADRProvider):
             outbound_mi_system_assigned, outbound_mi_user_assigned
         )
 
-        # TODO - CMS Preview - support messaging endpoints create
-
         properties = {}
         if enable_certificate_management is not None:
             properties["certificateManagement"] = (
@@ -164,7 +161,7 @@ class NamespaceProvider(ADRProvider):
         with console.status(f"Creating namespace {namespace_name}..."):
             namespace_result = wait_for_terminal_state(poller, **kwargs)
 
-        # TODO - CMS Preview - create response does not include resource group
+        # The create response may omit resourceGroup; backfill it from the request input.
         if not namespace_result.get("resourceGroup"):
             namespace_result["resourceGroup"] = resource_group_name
 

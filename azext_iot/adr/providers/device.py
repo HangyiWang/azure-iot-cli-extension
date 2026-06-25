@@ -205,9 +205,8 @@ class DeviceProvider(ADRProvider):
         **kwargs,
     ):
         """Revoke credentials for a device in the namespace."""
-        # API endpoint not yet available in current Microsoft.DeviceRegistry preview.
+        # The backing endpoint is not available in the current preview.
         raise CLIError(
-            "'az iot adr ns device revoke' is not available yet: the underlying "
-            "Microsoft.DeviceRegistry API is still being finalized. Please try again "
-            "in a future release."
+            "'az iot adr ns device revoke' is not available yet. "
+            "Please try again in a future release."
         )

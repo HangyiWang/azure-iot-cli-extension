@@ -4,10 +4,8 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-# Dormant provider: the group/job/job-run operations were dropped from the regenerated
-# 2026-11-01-preview SDK but the code is retained for a future re-introduction. The SDK
-# client no longer exposes the `groups`, `jobs`, or `job_runs` members, so suppress the
-# resulting false positive.
+# The SDK client does not currently expose the `groups`, `jobs`, or `job_runs`
+# members, so suppress the resulting no-member false positives.
 # pylint: disable=no-member
 
 from typing import Dict, List, Optional
@@ -98,9 +96,8 @@ class GroupProvider(ADRProvider):
         """Update a group in the namespace.
 
         Only mutable fields (``displayName``, ``description``, ``tags``) are accepted.
-        ``groupType`` and ``query`` are immutable after creation (spec visibility
-        ``Lifecycle.Read, Lifecycle.Create``) and are intentionally not exposed
-        on this command.
+        ``groupType`` and ``query`` are immutable after creation and are
+        intentionally not exposed on this command.
         """
         inner_props = {}
         if display_name is not None:
@@ -157,7 +154,7 @@ class GroupProvider(ADRProvider):
         delete those jobs *before* deleting the group. If any referencing job
         is in a state where it cannot be safely deleted right now (ARM
         mid-operation provisioningState or has in-flight runs), the whole
-        operation is blocked with a per-job explanation — the user must
+        operation is blocked with a per-job explanation - the user must
         resolve those jobs before retrying.
 
         The full job inventory (including non-blocking entries) is surfaced
@@ -219,14 +216,14 @@ class GroupProvider(ADRProvider):
 
         Best-effort: any exception while listing jobs yields an empty list so
         the cascade probe never blocks deletion on a probe-failure (RBAC,
-        transient SDK error). Per-job run enumeration is also best-effort — a
+        transient SDK error). Per-job run enumeration is also best-effort - a
         run-list failure on a single job is logged and treated as "no
         in-flight runs known" for that entry.
 
         TODO: this currently enumerates *all* jobs in the namespace and filters
-        client-side because the 2026-11-02-preview SDK does not expose a
-        server-side ``$filter`` on ``targetResourceId``. When the backend adds
-        that filter, switch to it so the probe scales to large namespaces.
+        client-side because the SDK does not expose a server-side ``$filter`` on
+        ``targetResourceId``. When the backend adds that filter, switch to it so
+        the probe scales to large namespaces.
         """
         try:
             jobs = list(
@@ -248,7 +245,7 @@ class GroupProvider(ADRProvider):
         for j in jobs:
             props = j.get("properties") or {}
             target_id = ((props.get("target") or {}).get("targetResourceId") or "")
-            # ARM IDs are case-insensitive — compare lowercased suffix.
+            # ARM IDs are case-insensitive - compare lowercased suffix.
             if not target_id.lower().endswith(suffix):
                 continue
             name = j.get("name", "<unknown>")

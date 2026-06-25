@@ -75,8 +75,8 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_namespace_show")
 
     # Credential commands
-    # Deprecated: superseded by the CMS remodel under `iot adr ns ca`. Not hidden so existing
-    # automation keeps working and users are guided to the replacement during the transition.
+    # Deprecated: superseded by `iot adr ns ca`. Not hidden so existing automation keeps
+    # working and users are guided to the replacement during the transition.
     with self.command_group(
         "iot adr ns credential",
         command_type=adr_credential_ops,
@@ -88,7 +88,7 @@ def load_adr_commands(self, _):
         cmd_group.command("sync", "adr_credential_synchronize")
 
     # Policy commands
-    # Deprecated: superseded by the CMS remodel under `iot adr ns ca` (and `iot adr ns ca policy`).
+    # Deprecated: superseded by `iot adr ns ca` (and `iot adr ns ca policy`).
     with self.command_group(
         "iot adr ns policy",
         command_type=adr_policy_ops,
@@ -102,7 +102,7 @@ def load_adr_commands(self, _):
         cmd_group.command("revoke-issuer", "adr_policy_revoke_issuer", confirmation=True)
         cmd_group.command("activate-byor", "adr_policy_activate_byor")
 
-    # Certificate Authority commands (CMS remodel)
+    # Certificate Authority commands
     with self.command_group("iot adr ns ca", command_type=adr_ca_ops) as cmd_group:
         cmd_group.command("create", "adr_ca_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_ca_show")

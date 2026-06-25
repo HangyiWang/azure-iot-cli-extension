@@ -4,9 +4,8 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-# Dormant provider: the job/group/job-run operations were dropped from the regenerated
-# 2026-11-01-preview SDK but the code is retained for a future re-introduction. The SDK
-# client no longer exposes the `job_runs` member, so suppress the resulting false positive.
+# The SDK client does not currently expose the `job_runs` member, so suppress
+# the resulting no-member false positives.
 # pylint: disable=no-member
 
 from typing import Iterator
@@ -23,14 +22,13 @@ class JobRunProvider(ADRProvider):
     """Read-only surface over ``JobRunsOperations``.
 
     Job runs are spawned by the service when a job is scheduled; the CLI only
-    exposes ``show``/``list``/``results`` because the spec does not provide a
-    write surface (no ``cancel``, no ``delete``). See design \u00a73.1 jobs table.
+    exposes ``show``/``list``/``results`` because there is no supported write
+    surface (no ``cancel``, no ``delete``).
     """
 
     def __init__(self, cmd):
         super(JobRunProvider, self).__init__(cmd)
 
-    # ---------------------------------------------------------------- show / list
     def show(
         self,
         job_name: str,
@@ -60,7 +58,6 @@ class JobRunProvider(ADRProvider):
             )
         )
 
-    # ---------------------------------------------------------------- results
     def results(
         self,
         job_name: str,
@@ -70,12 +67,12 @@ class JobRunProvider(ADRProvider):
     ) -> Iterator[dict]:
         """Yield every per-device result item across all ``nextLink`` pages.
 
-        The SDK's ``job_runs.results`` is **not** auto-paged \u2014 it returns the
+        The SDK's ``job_runs.results`` is **not** auto-paged - it returns the
         raw ``{value: [...], nextLink: str|None}`` envelope from a single
         ``POST .../results`` call. We unwrap the envelope here and follow
-        ``nextLink`` via the client's :meth:`send_request` until the page chain
-        terminates, so callers receive a flat iterator suitable for ``--query``
-        and Azure CLI table rendering.
+        ``nextLink`` via the client's raw send-request channel until the page
+        chain terminates, so callers receive a flat iterator suitable for
+        ``--query`` and Azure CLI table rendering.
 
         Implemented as a generator so the CLI can stream large result sets
         without buffering everything in memory.
@@ -97,9 +94,9 @@ class JobRunProvider(ADRProvider):
     def _fetch_next_page(self, next_link: str) -> dict:
         """Follow a ``nextLink`` URL via the SDK client's raw send-request channel.
 
-        Uses :meth:`MicrosoftDeviceRegistryManagementService.send_request` so
-        the call inherits the configured pipeline (auth, retry, telemetry,
-        ``api-version`` policy) instead of bypassing it with a raw HTTP call.
+        Routes the request through the client's ``send_request`` so the call
+        inherits the configured pipeline (auth, retry, telemetry, ``api-version``
+        policy) instead of bypassing it with a raw HTTP call.
         """
         request = HttpRequest("GET", next_link)
         http_response = self.client.send_request(request)

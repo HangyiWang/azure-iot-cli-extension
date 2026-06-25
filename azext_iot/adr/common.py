@@ -10,15 +10,6 @@ from typing import Optional
 
 class IdentityType(Enum):
     system_assigned = "SystemAssigned"
-
-
-class InboundCallerIdentityType(Enum):
-    system_assigned = "SystemAssigned"
-    user_assigned = "UserAssigned"
-
-
-class OutboundIdentityType(Enum):
-    system_assigned = "SystemAssigned"
     user_assigned = "UserAssigned"
 
 
@@ -37,8 +28,8 @@ class LinkingState(Enum):
 class GroupType(Enum):
     """Type of a Device Registry group.
 
-    Only ``Device`` is defined in the 2026-11-02-preview spec; the enum is kept
-    forward-compatible so future group types can be added without churn.
+    Only ``Device`` is currently defined; the enum is kept forward-compatible
+    so future group types can be added without churn.
     """
     device = "Device"
 
@@ -53,9 +44,8 @@ class GroupMembershipState(Enum):
 class JobType(Enum):
     """Type of a Device Registry job.
 
-    Only ``Update`` ships in the 2026-11-02-preview API. ``action`` and ``state``
-    are reserved discriminator values in the spec (designed to be added as
-    additional subtypes in v2). The enum is exposed in CLI help today so that
+    Only ``Update`` is currently supported. ``action`` and ``state`` are
+    reserved for future use. The enum is exposed in CLI help today so that
     future variants can be added without changing the surface, but the create
     provider rejects non-``Update`` values client-side until backend support
     lands.
@@ -76,7 +66,7 @@ class JobSchedulingType(Enum):
 
 
 class JobRunStatus(Enum):
-    """Status values for a job run (spec ``JobRunStatus`` union).
+    """Status values for a job run.
 
     Used by the Group/Job pre-delete checks to determine which runs are still
     "in flight" (i.e. consuming concurrency quota or actively executing).

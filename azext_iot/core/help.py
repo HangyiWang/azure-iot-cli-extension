@@ -10,7 +10,7 @@ Help updates for CLI core commands.
 from knack.help_files import helps
 
 
-# TODO - CMS Preview - help additions to core
+# Help additions for core commands
 def patch_core_help():
 
     # add Hub create examples for ADR properties

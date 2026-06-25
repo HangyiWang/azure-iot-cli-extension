@@ -4,10 +4,8 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-# Dormant provider: the job/job-run operations were dropped from the regenerated
-# 2026-11-01-preview SDK but the code is retained for a future re-introduction. The SDK
-# client no longer exposes the `jobs` or `job_runs` members, so suppress the resulting
-# false positive.
+# The SDK client does not currently expose the `jobs` or `job_runs` members, so
+# suppress the resulting no-member false positives.
 # pylint: disable=no-member
 
 from typing import Dict, List, Optional
@@ -36,7 +34,7 @@ logger = get_logger(__name__)
 # Error templates
 _ONLY_UPDATE_SUPPORTED_MSG = (
     "Only --type Update is supported in this preview release. "
-    "'Action' and 'State' are reserved discriminator values; backend support is planned for a future API version."
+    "'Action' and 'State' are not currently supported."
 )
 _TARGET_GROUP_REQUIRED_MSG = (
     "--target-group-name is required. The target group must live in the same namespace and resource "
@@ -65,7 +63,7 @@ def _compose_group_arm_id(
 ) -> str:
     """Compose the ARM resource ID for a namespace group.
 
-    Mirrors the spec ``Microsoft.DeviceRegistry/namespaces/groups`` resource type.
+    Uses the ``Microsoft.DeviceRegistry/namespaces/groups`` resource type.
     """
     return (
         f"/subscriptions/{subscription_id}"
@@ -80,7 +78,6 @@ class JobProvider(ADRProvider):
     def __init__(self, cmd):
         super(JobProvider, self).__init__(cmd)
 
-    # ---------------------------------------------------------------- create
     def create(
         self,
         job_name: str,
@@ -97,10 +94,9 @@ class JobProvider(ADRProvider):
     ):
         """Create a job in the namespace.
 
-        Only ``jobType: Update`` ships in v1. The CLI rejects ``Action``/``State``
-        client-side with a clear message even though help names them for
-        forward-compat. The body shape is verified against the spec
-        ``UpdateJobProperties`` model.
+        Only ``jobType: Update`` is currently supported. The CLI rejects
+        ``Action``/``State`` client-side with a clear message even though help
+        names them for forward-compat.
 
         The target group is always resolved against the job's own namespace and
         resource group (cross-namespace targets are not supported in this
@@ -162,7 +158,6 @@ class JobProvider(ADRProvider):
         ):
             return wait_for_terminal_state(poller, **kwargs)
 
-    # ---------------------------------------------------------------- update
     def update(
         self,
         job_name: str,
@@ -173,15 +168,13 @@ class JobProvider(ADRProvider):
     ):
         """Update (tags-only) a job in the namespace.
 
-        Per spec, ``Jobs.update`` is ``ArmTagsPatchSync<Job>`` — synchronous,
-        tags-only. Job spec properties (``jobType``, ``target``, ``definition``)
-        are immutable after creation because mutating them would have
-        unintended effects on already-scheduled runs (spec comment on the
-        ``Jobs`` interface). Non-tag kwargs are rejected here so the CLI
-        surfaces a clear immutable-properties error instead of silently
-        no-oping.
+        Job updates are synchronous and tags-only. Job properties
+        (``jobType``, ``target``, ``definition``) are immutable after creation
+        because mutating them would have unintended effects on already-scheduled
+        runs. Non-tag kwargs are rejected here so the CLI surfaces a clear
+        immutable-properties error instead of silently no-oping.
         """
-        # Reject any non-tag mutation up front — the entrypoint signature only
+        # Reject any non-tag mutation up front - the entrypoint signature only
         # exposes tags but kwargs may carry stale fields if upstream layers
         # forward extras (defensive: future-proof against parameter additions).
         disallowed = {k: v for k, v in kwargs.items() if v is not None and k != "no_wait"}
@@ -194,7 +187,7 @@ class JobProvider(ADRProvider):
         if tags is None:
             raise ArgumentUsageError(_NOTHING_TO_UPDATE_MSG)
 
-        # ArmTagsPatchSync wants a tags-only body. Empty dict ⇒ explicit clear.
+        # The PATCH body is tags-only. An empty dict means an explicit clear.
         properties = {"tags": tags}
 
         return self.client.jobs.update(
@@ -204,7 +197,6 @@ class JobProvider(ADRProvider):
             properties=properties,
         )
 
-    # ---------------------------------------------------------------- show / list
     def show(self, job_name: str, namespace_name: str, resource_group_name: str):
         return self.client.jobs.get(
             resource_group_name=resource_group_name,
@@ -220,7 +212,6 @@ class JobProvider(ADRProvider):
             )
         )
 
-    # ---------------------------------------------------------------- delete
     def delete(
         self,
         job_name: str,
@@ -261,7 +252,6 @@ class JobProvider(ADRProvider):
         ):
             return wait_for_terminal_state(poller, **kwargs)
 
-    # ---------------------------------------------------------------- schedule
     def schedule(
         self,
         job_name: str,
@@ -273,10 +263,9 @@ class JobProvider(ADRProvider):
     ):
         """Schedule a job for execution (LRO).
 
-        Both body fields are optional per the spec ``JobScheduleRequest`` model.
-        ``--timeout`` is validated as an ISO 8601 duration via
-        :func:`isodate.parse_duration` so malformed input fails fast rather
-        than reaching the backend.
+        Both body fields are optional. ``--timeout`` is validated as an ISO 8601
+        duration via :func:`isodate.parse_duration` so malformed input fails
+        fast rather than reaching the backend.
         """
         if timeout is not None:
             self._validate_iso8601_duration(timeout)
@@ -303,7 +292,6 @@ class JobProvider(ADRProvider):
         ):
             return wait_for_terminal_state(poller, **kwargs)
 
-    # ---------------------------------------------------------------- helpers
     def _check_in_flight_runs(
         self,
         job_name: str,
@@ -352,7 +340,7 @@ class JobProvider(ADRProvider):
         """Validate that *value* is an ISO 8601 datetime string.
 
         Defers to :mod:`isodate` (SDK transitive dep). Accepts both timezone-
-        aware and naive forms — the backend rejects naive values, so we only
+        aware and naive forms - the backend rejects naive values, so we only
         guard against malformed input here. Raises
         :class:`InvalidArgumentValueError` on any parse error.
         """

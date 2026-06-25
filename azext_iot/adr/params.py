@@ -77,7 +77,7 @@ def load_adr_arguments(self, _):
             options_list=["--namespace", "--ns"],
             help="Name of the Device Registry namespace.",
         )
-        # TODO - CMS Preview - (-n for standard naming convention, --pn to match adr ns create)
+        # `-n` follows the standard naming convention; `--pn` mirrors `adr ns create`.
         context.argument(
             "policy_name", options_list=["--policy-name", "--pn", "--name", "-n"], help="Name of the policy."
         )
@@ -134,7 +134,7 @@ def load_adr_arguments(self, _):
                  "Certificates must be ordered from leaf to root.",
         )
 
-    # Certificate Authority (CMS remodel) arguments
+    # Certificate Authority arguments
     with self.argument_context("iot adr ns ca") as context:
         context.argument(
             "namespace_name",
@@ -359,7 +359,7 @@ def load_adr_arguments(self, _):
                 arg_group="Outbound Identity",
                 options_list=["--outbound-mi-user-assigned", "--omi-ua"],
                 help="User-assigned managed identity resource ID for the outbound identity. "
-                     "NOTE: Currently unsupported; the underlying API surface is still being finalized.",
+                     "NOTE: Currently unsupported.",
             )
 
     with self.argument_context("iot adr ns update") as context:
@@ -652,8 +652,8 @@ def load_adr_arguments(self, _):
             "job_type",
             options_list=["--type"],
             arg_type=get_enum_type(JobType),
-            help="Type of the job. Only 'Update' is supported in the current preview API; "
-                 "'Action' and 'State' are reserved discriminator values and will be enabled in a future API version.",
+            help="Type of the job. Only 'Update' is supported in the current preview; "
+                 "'Action' and 'State' are reserved for future use.",
         )
         context.argument(
             "target_group_name",
@@ -700,7 +700,7 @@ def load_adr_arguments(self, _):
                  "(e.g. 'PT1H' for one hour, 'P1D' for one day).",
         )
 
-    # Job run arguments — read-only surface (show / list / results)
+    # Job run arguments - read-only surface (show / list / results)
     with self.argument_context("iot adr ns job run") as context:
         context.argument(
             "namespace_name",
