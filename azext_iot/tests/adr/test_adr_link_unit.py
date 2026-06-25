@@ -1213,3 +1213,131 @@ def test_adu_update_with_system_assigned_mi(fixture_link_provider, mock_poller):
     assert endpoint_patch == {
         "inboundCallerIdentity": {"type": IdentityType.system_assigned.value}
     }
+
+
+# ==================== Resource-ID parsing + identity normalization edge cases ====================
+
+
+from azext_iot.adr.providers.link import (  # noqa: E402
+    _parse_dps_resource_id,
+    _parse_adu_resource_id,
+    _resolve_inbound_identity,
+)
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_parse_dps_resource_id_rejects_empty(value):
+    """An empty/whitespace DPS id is rejected with a required-value hint."""
+    with pytest.raises(InvalidArgumentValueError, match="--dps-id is required"):
+        _parse_dps_resource_id(value)
+
+
+def test_parse_dps_resource_id_rejects_bare_name():
+    """A bare DPS name (no slashes) gets a friendly 'pass the full ARM id' hint."""
+    with pytest.raises(InvalidArgumentValueError, match="bare DPS name"):
+        _parse_dps_resource_id("mydps")
+
+
+def test_parse_dps_resource_id_rejects_wrong_type():
+    """A valid ARM id of the wrong resource type is rejected as not-a-DPS."""
+    with pytest.raises(InvalidArgumentValueError, match="provisioningServices"):
+        _parse_dps_resource_id(HUB_RESOURCE_ID)
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_parse_adu_resource_id_rejects_empty(value):
+    """An empty/whitespace ADU id is rejected with a required-value hint."""
+    with pytest.raises(InvalidArgumentValueError, match="--adu-id is required"):
+        _parse_adu_resource_id(value)
+
+
+def test_parse_adu_resource_id_rejects_bare_name():
+    """A bare ADU account name (no slashes) gets a friendly 'pass the full ARM id' hint."""
+    with pytest.raises(InvalidArgumentValueError, match="bare ADU account name"):
+        _parse_adu_resource_id("myadu")
+
+
+def test_resolve_inbound_identity_whitespace_uami_is_unset():
+    """A whitespace-only UAMI is normalized to None and yields no identity body."""
+    assert _resolve_inbound_identity(False, "   ") is None
+
+
+def test_hub_update_mi_mutually_exclusive(fixture_link_provider):
+    """SAMI + UAMI together on hub update raises before any namespace fetch."""
+    with pytest.raises(ArgumentUsageError, match="mutually exclusive"):
+        fixture_link_provider.hub_update(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            mi_system_assigned=True,
+            mi_user_assigned=UAMI_RESOURCE_ID,
+        )
+    fixture_link_provider.client.namespaces.get.assert_not_called()
+
+
+def test_hub_update_sets_identity_and_allocation_weight(fixture_link_provider, mock_poller):
+    """Update applies a new inbound identity and allocationWeight in one patch."""
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+                "inboundCallerIdentity": {"type": "SystemAssigned"},
+            }
+        }
+    )
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.hub_update(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        mi_system_assigned=True,
+        allocation_weight=50,
+    )
+
+    endpoint_patch = fixture_link_provider.client.namespaces.begin_update.call_args[1][
+        "properties"
+    ]["properties"]["messaging"]["endpoints"]["primary"]
+    assert endpoint_patch["inboundCallerIdentity"] == {"type": IdentityType.system_assigned.value}
+    assert endpoint_patch["provisioning"]["allocationWeight"] == 50
+
+
+def test_dps_update_mi_mutually_exclusive(fixture_link_provider):
+    """SAMI + UAMI together on dps update raises before any namespace fetch."""
+    with pytest.raises(ArgumentUsageError, match="mutually exclusive"):
+        fixture_link_provider.dps_update(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            mi_system_assigned=True,
+            mi_user_assigned=UAMI_RESOURCE_ID,
+        )
+    fixture_link_provider.client.namespaces.get.assert_not_called()
+
+
+def test_hub_remove_enrichment_failure_is_non_fatal(fixture_link_provider):
+    """If the best-effort namespace fetch fails, hub_remove still raises the actionable error."""
+    fixture_link_provider.client.namespaces.get.side_effect = RuntimeError("boom")
+    with pytest.raises(ArgumentUsageError, match="not supported"):
+        fixture_link_provider.hub_remove(
+            endpoint_name="primary", namespace_name="ns", resource_group_name="rg",
+        )
+
+
+def test_dps_remove_enrichment_failure_is_non_fatal(fixture_link_provider):
+    """If the best-effort namespace fetch fails, dps_remove still raises the actionable error."""
+    fixture_link_provider.client.namespaces.get.side_effect = RuntimeError("boom")
+    with pytest.raises(ArgumentUsageError, match="not supported"):
+        fixture_link_provider.dps_remove(
+            endpoint_name="primary", namespace_name="ns", resource_group_name="rg",
+        )
+
+
+def test_adu_remove_enrichment_failure_is_non_fatal(fixture_link_provider):
+    """If the best-effort namespace fetch fails, adu_remove still raises the actionable error."""
+    fixture_link_provider.client.namespaces.get.side_effect = RuntimeError("boom")
+    with pytest.raises(ArgumentUsageError, match="not supported"):
+        fixture_link_provider.adu_remove(
+            endpoint_name="primary", namespace_name="ns", resource_group_name="rg",
+        )

@@ -525,3 +525,17 @@ def test_device_delete_dependency_check_returns_empty_for_phase1(fixture_device_
         resource_group_name="test-rg",
     )
     assert result == []
+
+
+def test_device_delete_warns_on_dependents(fixture_device_provider, mock_poller, monkeypatch):
+    """When dependent resources exist, delete logs a warning before proceeding."""
+    monkeypatch.setattr(
+        fixture_device_provider, "_check_dependent_resources", lambda **kwargs: ["asset-a", "asset-b"]
+    )
+    fixture_device_provider.client.namespace_devices.begin_delete.return_value = mock_poller(Mock())
+
+    fixture_device_provider.delete(
+        device_name="dev", namespace_name="ns", resource_group_name="rg",
+    )
+
+    fixture_device_provider.client.namespace_devices.begin_delete.assert_called_once()

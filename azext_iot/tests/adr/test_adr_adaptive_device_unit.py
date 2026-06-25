@@ -151,3 +151,34 @@ def test_update_adaptive_device_requires_a_field(fixture_adaptive_device_provide
         fixture_adaptive_device_provider.update(
             adaptive_device_name="dev", namespace_name="ns", resource_group_name="rg",
         )
+
+
+def test_create_adaptive_device_with_tags(fixture_adaptive_device_provider):
+    """Tags are included in the create body when provided."""
+    fixture_adaptive_device_provider.client.namespace_adaptive_devices.create_or_replace.return_value = {
+        "name": "dev"
+    }
+    fixture_adaptive_device_provider.client.namespaces.get.return_value = {"location": "eastus"}
+
+    fixture_adaptive_device_provider.create(
+        adaptive_device_name="dev", namespace_name="ns", resource_group_name="rg",
+        manufacturer="Contoso", tags={"env": "prod"},
+    )
+
+    resource = fixture_adaptive_device_provider.client.namespace_adaptive_devices.create_or_replace.call_args[
+        1
+    ]["resource"]
+    assert resource["tags"] == {"env": "prod"}
+
+
+def test_update_adaptive_device_with_tags(fixture_adaptive_device_provider):
+    """Tags-only update sends tags in the patch body."""
+    fixture_adaptive_device_provider.client.namespace_adaptive_devices.update.return_value = {"name": "dev"}
+
+    fixture_adaptive_device_provider.update(
+        adaptive_device_name="dev", namespace_name="ns", resource_group_name="rg",
+        tags={"env": "prod"},
+    )
+
+    body = fixture_adaptive_device_provider.client.namespace_adaptive_devices.update.call_args[1]["properties"]
+    assert body["tags"] == {"env": "prod"}

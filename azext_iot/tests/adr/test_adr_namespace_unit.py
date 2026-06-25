@@ -408,3 +408,22 @@ def test_namespace_create_no_wait_skips_credential_policy_chain(
     # or namespace_policy calls were issued on the shared mock client.
     fixture_namespace_provider.client.namespace_credential.begin_create_or_replace.assert_not_called()
     fixture_namespace_provider.client.namespace_policies.begin_create_or_replace.assert_not_called()
+
+
+def test_create_namespace_outbound_uami_whitespace_treated_as_unset(
+    fixture_namespace_provider, mock_poller
+):
+    """A whitespace-only --outbound-mi-user-assigned is normalized to unset (no rejection)."""
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
+        {"name": "ns", "location": "eastus", "resourceGroup": "rg"}
+    )
+
+    fixture_namespace_provider.create(
+        namespace_name="ns",
+        resource_group_name="rg",
+        location="eastus",
+        outbound_mi_user_assigned="   ",
+    )
+
+    body = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]["resource"]
+    assert "outboundIdentity" not in body.get("properties", {})

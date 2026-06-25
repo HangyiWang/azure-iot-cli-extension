@@ -233,3 +233,18 @@ def test_update_ca_requires_a_field(fixture_ca_provider):
         fixture_ca_provider.update(
             certificate_authority_name="ca", namespace_name="ns", resource_group_name="rg",
         )
+
+
+def test_update_ca_no_wait_returns_poller(fixture_ca_provider, mock_poller):
+    """With --no-wait, update returns the poller without waiting or re-fetching."""
+    poller = mock_poller(Mock())
+    fixture_ca_provider.client.certificate_authorities.begin_update.return_value = poller
+
+    result = fixture_ca_provider.update(
+        certificate_authority_name="ca", namespace_name="ns", resource_group_name="rg",
+        tags={"env": "prod"}, no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+    fixture_ca_provider.client.certificate_authorities.get.assert_not_called()

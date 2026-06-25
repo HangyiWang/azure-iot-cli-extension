@@ -629,3 +629,89 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     _log(LogKind.RESULT, "UAMI deleted")
                 except Exception as e:  # noqa: BLE001 — best-effort cleanup
                     _log(LogKind.WARN, "UAMI cleanup failed: %s", e)
+
+
+@pytest.mark.usefixtures("set_cwd")
+class TestADRLinkValidationNegatives(CaptureOutputLiveScenarioTest):
+    """Client-side validation negatives for the ``iot adr ns link`` surface.
+
+    These scenarios assert the provider's argument validation that runs *before*
+    any service round trip (resource-ID parsing and the SAMI/UAMI mutually-exclusive
+    guard). Because they fail client-side, they need neither real link
+    infrastructure nor backend readiness — every command is expected to fail.
+
+    This complements the lifecycle suites (which prove the happy paths) by
+    exercising the rejection branches end-to-end through the CLI, not just at the
+    provider unit level.
+    """
+
+    def test_adr_link_validation_negatives(self):
+        _log(LogKind.TEST, "test_adr_link_validation_negatives")
+        rg = TEST_RG
+        # A namespace that need not exist: every command below fails during
+        # argument validation, before the provider issues a namespace GET.
+        ns = "validation-ns-does-not-matter"
+        hub_id = (
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/"
+            f"{rg}/providers/Microsoft.Devices/IotHubs/somehub"
+        )
+        uami_id = (
+            "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/"
+            f"{rg}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami"
+        )
+
+        # --- DPS resource-id parsing rejections (dps add) ---
+        with timed_step("DPS add ❯ empty --dps-id rejected"):
+            self.cmd(
+                f'iot adr ns link dps add -n primary --ns {ns} -g {rg} --dps-id "" --mi-sa',
+                expect_failure=True,
+            )
+        with timed_step("DPS add ❯ bare DPS name rejected"):
+            self.cmd(
+                f"iot adr ns link dps add -n primary --ns {ns} -g {rg} --dps-id mydps --mi-sa",
+                expect_failure=True,
+            )
+        with timed_step("DPS add ❯ wrong resource type rejected"):
+            self.cmd(
+                f"iot adr ns link dps add -n primary --ns {ns} -g {rg} --dps-id {hub_id} --mi-sa",
+                expect_failure=True,
+            )
+
+        # --- ADU resource-id parsing rejections (adu add) ---
+        with timed_step("ADU add ❯ empty --adu-id rejected"):
+            self.cmd(
+                f'iot adr ns link adu add -n primary --ns {ns} -g {rg} --adu-id "" --mi-sa',
+                expect_failure=True,
+            )
+        with timed_step("ADU add ❯ bare ADU account name rejected"):
+            self.cmd(
+                f"iot adr ns link adu add -n primary --ns {ns} -g {rg} --adu-id myadu --mi-sa",
+                expect_failure=True,
+            )
+        with timed_step("ADU add ❯ wrong resource type rejected"):
+            self.cmd(
+                f"iot adr ns link adu add -n primary --ns {ns} -g {rg} --adu-id {hub_id} --mi-sa",
+                expect_failure=True,
+            )
+
+        # --- SAMI/UAMI mutually-exclusive guard (update paths reject first) ---
+        with timed_step("Hub update ❯ SAMI + UAMI together rejected"):
+            self.cmd(
+                f"iot adr ns link hub update -n primary --ns {ns} -g {rg} "
+                f"--mi-sa --mi-ua {uami_id}",
+                expect_failure=True,
+            )
+        with timed_step("DPS update ❯ SAMI + UAMI together rejected"):
+            self.cmd(
+                f"iot adr ns link dps update -n primary --ns {ns} -g {rg} "
+                f"--mi-sa --mi-ua {uami_id}",
+                expect_failure=True,
+            )
+        with timed_step("ADU update ❯ SAMI + UAMI together rejected"):
+            self.cmd(
+                f"iot adr ns link adu update -n primary --ns {ns} -g {rg} "
+                f"--mi-sa --mi-ua {uami_id}",
+                expect_failure=True,
+            )
+
+        _log(LogKind.OK, "All link validation negatives rejected client-side as designed")

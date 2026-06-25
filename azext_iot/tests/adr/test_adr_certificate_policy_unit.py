@@ -208,3 +208,58 @@ def test_delete_ca_policy_parent_not_found(fixture_ca_policy_provider):
             certificate_policy_name="cp", certificate_authority_name="ca",
             namespace_name="ns", resource_group_name="rg",
         )
+
+
+def test_list_ca_policy_parent_not_found(fixture_ca_policy_provider):
+    """List maps a 404 ParentResourceNotFound to ResourceNotFoundError."""
+    fixture_ca_policy_provider.client.certificate_policies.list_by_certificate_authority.side_effect = (
+        _parent_not_found_error()
+    )
+
+    with pytest.raises(ResourceNotFoundError, match=r"certificate authority"):
+        fixture_ca_policy_provider.list(
+            certificate_authority_name="ca", namespace_name="ns", resource_group_name="rg",
+        )
+
+
+def test_update_ca_policy_with_tags(fixture_ca_policy_provider, mock_poller):
+    """Tags-only update sends tags in the patch body and fetches fresh state via show()."""
+    fixture_ca_policy_provider.client.certificate_policies.begin_update.return_value = mock_poller(Mock())
+    fixture_ca_policy_provider.client.certificate_policies.get.return_value = {"name": "cp"}
+
+    fixture_ca_policy_provider.update(
+        certificate_policy_name="cp", certificate_authority_name="ca",
+        namespace_name="ns", resource_group_name="rg", tags={"env": "prod"},
+    )
+
+    properties = fixture_ca_policy_provider.client.certificate_policies.begin_update.call_args[1]["properties"]
+    assert properties["tags"] == {"env": "prod"}
+
+
+def test_update_ca_policy_no_wait_returns_poller(fixture_ca_policy_provider, mock_poller):
+    """With --no-wait, update returns the poller without waiting or re-fetching."""
+    poller = mock_poller(Mock())
+    fixture_ca_policy_provider.client.certificate_policies.begin_update.return_value = poller
+
+    result = fixture_ca_policy_provider.update(
+        certificate_policy_name="cp", certificate_authority_name="ca",
+        namespace_name="ns", resource_group_name="rg", validity_days=20, no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+    fixture_ca_policy_provider.client.certificate_policies.get.assert_not_called()
+
+
+def test_delete_ca_policy_no_wait_returns_poller(fixture_ca_policy_provider, mock_poller):
+    """With --no-wait, delete returns the poller without waiting."""
+    poller = mock_poller(Mock())
+    fixture_ca_policy_provider.client.certificate_policies.begin_delete.return_value = poller
+
+    result = fixture_ca_policy_provider.delete(
+        certificate_policy_name="cp", certificate_authority_name="ca",
+        namespace_name="ns", resource_group_name="rg", no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
