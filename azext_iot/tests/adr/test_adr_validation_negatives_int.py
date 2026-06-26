@@ -79,4 +79,30 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 expect_failure=True,
             )
 
+        # --- Job: guards that fire before any service call ---
+        # (The job_int suite covers the same guards, but only after a real
+        # namespace+group setup; these run with no backend.)
+        with timed_step("job create ❯ missing --target-group-name rejected"):
+            self.cmd(
+                f"iot adr ns job create -n myjob --ns {ns} -g {rg} "
+                f"--update-id-provider Contoso --update-id-name fw --update-id-version 1.0.0",
+                expect_failure=True,
+            )
+        with timed_step("job update ❯ nothing-to-update (no --tags) rejected"):
+            self.cmd(
+                f"iot adr ns job update -n myjob --ns {ns} -g {rg}",
+                expect_failure=True,
+            )
+        with timed_step("job schedule ❯ invalid ISO 8601 --timeout rejected"):
+            self.cmd(
+                f"iot adr ns job schedule -n myjob --ns {ns} -g {rg} --timeout not-a-duration",
+                expect_failure=True,
+            )
+        with timed_step("job schedule ❯ invalid ISO 8601 --scheduled-time rejected"):
+            self.cmd(
+                f"iot adr ns job schedule -n myjob --ns {ns} -g {rg} "
+                f"--scheduled-time not-a-datetime",
+                expect_failure=True,
+            )
+
         _log(LogKind.OK, "All cross-surface validation negatives rejected client-side as designed")
