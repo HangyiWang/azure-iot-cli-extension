@@ -137,7 +137,7 @@ def adr_service_factory(cli_ctx, *_):
     return MicrosoftDeviceRegistryManagementService(
         credential=AZURE_CLI_CREDENTIAL,
         subscription_id=subscription_id,
-        endpoint=cli_ctx.cloud.endpoints.resource_manager,
+        endpoint="https://centraluseuap.management.azure.com",
         credential_scopes=_get_credential_scopes(cli_ctx),
         user_agent_policy=UserAgentPolicy(user_agent=USER_AGENT),
         http_logging_policy=_get_default_logging_policy(),
