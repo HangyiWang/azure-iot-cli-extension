@@ -22,7 +22,6 @@ from .operations import (
     CertificateAuthoritiesOperations,
     CertificatePoliciesOperations,
     CredentialsOperations,
-    NamespaceAdaptiveDevicesOperations,
     NamespaceDevicesOperations,
     NamespacesOperations,
     PoliciesOperations,
@@ -40,9 +39,6 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
      azext_iot.sdk.deviceregistry.aio.operations.AsyncOperationStatusOperations
     :ivar namespaces: NamespacesOperations operations
     :vartype namespaces: azext_iot.sdk.deviceregistry.aio.operations.NamespacesOperations
-    :ivar namespace_adaptive_devices: NamespaceAdaptiveDevicesOperations operations
-    :vartype namespace_adaptive_devices:
-     azext_iot.sdk.deviceregistry.aio.operations.NamespaceAdaptiveDevicesOperations
     :ivar certificate_authorities: CertificateAuthoritiesOperations operations
     :vartype certificate_authorities:
      azext_iot.sdk.deviceregistry.aio.operations.CertificateAuthoritiesOperations
@@ -106,9 +102,6 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
             self._client, self._config, self._serialize, self._deserialize
         )
         self.namespaces = NamespacesOperations(self._client, self._config, self._serialize, self._deserialize)
-        self.namespace_adaptive_devices = NamespaceAdaptiveDevicesOperations(
-            self._client, self._config, self._serialize, self._deserialize
-        )
         self.certificate_authorities = CertificateAuthoritiesOperations(
             self._client, self._config, self._serialize, self._deserialize
         )

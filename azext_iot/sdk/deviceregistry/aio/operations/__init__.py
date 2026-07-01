@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 from ._operations import AsyncOperationStatusOperations  # type: ignore
 from ._operations import NamespacesOperations  # type: ignore
-from ._operations import NamespaceAdaptiveDevicesOperations  # type: ignore
 from ._operations import CertificateAuthoritiesOperations  # type: ignore
 from ._operations import CertificatePoliciesOperations  # type: ignore
 from ._operations import CredentialsOperations  # type: ignore
@@ -28,7 +27,6 @@ from ._patch import patch_sdk as _patch_sdk
 __all__ = [
     "AsyncOperationStatusOperations",
     "NamespacesOperations",
-    "NamespaceAdaptiveDevicesOperations",
     "CertificateAuthoritiesOperations",
     "CertificatePoliciesOperations",
     "CredentialsOperations",

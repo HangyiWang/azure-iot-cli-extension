@@ -53,11 +53,6 @@ from ...operations._operations import (
     build_credentials_list_by_namespace_request,
     build_credentials_synchronize_request,
     build_credentials_update_request,
-    build_namespace_adaptive_devices_create_or_replace_request,
-    build_namespace_adaptive_devices_delete_request,
-    build_namespace_adaptive_devices_get_request,
-    build_namespace_adaptive_devices_list_by_namespace_request,
-    build_namespace_adaptive_devices_update_request,
     build_namespace_devices_create_or_replace_request,
     build_namespace_devices_delete_request,
     build_namespace_devices_get_request,
@@ -240,7 +235,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -429,7 +423,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -621,7 +614,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -871,7 +863,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -981,7 +972,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -1121,7 +1111,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -1253,7 +1242,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -1363,7 +1351,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -1721,7 +1708,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -1861,7 +1847,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -2097,7 +2082,6 @@ class NamespacesOperations:
                     "name": "str",
                     "properties": {
                         "certificateManagement": "str",
-                        "dataEndpoint": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -2625,932 +2609,6 @@ class NamespacesOperations:
         return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
 
-class NamespaceAdaptiveDevicesOperations:
-    """
-    .. warning::
-        **DO NOT** instantiate this class directly.
-
-        Instead, you should access the following operations through
-        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
-        :attr:`namespace_adaptive_devices` attribute.
-    """
-
-    def __init__(self, *args, **kwargs) -> None:
-        input_args = list(args)
-        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
-        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
-            input_args.pop(0) if input_args else kwargs.pop("config")
-        )
-        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
-        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
-
-    @distributed_trace
-    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
-        """List NamespaceAdaptiveDevice resources by Namespace.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :return: An iterator like instance of JSON object
-        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # response body for status code(s): 200
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-        _headers = kwargs.pop("headers", {}) or {}
-        _params = kwargs.pop("params", {}) or {}
-
-        cls: ClsType[JSON] = kwargs.pop("cls", None)
-
-        error_map: MutableMapping = {
-            401: ClientAuthenticationError,
-            404: ResourceNotFoundError,
-            409: ResourceExistsError,
-            304: ResourceNotModifiedError,
-        }
-        error_map.update(kwargs.pop("error_map", {}) or {})
-
-        def prepare_request(next_link=None):
-            if not next_link:
-
-                _request = build_namespace_adaptive_devices_list_by_namespace_request(
-                    resource_group_name=resource_group_name,
-                    namespace_name=namespace_name,
-                    subscription_id=self._config.subscription_id,
-                    api_version=self._config.api_version,
-                    headers=_headers,
-                    params=_params,
-                )
-                _request.url = self._client.format_url(_request.url)
-
-            else:
-                # make call to next link with the client's api-version
-                _parsed_next_link = urllib.parse.urlparse(next_link)
-                _next_request_params = case_insensitive_dict(
-                    {
-                        key: [urllib.parse.quote(v) for v in value]
-                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
-                    }
-                )
-                _next_request_params["api-version"] = self._config.api_version
-                _request = HttpRequest(
-                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
-                )
-                _request.url = self._client.format_url(_request.url)
-
-            return _request
-
-        async def extract_data(pipeline_response):
-            deserialized = pipeline_response.http_response.json()
-            list_of_elem = deserialized.get("value", [])
-            if cls:
-                list_of_elem = cls(list_of_elem)  # type: ignore
-            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
-
-        async def get_next(next_link=None):
-            _request = prepare_request(next_link)
-
-            _stream = False
-            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-                _request, stream=_stream, **kwargs
-            )
-            response = pipeline_response.http_response
-
-            if response.status_code not in [200]:
-                map_error(status_code=response.status_code, response=response, error_map=error_map)
-                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
-
-            return pipeline_response
-
-        return AsyncItemPaged(get_next, extract_data)
-
-    @distributed_trace_async
-    async def get(
-        self, resource_group_name: str, namespace_name: str, adaptive_device_name: str, **kwargs: Any
-    ) -> JSON:
-        """Get a NamespaceAdaptiveDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param adaptive_device_name: The name of the new device. Required.
-        :type adaptive_device_name: str
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # response body for status code(s): 200
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-        error_map: MutableMapping = {
-            401: ClientAuthenticationError,
-            404: ResourceNotFoundError,
-            409: ResourceExistsError,
-            304: ResourceNotModifiedError,
-        }
-        error_map.update(kwargs.pop("error_map", {}) or {})
-
-        _headers = kwargs.pop("headers", {}) or {}
-        _params = kwargs.pop("params", {}) or {}
-
-        cls: ClsType[JSON] = kwargs.pop("cls", None)
-
-        _request = build_namespace_adaptive_devices_get_request(
-            resource_group_name=resource_group_name,
-            namespace_name=namespace_name,
-            adaptive_device_name=adaptive_device_name,
-            subscription_id=self._config.subscription_id,
-            api_version=self._config.api_version,
-            headers=_headers,
-            params=_params,
-        )
-        _request.url = self._client.format_url(_request.url)
-
-        _stream = False
-        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            _request, stream=_stream, **kwargs
-        )
-
-        response = pipeline_response.http_response
-
-        if response.status_code not in [200]:
-            map_error(status_code=response.status_code, response=response, error_map=error_map)
-            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
-
-        if response.content:
-            deserialized = response.json()
-        else:
-            deserialized = None
-
-        if cls:
-            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
-
-        return cast(JSON, deserialized)  # type: ignore
-
-    @overload
-    async def create_or_replace(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        adaptive_device_name: str,
-        resource: JSON,
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> JSON:
-        """Create a NamespaceAdaptiveDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param adaptive_device_name: The name of the new device. Required.
-        :type adaptive_device_name: str
-        :param resource: Resource create parameters. Required.
-        :type resource: JSON
-        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                resource = {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-
-                # response body for status code(s): 200, 201
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-
-    @overload
-    async def create_or_replace(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        adaptive_device_name: str,
-        resource: IO[bytes],
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> JSON:
-        """Create a NamespaceAdaptiveDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param adaptive_device_name: The name of the new device. Required.
-        :type adaptive_device_name: str
-        :param resource: Resource create parameters. Required.
-        :type resource: IO[bytes]
-        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # response body for status code(s): 200, 201
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-
-    @distributed_trace_async
-    async def create_or_replace(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        adaptive_device_name: str,
-        resource: Union[JSON, IO[bytes]],
-        **kwargs: Any
-    ) -> JSON:
-        """Create a NamespaceAdaptiveDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param adaptive_device_name: The name of the new device. Required.
-        :type adaptive_device_name: str
-        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
-         Required.
-        :type resource: JSON or IO[bytes]
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                resource = {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-
-                # response body for status code(s): 200, 201
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-        error_map: MutableMapping = {
-            401: ClientAuthenticationError,
-            404: ResourceNotFoundError,
-            409: ResourceExistsError,
-            304: ResourceNotModifiedError,
-        }
-        error_map.update(kwargs.pop("error_map", {}) or {})
-
-        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-        _params = kwargs.pop("params", {}) or {}
-
-        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[JSON] = kwargs.pop("cls", None)
-
-        content_type = content_type or "application/json"
-        _json = None
-        _content = None
-        if isinstance(resource, (IOBase, bytes)):
-            _content = resource
-        else:
-            _json = resource
-
-        _request = build_namespace_adaptive_devices_create_or_replace_request(
-            resource_group_name=resource_group_name,
-            namespace_name=namespace_name,
-            adaptive_device_name=adaptive_device_name,
-            subscription_id=self._config.subscription_id,
-            content_type=content_type,
-            api_version=self._config.api_version,
-            json=_json,
-            content=_content,
-            headers=_headers,
-            params=_params,
-        )
-        _request.url = self._client.format_url(_request.url)
-
-        _stream = False
-        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            _request, stream=_stream, **kwargs
-        )
-
-        response = pipeline_response.http_response
-
-        if response.status_code not in [200, 201]:
-            map_error(status_code=response.status_code, response=response, error_map=error_map)
-            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
-
-        if response.content:
-            deserialized = response.json()
-        else:
-            deserialized = None
-
-        if cls:
-            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
-
-        return cast(JSON, deserialized)  # type: ignore
-
-    @overload
-    async def update(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        adaptive_device_name: str,
-        properties: JSON,
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> JSON:
-        """Update a NamespaceAdaptiveDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param adaptive_device_name: The name of the new device. Required.
-        :type adaptive_device_name: str
-        :param properties: The resource properties to be updated. Required.
-        :type properties: JSON
-        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                properties = {
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-
-                # response body for status code(s): 200
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-
-    @overload
-    async def update(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        adaptive_device_name: str,
-        properties: IO[bytes],
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> JSON:
-        """Update a NamespaceAdaptiveDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param adaptive_device_name: The name of the new device. Required.
-        :type adaptive_device_name: str
-        :param properties: The resource properties to be updated. Required.
-        :type properties: IO[bytes]
-        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # response body for status code(s): 200
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-
-    @distributed_trace_async
-    async def update(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        adaptive_device_name: str,
-        properties: Union[JSON, IO[bytes]],
-        **kwargs: Any
-    ) -> JSON:
-        """Update a NamespaceAdaptiveDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param adaptive_device_name: The name of the new device. Required.
-        :type adaptive_device_name: str
-        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
-         type. Required.
-        :type properties: JSON or IO[bytes]
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                properties = {
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-
-                # response body for status code(s): 200
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-        error_map: MutableMapping = {
-            401: ClientAuthenticationError,
-            404: ResourceNotFoundError,
-            409: ResourceExistsError,
-            304: ResourceNotModifiedError,
-        }
-        error_map.update(kwargs.pop("error_map", {}) or {})
-
-        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-        _params = kwargs.pop("params", {}) or {}
-
-        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[JSON] = kwargs.pop("cls", None)
-
-        content_type = content_type or "application/json"
-        _json = None
-        _content = None
-        if isinstance(properties, (IOBase, bytes)):
-            _content = properties
-        else:
-            _json = properties
-
-        _request = build_namespace_adaptive_devices_update_request(
-            resource_group_name=resource_group_name,
-            namespace_name=namespace_name,
-            adaptive_device_name=adaptive_device_name,
-            subscription_id=self._config.subscription_id,
-            content_type=content_type,
-            api_version=self._config.api_version,
-            json=_json,
-            content=_content,
-            headers=_headers,
-            params=_params,
-        )
-        _request.url = self._client.format_url(_request.url)
-
-        _stream = False
-        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            _request, stream=_stream, **kwargs
-        )
-
-        response = pipeline_response.http_response
-
-        if response.status_code not in [200]:
-            map_error(status_code=response.status_code, response=response, error_map=error_map)
-            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
-
-        if response.content:
-            deserialized = response.json()
-        else:
-            deserialized = None
-
-        if cls:
-            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
-
-        return cast(JSON, deserialized)  # type: ignore
-
-    async def _delete_initial(
-        self, resource_group_name: str, namespace_name: str, adaptive_device_name: str, **kwargs: Any
-    ) -> AsyncIterator[bytes]:
-        error_map: MutableMapping = {
-            401: ClientAuthenticationError,
-            404: ResourceNotFoundError,
-            409: ResourceExistsError,
-            304: ResourceNotModifiedError,
-        }
-        error_map.update(kwargs.pop("error_map", {}) or {})
-
-        _headers = kwargs.pop("headers", {}) or {}
-        _params = kwargs.pop("params", {}) or {}
-
-        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
-
-        _request = build_namespace_adaptive_devices_delete_request(
-            resource_group_name=resource_group_name,
-            namespace_name=namespace_name,
-            adaptive_device_name=adaptive_device_name,
-            subscription_id=self._config.subscription_id,
-            api_version=self._config.api_version,
-            headers=_headers,
-            params=_params,
-        )
-        _request.url = self._client.format_url(_request.url)
-
-        _stream = True
-        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
-            _request, stream=_stream, **kwargs
-        )
-
-        response = pipeline_response.http_response
-
-        if response.status_code not in [202, 204]:
-            try:
-                await response.read()  # Load the body in memory and close the socket
-            except (StreamConsumedError, StreamClosedError):
-                pass
-            map_error(status_code=response.status_code, response=response, error_map=error_map)
-            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
-
-        response_headers = {}
-        if response.status_code == 202:
-            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
-            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
-
-        deserialized = response.iter_bytes()
-
-        if cls:
-            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
-
-        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
-
-    @distributed_trace_async
-    async def begin_delete(
-        self, resource_group_name: str, namespace_name: str, adaptive_device_name: str, **kwargs: Any
-    ) -> AsyncLROPoller[None]:
-        """Delete a NamespaceAdaptiveDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param adaptive_device_name: The name of the new device. Required.
-        :type adaptive_device_name: str
-        :return: An instance of AsyncLROPoller that returns None
-        :rtype: ~azure.core.polling.AsyncLROPoller[None]
-        :raises ~azure.core.exceptions.HttpResponseError:
-        """
-        _headers = kwargs.pop("headers", {}) or {}
-        _params = kwargs.pop("params", {}) or {}
-
-        cls: ClsType[None] = kwargs.pop("cls", None)
-        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
-        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
-        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
-        if cont_token is None:
-            raw_result = await self._delete_initial(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                adaptive_device_name=adaptive_device_name,
-                cls=lambda x, y, z: x,
-                headers=_headers,
-                params=_params,
-                **kwargs
-            )
-            await raw_result.http_response.read()  # type: ignore
-        kwargs.pop("error_map", None)
-
-        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
-            if cls:
-                return cls(pipeline_response, None, {})  # type: ignore
-
-        if polling is True:
-            polling_method: AsyncPollingMethod = cast(
-                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
-            )
-        elif polling is False:
-            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
-        else:
-            polling_method = polling
-        if cont_token:
-            return AsyncLROPoller[None].from_continuation_token(
-                polling_method=polling_method,
-                continuation_token=cont_token,
-                client=self._client,
-                deserialization_callback=get_long_running_output,
-            )
-        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-
 class CertificateAuthoritiesOperations:
     """
     .. warning::
@@ -3589,15 +2647,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -3605,16 +2659,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -3738,15 +2794,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -3754,16 +2806,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -3950,15 +3004,11 @@ class CertificateAuthoritiesOperations:
                 # The input is polymorphic. The following are possible polymorphic inputs based off
                   discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -3966,16 +3016,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4012,15 +3064,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4028,16 +3076,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4054,15 +3104,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4070,16 +3116,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4149,15 +3197,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4165,16 +3209,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4191,15 +3237,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4207,16 +3249,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4282,15 +3326,11 @@ class CertificateAuthoritiesOperations:
                 # The input is polymorphic. The following are possible polymorphic inputs based off
                   discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4298,16 +3338,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4344,15 +3386,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4360,16 +3398,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4386,15 +3426,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4402,16 +3438,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4609,15 +3647,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4625,16 +3659,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4704,15 +3740,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4720,16 +3752,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -4802,15 +3836,11 @@ class CertificateAuthoritiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "certificateAuthorityType":
 
-                # JSON input template for discriminator value "BringYourOwn":
+                # JSON input template for discriminator value "ICA":
                 certificate_authority_properties = {
-                    "certificateAuthorityType": "BringYourOwn",
+                    "certificateAuthorityType": "ICA",
+                    "issuer": certificate_authority_issuer,
                     "keyType": "str",
-                    "bringYourOwn": {
-                        "certificateSigningRequest": "str",
-                        "status": "str",
-                        "thumbprint": "str"
-                    },
                     "provisioningState": "str",
                     "subject": "str",
                     "uuid": "str",
@@ -4818,16 +3848,18 @@ class CertificateAuthoritiesOperations:
                     "validityNotBefore": "2020-02-20 00:00:00"
                 }
 
-                # JSON input template for discriminator value "ICA":
-                certificate_authority_properties = {
-                    "certificateAuthorityType": "ICA",
+                # JSON input template for discriminator value "External":
+                certificate_authority_issuer = {
+                    "issuerType": "External",
+                    "certificateSigningRequest": "str",
+                    "status": "str",
+                    "thumbprint": "str"
+                }
+
+                # JSON input template for discriminator value "Internal":
+                certificate_authority_issuer = {
                     "issuerCertificateAuthorityUuid": "str",
-                    "keyType": "str",
-                    "provisioningState": "str",
-                    "subject": "str",
-                    "uuid": "str",
-                    "validityNotAfter": "2020-02-20 00:00:00",
-                    "validityNotBefore": "2020-02-20 00:00:00"
+                    "issuerType": "Internal"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -5105,7 +4137,7 @@ class CertificateAuthoritiesOperations:
         content_type: str = "application/json",
         **kwargs: Any
     ) -> AsyncLROPoller[None]:
-        """Activates the Certificate Authority signed by external PKI.
+        """Activates an intermediate Certificate Authority issued by an external certificate authority.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -5143,7 +4175,7 @@ class CertificateAuthoritiesOperations:
         content_type: str = "application/json",
         **kwargs: Any
     ) -> AsyncLROPoller[None]:
-        """Activates the Certificate Authority signed by external PKI.
+        """Activates an intermediate Certificate Authority issued by an external certificate authority.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -5171,7 +4203,7 @@ class CertificateAuthoritiesOperations:
         body: Union[JSON, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[None]:
-        """Activates the Certificate Authority signed by external PKI.
+        """Activates an intermediate Certificate Authority issued by an external certificate authority.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -5297,7 +4329,7 @@ class CertificateAuthoritiesOperations:
     async def begin_revoke(
         self, resource_group_name: str, namespace_name: str, certificate_authority_name: str, **kwargs: Any
     ) -> AsyncLROPoller[None]:
-        """Revokes the Certificate Authority issued by Microsoft PKI.
+        """Revokes an intermediate Certificate Authority issued by an internal Certificate Authority.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
