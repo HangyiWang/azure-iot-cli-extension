@@ -64,7 +64,7 @@ class ADRProvider(object):
     ):
         """Resolve a child resource location from its parent Device Registry namespace.
 
-        Child resources (certificate authorities, certificate policies, adaptive devices) must be
+        Child resources (certificate authorities, certificate policies, registry devices) must be
         co-located with their parent namespace, so default to the namespace's location when the
         caller does not specify one explicitly. Use this when a parent namespace is guaranteed to
         exist; use ``_ensure_location`` instead when only the resource group is available.

@@ -8,14 +8,14 @@ from typing import Dict, Optional
 
 from knack.log import get_logger
 
-from azext_iot.adr.providers.adaptive_device import AdaptiveDeviceProvider
+from azext_iot.adr.providers.registry_device import RegistryDeviceProvider
 
 logger = get_logger(__name__)
 
 
-def adr_adaptive_device_create(
+def adr_registry_device_create(
     cmd,
-    adaptive_device_name: str,
+    registry_device_name: str,
     namespace_name: str,
     resource_group_name: str,
     external_device_id: Optional[str] = None,
@@ -27,9 +27,9 @@ def adr_adaptive_device_create(
     tags: Optional[Dict[str, str]] = None,
     **kwargs,
 ):
-    provider = AdaptiveDeviceProvider(cmd)
+    provider = RegistryDeviceProvider(cmd)
     return provider.create(
-        adaptive_device_name=adaptive_device_name,
+        registry_device_name=registry_device_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         external_device_id=external_device_id,
@@ -43,28 +43,28 @@ def adr_adaptive_device_create(
     )
 
 
-def adr_adaptive_device_show(
-    cmd, adaptive_device_name: str, namespace_name: str, resource_group_name: str
+def adr_registry_device_show(
+    cmd, registry_device_name: str, namespace_name: str, resource_group_name: str
 ):
-    provider = AdaptiveDeviceProvider(cmd)
+    provider = RegistryDeviceProvider(cmd)
     return provider.show(
-        adaptive_device_name=adaptive_device_name,
+        registry_device_name=registry_device_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
     )
 
 
-def adr_adaptive_device_list(cmd, namespace_name: str, resource_group_name: str):
-    provider = AdaptiveDeviceProvider(cmd)
+def adr_registry_device_list(cmd, namespace_name: str, resource_group_name: str):
+    provider = RegistryDeviceProvider(cmd)
     return provider.list(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
     )
 
 
-def adr_adaptive_device_update(
+def adr_registry_device_update(
     cmd,
-    adaptive_device_name: str,
+    registry_device_name: str,
     namespace_name: str,
     resource_group_name: str,
     external_device_id: Optional[str] = None,
@@ -75,9 +75,9 @@ def adr_adaptive_device_update(
     tags: Optional[Dict[str, str]] = None,
     **kwargs,
 ):
-    provider = AdaptiveDeviceProvider(cmd)
+    provider = RegistryDeviceProvider(cmd)
     return provider.update(
-        adaptive_device_name=adaptive_device_name,
+        registry_device_name=registry_device_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         external_device_id=external_device_id,
@@ -90,12 +90,12 @@ def adr_adaptive_device_update(
     )
 
 
-def adr_adaptive_device_delete(
-    cmd, adaptive_device_name: str, namespace_name: str, resource_group_name: str, **kwargs
+def adr_registry_device_delete(
+    cmd, registry_device_name: str, namespace_name: str, resource_group_name: str, **kwargs
 ):
-    provider = AdaptiveDeviceProvider(cmd)
+    provider = RegistryDeviceProvider(cmd)
     return provider.delete(
-        adaptive_device_name=adaptive_device_name,
+        registry_device_name=registry_device_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         **kwargs,

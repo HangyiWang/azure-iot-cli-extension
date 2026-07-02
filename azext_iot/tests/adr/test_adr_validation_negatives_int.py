@@ -72,10 +72,10 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 expect_failure=True,
             )
 
-        # --- Adaptive device: update requires at least one mutable field ---
-        with timed_step("adaptive-device update ❯ nothing-to-update rejected"):
+        # --- Registry device: update requires at least one mutable field ---
+        with timed_step("registry-device update ❯ nothing-to-update rejected"):
             self.cmd(
-                f"iot adr ns adaptive-device update -n mydev --ns {ns} -g {rg}",
+                f"iot adr ns registry-device update -n mydev --ns {ns} -g {rg}",
                 expect_failure=True,
             )
 

@@ -11,7 +11,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.adr.providers.adaptive_device import AdaptiveDeviceProvider
+from azext_iot.adr.providers.registry_device import RegistryDeviceProvider
 from azext_iot.adr.providers.certificate_authority import CertificateAuthorityProvider
 from azext_iot.adr.providers.certificate_policy import CertificatePolicyProvider
 from azext_iot.adr.providers.credential import CredentialProvider
@@ -169,12 +169,12 @@ def fixture_ca_policy_provider(fixture_cmd):
 
 
 @pytest.fixture()
-def fixture_adaptive_device_provider(fixture_cmd):
-    """Adaptive device provider fixture for testing."""
+def fixture_registry_device_provider(fixture_cmd):
+    """Registry device provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
         mock_client = Mock()
         mock_factory.return_value = mock_client
-        provider = AdaptiveDeviceProvider(fixture_cmd)
+        provider = RegistryDeviceProvider(fixture_cmd)
         provider.client = mock_client
         return provider
 

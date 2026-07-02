@@ -398,60 +398,60 @@ def load_adr_help():
   """
 
     helps[
-        "iot adr ns adaptive-device"
+        "iot adr ns registry-device"
     ] = """
     type: group
-    short-summary: Manage Device Registry namespace adaptive devices.
+    short-summary: Manage Device Registry namespace registry devices.
   """
 
     helps[
-        "iot adr ns adaptive-device create"
+        "iot adr ns registry-device create"
     ] = """
   type: command
-  short-summary: Create an adaptive device in a Device Registry namespace.
+  short-summary: Create a registry device in a Device Registry namespace.
   examples:
-    - name: Create an adaptive device with descriptive metadata
-      text: az iot adr ns adaptive-device create -n myDevice --ns myNamespace -g myResourceGroup --manufacturer Contoso --model X1 --external-device-id ext-123
+    - name: Create a registry device with descriptive metadata
+      text: az iot adr ns registry-device create -n myDevice --ns myNamespace -g myResourceGroup --manufacturer Contoso --model X1 --external-device-id ext-123
   """
 
     helps[
-        "iot adr ns adaptive-device show"
+        "iot adr ns registry-device show"
     ] = """
   type: command
-  short-summary: Show the details of an adaptive device.
+  short-summary: Show the details of a registry device.
   examples:
-    - name: Show an adaptive device
-      text: az iot adr ns adaptive-device show -n myDevice --ns myNamespace -g myResourceGroup
+    - name: Show a registry device
+      text: az iot adr ns registry-device show -n myDevice --ns myNamespace -g myResourceGroup
   """
 
     helps[
-        "iot adr ns adaptive-device list"
+        "iot adr ns registry-device list"
     ] = """
   type: command
-  short-summary: List the adaptive devices in a Device Registry namespace.
+  short-summary: List the registry devices in a Device Registry namespace.
   examples:
-    - name: List adaptive devices
-      text: az iot adr ns adaptive-device list --ns myNamespace -g myResourceGroup
+    - name: List registry devices
+      text: az iot adr ns registry-device list --ns myNamespace -g myResourceGroup
   """
 
     helps[
-        "iot adr ns adaptive-device update"
+        "iot adr ns registry-device update"
     ] = """
   type: command
-  short-summary: Update an adaptive device.
+  short-summary: Update a registry device.
   examples:
-    - name: Update an adaptive device's software revision
-      text: az iot adr ns adaptive-device update -n myDevice --ns myNamespace -g myResourceGroup --software-revision 2.0
+    - name: Update a registry device's software revision
+      text: az iot adr ns registry-device update -n myDevice --ns myNamespace -g myResourceGroup --software-revision 2.0
   """
 
     helps[
-        "iot adr ns adaptive-device delete"
+        "iot adr ns registry-device delete"
     ] = """
   type: command
-  short-summary: Delete an adaptive device from a Device Registry namespace.
+  short-summary: Delete a registry device from a Device Registry namespace.
   examples:
-    - name: Delete an adaptive device
-      text: az iot adr ns adaptive-device delete -n myDevice --ns myNamespace -g myResourceGroup
+    - name: Delete a registry device
+      text: az iot adr ns registry-device delete -n myDevice --ns myNamespace -g myResourceGroup
   """
 
     helps[

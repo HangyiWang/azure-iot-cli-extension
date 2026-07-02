@@ -33,8 +33,8 @@ adr_ca_policy_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
-adr_adaptive_device_ops = CliCommandType(
-    operations_tmpl="azext_iot.adr.commands_adaptive_device#{}",
+adr_registry_device_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_registry_device#{}",
     client_factory=adr_service_factory,
 )
 
@@ -120,15 +120,15 @@ def load_adr_commands(self, _):
         cmd_group.command("update", "adr_ca_policy_update", supports_no_wait=True)
         cmd_group.command("delete", "adr_ca_policy_delete", confirmation=True, supports_no_wait=True)
 
-    # Adaptive Device commands
+    # Registry Device commands
     with self.command_group(
-        "iot adr ns adaptive-device", command_type=adr_adaptive_device_ops
+        "iot adr ns registry-device", command_type=adr_registry_device_ops
     ) as cmd_group:
-        cmd_group.command("create", "adr_adaptive_device_create")
-        cmd_group.show_command("show", "adr_adaptive_device_show")
-        cmd_group.command("list", "adr_adaptive_device_list")
-        cmd_group.command("update", "adr_adaptive_device_update")
-        cmd_group.command("delete", "adr_adaptive_device_delete", confirmation=True, supports_no_wait=True)
+        cmd_group.command("create", "adr_registry_device_create")
+        cmd_group.show_command("show", "adr_registry_device_show")
+        cmd_group.command("list", "adr_registry_device_list")
+        cmd_group.command("update", "adr_registry_device_update")
+        cmd_group.command("delete", "adr_registry_device_delete", confirmation=True, supports_no_wait=True)
 
     # Device commands
     with self.command_group("iot adr ns device", command_type=adr_device_ops) as cmd_group:

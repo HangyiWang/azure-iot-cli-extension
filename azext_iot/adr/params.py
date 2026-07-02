@@ -207,21 +207,21 @@ def load_adr_arguments(self, _):
             validator=get_default_location_from_resource_group,
         )
 
-    # Adaptive Device arguments
-    with self.argument_context("iot adr ns adaptive-device") as context:
+    # Registry Device arguments
+    with self.argument_context("iot adr ns registry-device") as context:
         context.argument(
             "namespace_name",
             options_list=["--namespace", "--ns"],
             help="Name of the Device Registry namespace.",
         )
         context.argument(
-            "adaptive_device_name",
+            "registry_device_name",
             options_list=["--name", "-n"],
-            help="Name of the adaptive device.",
+            help="Name of the registry device.",
         )
         context.argument("tags", arg_type=tags_type)
 
-    for cmd in ["iot adr ns adaptive-device create", "iot adr ns adaptive-device update"]:
+    for cmd in ["iot adr ns registry-device create", "iot adr ns registry-device update"]:
         with self.argument_context(cmd) as context:
             context.argument(
                 "external_device_id",
@@ -249,7 +249,7 @@ def load_adr_arguments(self, _):
                 help="Device software revision.",
             )
 
-    with self.argument_context("iot adr ns adaptive-device create") as context:
+    with self.argument_context("iot adr ns registry-device create") as context:
         context.argument(
             "location",
             arg_type=get_location_type(self.cli_ctx),

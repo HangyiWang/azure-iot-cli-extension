@@ -5,9 +5,9 @@
 # --------------------------------------------------------------------------------------------
 
 """
-ADR adaptive device lifecycle integration tests.
+ADR registry device lifecycle integration tests.
 
-Exercises the `iot adr ns adaptive-device` command surface (create / show / list /
+Exercises the `iot adr ns registry-device` command surface (create / show / list /
 update / delete) against a minimal namespace.
 
 Run via ``tox -e ADR-int``.
@@ -26,11 +26,11 @@ from azext_iot.tests.adr.conftest import (
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRAdaptiveDeviceLifecycle(CaptureOutputLiveScenarioTest):
-    """End-to-end adaptive device lifecycle exercised purely through the CLI."""
+class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
+    """End-to-end registry device lifecycle exercised purely through the CLI."""
 
-    def test_adr_adaptive_device_lifecycle(self):
-        _log(LogKind.TEST, "test_adr_adaptive_device_lifecycle")
+    def test_adr_registry_device_lifecycle(self):
+        _log(LogKind.TEST, "test_adr_registry_device_lifecycle")
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
         device_name = generate_device_id()
@@ -46,7 +46,7 @@ class TestADRAdaptiveDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 _log(LogKind.RESULT, "ok")
 
             def adev_cmd(action):
-                cmd = f"iot adr ns adaptive-device {action} --ns {namespace_name} -g {rg}"
+                cmd = f"iot adr ns registry-device {action} --ns {namespace_name} -g {rg}"
                 _log(LogKind.CMD, "az %s", cmd)
                 return self.cmd(cmd)
 
@@ -54,21 +54,21 @@ class TestADRAdaptiveDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 return resp.get("properties", resp)
 
             # --- Step 1: Create with the full option set ---
-            with timed_step("Step 1 ❯ Create adaptive device with all options"):
+            with timed_step("Step 1 ❯ Create registry device with all options"):
                 created = adev_cmd(
                     f"create -n {device_name} "
-                    f"--ext-id ext-001 --manufacturer Contoso --model AdaptivePro "
+                    f"--ext-id ext-001 --manufacturer Contoso --model RegistryPro "
                     f"--hw-rev A1 --sw-rev 2.0.0 --tags env=int"
                 ).get_output_in_json()
                 assert created["name"] == device_name
                 cp = props(created)
                 assert cp.get("externalDeviceId") == "ext-001"
                 assert cp.get("manufacturer") == "Contoso"
-                assert cp.get("model") == "AdaptivePro"
+                assert cp.get("model") == "RegistryPro"
                 assert cp.get("hardwareRevision") == "A1"
                 assert cp.get("softwareRevision") == "2.0.0"
                 assert created.get("tags", {}).get("env") == "int"
-                _log(LogKind.OK, "Adaptive device '%s' created with all options", device_name)
+                _log(LogKind.OK, "Registry device '%s' created with all options", device_name)
 
             # --- Step 2: Show round-trips the resource ---
             with timed_step("Step 2 ❯ Show round-trip"):
@@ -77,7 +77,7 @@ class TestADRAdaptiveDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 assert props(shown).get("manufacturer") == "Contoso"
 
             # --- Step 3: List includes the new device ---
-            with timed_step("Step 3 ❯ List includes new adaptive device"):
+            with timed_step("Step 3 ❯ List includes new registry device"):
                 devices = adev_cmd("list").get_output_in_json()
                 assert isinstance(devices, list) and len(devices) >= 1
                 assert device_name in [d["name"] for d in devices]
@@ -99,24 +99,24 @@ class TestADRAdaptiveDeviceLifecycle(CaptureOutputLiveScenarioTest):
             # --- Step 6: Negative: update with no fields fails ---
             with timed_step("Step 6 ❯ Negative: update with no fields fails"):
                 bad = (
-                    f"iot adr ns adaptive-device update -n {device_name} "
+                    f"iot adr ns registry-device update -n {device_name} "
                     f"--ns {namespace_name} -g {rg}"
                 )
                 _log(LogKind.CMD, "az %s  (expect failure)", bad)
                 self.cmd(bad, expect_failure=True)
 
             # --- Step 7: Delete & confirm gone ---
-            with timed_step("Step 7 ❯ Delete adaptive device and verify gone"):
+            with timed_step("Step 7 ❯ Delete registry device and verify gone"):
                 adev_cmd(f"delete -n {device_name} -y")
                 bad_show = (
-                    f"iot adr ns adaptive-device show -n {device_name} "
+                    f"iot adr ns registry-device show -n {device_name} "
                     f"--ns {namespace_name} -g {rg}"
                 )
                 _log(LogKind.CMD, "az %s  (expect failure)", bad_show)
                 self.cmd(bad_show, expect_failure=True)
                 remaining = [d["name"] for d in adev_cmd("list").get_output_in_json()]
                 assert device_name not in remaining
-                _log(LogKind.OK, "Adaptive device '%s' deleted", device_name)
+                _log(LogKind.OK, "Registry device '%s' deleted", device_name)
 
         finally:
             _log(LogKind.STEP, "Cleanup ❯ Delete namespace")

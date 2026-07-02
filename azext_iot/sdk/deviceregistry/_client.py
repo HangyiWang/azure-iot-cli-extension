@@ -25,6 +25,7 @@ from .operations import (
     NamespaceDevicesOperations,
     NamespacesOperations,
     PoliciesOperations,
+    RegistryDevicesOperations,
 )
 
 if TYPE_CHECKING:
@@ -51,6 +52,8 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
     :vartype policies: azext_iot.sdk.deviceregistry.operations.PoliciesOperations
     :ivar namespace_devices: NamespaceDevicesOperations operations
     :vartype namespace_devices: azext_iot.sdk.deviceregistry.operations.NamespaceDevicesOperations
+    :ivar registry_devices: RegistryDevicesOperations operations
+    :vartype registry_devices: azext_iot.sdk.deviceregistry.operations.RegistryDevicesOperations
     :param credential: Credential needed for the client to connect to Azure. Required.
     :type credential: ~azure.core.credentials.TokenCredential
     :param subscription_id: The ID of the target subscription. The value must be an UUID. Required.
@@ -110,6 +113,9 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
         self.credentials = CredentialsOperations(self._client, self._config, self._serialize, self._deserialize)
         self.policies = PoliciesOperations(self._client, self._config, self._serialize, self._deserialize)
         self.namespace_devices = NamespaceDevicesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.registry_devices = RegistryDevicesOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
 

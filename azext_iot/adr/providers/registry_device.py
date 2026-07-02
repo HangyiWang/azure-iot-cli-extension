@@ -11,9 +11,9 @@ from azure.cli.core.azclierror import RequiredArgumentMissingError
 from azext_iot.adr.providers.base import ADRProvider, console
 
 
-class AdaptiveDeviceProvider(ADRProvider):
+class RegistryDeviceProvider(ADRProvider):
     def __init__(self, cmd):
-        super(AdaptiveDeviceProvider, self).__init__(cmd)
+        super(RegistryDeviceProvider, self).__init__(cmd)
 
     @staticmethod
     def _build_properties(
@@ -38,7 +38,7 @@ class AdaptiveDeviceProvider(ADRProvider):
 
     def create(
         self,
-        adaptive_device_name: str,
+        registry_device_name: str,
         namespace_name: str,
         resource_group_name: str,
         external_device_id: Optional[str] = None,
@@ -66,25 +66,25 @@ class AdaptiveDeviceProvider(ADRProvider):
             resource["tags"] = tags
 
         with console.status(
-            f"Creating adaptive device '{adaptive_device_name}' on namespace {namespace_name}..."
+            f"Creating registry device '{registry_device_name}' on namespace {namespace_name}..."
         ):
-            return self.client.namespace_adaptive_devices.create_or_replace(
+            return self.client.registry_devices.create_or_replace(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
-                adaptive_device_name=adaptive_device_name,
+                registry_device_name=registry_device_name,
                 resource=resource,
             )
 
-    def show(self, adaptive_device_name: str, namespace_name: str, resource_group_name: str):
-        return self.client.namespace_adaptive_devices.get(
+    def show(self, registry_device_name: str, namespace_name: str, resource_group_name: str):
+        return self.client.registry_devices.get(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
-            adaptive_device_name=adaptive_device_name,
+            registry_device_name=registry_device_name,
         )
 
     def list(self, namespace_name: str, resource_group_name: str):
         return list(
-            self.client.namespace_adaptive_devices.list_by_namespace(
+            self.client.registry_devices.list_by_namespace(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
             )
@@ -92,7 +92,7 @@ class AdaptiveDeviceProvider(ADRProvider):
 
     def update(
         self,
-        adaptive_device_name: str,
+        registry_device_name: str,
         namespace_name: str,
         resource_group_name: str,
         external_device_id: Optional[str] = None,
@@ -121,23 +121,23 @@ class AdaptiveDeviceProvider(ADRProvider):
             body["tags"] = tags
 
         with console.status(
-            f"Updating adaptive device '{adaptive_device_name}' on namespace {namespace_name}..."
+            f"Updating registry device '{registry_device_name}' on namespace {namespace_name}..."
         ):
-            return self.client.namespace_adaptive_devices.update(
+            return self.client.registry_devices.update(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
-                adaptive_device_name=adaptive_device_name,
+                registry_device_name=registry_device_name,
                 properties=body,
             )
 
-    def delete(self, adaptive_device_name: str, namespace_name: str, resource_group_name: str, **kwargs):
-        poller = self.client.namespace_adaptive_devices.begin_delete(
+    def delete(self, registry_device_name: str, namespace_name: str, resource_group_name: str, **kwargs):
+        poller = self.client.registry_devices.begin_delete(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
-            adaptive_device_name=adaptive_device_name,
+            registry_device_name=registry_device_name,
         )
         return self._wait(
             poller,
-            f"Deleting adaptive device '{adaptive_device_name}' from namespace {namespace_name}...",
+            f"Deleting registry device '{registry_device_name}' from namespace {namespace_name}...",
             **kwargs,
         )
