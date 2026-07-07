@@ -109,11 +109,6 @@ class CertificateAuthorityKeyType(Enum):
     ecc = "ECC"
 
 
-class CertificateManagementState(Enum):
-    enabled = "Enabled"
-    disabled = "Disabled"
-
-
 # Endpoint type discriminators on Namespace messaging / provisioning / updating endpoints
 IOT_HUB_ENDPOINT_TYPE = "Microsoft.Devices/IotHubs"
 DPS_ENDPOINT_TYPE = "Microsoft.Devices/provisioningServices"

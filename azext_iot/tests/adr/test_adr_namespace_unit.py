@@ -23,7 +23,6 @@ from azext_iot.adr.common import (
 # ==================== Create ====================
 
 
-@pytest.mark.parametrize("enable_certificate_management", [False, True])
 @pytest.mark.parametrize("policy_name", [None, "test-policy"])
 @pytest.mark.parametrize("cert_key_type", [None, DEFAULT_NS_POLICY_CERT_KEY_TYPE])
 @pytest.mark.parametrize("cert_validity_days", [None, 30])
@@ -37,7 +36,6 @@ def test_create_namespace(
     cert_validity_days,
     cert_subject,
     policy_name,
-    enable_certificate_management,
 ):
     """Namespace creation with credential-policy matrix."""
     ns_name, rg, location = "test-namespace", "test-rg", "eastus"
@@ -45,7 +43,7 @@ def test_create_namespace(
     fixture_credential_provider.create = Mock(return_value={"id": "credential-id"})
     fixture_policy_provider.create = Mock(return_value={"id": "policy-id"})
 
-    # `--ecm` no longer drives the legacy credential/policy bootstrap; only explicit policy args do.
+    # The legacy credential/policy bootstrap is triggered only by explicit policy args.
     has_policy_args = any([policy_name, cert_key_type, cert_subject, cert_validity_days])
 
     with patch(
@@ -71,23 +69,11 @@ def test_create_namespace(
             "resource_group_name": rg,
             "location": location,
             "tags": None,
-            "enable_certificate_management": enable_certificate_management,
             "policy_name": policy_name,
             "certificate_key_type": cert_key_type,
             "certificate_subject": cert_subject,
             "certificate_validity_days": cert_validity_days,
         }
-
-        # Mutually-exclusive validation
-        if enable_certificate_management is False and any([
-            policy_name is not None,
-            cert_key_type is not None,
-            cert_validity_days is not None,
-            cert_subject is not None,
-        ]):
-            with pytest.raises(MutuallyExclusiveArgumentError):
-                fixture_namespace_provider.create(**create_kwargs)
-            return
 
         result = fixture_namespace_provider.create(**create_kwargs)
 
@@ -97,10 +83,6 @@ def test_create_namespace(
         call_args = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]
         assert call_args["resource"]["location"] == location
         assert call_args["resource"]["identity"] == {"type": IdentityType.system_assigned.value}
-
-        # certificateManagement reflects the enable_certificate_management flag
-        expected_cert_mgmt = "Enabled" if enable_certificate_management else "Disabled"
-        assert call_args["resource"]["properties"]["certificateManagement"] == expected_cert_mgmt
 
         if has_policy_args:
             fixture_credential_provider.create.assert_called_once_with(
@@ -163,7 +145,6 @@ def test_create_namespace_credential_and_policy_errors_logged(
             namespace_name=ns_name,
             resource_group_name=rg,
             location=location,
-            enable_certificate_management=True,
             policy_name="default",
         )
 
@@ -255,28 +236,6 @@ def test_update_namespace(fixture_namespace_provider, mock_poller, namespace_nam
         assert kw["properties"]["tags"] == tags
     else:
         assert kw["properties"] == {}
-
-
-@pytest.mark.parametrize(
-    "enable_certificate_management, expected_state",
-    [(True, "Enabled"), (False, "Disabled")],
-)
-def test_update_namespace_certificate_management(
-    fixture_namespace_provider, mock_poller, enable_certificate_management, expected_state
-):
-    """Update maps the certificate management flag to the certificateManagement enum state."""
-    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
-        {"name": "ns"}
-    )
-
-    fixture_namespace_provider.update(
-        namespace_name="ns",
-        resource_group_name="rg",
-        enable_certificate_management=enable_certificate_management,
-    )
-
-    kw = fixture_namespace_provider.client.namespaces.begin_update.call_args[1]
-    assert kw["properties"]["properties"]["certificateManagement"] == expected_state
 
 
 # ==================== Outbound Identity (P2) ====================
@@ -395,7 +354,6 @@ def test_namespace_create_no_wait_skips_credential_policy_chain(
         namespace_name="ns",
         resource_group_name="rg",
         location="eastus",
-        enable_certificate_management=True,
         policy_name="default",
         no_wait=True,
     )

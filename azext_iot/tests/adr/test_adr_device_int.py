@@ -55,10 +55,10 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
         try:
             # --- Setup: namespace + default policy ---
-            with timed_step("Setup ❯ Create namespace (--enable-certificate-management)"):
+            with timed_step("Setup ❯ Create namespace (with default policy)"):
                 ns_cmd = (
                     f"iot adr ns create -n {namespace_name} -g {rg} "
-                    f"--location {TEST_LOCATION} --enable-certificate-management"
+                    f"--location {TEST_LOCATION} --policy-name {DEFAULT_NS_POLICY_NAME}"
                 )
                 _log(LogKind.CMD, "az %s", ns_cmd)
                 self.cmd(ns_cmd).get_output_in_json()
@@ -281,7 +281,7 @@ class TestADRDeviceEdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             _log(LogKind.STEP, "Setup ❯ Create namespace with credential+policy")
             ns_cmd = (
                 f"iot adr ns create -n {namespace_name} -g {rg} "
-                f"--location {TEST_LOCATION} --enable-certificate-management"
+                f"--location {TEST_LOCATION} --policy-name {DEFAULT_NS_POLICY_NAME}"
             )
             _log(LogKind.CMD, "az %s", ns_cmd)
             self.cmd(ns_cmd)

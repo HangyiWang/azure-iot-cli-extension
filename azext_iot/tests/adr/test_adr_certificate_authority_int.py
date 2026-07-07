@@ -39,16 +39,16 @@ class TestADRCertificateAuthorityLifecycle(CaptureOutputLiveScenarioTest):
         policy_name = "leafpolicy"
 
         try:
-            # --- Setup: namespace with certificate management enabled ---
-            with timed_step("Setup ❯ Create namespace (--enable-certificate-management)"):
+            # --- Setup: namespace ---
+            with timed_step("Setup ❯ Create namespace"):
                 ns_cmd = (
                     f"iot adr ns create -n {namespace_name} -g {rg} "
-                    f"--location {TEST_LOCATION} --enable-certificate-management"
+                    f"--location {TEST_LOCATION}"
                 )
                 _log(LogKind.CMD, "az %s", ns_cmd)
                 ns = self.cmd(ns_cmd).get_output_in_json()
-                assert ns["properties"].get("certificateManagement") == "Enabled"
-                _log(LogKind.OK, "namespace certificateManagement=Enabled")
+                assert ns["name"] == namespace_name
+                _log(LogKind.OK, "namespace created")
 
             def ca_cmd(action):
                 cmd = f"iot adr ns ca {action} --ns {namespace_name} -g {rg}"

@@ -2012,7 +2012,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -2068,26 +2067,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -2200,7 +2179,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -2256,26 +2234,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -2391,7 +2349,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -2447,26 +2404,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -2640,7 +2577,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -2696,26 +2632,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -2749,7 +2665,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -2805,26 +2720,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -2888,7 +2783,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -2944,26 +2838,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -3019,7 +2893,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -3075,26 +2948,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -3128,7 +2981,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -3184,26 +3036,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -3377,7 +3209,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -3431,26 +3262,6 @@ class NamespacesOperations:
                                     "linkingState": "str"
                                 }
                             }
-                        },
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
                         }
                     },
                     "systemData": {
@@ -3484,7 +3295,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -3540,26 +3350,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -3623,7 +3413,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -3679,26 +3468,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -3751,7 +3520,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -3805,26 +3573,6 @@ class NamespacesOperations:
                                     "linkingState": "str"
                                 }
                             }
-                        },
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
                         }
                     },
                     "systemData": {
@@ -3858,7 +3606,6 @@ class NamespacesOperations:
                     },
                     "name": "str",
                     "properties": {
-                        "certificateManagement": "str",
                         "management": {
                             "endpoints": {
                                 "str": {
@@ -3914,26 +3661,6 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
-                        "updating": {
-                            "endpoints": {
-                                "str": {
-                                    "endpointType": "str",
-                                    "inboundCallerIdentity": {
-                                        "type": "str",
-                                        "userAssignedIdentity": "str"
-                                    },
-                                    "resourceId": "str",
-                                    "deviceAddress": "str",
-                                    "legacyDeviceAddress": "str",
-                                    "linkingError": {
-                                        "code": "str",
-                                        "message": "str"
-                                    },
-                                    "linkingState": "str",
-                                    "serviceAddress": "str"
-                                }
-                            }
-                        },
                         "uuid": "str"
                     },
                     "systemData": {

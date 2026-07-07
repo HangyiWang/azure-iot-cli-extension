@@ -16,7 +16,6 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_NAME,
     DEFAULT_NS_POLICY_CERT_KEY_TYPE,
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
-    CertificateManagementState,
     IdentityType,
     build_mi_body,
 )
@@ -76,7 +75,6 @@ class NamespaceProvider(ADRProvider):
         resource_group_name: str,
         location: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
-        enable_certificate_management: Optional[bool] = None,
         policy_name: Optional[str] = None,
         certificate_key_type: Optional[str] = None,
         certificate_subject: Optional[str] = None,
@@ -86,9 +84,7 @@ class NamespaceProvider(ADRProvider):
         **kwargs,
     ):
         # Legacy credential/policy bootstrap (DEPRECATED): triggered only by explicit legacy policy
-        # args. `--enable-certificate-management` no longer drives this; it now solely sets the
-        # namespace-level `certificateManagement` state (the real API field). Certificate authorities
-        # and policies are managed via `iot adr ns ca`.
+        # args. Certificate authorities and policies are managed via `iot adr ns ca`.
         should_create_credential_policy = any([
             policy_name,
             certificate_key_type,
@@ -97,13 +93,6 @@ class NamespaceProvider(ADRProvider):
         ])
 
         if should_create_credential_policy:
-            # Contradictory inputs: cannot bootstrap a credential policy while disabling cert management
-            if enable_certificate_management is False:
-                raise MutuallyExclusiveArgumentError(
-                    "Cannot create a custom credential policy while "
-                    "`--enable-certificate-management` is false."
-                )
-
             logger.warning(
                 "Creating a default credential and credential policy is deprecated and will be "
                 "removed in a future release. Use 'az iot adr ns ca' to manage certificate "
@@ -132,12 +121,6 @@ class NamespaceProvider(ADRProvider):
         )
 
         properties = {}
-        if enable_certificate_management is not None:
-            properties["certificateManagement"] = (
-                CertificateManagementState.enabled.value
-                if enable_certificate_management
-                else CertificateManagementState.disabled.value
-            )
         if outbound_identity is not None:
             properties["outboundIdentity"] = outbound_identity
         if properties:
@@ -225,7 +208,6 @@ class NamespaceProvider(ADRProvider):
         namespace_name: str,
         resource_group_name: str,
         tags: Optional[Dict[str, str]] = None,
-        enable_certificate_management: Optional[bool] = None,
         outbound_mi_system_assigned: Optional[bool] = None,
         outbound_mi_user_assigned: Optional[str] = None,
         **kwargs,
@@ -236,12 +218,6 @@ class NamespaceProvider(ADRProvider):
             body["tags"] = tags
 
         properties: dict = {}
-        if enable_certificate_management is not None:
-            properties["certificateManagement"] = (
-                CertificateManagementState.enabled.value
-                if enable_certificate_management
-                else CertificateManagementState.disabled.value
-            )
 
         outbound_identity = _resolve_outbound_identity(
             outbound_mi_system_assigned, outbound_mi_user_assigned

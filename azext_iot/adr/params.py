@@ -46,15 +46,6 @@ def load_adr_arguments(self, _):
             arg_type=get_location_type(self.cli_ctx),
             validator=get_default_location_from_resource_group,
         )
-        # Enable certificate management (namespace-level certificateManagement state)
-        context.argument(
-            "enable_certificate_management",
-            arg_group="Credential",
-            options_list=["--enable-certificate-management", "--ecm"],
-            arg_type=get_three_state_flag(),
-            help="Set the namespace certificate management state. When enabled, the namespace uses "
-                 "cloud PKI-backed certificate lifecycle operations managed via 'iot adr ns ca'.",
-        )
         context.argument(
             "policy_name",
             arg_group="Policy",
@@ -361,15 +352,6 @@ def load_adr_arguments(self, _):
                 help="User-assigned managed identity resource ID for the outbound identity. "
                      "NOTE: Currently unsupported.",
             )
-
-    with self.argument_context("iot adr ns update") as context:
-        context.argument(
-            "enable_certificate_management",
-            arg_group="Credential",
-            options_list=["--enable-certificate-management", "--ecm"],
-            arg_type=get_three_state_flag(),
-            help="Enable or disable certificate management state for this Device Registry namespace.",
-        )
 
     # Link hub arguments
     with self.argument_context("iot adr ns link hub") as context:
