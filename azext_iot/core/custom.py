@@ -753,7 +753,9 @@ def iot_dps_certificate_create(client, dps_name, certificate_name, certificate_p
     if not certificate:
         raise CLIError("Error uploading certificate '{0}'.".format(certificate_path))
     certificate_bytes = certificate.encode('utf-8')
-    properties = {"certificate": certificate_bytes, "isVerified": is_verified}
+    properties = {"certificate": certificate_bytes}
+    if is_verified is not None:
+        properties["isVerified"] = is_verified
     certificate_description = {"properties": properties}
     return client.dps_certificate.create_or_update(
         resource_group_name=resource_group_name,
@@ -775,7 +777,9 @@ def iot_dps_certificate_update(client, dps_name, certificate_name, certificate_p
             if not certificate:
                 raise CLIError("Error uploading certificate '{0}'.".format(certificate_path))
             certificate_bytes = certificate.encode('utf-8')
-            properties = {"certificate": certificate_bytes, "isVerified": is_verified}
+            properties = {"certificate": certificate_bytes}
+            if is_verified is not None:
+                properties["isVerified"] = is_verified
             certificate_description = {"properties": properties}
             return client.dps_certificate.create_or_update(
                 resource_group_name=resource_group_name,

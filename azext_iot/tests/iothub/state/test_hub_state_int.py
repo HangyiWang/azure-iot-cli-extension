@@ -738,11 +738,11 @@ def get_hub_resource_id_with_retry(hub_name: str, rg: str, tries: int = 6, delay
         last_error = result.get_error()
         if result.success() and last_output:
             try:
-                hub_id = json.loads(last_output).get("id")
-                if hub_id:
-                    return hub_id
+                payload = json.loads(last_output)
             except ValueError:
-                pass  # control plane may briefly return an empty/partial payload after create
+                payload = None  # control plane may briefly return an empty/partial payload after create
+            if isinstance(payload, dict) and payload.get("id"):
+                return payload["id"]
         if attempt < tries - 1:
             time.sleep(delay)
     waited = max(0, tries - 1) * delay
