@@ -727,23 +727,30 @@ def get_hub_resource_id_with_retry(hub_name: str, rg: str, tries: int = 6, delay
     A hub created via `iot hub state import`/`migrate` can be briefly unqueryable right after its
     ARM deployment reports success (control plane read-after-write lag), which makes `iot hub show`
     return an empty payload. Retry rather than relying on a fixed sleep. If the hub is still not
-    queryable after all attempts, the raised error distinguishes a genuine control plane failure
-    from a short propagation delay.
+    queryable after all attempts, the raised error surfaces the last CLI error so a genuine control
+    plane failure is distinguishable from a short propagation delay.
     """
     last_output = ""
+    last_error = None
     for attempt in range(tries):
         result = cli.invoke(f"iot hub show -n {hub_name} -g {rg}")
-        last_output = result.output
-        if result.success() and result.output:
+        last_output = (result.output or "").strip()
+        last_error = result.get_error()
+        if result.success() and last_output:
             try:
-                return json.loads(result.output)["id"]
-            except (ValueError, KeyError):
-                pass
+                hub_id = json.loads(last_output).get("id")
+                if hub_id:
+                    return hub_id
+            except ValueError:
+                pass  # control plane may briefly return an empty/partial payload after create
         if attempt < tries - 1:
             time.sleep(delay)
+    waited = max(0, tries - 1) * delay
+    payload_snippet = (last_output[:500] + "...") if len(last_output) > 500 else last_output
     raise CLIInternalError(
         f"IoT Hub '{hub_name}' (rg '{rg}') was not queryable via 'iot hub show' after "
-        f"{tries} attempts (~{tries * delay}s). Last payload: '{last_output}'. "
+        f"{tries} attempts (~{waited}s). Last error: {last_error!r}. "
+        f"Last payload: '{payload_snippet}'. "
         "The control plane GET was not consistent after hub creation."
     )
 
