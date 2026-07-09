@@ -722,7 +722,7 @@ def compare_hub_dataplane_to_file(filename: str, cstring: str):
 def get_hub_resource_id_with_retry(hub_name: str, rg: str, tries: int = 6, delay: int = 15) -> str:
     """
     Return the ARM resource id for the hub, polling `iot hub show` until the control plane GET
-    is consistent.
+    is consistent. 
 
     A hub created via `iot hub state import`/`migrate` can be briefly unqueryable right after its
     ARM deployment reports success (control plane read-after-write lag), which makes `iot hub show`
