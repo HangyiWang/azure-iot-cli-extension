@@ -22,7 +22,6 @@ from azext_iot.adr.common import (
 from azext_iot.adr.providers.base import ADRProvider, console
 from azext_iot.adr.providers.credential import CredentialProvider
 from azext_iot.adr.providers.policy import PolicyProvider
-from azext_iot.common.utility import wait_for_terminal_state
 
 logger = get_logger(__name__)
 
@@ -140,10 +139,11 @@ class NamespaceProvider(ADRProvider):
                 )
             return poller
         with console.status(f"Creating namespace {namespace_name}..."):
-            namespace_result = wait_for_terminal_state(poller, **kwargs)
+            namespace_result = self._await_terminal(poller, **kwargs)
 
         # The create response may omit resourceGroup; backfill it from the request input.
-        if not namespace_result.get("resourceGroup"):
+        # (namespace_result can be None if the provisioningState poll times out.)
+        if namespace_result and not namespace_result.get("resourceGroup"):
             namespace_result["resourceGroup"] = resource_group_name
 
         if should_create_credential_policy:

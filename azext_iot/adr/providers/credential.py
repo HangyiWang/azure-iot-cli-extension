@@ -12,7 +12,6 @@ from knack.log import get_logger
 
 from azext_iot.adr.common import CREDENTIAL_NOT_FOUND_MSG
 from azext_iot.adr.providers.base import ADRProvider, console
-from azext_iot.common.utility import wait_for_terminal_state
 
 if TYPE_CHECKING:
     from azure.core.polling import LROPoller
@@ -52,7 +51,7 @@ class CredentialProvider(ADRProvider):
                 namespace_name=namespace_name,
                 resource=resource,
             )
-            result = wait_for_terminal_state(poller, **kwargs)
+            result = self._await_terminal(poller, **kwargs)
             return result
 
     def show(self, namespace_name: str, resource_group_name: str):
@@ -76,7 +75,7 @@ class CredentialProvider(ADRProvider):
             poller = self.client.credentials.begin_delete(
                 resource_group_name=resource_group_name, namespace_name=namespace_name
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            return self._await_terminal(poller, **kwargs)
 
     def synchronize(self, namespace_name: str, resource_group_name: str, **kwargs):
         with console.status(f"Synchronizing credentials for namespace {namespace_name}..."):
@@ -84,7 +83,7 @@ class CredentialProvider(ADRProvider):
                 resource_group_name=resource_group_name, namespace_name=namespace_name
             )
             try:
-                result = wait_for_terminal_state(poller, **kwargs)
+                result = self._await_terminal(poller, **kwargs)
             except HttpResponseError as e:
                 # The backend returns 200 OK with an empty body when the LRO completes,
                 # but ARMPolling expects a "status" or "provisioningState" field in the

@@ -19,7 +19,6 @@ from azext_iot.adr.common import (
     GroupType,
 )
 from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import wait_for_terminal_state
 
 logger = get_logger(__name__)
 
@@ -328,7 +327,7 @@ class GroupProvider(ADRProvider):
                 namespace_name=namespace_name,
                 job_name=j["name"],
             )
-            wait_for_terminal_state(poller)
+            self._await_terminal(poller)
 
     def refresh(
         self,

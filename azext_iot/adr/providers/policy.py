@@ -15,7 +15,6 @@ from azext_iot.adr.common import (
     POLICY_PARENT_RESOURCE_NOT_FOUND_MSG,
 )
 from azext_iot.adr.providers.base import ADRProvider, console
-from azext_iot.common.utility import wait_for_terminal_state
 
 
 class PolicyProvider(ADRProvider):
@@ -75,7 +74,7 @@ class PolicyProvider(ADRProvider):
                 policy_name=policy_name,
                 resource=resource,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            return self._await_terminal(poller, **kwargs)
 
     def show(self, policy_name: str, namespace_name: str, resource_group_name: str):
         # Ensure namespace exists
@@ -120,7 +119,7 @@ class PolicyProvider(ADRProvider):
                 namespace_name=namespace_name,
                 policy_name=policy_name,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            return self._await_terminal(poller, **kwargs)
 
     def update(
         self,
@@ -154,7 +153,7 @@ class PolicyProvider(ADRProvider):
                 policy_name=policy_name,
                 properties=resource,
             )
-            wait_for_terminal_state(poller, **kwargs)
+            self._await_terminal(poller, **kwargs)
 
         # LRO update may return incomplete object; always fetch updated resource
         return self.show(
@@ -171,7 +170,7 @@ class PolicyProvider(ADRProvider):
                 namespace_name=namespace_name,
                 policy_name=policy_name,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            return self._await_terminal(poller, **kwargs)
 
     def activate_byor(
         self,
@@ -192,4 +191,4 @@ class PolicyProvider(ADRProvider):
                 policy_name=policy_name,
                 body=body,
             )
-            return wait_for_terminal_state(poller, **kwargs)
+            return self._await_terminal(poller, **kwargs)
