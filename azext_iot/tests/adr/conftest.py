@@ -79,15 +79,10 @@ def mock_wait_for_terminal_state(request, monkeypatch):
         """Return poller result immediately without sleeping."""
         return poller.result()
 
-    # Patch the canonical wait helper used by ADRProvider._wait (covers every provider
-    # that defers to the shared base helper).
+    # Patch the canonical wait helper. Every provider now defers to ADRProvider._wait /
+    # _await_terminal (defined in base), so patching the base reference covers them all — the
+    # individual providers no longer import wait_for_terminal_state directly.
     monkeypatch.setattr("azext_iot.adr.providers.base.wait_for_terminal_state", fast_wait)
-    # A few providers still call wait_for_terminal_state directly (outside _wait), so patch
-    # their module-level references too.
-    monkeypatch.setattr("azext_iot.adr.providers.namespace.wait_for_terminal_state", fast_wait)
-    monkeypatch.setattr("azext_iot.adr.providers.credential.wait_for_terminal_state", fast_wait)
-    monkeypatch.setattr("azext_iot.adr.providers.policy.wait_for_terminal_state", fast_wait)
-    monkeypatch.setattr("azext_iot.adr.providers.group.wait_for_terminal_state", fast_wait)
 
 
 @pytest.fixture()

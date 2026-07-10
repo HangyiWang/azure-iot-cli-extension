@@ -574,6 +574,10 @@ def load_adr_help():
     Requires the namespace to already have at least one linked DPS (DPS-first ordering).
     Exactly one of --mi-system-assigned or --mi-user-assigned must be provided to set the
     inbound caller identity that the Hub will use to call back into the namespace.
+    Prerequisite role assignments (otherwise linking fails with AdrMiNotAuthorized): the
+    namespace's managed identity needs Contributor AND 'IoT Hub Data Contributor' on the Hub,
+    and the Hub's own managed identity needs Contributor on the namespace. Creating these role
+    assignments requires Owner or User Access Administrator on the scope.
   examples:
     - name: Link a Hub using the namespace's system-assigned identity for inbound calls
       text: |
@@ -658,6 +662,10 @@ def load_adr_help():
     Adds a DPS provisioning endpoint entry under the namespace's properties.provisioning.endpoints.
     Rejected if the namespace already has a linked DPS (one DPS per namespace).
     Exactly one of --mi-system-assigned or --mi-user-assigned must be provided.
+    Prerequisite role assignments (otherwise linking fails with AdrMiNotAuthorized): the
+    namespace's managed identity needs Contributor on the DPS, and the DPS's own managed identity
+    needs Contributor on the namespace. Creating these role assignments requires Owner or User
+    Access Administrator on the scope.
   examples:
     - name: Link a DPS using the namespace's system-assigned identity
       text: |

@@ -230,6 +230,36 @@ def _build_adu_endpoint_body(
     }
 
 
+def _endpoint_update_body(
+    existing: Optional[dict],
+    inbound_identity: Optional[dict] = None,
+    provisioning_changes: Optional[dict] = None,
+) -> dict:
+    """Build the full endpoint body for an *update* PATCH.
+
+    A namespace endpoint update must re-send the whole endpoint identity, not a sparse delta:
+    the backend rejects a body missing ``endpointType``/``resourceId`` with InvalidRequestContent.
+    Start from the existing endpoint (preserving endpointType, resourceId, current
+    inboundCallerIdentity and provisioning) and overlay only the requested changes.
+    """
+    existing = existing or {}
+    body: dict = {
+        "endpointType": existing.get("endpointType"),
+        "resourceId": existing.get("resourceId"),
+    }
+    current_inbound = existing.get("inboundCallerIdentity")
+    if current_inbound is not None:
+        body["inboundCallerIdentity"] = current_inbound
+    if inbound_identity is not None:
+        body["inboundCallerIdentity"] = inbound_identity
+    provisioning = dict(existing.get("provisioning") or {})
+    if provisioning_changes:
+        provisioning.update(provisioning_changes)
+    if provisioning:
+        body["provisioning"] = provisioning
+    return body
+
+
 class LinkProvider(ADRProvider):
     def __init__(self, cmd):
         super(LinkProvider, self).__init__(cmd)
@@ -323,24 +353,27 @@ class LinkProvider(ADRProvider):
                 f"Hub endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
             )
 
-        endpoint_patch: dict = {}
         inbound_identity = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
-        if inbound_identity is not None:
-            endpoint_patch["inboundCallerIdentity"] = inbound_identity
-
-        provisioning_patch = {}
+        provisioning_changes = {}
         if availability is not None:
-            provisioning_patch["availability"] = availability
+            provisioning_changes["availability"] = availability
         if allocation_weight is not None:
-            provisioning_patch["allocationWeight"] = allocation_weight
-        if provisioning_patch:
-            endpoint_patch["provisioning"] = provisioning_patch
+            provisioning_changes["allocationWeight"] = allocation_weight
 
-        if not endpoint_patch:
+        if inbound_identity is None and not provisioning_changes:
             raise RequiredArgumentMissingError(
                 "Nothing to update. Pass at least one of --mi-system-assigned, "
                 "--mi-user-assigned <uami-resource-id>, --availability, or --allocation-weight."
             )
+
+        # The backend requires the full endpoint body (endpointType + resourceId) on update, so
+        # re-send the existing endpoint with the requested changes overlaid rather than a sparse
+        # patch (which fails InvalidRequestContent).
+        endpoint_patch = _endpoint_update_body(
+            endpoints.get(endpoint_name),
+            inbound_identity=inbound_identity,
+            provisioning_changes=provisioning_changes,
+        )
 
         return self._patch_messaging_endpoints(
             namespace_name=namespace_name,
@@ -497,16 +530,19 @@ class LinkProvider(ADRProvider):
                 f"DPS endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
             )
 
-        endpoint_patch: dict = {}
         inbound_identity = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
-        if inbound_identity is not None:
-            endpoint_patch["inboundCallerIdentity"] = inbound_identity
-
-        if not endpoint_patch:
+        if inbound_identity is None:
             raise RequiredArgumentMissingError(
                 "Nothing to update. Pass --mi-system-assigned or "
                 "--mi-user-assigned <uami-resource-id> to change the inbound caller identity."
             )
+
+        # The backend requires the full endpoint body (endpointType + resourceId) on update, so
+        # re-send the existing endpoint with the new inbound identity overlaid rather than a sparse
+        # patch (which fails InvalidRequestContent).
+        endpoint_patch = _endpoint_update_body(
+            endpoints.get(endpoint_name), inbound_identity=inbound_identity
+        )
 
         return self._patch_provisioning_endpoints(
             namespace_name=namespace_name,
@@ -643,16 +679,19 @@ class LinkProvider(ADRProvider):
                 f"Device update endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
             )
 
-        endpoint_patch: dict = {}
         inbound_identity = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
-        if inbound_identity is not None:
-            endpoint_patch["inboundCallerIdentity"] = inbound_identity
-
-        if not endpoint_patch:
+        if inbound_identity is None:
             raise RequiredArgumentMissingError(
                 "Nothing to update. Pass --mi-system-assigned or "
                 "--mi-user-assigned <uami-resource-id> to change the inbound caller identity."
             )
+
+        # The backend requires the full endpoint body (endpointType + resourceId) on update, so
+        # re-send the existing endpoint with the new inbound identity overlaid rather than a sparse
+        # patch (which fails InvalidRequestContent).
+        endpoint_patch = _endpoint_update_body(
+            endpoints.get(endpoint_name), inbound_identity=inbound_identity
+        )
 
         return self._patch_updating_endpoints(
             namespace_name=namespace_name,

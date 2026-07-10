@@ -36,7 +36,10 @@ console = Console()
 # async-operation URL returns HTTP 500 "ARM PoP token authentication failed"
 # even though the mutation itself succeeds (HTTP 202). Per the Device Registry
 # team this async-status implementation is incomplete/temporary; until it is
-# fixed we poll the resource's own ``provisioningState`` instead.
+# fixed we poll the resource's own ``provisioningState`` instead. This matches
+# the Device Registry team's own reference tool (Create-AdrNamespace), which
+# likewise polls provisioningState "rather than the broken Azure-AsyncOperation
+# URL", so this is the sanctioned approach and not merely a client-side hack.
 #
 # TO REVERT once the backend is fixed: set POLL_PROVISIONING_STATE_WORKAROUND to
 # ``False`` (or delete this block, the workaround branch in ``_await_terminal``
@@ -111,6 +114,75 @@ class ADRProvider(object):
             return None, None
         return getattr(request, "url", None), (getattr(request, "method", "") or "").upper()
 
+    @staticmethod
+    def _extract_failure_detail(body):
+        """Best-effort human-readable reason from a Failed resource body.
+
+        Scans the endpoint collections (provisioning / messaging / updating) for an
+        entry that carries its own status/error (this is where a failed link records
+        *why* it failed), then falls back to a resource-level error object. Returns
+        "" when nothing useful is present.
+        """
+        if not isinstance(body, dict):
+            return ""
+        props = body.get("properties") or {}
+        for group in ("provisioning", "messaging", "updating"):
+            endpoints = ((props.get(group) or {}).get("endpoints")) or {}
+            if not isinstance(endpoints, dict):
+                continue
+            for name, endpoint in endpoints.items():
+                if not isinstance(endpoint, dict):
+                    continue
+                status = endpoint.get("provisioningStatus") or endpoint.get("status") or {}
+                if not isinstance(status, dict):
+                    status = {}
+                error = (
+                    status.get("error")
+                    or endpoint.get("error")
+                    or endpoint.get("linkingError")
+                    or {}
+                )
+                if not isinstance(error, dict):
+                    error = {}
+                message = error.get("message")
+                ep_state = status.get("status") or endpoint.get("linkingState")
+                if message:
+                    return f"endpoint '{name}': {message}"
+                if ep_state and str(ep_state).lower() == "failed":
+                    return f"endpoint '{name}' is in a 'Failed' state"
+        error = props.get("error") or body.get("error") or {}
+        if isinstance(error, dict) and error.get("message"):
+            code = error.get("code")
+            return f"{code}: {error['message']}" if code else error["message"]
+        return ""
+
+    def _format_failure(self, state, body, response):
+        """Build an actionable error message for a terminal Failed/Canceled LRO.
+
+        Surfaces the backend's endpoint-level reason (when present) plus the GET's
+        correlation id, instead of just the bare provisioningState, so the failure
+        is diagnosable without hunting through the activity log.
+        """
+        message = f"The operation did not succeed (provisioningState='{state}')."
+        detail = self._extract_failure_detail(body)
+        if detail:
+            message += f" {detail}" if detail.endswith((".", "!", "?")) else f" {detail}."
+        if detail and "not authorized" in detail.lower():
+            # AdrMiNotAuthorized: the link saga needs bidirectional role assignments (see the ADR
+            # linking reference). Surface the concrete fix instead of just the backend's read hint.
+            message += (
+                " Linking requires role assignments: grant the namespace's managed identity"
+                " Contributor on the linked resource (and 'IoT Hub Data Contributor' on IoT Hubs),"
+                " and grant the linked resource's managed identity Contributor on the namespace."
+            )
+        headers = getattr(response, "headers", None)
+        corr = headers.get("x-ms-correlation-request-id") if headers is not None else None
+        if corr:
+            message += f" Correlation id: {corr}."
+        else:
+            message += " Inspect the service activity log using the operation's correlation id."
+        return message
+
     def _poll_provisioning_state(self, poller, wait_sec: int = LRO_POLL_WAIT_SEC, **_):
         """TEMPORARY: resolve an LRO by polling the resource's ``provisioningState``.
 
@@ -158,10 +230,7 @@ class ADRProvider(object):
                 if state == _PROVISIONING_SUCCEEDED or state is None:
                     return last_body
                 if state in _PROVISIONING_FAILURES:
-                    raise AzureResponseError(
-                        f"The operation did not succeed (provisioningState='{state}'). "
-                        "Inspect the service activity log using the operation's correlation id."
-                    )
+                    raise AzureResponseError(self._format_failure(state, last_body, response))
                 sleep(wait_sec)  # still provisioning (Accepted/Updating/...) -> re-check
                 continue
             # Unexpected status (e.g. a transient 5xx) -> brief backoff and retry.

@@ -168,7 +168,10 @@ def test_hub_add_requires_inbound_identity(fixture_link_provider):
 # ==================== Update ====================
 
 
-def test_hub_update_partial_patch(fixture_link_provider, mock_poller):
+def test_hub_update_resends_full_endpoint(fixture_link_provider, mock_poller):
+    # An update must re-send the full endpoint (endpointType + resourceId), not a sparse delta,
+    # or the backend rejects it with InvalidRequestContent. The existing inboundCallerIdentity is
+    # preserved and only the requested change (availability) is overlaid.
     fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
         {
             "primary": {
@@ -190,7 +193,12 @@ def test_hub_update_partial_patch(fixture_link_provider, mock_poller):
     endpoint_patch = fixture_link_provider.client.namespaces.begin_update.call_args[1][
         "properties"
     ]["properties"]["messaging"]["endpoints"]["primary"]
-    assert endpoint_patch == {"provisioning": {"availability": "Disabled"}}
+    assert endpoint_patch == {
+        "endpointType": IOT_HUB_ENDPOINT_TYPE,
+        "resourceId": HUB_RESOURCE_ID,
+        "inboundCallerIdentity": {"type": "SystemAssigned"},
+        "provisioning": {"availability": "Disabled"},
+    }
 
 
 def test_hub_update_missing_endpoint_raises(fixture_link_provider):
@@ -441,7 +449,9 @@ def test_dps_add_mi_mutually_exclusive(fixture_link_provider):
 # ==================== DPS update / remove / show / list ====================
 
 
-def test_dps_update_partial_patch(fixture_link_provider, mock_poller):
+def test_dps_update_resends_full_endpoint(fixture_link_provider, mock_poller):
+    # An update must re-send the full endpoint (endpointType + resourceId), not a sparse delta,
+    # or the backend rejects it with InvalidRequestContent. Only the inbound identity is changed.
     fixture_link_provider.client.namespaces.get.return_value = _ns_with_only_dps("primary")
     fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
 
@@ -456,10 +466,12 @@ def test_dps_update_partial_patch(fixture_link_provider, mock_poller):
         "properties"
     ]["properties"]["provisioning"]["endpoints"]["primary"]
     assert endpoint_patch == {
+        "endpointType": DPS_ENDPOINT_TYPE,
+        "resourceId": DPS_RESOURCE_ID,
         "inboundCallerIdentity": {
             "type": IdentityType.user_assigned.value,
             "userAssignedIdentity": UAMI_RESOURCE_ID,
-        }
+        },
     }
 
 
@@ -818,7 +830,9 @@ def test_dps_update_with_system_assigned_mi(fixture_link_provider, mock_poller):
         "properties"
     ]["properties"]["provisioning"]["endpoints"]["primary"]
     assert endpoint_patch == {
-        "inboundCallerIdentity": {"type": IdentityType.system_assigned.value}
+        "endpointType": DPS_ENDPOINT_TYPE,
+        "resourceId": DPS_RESOURCE_ID,
+        "inboundCallerIdentity": {"type": IdentityType.system_assigned.value},
     }
 
 
@@ -1030,7 +1044,9 @@ def test_adu_add_requires_inbound_identity(fixture_link_provider):
         )
 
 
-def test_adu_update_partial_patch(fixture_link_provider, mock_poller):
+def test_adu_update_resends_full_endpoint(fixture_link_provider, mock_poller):
+    # An update must re-send the full endpoint (endpointType + resourceId), not a sparse delta,
+    # or the backend rejects it with InvalidRequestContent. Only the inbound identity is changed.
     fixture_link_provider.client.namespaces.get.return_value = _ns_with_adu("my-adu")
     fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(
         {"name": "ns"}
@@ -1047,10 +1063,12 @@ def test_adu_update_partial_patch(fixture_link_provider, mock_poller):
         "properties"
     ]["properties"]["updating"]["endpoints"]["my-adu"]
     assert endpoint_patch == {
+        "endpointType": ADU_ENDPOINT_TYPE,
+        "resourceId": ADU_RESOURCE_ID,
         "inboundCallerIdentity": {
             "type": IdentityType.user_assigned.value,
             "userAssignedIdentity": UAMI_RESOURCE_ID,
-        }
+        },
     }
 
 
@@ -1211,7 +1229,9 @@ def test_adu_update_with_system_assigned_mi(fixture_link_provider, mock_poller):
         "properties"
     ]["properties"]["updating"]["endpoints"]["my-adu"]
     assert endpoint_patch == {
-        "inboundCallerIdentity": {"type": IdentityType.system_assigned.value}
+        "endpointType": ADU_ENDPOINT_TYPE,
+        "resourceId": ADU_RESOURCE_ID,
+        "inboundCallerIdentity": {"type": IdentityType.system_assigned.value},
     }
 
 
