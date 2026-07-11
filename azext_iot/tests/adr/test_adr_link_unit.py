@@ -16,6 +16,7 @@ from azure.cli.core.azclierror import (
     RequiredArgumentMissingError,
     ResourceNotFoundError,
 )
+from azure.core.exceptions import HttpResponseError
 
 from azext_iot.adr.common import (
     DPS_ENDPOINT_TYPE,
@@ -227,6 +228,93 @@ def test_hub_update_requires_at_least_one_field(fixture_link_provider):
             endpoint_name="primary",
             namespace_name="ns",
             resource_group_name="rg",
+        )
+
+
+def test_hub_update_identity_only_omits_unchanged_provisioning(
+    fixture_link_provider, mock_poller
+):
+    # Identity-only update must not re-send the endpoint's existing availability/allocationWeight:
+    # the backend rejects any provisioning change on an established link (EndpointLinkImmutable),
+    # and a PATCH that omits provisioning leaves the stored values intact.
+    existing_endpoint = {
+        "endpointType": IOT_HUB_ENDPOINT_TYPE,
+        "resourceId": HUB_RESOURCE_ID,
+        "inboundCallerIdentity": {
+            "type": IdentityType.user_assigned.value,
+            "userAssignedIdentity": UAMI_RESOURCE_ID,
+        },
+        "provisioning": {"availability": "Available", "allocationWeight": 5},
+    }
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {"primary": existing_endpoint}
+    )
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.hub_update(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        mi_system_assigned=True,
+    )
+
+    endpoint_patch = fixture_link_provider.client.namespaces.begin_update.call_args[1][
+        "properties"
+    ]["properties"]["messaging"]["endpoints"]["primary"]
+    assert endpoint_patch == {
+        "endpointType": IOT_HUB_ENDPOINT_TYPE,
+        "resourceId": HUB_RESOURCE_ID,
+        "inboundCallerIdentity": {"type": IdentityType.system_assigned.value},
+    }
+    assert "provisioning" not in endpoint_patch
+
+
+def test_hub_update_endpoint_link_immutable_is_translated(fixture_link_provider):
+    # A backend EndpointLinkImmutable rejection (availability/allocation-weight cannot change on
+    # an established link) is re-raised as clearer CLI guidance about what can/cannot be updated.
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+                "inboundCallerIdentity": {"type": "SystemAssigned"},
+            }
+        }
+    )
+    fixture_link_provider.client.namespaces.begin_update.side_effect = HttpResponseError(
+        message="(EndpointLinkImmutable) Endpoint links cannot be modified or removed via PATCH."
+    )
+
+    with pytest.raises(ArgumentUsageError, match="cannot be modified in place"):
+        fixture_link_provider.hub_update(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            availability=MessagingEndpointAvailability.disabled.value,
+        )
+
+
+def test_hub_update_unrelated_http_error_propagates(fixture_link_provider):
+    # Only EndpointLinkImmutable is translated; any other backend error propagates unchanged.
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps(
+        {
+            "primary": {
+                "endpointType": IOT_HUB_ENDPOINT_TYPE,
+                "resourceId": HUB_RESOURCE_ID,
+                "inboundCallerIdentity": {"type": "SystemAssigned"},
+            }
+        }
+    )
+    fixture_link_provider.client.namespaces.begin_update.side_effect = HttpResponseError(
+        message="(SomethingElse) transient server error."
+    )
+
+    with pytest.raises(HttpResponseError, match="SomethingElse"):
+        fixture_link_provider.hub_update(
+            endpoint_name="primary",
+            namespace_name="ns",
+            resource_group_name="rg",
+            availability=MessagingEndpointAvailability.disabled.value,
         )
 
 

@@ -12,6 +12,7 @@ from azure.cli.core.azclierror import (
     RequiredArgumentMissingError,
     ResourceNotFoundError,
 )
+from azure.core.exceptions import HttpResponseError
 from knack.log import get_logger
 from msrestazure.tools import is_valid_resource_id, parse_resource_id
 
@@ -235,12 +236,14 @@ def _endpoint_update_body(
     inbound_identity: Optional[dict] = None,
     provisioning_changes: Optional[dict] = None,
 ) -> dict:
-    """Build the full endpoint body for an *update* PATCH.
+    """Build the endpoint body for an *update* PATCH.
 
-    A namespace endpoint update must re-send the whole endpoint identity, not a sparse delta:
-    the backend rejects a body missing ``endpointType``/``resourceId`` with InvalidRequestContent.
-    Start from the existing endpoint (preserving endpointType, resourceId, current
-    inboundCallerIdentity and provisioning) and overlay only the requested changes.
+    A namespace endpoint update must re-send the endpoint's identity (``endpointType`` and
+    ``resourceId``), not a sparse delta, or the backend rejects it with InvalidRequestContent.
+    Provisioning (availability / allocationWeight) is only included when the caller actually
+    changes it: re-sending it unchanged makes the backend flag the endpoint as "(Modified)" and
+    reject the whole PATCH with EndpointLinkImmutable. Because the update is a PATCH, omitting
+    provisioning leaves the stored availability / allocationWeight intact.
     """
     existing = existing or {}
     body: dict = {
@@ -252,12 +255,43 @@ def _endpoint_update_body(
         body["inboundCallerIdentity"] = current_inbound
     if inbound_identity is not None:
         body["inboundCallerIdentity"] = inbound_identity
-    provisioning = dict(existing.get("provisioning") or {})
+    # Only send provisioning when the caller changes it (merged onto existing so the sibling
+    # field is preserved); an identity-only update omits it so the unchanged availability /
+    # allocationWeight are not flagged as modified and rejected with EndpointLinkImmutable.
     if provisioning_changes:
+        provisioning = dict(existing.get("provisioning") or {})
         provisioning.update(provisioning_changes)
-    if provisioning:
-        body["provisioning"] = provisioning
+        if provisioning:
+            body["provisioning"] = provisioning
     return body
+
+
+_ENDPOINT_LINK_IMMUTABLE_CODE = "EndpointLinkImmutable"
+
+
+def _endpoint_link_immutable_error(error: HttpResponseError) -> ArgumentUsageError:
+    """Build clearer guidance for the backend's EndpointLinkImmutable rejection.
+
+    The service rejects any change to an established endpoint's availability, allocation weight or
+    linked resource via PATCH (only the inbound caller identity may be rotated); its raw error
+    names the endpoint without saying which inputs are immutable, so add that context here.
+    """
+    corr = None
+    response = getattr(error, "response", None)
+    headers = getattr(response, "headers", None)
+    if headers:
+        corr = headers.get("x-ms-correlation-request-id")
+    message = (
+        "This endpoint link cannot be modified in place. An established endpoint's "
+        "availability, allocation weight and linked resource are immutable; only the "
+        "inbound caller identity can be rotated (--mi-system-assigned / --mi-user-assigned). "
+        "To change availability or allocation weight, delete and re-create the link "
+        "(delete the linked resource or the namespace, then re-add). "
+        f"Service error: {getattr(error, 'message', None) or str(error)}"
+    )
+    if corr:
+        message += f" Correlation id: {corr}."
+    return ArgumentUsageError(message)
 
 
 class LinkProvider(ADRProvider):
@@ -366,21 +400,28 @@ class LinkProvider(ADRProvider):
                 "--mi-user-assigned <uami-resource-id>, --availability, or --allocation-weight."
             )
 
-        # The backend requires the full endpoint body (endpointType + resourceId) on update, so
-        # re-send the existing endpoint with the requested changes overlaid rather than a sparse
-        # patch (which fails InvalidRequestContent).
+        # The backend requires the full endpoint identity (endpointType + resourceId) on update,
+        # so re-send the existing endpoint with the requested changes overlaid rather than a
+        # sparse patch (which fails InvalidRequestContent).
         endpoint_patch = _endpoint_update_body(
             endpoints.get(endpoint_name),
             inbound_identity=inbound_identity,
             provisioning_changes=provisioning_changes,
         )
 
-        return self._patch_messaging_endpoints(
-            namespace_name=namespace_name,
-            resource_group_name=resource_group_name,
-            endpoints_patch={endpoint_name: endpoint_patch},
-            **kwargs,
-        )
+        try:
+            return self._patch_messaging_endpoints(
+                namespace_name=namespace_name,
+                resource_group_name=resource_group_name,
+                endpoints_patch={endpoint_name: endpoint_patch},
+                **kwargs,
+            )
+        except HttpResponseError as error:
+            # Availability / allocation-weight changes on an established link are rejected with
+            # EndpointLinkImmutable; re-raise with a clearer explanation of what can be updated.
+            if _ENDPOINT_LINK_IMMUTABLE_CODE not in str(error):
+                raise
+            raise _endpoint_link_immutable_error(error) from error
 
     def hub_remove(
         self,
