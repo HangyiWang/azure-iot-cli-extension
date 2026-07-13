@@ -10,9 +10,20 @@ import importlib
 from azext_iot.common.utility import ensure_azure_namespace_path
 from azext_iot.constants import INTERNAL_AZURE_CORE_NAMESPACE
 from knack.log import get_logger
-from typing import List
+from typing import List, Optional
 
 logger = get_logger(__name__)
+
+
+def _resolve_azure_dir(ext_azure_dir: str) -> Optional[str]:
+    if os.path.isdir(ext_azure_dir):
+        return ext_azure_dir
+
+    import azure.core
+
+    for core_dir in azure.core.__path__:
+        return os.path.dirname(core_dir)
+    return None
 
 
 def reload_modules() -> None:
@@ -35,10 +46,10 @@ def reload_modules() -> None:
         return
 
     ext_azure_dir = os.path.join(ext_path, "azure")
-    if not os.path.isdir(ext_azure_dir):
-        return
-
     ensure_azure_namespace_path()
+    azure_dir = _resolve_azure_dir(ext_azure_dir)
+    if not azure_dir:
+        return
 
     def needs_reload(module_name: str) -> bool:
         if module_name in sys.modules:
@@ -46,7 +57,7 @@ def reload_modules() -> None:
             _reload = True
             if hasattr(target_module, "__path__"):
                 for path in target_module.__path__:
-                    if path.startswith(ext_azure_dir):
+                    if path.startswith(azure_dir):
                         _reload = False
                         break
             return _reload
@@ -69,16 +80,18 @@ def reload_modules() -> None:
         "azure.mgmt.core": [],
     }
 
-    # Import modules with best attempt
-    for mod in mods_for_reload:
-        try:
-            if needs_reload(mod):
-                reload_module_state(mod, mods_for_reload[mod])
-        except Exception as e:
-            logger.warning("Failed to reload module: %s, error: %s", mod, str(e))
+    # Reload only when dependencies are installed with the extension. A jointly resolved
+    # environment already has the intended modules active and only needs the internal alias.
+    if azure_dir == ext_azure_dir:
+        for mod in mods_for_reload:
+            try:
+                if needs_reload(mod):
+                    reload_module_state(mod, mods_for_reload[mod])
+            except Exception as e:
+                logger.warning("Failed to reload module: %s, error: %s", mod, str(e))
 
     try:
-        init_internal_azure_core(azure_path=ext_azure_dir)
+        init_internal_azure_core(azure_path=azure_dir)
     except Exception as e:
         logger.warning("Failed to build internal module cache, error: %s", str(e))
 
