@@ -154,11 +154,18 @@ def tags_to_dict(tags: str) -> dict:
     return result
 
 
-def get_closest_marker(request: SubRequest) -> Mark:
+def get_closest_marker(request: SubRequest) -> Optional[Mark]:
+    marker = request.node.get_closest_marker("hub_infrastructure")
+    if marker:
+        return marker
+
+    request_path = getattr(request.node, "path", None)
     for item in request.session.items:
-        if item.get_closest_marker("hub_infrastructure"):
-            return item.get_closest_marker("hub_infrastructure")
-    return request.node.get_closest_marker("hub_infrastructure")
+        if getattr(item, "path", None) == request_path:
+            marker = item.get_closest_marker("hub_infrastructure")
+            if marker:
+                return marker
+    return None
 
 
 def get_agent_public_ip():

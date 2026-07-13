@@ -331,7 +331,9 @@ class StateProvider(IoTHubProvider):
             os.remove(state_file)
 
             if not arm_result.success():
-                raise BadRequestError(usr_msgs.FAILED_ARM_MSG.format(self.hub_name))
+                raise BadRequestError(
+                    usr_msgs.FAILED_ARM_MSG.format(self.hub_name, arm_result.get_error())
+                )
 
             if not self.target:
                 self.target = self.discovery.get_target(

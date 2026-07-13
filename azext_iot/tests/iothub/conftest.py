@@ -145,7 +145,8 @@ def setup_hub_controlplane_states(
     cosmosdb_database_name = provisioned_cosmos_db_module["database"]["name"]
     cosmosdb_cstring = provisioned_cosmos_db_module["connectionString"]
 
-    use_system_endpoints = get_closest_marker(request).kwargs.get("system_endpoints", True)
+    hub_marker = get_closest_marker(request)
+    use_system_endpoints = hub_marker.kwargs.get("system_endpoints", True) if hub_marker else True
 
     # add endpoints
     hub_principal_ids = [

@@ -785,9 +785,10 @@ class TestUploadHubFromDict:
         }
         invoke_result = mocker.MagicMock()
         invoke_result.success.return_value = False
+        invoke_result.get_error.return_value = RuntimeError("deployment detail")
         mocker.patch.object(state_module.cli, "invoke", return_value=invoke_result)
         mocker.patch.object(state_module.os, "remove")
-        with pytest.raises(BadRequestError):
+        with pytest.raises(BadRequestError, match="deployment detail"):
             p.upload_hub_from_dict(self._arm_state(), [HubAspects.Arm.value])
 
     def test_upload_arm_new_hub_identity_endpoint_error(self, mocker):

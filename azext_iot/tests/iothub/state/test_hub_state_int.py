@@ -193,8 +193,11 @@ def setup_hub_states_dataplane(provisioned_iot_hubs_with_storage_user_module):
 def setup_hub_states_controlplane(setup_hub_controlplane_states):
     """Fixture to setup hubs with controlplane aspects."""
     filename = generate_generic_id() + ".json"
-    setup_hub_controlplane_states[0]["filename"] = filename
-    yield setup_hub_controlplane_states
+    hub_states = [hub.copy() for hub in setup_hub_controlplane_states]
+    hub_states[0]["filename"] = filename
+    yield hub_states
+    for hub in hub_states[len(setup_hub_controlplane_states):]:
+        cli.invoke(f"iot hub delete -n {hub['name']} -g {setup_hub_controlplane_states[0]['rg']}")
     if os.path.isfile(filename):
         os.remove(filename)
 
@@ -252,16 +255,20 @@ def clean_up_hub_dataplane(cstring):
 
 
 def delete_system_endpoints(hub_name, rg):
-    # delete is a no-op
-    cli.invoke(
-        f"iot hub routing-endpoint delete --hub-name {hub_name} -g {rg} -n eventhub-systemid"
-    )
-    cli.invoke(
-        f"iot hub routing-endpoint delete --hub-name {hub_name} -g {rg} -n queue-systemid"
-    )
-    cli.invoke(
-        f"iot hub routing-endpoint delete --hub-name {hub_name} -g {rg} -n storagecontainer-systemid"
-    )
+    result = cli.invoke(f"iot hub message-endpoint list -n {hub_name} -g {rg}")
+    assert result.success(), repr(result.get_error())
+    endpoint_names = {
+        endpoint["name"]
+        for endpoints in result.as_json().values()
+        for endpoint in endpoints
+    }
+    for endpoint_name in ["eventhub-systemid", "queue-systemid", "storagecontainer-systemid"]:
+        if endpoint_name not in endpoint_names:
+            continue
+        result = cli.invoke(
+            f"iot hub message-endpoint delete -n {hub_name} -g {rg} --en {endpoint_name} -y"
+        )
+        assert result.success(), repr(result.get_error())
 
 
 @pytest.mark.hub_infrastructure(count=2, sys_identity=True, user_identity=True, storage=True, desired_tags="abc=def")
@@ -270,10 +277,11 @@ def test_migrate_controlplane(setup_hub_states_controlplane):
     origin_rg = setup_hub_states_controlplane[0]["rg"]
     dest_name = setup_hub_states_controlplane[1]["name"]
 
-    cli.invoke(
+    result = cli.invoke(
         f"iot hub state migrate --origin-hub {origin_name} --origin-resource-group {origin_rg} "
         f"--destination-hub {dest_name} --destination-resource-group {origin_rg} -r --aspects {CONTROLPLANE}"
     )
+    assert result.success(), repr(result.get_error())
 
     time.sleep(1)  # gives the hub time to update before the checks
     compare_hubs_controlplane(origin_name, dest_name, origin_rg)
@@ -321,22 +329,25 @@ def test_migrate_controlplane_with_create(setup_hub_states_controlplane):
     # ensure that there are no system endpoints
     delete_system_endpoints(origin_name, origin_rg)
 
-    cli.invoke(
+    result = cli.invoke(
         f"iot hub state migrate --origin-hub {origin_name} --origin-resource-group {origin_rg} "
         f"--destination-hub {dest_name} --destination-resource-group {origin_rg} -r --aspects {CONTROLPLANE}"
     )
+    assert result.success(), repr(result.get_error())
 
     # default the destination rg
     dest_name2 = generate_hub_id()
     setup_hub_states_controlplane.append({"name": dest_name2})
 
-    cli.invoke(
+    result = cli.invoke(
         f"iot hub state migrate --origin-hub {origin_name} --origin-resource-group {origin_rg} "
-        f"--destination-hub {dest_name} -r --aspects {CONTROLPLANE}"
+        f"--destination-hub {dest_name2} -r --aspects {CONTROLPLANE}"
     )
+    assert result.success(), repr(result.get_error())
 
     time.sleep(1)  # gives the hub time to update before the checks
     compare_hubs_controlplane(origin_name, dest_name, origin_rg)
+    compare_hubs_controlplane(origin_name, dest_name2, origin_rg)
 
 
 @pytest.mark.hub_infrastructure(count=1)
