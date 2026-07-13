@@ -17,10 +17,42 @@ def test_reload_modules_no_ext_path(mocker):
     subject.reload_modules()
 
 
-def test_reload_modules_no_azure_dir(mocker, tmp_path):
+def test_resolve_azure_dir_uses_environment_package(tmp_path):
+    import azure.core
+
+    azure_dir = subject._resolve_azure_dir(os.path.join(str(tmp_path), "azure"))
+
+    assert os.path.join(azure_dir, "core") in azure.core.__path__
+
+
+def test_reload_modules_no_azure_core(mocker, tmp_path):
     mocker.patch("azure.cli.core.extension.get_extension_path", return_value=str(tmp_path))
-    # No "azure" subdirectory -> early return.
+    mocker.patch.object(subject, "_resolve_azure_dir", return_value=None)
     subject.reload_modules()
+
+
+def test_reload_modules_uses_environment_azure_core(mocker, tmp_path):
+    from azext_iot.constants import INTERNAL_AZURE_CORE_NAMESPACE
+    import azure.core
+
+    mocker.patch("azure.cli.core.extension.get_extension_path", return_value=str(tmp_path))
+    saved_internal_core = sys.modules.pop(INTERNAL_AZURE_CORE_NAMESPACE, None)
+    saved_internal_exceptions = sys.modules.pop(f"{INTERNAL_AZURE_CORE_NAMESPACE}.exceptions", None)
+    try:
+        subject.reload_modules()
+
+        internal_core = sys.modules[INTERNAL_AZURE_CORE_NAMESPACE]
+        assert internal_core.__path__ == azure.core.__path__
+        assert internal_core.exceptions.__file__ == azure.core.exceptions.__file__
+    finally:
+        if saved_internal_core is not None:
+            sys.modules[INTERNAL_AZURE_CORE_NAMESPACE] = saved_internal_core
+        else:
+            sys.modules.pop(INTERNAL_AZURE_CORE_NAMESPACE, None)
+        if saved_internal_exceptions is not None:
+            sys.modules[f"{INTERNAL_AZURE_CORE_NAMESPACE}.exceptions"] = saved_internal_exceptions
+        else:
+            sys.modules.pop(f"{INTERNAL_AZURE_CORE_NAMESPACE}.exceptions", None)
 
 
 def test_reload_modules_init_internal_failure_logs_warning(mocker, tmp_path):
