@@ -45,12 +45,6 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
         ns = "validation-ns-does-not-matter"
 
         # --- Namespace: outbound identity guards (resolved before the LRO) ---
-        with timed_step("ns create ❯ outbound UAMI rejected (not yet supported)"):
-            self.cmd(
-                f"iot adr ns create -n {ns} -g {rg} --location {TEST_LOCATION} "
-                f"--omi-ua {_UAMI_ID}",
-                expect_failure=True,
-            )
         with timed_step("ns create ❯ outbound SAMI + UAMI together rejected"):
             self.cmd(
                 f"iot adr ns create -n {ns} -g {rg} --location {TEST_LOCATION} "
@@ -65,7 +59,7 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 expect_failure=True,
             )
 
-        # --- Certificate policy: update requires --validity-days and/or --tags ---
+        # --- Certificate policy: update requires --tags ---
         with timed_step("ca policy update ❯ nothing-to-update rejected"):
             self.cmd(
                 f"iot adr ns ca policy update -n mypolicy --ca myca --ns {ns} -g {rg}",

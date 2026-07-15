@@ -8,6 +8,7 @@ from typing import Dict, Optional
 
 from knack.log import get_logger
 
+from azext_iot.adr.common import RegistryDeviceEnablementState
 from azext_iot.adr.providers.registry_device import RegistryDeviceProvider
 
 logger = get_logger(__name__)
@@ -19,6 +20,7 @@ def adr_registry_device_create(
     namespace_name: str,
     resource_group_name: str,
     external_device_id: Optional[str] = None,
+    enablement_state: str = RegistryDeviceEnablementState.enabled.value,
     manufacturer: Optional[str] = None,
     model: Optional[str] = None,
     hardware_revision: Optional[str] = None,
@@ -33,6 +35,7 @@ def adr_registry_device_create(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         external_device_id=external_device_id,
+        enablement_state=enablement_state,
         manufacturer=manufacturer,
         model=model,
         hardware_revision=hardware_revision,
@@ -67,7 +70,7 @@ def adr_registry_device_update(
     registry_device_name: str,
     namespace_name: str,
     resource_group_name: str,
-    external_device_id: Optional[str] = None,
+    enablement_state: Optional[str] = None,
     manufacturer: Optional[str] = None,
     model: Optional[str] = None,
     hardware_revision: Optional[str] = None,
@@ -80,7 +83,7 @@ def adr_registry_device_update(
         registry_device_name=registry_device_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
-        external_device_id=external_device_id,
+        enablement_state=enablement_state,
         manufacturer=manufacturer,
         model=model,
         hardware_revision=hardware_revision,

@@ -16,10 +16,13 @@ from unittest.mock import Mock
 import pytest
 
 from azext_iot.adr import (
+    commands_certificate_authority,
+    commands_certificate_policy,
     commands_credential,
     commands_device,
     commands_namespace,
     commands_policy,
+    commands_registry_device,
 )
 
 RG = "test-rg"
@@ -243,4 +246,110 @@ class TestPolicyCommands:
             namespace_name=NS,
             resource_group_name=RG,
             certificate_chain="cert-chain",
+        )
+
+
+class TestCertificateAuthorityCommands:
+    def test_create_ica(self, mocker, cmd):
+        _, provider = _patch_provider(
+            mocker, commands_certificate_authority, "CertificateAuthorityProvider"
+        )
+
+        commands_certificate_authority.adr_ca_create(
+            cmd,
+            certificate_authority_name="ica",
+            namespace_name=NS,
+            resource_group_name=RG,
+            certificate_authority_type="ICA",
+            issuer_type="Internal",
+            issuer_certificate_authority_uuid="issuer-uuid",
+        )
+
+        provider.create.assert_called_once_with(
+            certificate_authority_name="ica",
+            namespace_name=NS,
+            resource_group_name=RG,
+            certificate_authority_type="ICA",
+            issuer_type="Internal",
+            issuer_certificate_authority_uuid="issuer-uuid",
+            key_type=None,
+            location=None,
+            tags=None,
+        )
+
+
+class TestCertificatePolicyCommands:
+    def test_update_tags(self, mocker, cmd):
+        _, provider = _patch_provider(
+            mocker, commands_certificate_policy, "CertificatePolicyProvider"
+        )
+
+        commands_certificate_policy.adr_ca_policy_update(
+            cmd,
+            certificate_policy_name="policy",
+            certificate_authority_name="ca",
+            namespace_name=NS,
+            resource_group_name=RG,
+            tags={"env": "test"},
+        )
+
+        provider.update.assert_called_once_with(
+            certificate_policy_name="policy",
+            certificate_authority_name="ca",
+            namespace_name=NS,
+            resource_group_name=RG,
+            tags={"env": "test"},
+        )
+
+
+class TestRegistryDeviceCommands:
+    def test_create_defaults_enabled(self, mocker, cmd):
+        _, provider = _patch_provider(
+            mocker, commands_registry_device, "RegistryDeviceProvider"
+        )
+
+        commands_registry_device.adr_registry_device_create(
+            cmd,
+            registry_device_name="device",
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+
+        provider.create.assert_called_once_with(
+            registry_device_name="device",
+            namespace_name=NS,
+            resource_group_name=RG,
+            external_device_id=None,
+            enablement_state="Enabled",
+            manufacturer=None,
+            model=None,
+            hardware_revision=None,
+            software_revision=None,
+            location=None,
+            tags=None,
+        )
+
+    def test_update_enablement(self, mocker, cmd):
+        _, provider = _patch_provider(
+            mocker, commands_registry_device, "RegistryDeviceProvider"
+        )
+
+        commands_registry_device.adr_registry_device_update(
+            cmd,
+            registry_device_name="device",
+            namespace_name=NS,
+            resource_group_name=RG,
+            enablement_state="Disabled",
+        )
+
+        provider.update.assert_called_once_with(
+            registry_device_name="device",
+            namespace_name=NS,
+            resource_group_name=RG,
+            enablement_state="Disabled",
+            manufacturer=None,
+            model=None,
+            hardware_revision=None,
+            software_revision=None,
+            tags=None,
         )

@@ -68,7 +68,6 @@ def adr_ca_policy_update(
     certificate_authority_name: str,
     namespace_name: str,
     resource_group_name: str,
-    validity_days: Optional[int] = None,
     tags: Optional[Dict[str, str]] = None,
     **kwargs,
 ):
@@ -78,7 +77,6 @@ def adr_ca_policy_update(
         certificate_authority_name=certificate_authority_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
-        validity_days=validity_days,
         tags=tags,
         **kwargs,
     )

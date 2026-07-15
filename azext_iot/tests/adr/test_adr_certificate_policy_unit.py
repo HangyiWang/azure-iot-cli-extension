@@ -103,18 +103,18 @@ def test_list_ca_policy(fixture_ca_policy_provider):
 
 
 def test_update_ca_policy(fixture_ca_policy_provider, mock_poller):
-    """Update sends validity days and fetches fresh state via show()."""
+    """Update sends tags and fetches fresh state via show()."""
     fixture_ca_policy_provider.client.certificate_policies.begin_update.return_value = mock_poller(Mock())
     fixture_ca_policy_provider.client.certificate_policies.get.return_value = {"name": "cp"}
 
     result = fixture_ca_policy_provider.update(
         certificate_policy_name="cp", certificate_authority_name="ca",
-        namespace_name="ns", resource_group_name="rg", validity_days=20,
+        namespace_name="ns", resource_group_name="rg", tags={"env": "test"},
     )
 
     assert result["name"] == "cp"
     properties = fixture_ca_policy_provider.client.certificate_policies.begin_update.call_args[1]["properties"]
-    assert properties["properties"]["certificate"]["validityPeriodInDays"] == 20
+    assert properties == {"tags": {"env": "test"}}
 
 
 # ==================== Delete ====================
@@ -193,7 +193,7 @@ def test_update_ca_policy_parent_not_found(fixture_ca_policy_provider):
     with pytest.raises(ResourceNotFoundError, match=r"certificate authority"):
         fixture_ca_policy_provider.update(
             certificate_policy_name="cp", certificate_authority_name="ca",
-            namespace_name="ns", resource_group_name="rg", validity_days=10,
+            namespace_name="ns", resource_group_name="rg", tags={"env": "test"},
         )
 
 
@@ -243,7 +243,7 @@ def test_update_ca_policy_no_wait_returns_poller(fixture_ca_policy_provider, moc
 
     result = fixture_ca_policy_provider.update(
         certificate_policy_name="cp", certificate_authority_name="ca",
-        namespace_name="ns", resource_group_name="rg", validity_days=20, no_wait=True,
+        namespace_name="ns", resource_group_name="rg", tags={"env": "test"}, no_wait=True,
     )
 
     assert result is poller

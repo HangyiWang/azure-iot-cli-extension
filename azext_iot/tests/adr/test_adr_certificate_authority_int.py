@@ -8,8 +8,8 @@
 ADR certificate authority and policy integration tests.
 
 Exercises the `iot adr ns ca` and `iot adr ns ca policy` command surfaces against a
-namespace created with certificate management enabled. Activation of a 'BringYourOwn'
-certificate authority requires external PKI signing and is therefore not asserted here;
+namespace. Activation of an externally issued ICA requires external PKI signing and is
+therefore not asserted here;
 the lifecycle focuses on the create/show/list/update/delete paths that run without an
 external signer.
 
@@ -107,12 +107,12 @@ class TestADRCertificateAuthorityLifecycle(CaptureOutputLiveScenarioTest):
                 policies = policy_cmd("list").get_output_in_json()
                 assert policy_name in [p["name"] for p in policies]
 
-            # --- Step 7: Update policy validity ---
-            with timed_step("Step 7 ❯ Update certificate policy validity"):
+            # --- Step 7: Update policy tags ---
+            with timed_step("Step 7 ❯ Update certificate policy tags"):
                 updated_pol = policy_cmd(
-                    f"update -n {policy_name} --validity-days 20"
+                    f"update -n {policy_name} --tags env=updated"
                 ).get_output_in_json()
-                assert props(updated_pol)["certificate"]["validityPeriodInDays"] == 20
+                assert updated_pol.get("tags", {}).get("env") == "updated"
 
             # --- Step 8: Negative: policy under a missing CA fails clearly ---
             with timed_step("Step 8 ❯ Negative: policy on nonexistent CA fails"):

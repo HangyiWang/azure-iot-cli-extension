@@ -8,7 +8,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 from azure.cli.core.azclierror import (
-    ArgumentUsageError,
     MutuallyExclusiveArgumentError,
 )
 
@@ -256,6 +255,7 @@ def test_create_namespace_outbound_sami(fixture_namespace_provider, mock_poller)
     assert body["properties"]["outboundIdentity"] == {
         "type": IdentityType.system_assigned.value
     }
+    assert body["identity"] == {"type": "SystemAssigned"}
 
 
 UAMI_RESOURCE_ID = (
@@ -264,15 +264,27 @@ UAMI_RESOURCE_ID = (
 )
 
 
-def test_create_namespace_outbound_uami_rejected(fixture_namespace_provider):
-    """UAMI for outbound identity is rejected client-side until backend lands."""
-    with pytest.raises(ArgumentUsageError):
-        fixture_namespace_provider.create(
-            namespace_name="ns",
-            resource_group_name="rg",
-            location="eastus",
-            outbound_mi_user_assigned=UAMI_RESOURCE_ID,
-        )
+def test_create_namespace_outbound_uami(fixture_namespace_provider, mock_poller):
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
+        {"name": "ns", "location": "eastus", "resourceGroup": "rg"}
+    )
+
+    fixture_namespace_provider.create(
+        namespace_name="ns",
+        resource_group_name="rg",
+        location="eastus",
+        outbound_mi_user_assigned=UAMI_RESOURCE_ID,
+    )
+
+    body = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]["resource"]
+    assert body["properties"]["outboundIdentity"] == {
+        "type": IdentityType.user_assigned.value,
+        "userAssignedIdentity": UAMI_RESOURCE_ID,
+    }
+    assert body["identity"] == {
+        "type": "SystemAssigned,UserAssigned",
+        "userAssignedIdentities": {UAMI_RESOURCE_ID: {}},
+    }
 
 
 def test_create_namespace_outbound_mi_mutually_exclusive(fixture_namespace_provider):
@@ -292,6 +304,12 @@ def test_update_namespace_outbound_sami(fixture_namespace_provider, mock_poller)
     fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
         {"name": "ns"}
     )
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {
+            "type": "SystemAssigned,UserAssigned",
+            "userAssignedIdentities": {UAMI_RESOURCE_ID: {"principalId": "ignored"}},
+        }
+    }
     fixture_namespace_provider.update(
         namespace_name="ns",
         resource_group_name="rg",
@@ -301,15 +319,44 @@ def test_update_namespace_outbound_sami(fixture_namespace_provider, mock_poller)
     assert body["properties"]["outboundIdentity"] == {
         "type": IdentityType.system_assigned.value
     }
+    assert body["identity"] == {
+        "type": "SystemAssigned,UserAssigned",
+        "userAssignedIdentities": {UAMI_RESOURCE_ID: {}},
+    }
 
 
-def test_update_namespace_outbound_uami_rejected(fixture_namespace_provider):
-    with pytest.raises(ArgumentUsageError):
-        fixture_namespace_provider.update(
-            namespace_name="ns",
-            resource_group_name="rg",
-            outbound_mi_user_assigned=UAMI_RESOURCE_ID,
-        )
+def test_update_namespace_outbound_uami_preserves_existing_assignments(
+    fixture_namespace_provider, mock_poller
+):
+    existing_uami = UAMI_RESOURCE_ID.replace("/uami", "/existing")
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {
+            "type": "SystemAssigned,UserAssigned",
+            "userAssignedIdentities": {existing_uami: {"principalId": "ignored"}},
+        }
+    }
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "ns"}
+    )
+
+    fixture_namespace_provider.update(
+        namespace_name="ns",
+        resource_group_name="rg",
+        outbound_mi_user_assigned=UAMI_RESOURCE_ID,
+    )
+
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args[1]["properties"]
+    assert body["properties"]["outboundIdentity"] == {
+        "type": IdentityType.user_assigned.value,
+        "userAssignedIdentity": UAMI_RESOURCE_ID,
+    }
+    assert body["identity"] == {
+        "type": "SystemAssigned,UserAssigned",
+        "userAssignedIdentities": {
+            existing_uami: {},
+            UAMI_RESOURCE_ID: {},
+        },
+    }
 
 
 # ==================== --no-wait short-circuit ====================
@@ -330,6 +377,9 @@ def test_namespace_delete_no_wait_returns_poller(fixture_namespace_provider, moc
 def test_namespace_update_no_wait_returns_poller(fixture_namespace_provider, mock_poller):
     poller = mock_poller({"name": "ns"})
     fixture_namespace_provider.client.namespaces.begin_update.return_value = poller
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {"type": "SystemAssigned"}
+    }
 
     result = fixture_namespace_provider.update(
         namespace_name="ns",

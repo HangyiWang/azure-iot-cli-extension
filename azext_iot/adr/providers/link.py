@@ -193,8 +193,10 @@ def _build_hub_endpoint_body(
     body = {
         "endpointType": IOT_HUB_ENDPOINT_TYPE,
         "resourceId": hub_resource_id,
-        "inboundCallerIdentity": _build_inbound_identity(mi_system_assigned, mi_user_assigned),
     }
+    inbound_identity = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
+    if inbound_identity is not None:
+        body["inboundCallerIdentity"] = inbound_identity
     provisioning = {}
     if availability is not None:
         provisioning["availability"] = availability

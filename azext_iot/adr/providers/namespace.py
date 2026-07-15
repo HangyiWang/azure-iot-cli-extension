@@ -7,7 +7,6 @@
 from typing import Dict, Optional
 
 from azure.cli.core.azclierror import (
-    ArgumentUsageError,
     MutuallyExclusiveArgumentError,
 )
 from knack.log import get_logger
@@ -17,6 +16,7 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_KEY_TYPE,
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     IdentityType,
+    ManagedServiceIdentityType,
     build_mi_body,
 )
 from azext_iot.adr.providers.base import ADRProvider, console
@@ -32,21 +32,12 @@ _OUTBOUND_MI_MUTEX_MSG = (
     "managed identity (the two options are mutually exclusive)."
 )
 
-_OUTBOUND_UAMI_PENDING_MSG = (
-    "User-assigned managed identity for outbound identity is not yet available from the backend. "
-    "Use --outbound-mi-system-assigned instead."
-)
-
 
 def _resolve_outbound_identity(
     outbound_mi_system_assigned: Optional[bool],
     outbound_mi_user_assigned: Optional[str],
 ) -> Optional[dict]:
-    """Return the OutboundIdentity body (or None when no flag provided).
-
-    SAMI and UAMI are mutually exclusive. UAMI is currently rejected because
-    it is not yet available from the backend.
-    """
+    """Return the OutboundIdentity body (or None when no flag provided)."""
     # An empty/whitespace UAMI (e.g. `--outbound-mi-user-assigned ""`) means the caller
     # did not actually supply one. Clear it first so it neither trips the SAMI/UAMI
     # mutually-exclusive check below nor reaches build_mi_body as a malformed value.
@@ -54,14 +45,41 @@ def _resolve_outbound_identity(
         outbound_mi_user_assigned = None
     if outbound_mi_system_assigned and outbound_mi_user_assigned:
         raise MutuallyExclusiveArgumentError(_OUTBOUND_MI_MUTEX_MSG)
-    if outbound_mi_user_assigned:
-        raise ArgumentUsageError(_OUTBOUND_UAMI_PENDING_MSG)
     return build_mi_body(
         outbound_mi_system_assigned,
         outbound_mi_user_assigned,
         sami_type=IdentityType.system_assigned.value,
         uami_type=IdentityType.user_assigned.value,
     )
+
+
+def _build_namespace_identity(
+    existing_identity: Optional[dict] = None,
+    user_assigned_identity: Optional[str] = None,
+    ensure_system_assigned: bool = False,
+) -> dict:
+    """Build a namespace ARM identity while preserving existing UAMI assignments."""
+    existing_identity = existing_identity or {}
+    identity_type = existing_identity.get("type") or ""
+    has_system_assigned = ensure_system_assigned or "SystemAssigned" in identity_type
+    user_assigned_identities = {
+        resource_id: {}
+        for resource_id in (existing_identity.get("userAssignedIdentities") or {})
+    }
+    if user_assigned_identity:
+        user_assigned_identities[user_assigned_identity] = {}
+
+    if has_system_assigned and user_assigned_identities:
+        resolved_type = ManagedServiceIdentityType.system_assigned_user_assigned.value
+    elif has_system_assigned:
+        resolved_type = ManagedServiceIdentityType.system_assigned.value
+    else:
+        resolved_type = ManagedServiceIdentityType.user_assigned.value
+
+    identity = {"type": resolved_type}
+    if user_assigned_identities:
+        identity["userAssignedIdentities"] = user_assigned_identities
+    return identity
 
 
 class NamespaceProvider(ADRProvider):
@@ -109,9 +127,6 @@ class NamespaceProvider(ADRProvider):
 
         namespace_resource = {"location": location}
 
-        # Default system assigned identity
-        namespace_resource["identity"] = {"type": IdentityType.system_assigned.value}
-
         if tags:
             namespace_resource["tags"] = tags
 
@@ -122,6 +137,12 @@ class NamespaceProvider(ADRProvider):
         properties = {}
         if outbound_identity is not None:
             properties["outboundIdentity"] = outbound_identity
+        namespace_resource["identity"] = _build_namespace_identity(
+            user_assigned_identity=(
+                outbound_identity.get("userAssignedIdentity") if outbound_identity else None
+            ),
+            ensure_system_assigned=True,
+        )
         if properties:
             namespace_resource["properties"] = properties
 
@@ -221,6 +242,15 @@ class NamespaceProvider(ADRProvider):
         )
         if outbound_identity is not None:
             properties["outboundIdentity"] = outbound_identity
+            namespace = self.client.namespaces.get(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+            )
+            body["identity"] = _build_namespace_identity(
+                existing_identity=(namespace or {}).get("identity"),
+                user_assigned_identity=outbound_identity.get("userAssignedIdentity"),
+                ensure_system_assigned=bool(outbound_mi_system_assigned),
+            )
         if properties:
             body["properties"] = properties
 

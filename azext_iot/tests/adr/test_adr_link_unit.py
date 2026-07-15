@@ -155,15 +155,21 @@ def test_hub_add_mi_mutually_exclusive(fixture_link_provider):
         )
 
 
-def test_hub_add_requires_inbound_identity(fixture_link_provider):
+def test_hub_add_without_inbound_identity_omits_field(fixture_link_provider, mock_poller):
     fixture_link_provider.client.namespaces.get.return_value = _ns_with_dps()
-    with pytest.raises(RequiredArgumentMissingError):
-        fixture_link_provider.hub_add(
-            endpoint_name="primary",
-            namespace_name="ns",
-            resource_group_name="rg",
-            hub_resource_id=HUB_RESOURCE_ID,
-        )
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.hub_add(
+        endpoint_name="primary",
+        namespace_name="ns",
+        resource_group_name="rg",
+        hub_resource_id=HUB_RESOURCE_ID,
+    )
+
+    endpoint = fixture_link_provider.client.namespaces.begin_update.call_args[1][
+        "properties"
+    ]["properties"]["messaging"]["endpoints"]["primary"]
+    assert "inboundCallerIdentity" not in endpoint
 
 
 # ==================== Update ====================
@@ -808,6 +814,25 @@ def test_link_add_dps_mi_required(fixture_link_provider):
             hub_mi_system_assigned=True,
             # no dps_mi_*
         )
+
+
+def test_link_add_hub_mi_optional(fixture_link_provider, mock_poller):
+    fixture_link_provider.client.namespaces.get.return_value = _ns_with_no_dps_or_hub()
+    fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller({"name": "ns"})
+
+    fixture_link_provider.link_add(
+        namespace_name="ns",
+        resource_group_name="rg",
+        hub_endpoint_name="primary-hub",
+        hub_resource_id=HUB_RESOURCE_ID,
+        dps_endpoint_name="primary-dps",
+        dps_resource_id=DPS_RESOURCE_ID,
+        dps_mi_system_assigned=True,
+    )
+
+    body = fixture_link_provider.client.namespaces.begin_update.call_args[1]["properties"]
+    hub = body["properties"]["messaging"]["endpoints"]["primary-hub"]
+    assert "inboundCallerIdentity" not in hub
 
 
 # ==================== --no-wait short-circuit ====================

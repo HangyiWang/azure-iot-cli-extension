@@ -2025,13 +2025,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -2192,13 +2192,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -2362,13 +2362,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -2590,13 +2590,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -2678,13 +2678,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -2796,13 +2796,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -2906,13 +2906,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -2994,13 +2994,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -3222,13 +3222,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -3308,13 +3308,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -3426,13 +3426,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -3533,13 +3533,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -3619,13 +3619,13 @@ class NamespacesOperations:
                         "messaging": {
                             "endpoints": {
                                 "str": {
+                                    "address": "str",
+                                    "deviceAddress": "str",
+                                    "endpointType": "str",
                                     "inboundCallerIdentity": {
                                         "type": "str",
                                         "userAssignedIdentity": "str"
                                     },
-                                    "address": "str",
-                                    "deviceAddress": "str",
-                                    "endpointType": "str",
                                     "linkingError": {
                                         "code": "str",
                                         "message": "str"
@@ -8725,16 +8725,30 @@ class PoliciesOperations:
 
                 # JSON input template you can fill out and use as your body input.
                 properties = {
+                    "id": "str",
+                    "name": "str",
                     "properties": {
                         "certificate": {
+                            "certificateAuthorityConfiguration": {
+                                "bringYourOwnRoot": {}
+                            },
                             "leafCertificateConfiguration": {
                                 "validityPeriodInDays": 0
                             }
                         }
                     },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
                     "tags": {
                         "str": "str"
-                    }
+                    },
+                    "type": "str"
                 }
 
                 # response body for status code(s): 200
@@ -8881,16 +8895,30 @@ class PoliciesOperations:
 
                 # JSON input template you can fill out and use as your body input.
                 properties = {
+                    "id": "str",
+                    "name": "str",
                     "properties": {
                         "certificate": {
+                            "certificateAuthorityConfiguration": {
+                                "bringYourOwnRoot": {}
+                            },
                             "leafCertificateConfiguration": {
                                 "validityPeriodInDays": 0
                             }
                         }
                     },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
                     "tags": {
                         "str": "str"
-                    }
+                    },
+                    "type": "str"
                 }
 
                 # response body for status code(s): 200
@@ -11583,6 +11611,7 @@ class RegistryDevicesOperations:
                     "id": "str",
                     "name": "str",
                     "properties": {
+                        "enablementState": "str",
                         "externalDeviceId": "str",
                         "hardwareRevision": "str",
                         "manufacturer": "str",
@@ -11697,6 +11726,7 @@ class RegistryDevicesOperations:
                     "id": "str",
                     "name": "str",
                     "properties": {
+                        "enablementState": "str",
                         "externalDeviceId": "str",
                         "hardwareRevision": "str",
                         "manufacturer": "str",
@@ -11764,245 +11794,14 @@ class RegistryDevicesOperations:
 
         return cast(JSON, deserialized)  # type: ignore
 
-    @overload
-    def create_or_replace(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        registry_device_name: str,
-        resource: JSON,
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> JSON:
-        """Create a RegistryDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
-        :param resource: Resource create parameters. Required.
-        :type resource: JSON
-        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                resource = {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-
-                # response body for status code(s): 200, 201
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-
-    @overload
-    def create_or_replace(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        registry_device_name: str,
-        resource: IO[bytes],
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> JSON:
-        """Create a RegistryDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
-        :param resource: Resource create parameters. Required.
-        :type resource: IO[bytes]
-        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # response body for status code(s): 200, 201
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-
-    @distributed_trace
-    def create_or_replace(
+    def _create_or_replace_initial(
         self,
         resource_group_name: str,
         namespace_name: str,
         registry_device_name: str,
         resource: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> JSON:
-        """Create a RegistryDevice.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
-        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
-         Required.
-        :type resource: JSON or IO[bytes]
-        :return: JSON object
-        :rtype: JSON
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                resource = {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-
-                # response body for status code(s): 200, 201
-                response == {
-                    "location": "str",
-                    "etag": "str",
-                    "id": "str",
-                    "name": "str",
-                    "properties": {
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "provisioningState": "str",
-                        "softwareRevision": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
+    ) -> Iterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -12015,7 +11814,7 @@ class RegistryDevicesOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -12039,7 +11838,7 @@ class RegistryDevicesOperations:
         )
         _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
@@ -12047,31 +11846,39 @@ class RegistryDevicesOperations:
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 201]:
+            try:
+                response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if response.content:
-            deserialized = response.json()
-        else:
-            deserialized = None
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(JSON, deserialized)  # type: ignore
+        return cast(Iterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def update(
+    def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
         registry_device_name: str,
-        properties: JSON,
+        resource: JSON,
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> JSON:
-        """Update a RegistryDevice.
+    ) -> LROPoller[JSON]:
+        """Create a RegistryDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -12080,23 +11887,26 @@ class RegistryDevicesOperations:
         :type namespace_name: str
         :param registry_device_name: The name of the new device. Required.
         :type registry_device_name: str
-        :param properties: The resource properties to be updated. Required.
-        :type properties: JSON
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: JSON object
-        :rtype: JSON
+        :return: An instance of LROPoller that returns JSON object
+        :rtype: ~azure.core.polling.LROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
             .. code-block:: python
 
                 # JSON input template you can fill out and use as your body input.
-                properties = {
+                resource = {
+                    "location": "str",
+                    "etag": "str",
                     "id": "str",
                     "name": "str",
                     "properties": {
+                        "enablementState": "str",
                         "externalDeviceId": "str",
                         "hardwareRevision": "str",
                         "manufacturer": "str",
@@ -12119,13 +11929,14 @@ class RegistryDevicesOperations:
                     "type": "str"
                 }
 
-                # response body for status code(s): 200
+                # response body for status code(s): 200, 201
                 response == {
                     "location": "str",
                     "etag": "str",
                     "id": "str",
                     "name": "str",
                     "properties": {
+                        "enablementState": "str",
                         "externalDeviceId": "str",
                         "hardwareRevision": "str",
                         "manufacturer": "str",
@@ -12150,17 +11961,17 @@ class RegistryDevicesOperations:
         """
 
     @overload
-    def update(
+    def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
         registry_device_name: str,
-        properties: IO[bytes],
+        resource: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> JSON:
-        """Update a RegistryDevice.
+    ) -> LROPoller[JSON]:
+        """Create a RegistryDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -12169,25 +11980,26 @@ class RegistryDevicesOperations:
         :type namespace_name: str
         :param registry_device_name: The name of the new device. Required.
         :type registry_device_name: str
-        :param properties: The resource properties to be updated. Required.
-        :type properties: IO[bytes]
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: JSON object
-        :rtype: JSON
+        :return: An instance of LROPoller that returns JSON object
+        :rtype: ~azure.core.polling.LROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
             .. code-block:: python
 
-                # response body for status code(s): 200
+                # response body for status code(s): 200, 201
                 response == {
                     "location": "str",
                     "etag": "str",
                     "id": "str",
                     "name": "str",
                     "properties": {
+                        "enablementState": "str",
                         "externalDeviceId": "str",
                         "hardwareRevision": "str",
                         "manufacturer": "str",
@@ -12212,15 +12024,15 @@ class RegistryDevicesOperations:
         """
 
     @distributed_trace
-    def update(
+    def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
         registry_device_name: str,
-        properties: Union[JSON, IO[bytes]],
+        resource: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> JSON:
-        """Update a RegistryDevice.
+    ) -> LROPoller[JSON]:
+        """Create a RegistryDevice.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -12229,21 +12041,24 @@ class RegistryDevicesOperations:
         :type namespace_name: str
         :param registry_device_name: The name of the new device. Required.
         :type registry_device_name: str
-        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
-         type. Required.
-        :type properties: JSON or IO[bytes]
-        :return: JSON object
-        :rtype: JSON
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of LROPoller that returns JSON object
+        :rtype: ~azure.core.polling.LROPoller[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
             .. code-block:: python
 
                 # JSON input template you can fill out and use as your body input.
-                properties = {
+                resource = {
+                    "location": "str",
+                    "etag": "str",
                     "id": "str",
                     "name": "str",
                     "properties": {
+                        "enablementState": "str",
                         "externalDeviceId": "str",
                         "hardwareRevision": "str",
                         "manufacturer": "str",
@@ -12266,13 +12081,14 @@ class RegistryDevicesOperations:
                     "type": "str"
                 }
 
-                # response body for status code(s): 200
+                # response body for status code(s): 200, 201
                 response == {
                     "location": "str",
                     "etag": "str",
                     "id": "str",
                     "name": "str",
                     "properties": {
+                        "enablementState": "str",
                         "externalDeviceId": "str",
                         "hardwareRevision": "str",
                         "manufacturer": "str",
@@ -12295,6 +12111,64 @@ class RegistryDevicesOperations:
                     "type": "str"
                 }
         """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                registry_device_name=registry_device_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: PollingMethod = cast(
+                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(PollingMethod, NoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return LROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    def _update_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> Iterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -12307,7 +12181,7 @@ class RegistryDevicesOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -12331,26 +12205,316 @@ class RegistryDevicesOperations:
         )
         _request.url = self._client.format_url(_request.url)
 
-        _stream = False
+        _stream = True
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
-        if response.status_code not in [200]:
+        if response.status_code not in [200, 202]:
+            try:
+                response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        if response.content:
-            deserialized = response.json()
-        else:
-            deserialized = None
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
 
         if cls:
-            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
 
-        return cast(JSON, deserialized)  # type: ignore
+        return cast(Iterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> LROPoller[JSON]:
+        """Update a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of LROPoller that returns JSON object
+        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "softwareRevision": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> LROPoller[JSON]:
+        """Update a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of LROPoller that returns JSON object
+        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace
+    def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> LROPoller[JSON]:
+        """Update a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of LROPoller that returns JSON object
+        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "softwareRevision": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = self._update_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                registry_device_name=registry_device_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: PollingMethod = cast(
+                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(PollingMethod, NoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return LROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     def _delete_initial(
         self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any

@@ -44,6 +44,10 @@ def load_adr_help():
       text: az iot adr ns create -n myNamespace -g myResourceGroup --policy-name myPolicy --cert-validity-days 30
     - name: Create a Device Registry namespace with system-assigned outbound identity
       text: az iot adr ns create -n myNamespace -g myResourceGroup --outbound-mi-system-assigned
+    - name: Create a namespace with a user-assigned outbound identity
+      text: |
+        az iot adr ns create -n myNamespace -g myResourceGroup \\
+          --outbound-mi-user-assigned /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<id>
   """
 
     helps[
@@ -261,14 +265,21 @@ def load_adr_help():
   long-summary: |
     The certificate authority type determines the required associated properties:
     - Root: a service-managed self-signed root CA.
-    - ICA: an intermediate CA signed by another CA in the same namespace.
-    - BringYourOwn: a CA certificate signed by an external issuer. After creation the service
-      returns a CSR; sign it with your PKI and complete activation with 'az iot adr ns ca activate'.
+    - ICA with an Internal issuer: signed by another CA in the same namespace. Pass the issuing
+      CA's UUID with --issuer-ca-uuid.
+    - ICA with an External issuer: signed by an external PKI. After creation the service returns
+      a CSR; sign it and complete activation with 'az iot adr ns ca activate'.
   examples:
     - name: Create a service-managed root certificate authority
       text: az iot adr ns ca create -n myRootCA --ns myNamespace -g myResourceGroup --type Root
-    - name: Create a Bring Your Own certificate authority
-      text: az iot adr ns ca create -n myByoCA --ns myNamespace -g myResourceGroup --type BringYourOwn
+    - name: Create an internally issued intermediate certificate authority
+      text: |
+        az iot adr ns ca create -n myInternalICA --ns myNamespace -g myResourceGroup \\
+          --type ICA --issuer-type Internal --issuer-ca-uuid 11111111-1111-1111-1111-111111111111
+    - name: Create an externally issued intermediate certificate authority
+      text: |
+        az iot adr ns ca create -n myExternalICA --ns myNamespace -g myResourceGroup \\
+          --type ICA --issuer-type External
   """
 
     helps[
@@ -315,21 +326,21 @@ def load_adr_help():
         "iot adr ns ca activate"
     ] = """
   type: command
-  short-summary: Activate a Bring Your Own certificate authority with a signed certificate chain.
+  short-summary: Activate an externally issued intermediate certificate authority.
   long-summary: |
-    Use this after creating a 'BringYourOwn' certificate authority and signing the
-    service-generated CSR with your external PKI. The certificate chain file must be in PEM
+    Use this after creating an ICA with --issuer-type External and signing the service-generated
+    CSR with your external PKI. The certificate chain file must be in PEM
     format with certificates ordered from leaf to root.
   examples:
-    - name: Activate a BringYourOwn certificate authority
-      text: az iot adr ns ca activate -n myByoCA --ns myNamespace -g myResourceGroup --certificate-chain-file ./signed-chain.pem
+    - name: Activate an externally issued ICA
+      text: az iot adr ns ca activate -n myExternalICA --ns myNamespace -g myResourceGroup --certificate-chain-file ./signed-chain.pem
   """
 
     helps[
         "iot adr ns ca revoke"
     ] = """
   type: command
-  short-summary: Revoke a certificate authority issued by Microsoft PKI.
+  short-summary: Revoke an intermediate certificate authority issued by an internal CA.
   examples:
     - name: Revoke a certificate authority
       text: az iot adr ns ca revoke -n myCA --ns myNamespace -g myResourceGroup
@@ -380,8 +391,8 @@ def load_adr_help():
   type: command
   short-summary: Update a certificate policy for a certificate authority.
   examples:
-    - name: Update the leaf certificate validity period
-      text: az iot adr ns ca policy update -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup --validity-days 20
+    - name: Update certificate policy tags
+      text: az iot adr ns ca policy update -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup --tags env=prod
   """
 
     helps[
@@ -407,8 +418,8 @@ def load_adr_help():
   type: command
   short-summary: Create a registry device in a Device Registry namespace.
   examples:
-    - name: Create a registry device with descriptive metadata
-      text: az iot adr ns registry-device create -n myDevice --ns myNamespace -g myResourceGroup --manufacturer Contoso --model X1 --external-device-id ext-123
+    - name: Create an enabled registry device with descriptive metadata
+      text: az iot adr ns registry-device create -n myDevice --ns myNamespace -g myResourceGroup --enablement-state Enabled --manufacturer Contoso --model X1 --external-device-id ext-123
   """
 
     helps[
@@ -437,8 +448,8 @@ def load_adr_help():
   type: command
   short-summary: Update a registry device.
   examples:
-    - name: Update a registry device's software revision
-      text: az iot adr ns registry-device update -n myDevice --ns myNamespace -g myResourceGroup --software-revision 2.0
+    - name: Disable a registry device and update its software revision
+      text: az iot adr ns registry-device update -n myDevice --ns myNamespace -g myResourceGroup --enablement-state Disabled --software-revision 2.0
   """
 
     helps[
@@ -572,8 +583,8 @@ def load_adr_help():
   long-summary: |
     Adds a Hub messaging endpoint entry under the namespace's properties.messaging.endpoints.
     Requires the namespace to already have at least one linked DPS (DPS-first ordering).
-    Exactly one of --mi-system-assigned or --mi-user-assigned must be provided to set the
-    inbound caller identity that the Hub will use to call back into the namespace.
+    --mi-system-assigned and --mi-user-assigned are optional. When supplied, exactly one may be
+    used to set the inbound caller identity that the Hub will use to call back into the namespace.
     Prerequisite role assignments (otherwise linking fails with AdrMiNotAuthorized): the
     namespace's managed identity needs Contributor AND 'IoT Hub Data Contributor' on the Hub,
     and the Hub's own managed identity needs Contributor on the namespace. Creating these role
@@ -584,6 +595,10 @@ def load_adr_help():
         az iot adr ns link hub add -n primary --ns myNamespace -g myResourceGroup \\
           --hub-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub> \\
           --mi-system-assigned
+    - name: Link a Hub without configuring an inbound caller identity
+      text: |
+        az iot adr ns link hub add -n primary --ns myNamespace -g myResourceGroup \\
+          --hub-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub>
     - name: Link a Hub with a user-assigned identity and custom availability/weight
       text: |
         az iot adr ns link hub add -n secondary --ns myNamespace -g myResourceGroup \\
@@ -599,7 +614,7 @@ def load_adr_help():
   short-summary: Update an existing IoT Hub messaging endpoint on a Device Registry namespace.
   long-summary: |
     Only the inbound caller identity and provisioning fields can be updated. The linked Hub
-    resource cannot be changed; to point the endpoint at a different Hub, remove and re-add it.
+    resource cannot be changed in place.
   examples:
     - name: Switch a Hub link to a system-assigned identity
       text: az iot adr ns link hub update -n primary --ns myNamespace -g myResourceGroup --mi-system-assigned
@@ -685,8 +700,8 @@ def load_adr_help():
   type: command
   short-summary: Update an existing DPS provisioning endpoint on a Device Registry namespace.
   long-summary: |
-    Only the inbound caller identity may be updated. The linked DPS resource cannot be changed;
-    to point the endpoint at a different DPS, remove and re-add it.
+    Only the inbound caller identity may be updated. The linked DPS resource cannot be changed
+    in place.
   examples:
     - name: Rotate to a system-assigned identity on an existing DPS link
       text: az iot adr ns link dps update -n primary --ns myNamespace -g myResourceGroup --mi-system-assigned
@@ -833,6 +848,11 @@ def load_adr_help():
         az iot adr ns link add --ns myNamespace -g myResourceGroup \\
           --hub-name primary-hub --hub-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub> --hub-mi-system-assigned \\
           --dps-name primary-dps --dps-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/provisioningServices/<dps> --dps-mi-system-assigned
+    - name: Link both resources without configuring a Hub inbound caller identity
+      text: |
+        az iot adr ns link add --ns myNamespace -g myResourceGroup \\
+          --hub-name primary-hub --hub-id <hub-id> \\
+          --dps-name primary-dps --dps-id <dps-id> --dps-mi-system-assigned
     - name: Link both with custom Hub availability and weight
       text: |
         az iot adr ns link add --ns myNamespace -g myResourceGroup \\

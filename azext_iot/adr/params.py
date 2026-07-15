@@ -18,11 +18,13 @@ from azure.cli.core.commands.parameters import (
 from azure.cli.core.commands.validators import get_default_location_from_resource_group
 from azext_iot.adr.common import (
     CertificateAuthorityKeyType,
+    CertificateAuthorityIssuerType,
     CertificateAuthorityType,
     GroupType,
     JobType,
     MessagingEndpointAvailability,
     PolicyCertificateKeyType,
+    RegistryDeviceEnablementState,
 )
 
 
@@ -149,9 +151,20 @@ def load_adr_arguments(self, _):
             "certificate_authority_type",
             options_list=["--type", "--ca-type"],
             arg_type=get_enum_type(CertificateAuthorityType),
-            help="The certificate authority type. Use 'Root' for a service-managed self-signed root CA, "
-                 "'ICA' for an intermediate CA signed by another same-namespace CA, or 'BringYourOwn' "
-                 "for a CA certificate signed by an external issuer.",
+            help="The certificate authority type. Use 'Root' for a service-managed self-signed root CA "
+                 "or 'ICA' for an intermediate CA.",
+        )
+        context.argument(
+            "issuer_type",
+            options_list=["--issuer-type"],
+            arg_type=get_enum_type(CertificateAuthorityIssuerType),
+            help="Issuer type for an ICA. Use 'Internal' for a same-namespace CA or 'External' "
+                 "for an external PKI.",
+        )
+        context.argument(
+            "issuer_certificate_authority_uuid",
+            options_list=["--issuer-ca-uuid", "--issuer-certificate-authority-uuid"],
+            help="UUID of the same-namespace issuing CA. Required with --issuer-type Internal.",
         )
         context.argument(
             "key_type",
@@ -164,8 +177,8 @@ def load_adr_arguments(self, _):
         context.argument(
             "certificate_chain_file",
             options_list=["--certificate-chain-file", "--ccf"],
-            help="Path to a PEM file containing the signed certificate chain for a 'BringYourOwn' "
-                 "certificate authority. Certificates must be ordered from leaf to root.",
+            help="Path to a PEM file containing the signed certificate chain for an externally issued "
+                 "ICA. Certificates must be ordered from leaf to root.",
         )
 
     # Certificate Policy (nested under a certificate authority) arguments
@@ -182,16 +195,13 @@ def load_adr_arguments(self, _):
         )
         context.argument("tags", arg_type=tags_type)
 
-    for cmd in ["iot adr ns ca policy create", "iot adr ns ca policy update"]:
-        with self.argument_context(cmd) as context:
-            context.argument(
-                "validity_days",
-                options_list=["--validity-days", "--vd"],
-                type=int,
-                help="Leaf certificate validity period in days.",
-            )
-
     with self.argument_context("iot adr ns ca policy create") as context:
+        context.argument(
+            "validity_days",
+            options_list=["--validity-days", "--vd"],
+            type=int,
+            help="Leaf certificate validity period in days.",
+        )
         context.argument(
             "location",
             arg_type=get_location_type(self.cli_ctx),
@@ -215,9 +225,10 @@ def load_adr_arguments(self, _):
     for cmd in ["iot adr ns registry-device create", "iot adr ns registry-device update"]:
         with self.argument_context(cmd) as context:
             context.argument(
-                "external_device_id",
-                options_list=["--external-device-id", "--ext-id"],
-                help="External identifier of the device in its source system.",
+                "enablement_state",
+                options_list=["--enablement-state"],
+                arg_type=get_enum_type(RegistryDeviceEnablementState),
+                help="Whether the registry device is enabled or disabled.",
             )
             context.argument(
                 "manufacturer",
@@ -241,6 +252,11 @@ def load_adr_arguments(self, _):
             )
 
     with self.argument_context("iot adr ns registry-device create") as context:
+        context.argument(
+            "external_device_id",
+            options_list=["--external-device-id", "--ext-id"],
+            help="External identifier of the device in its source system.",
+        )
         context.argument(
             "location",
             arg_type=get_location_type(self.cli_ctx),
@@ -349,8 +365,8 @@ def load_adr_arguments(self, _):
                 "outbound_mi_user_assigned",
                 arg_group="Outbound Identity",
                 options_list=["--outbound-mi-user-assigned", "--omi-ua"],
-                help="User-assigned managed identity resource ID for the outbound identity. "
-                     "NOTE: Currently unsupported.",
+                help="User-assigned managed identity resource ID to assign to the namespace and use "
+                     "for outbound calls.",
             )
 
     # Link hub arguments
@@ -373,15 +389,15 @@ def load_adr_arguments(self, _):
                 arg_group="Inbound Caller Identity",
                 options_list=["--mi-system-assigned", "--mi-sa"],
                 arg_type=get_three_state_flag(),
-                help="Use the namespace's system-assigned managed identity as the inbound caller "
-                     "identity on this messaging endpoint.",
+                help="Optionally use the namespace's system-assigned managed identity as the inbound "
+                     "caller identity on this messaging endpoint.",
             )
             context.argument(
                 "mi_user_assigned",
                 arg_group="Inbound Caller Identity",
                 options_list=["--mi-user-assigned", "--mi-ua"],
-                help="Resource ID of the user-assigned managed identity to use as the inbound caller "
-                     "identity on this messaging endpoint.",
+                help="Optional resource ID of the user-assigned managed identity to use as the inbound "
+                     "caller identity on this messaging endpoint.",
             )
             context.argument(
                 "availability",
@@ -505,13 +521,14 @@ def load_adr_arguments(self, _):
             arg_group="Hub",
             options_list=["--hub-mi-system-assigned", "--hub-mi-sa"],
             arg_type=get_three_state_flag(),
-            help="Use the namespace's system-assigned managed identity as the Hub inbound caller identity.",
+            help="Optionally use the namespace's system-assigned managed identity as the Hub inbound "
+                 "caller identity.",
         )
         context.argument(
             "hub_mi_user_assigned",
             arg_group="Hub",
             options_list=["--hub-mi-user-assigned", "--hub-mi-ua"],
-            help="User-assigned managed identity resource ID for the Hub inbound caller identity.",
+            help="Optional user-assigned managed identity resource ID for the Hub inbound caller identity.",
         )
         context.argument(
             "hub_availability",

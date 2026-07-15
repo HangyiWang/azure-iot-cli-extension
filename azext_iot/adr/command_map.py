@@ -124,10 +124,10 @@ def load_adr_commands(self, _):
     with self.command_group(
         "iot adr ns registry-device", command_type=adr_registry_device_ops
     ) as cmd_group:
-        cmd_group.command("create", "adr_registry_device_create")
+        cmd_group.command("create", "adr_registry_device_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_registry_device_show")
         cmd_group.command("list", "adr_registry_device_list")
-        cmd_group.command("update", "adr_registry_device_update")
+        cmd_group.command("update", "adr_registry_device_update", supports_no_wait=True)
         cmd_group.command("delete", "adr_registry_device_delete", confirmation=True, supports_no_wait=True)
 
     # Device commands

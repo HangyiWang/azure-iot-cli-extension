@@ -13,6 +13,12 @@ class IdentityType(Enum):
     user_assigned = "UserAssigned"
 
 
+class ManagedServiceIdentityType(Enum):
+    system_assigned = "SystemAssigned"
+    user_assigned = "UserAssigned"
+    system_assigned_user_assigned = "SystemAssigned,UserAssigned"
+
+
 class MessagingEndpointAvailability(Enum):
     available = "Available"
     disabled = "Disabled"
@@ -102,11 +108,20 @@ class PolicyCertificateKeyType(Enum):
 class CertificateAuthorityType(Enum):
     root = "Root"
     ica = "ICA"
-    bring_your_own = "BringYourOwn"
 
 
 class CertificateAuthorityKeyType(Enum):
     ecc = "ECC"
+
+
+class CertificateAuthorityIssuerType(Enum):
+    internal = "Internal"
+    external = "External"
+
+
+class RegistryDeviceEnablementState(Enum):
+    enabled = "Enabled"
+    disabled = "Disabled"
 
 
 # Endpoint type discriminators on Namespace messaging / provisioning / updating endpoints

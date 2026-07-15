@@ -7,22 +7,28 @@
 from unittest.mock import Mock
 
 import pytest
-from azure.cli.core.azclierror import AzureResponseError
+from azure.cli.core.azclierror import (
+    ArgumentUsageError,
+    AzureResponseError,
+    RequiredArgumentMissingError,
+)
 
 
 # ==================== Create ====================
 
 
 @pytest.mark.parametrize(
-    "ca_type, key_type, location",
+    "ca_type, issuer_type, issuer_uuid, key_type, location",
     [
-        ("Root", "ECC", None),
-        ("ICA", None, "westus"),
-        ("BringYourOwn", "ECC", "eastus"),
+        ("Root", None, None, "ECC", None),
+        ("ICA", "Internal", "11111111-1111-1111-1111-111111111111", None, "westus"),
+        ("ICA", "External", None, "ECC", "eastus"),
     ],
-    ids=["root-default-keytype", "ica-explicit-location", "byo"],
+    ids=["root-default-keytype", "internal-ica", "external-ica"],
 )
-def test_create_ca(fixture_ca_provider, mock_poller, ca_type, key_type, location):
+def test_create_ca(
+    fixture_ca_provider, mock_poller, ca_type, issuer_type, issuer_uuid, key_type, location
+):
     """CA creation builds the expected resource body and resolves location."""
     sentinel = Mock()
     fixture_ca_provider.client.certificate_authorities.begin_create_or_replace.return_value = mock_poller(
@@ -35,6 +41,8 @@ def test_create_ca(fixture_ca_provider, mock_poller, ca_type, key_type, location
         namespace_name="ns",
         resource_group_name="rg",
         certificate_authority_type=ca_type,
+        issuer_type=issuer_type,
+        issuer_certificate_authority_uuid=issuer_uuid,
         key_type=key_type,
         location=location,
     )
@@ -44,6 +52,15 @@ def test_create_ca(fixture_ca_provider, mock_poller, ca_type, key_type, location
     resource = call["resource"]
     assert resource["properties"]["certificateAuthorityType"] == ca_type
     assert resource["properties"]["keyType"] == (key_type or "ECC")
+    if issuer_type:
+        assert resource["properties"]["issuer"]["issuerType"] == issuer_type
+        if issuer_uuid:
+            assert (
+                resource["properties"]["issuer"]["issuerCertificateAuthorityUuid"]
+                == issuer_uuid
+            )
+    else:
+        assert "issuer" not in resource["properties"]
     assert resource["location"] == (location or "eastus")
     # location resolved from namespace only when not provided
     if location is None:
@@ -85,6 +102,41 @@ def test_create_ca_namespace_missing_location(fixture_ca_provider):
             certificate_authority_type="Root",
         )
     fixture_ca_provider.client.certificate_authorities.begin_create_or_replace.assert_not_called()
+
+
+def test_create_ica_requires_issuer_type(fixture_ca_provider):
+    with pytest.raises(RequiredArgumentMissingError, match="issuer-type"):
+        fixture_ca_provider.create(
+            certificate_authority_name="ca",
+            namespace_name="ns",
+            resource_group_name="rg",
+            certificate_authority_type="ICA",
+            location="eastus",
+        )
+
+
+def test_create_internal_ica_requires_issuer_uuid(fixture_ca_provider):
+    with pytest.raises(RequiredArgumentMissingError, match="issuer-ca-uuid"):
+        fixture_ca_provider.create(
+            certificate_authority_name="ca",
+            namespace_name="ns",
+            resource_group_name="rg",
+            certificate_authority_type="ICA",
+            issuer_type="Internal",
+            location="eastus",
+        )
+
+
+def test_create_root_rejects_issuer(fixture_ca_provider):
+    with pytest.raises(ArgumentUsageError, match="only valid when --type ICA"):
+        fixture_ca_provider.create(
+            certificate_authority_name="ca",
+            namespace_name="ns",
+            resource_group_name="rg",
+            certificate_authority_type="Root",
+            issuer_type="External",
+            location="eastus",
+        )
 
 
 # ==================== Show / List ====================
@@ -161,6 +213,12 @@ def test_activate_ca(fixture_ca_provider, mock_poller):
     """Activate triggers begin_activate with the certificate chain body."""
     sentinel = Mock()
     chain = "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
+    fixture_ca_provider.client.certificate_authorities.get.return_value = {
+        "properties": {
+            "certificateAuthorityType": "ICA",
+            "issuer": {"issuerType": "External"},
+        }
+    }
     fixture_ca_provider.client.certificate_authorities.begin_activate.return_value = mock_poller(sentinel)
 
     result = fixture_ca_provider.activate(
@@ -181,6 +239,12 @@ def test_activate_ca(fixture_ca_provider, mock_poller):
 def test_revoke_ca(fixture_ca_provider, mock_poller):
     """Revoke triggers begin_revoke LRO and returns the result."""
     sentinel = Mock()
+    fixture_ca_provider.client.certificate_authorities.get.return_value = {
+        "properties": {
+            "certificateAuthorityType": "ICA",
+            "issuer": {"issuerType": "Internal"},
+        }
+    }
     fixture_ca_provider.client.certificate_authorities.begin_revoke.return_value = mock_poller(sentinel)
 
     result = fixture_ca_provider.revoke(
@@ -191,6 +255,41 @@ def test_revoke_ca(fixture_ca_provider, mock_poller):
     fixture_ca_provider.client.certificate_authorities.begin_revoke.assert_called_once_with(
         resource_group_name="rg", namespace_name="ns", certificate_authority_name="ca",
     )
+
+
+def test_activate_rejects_internal_ica(fixture_ca_provider):
+    fixture_ca_provider.client.certificate_authorities.get.return_value = {
+        "properties": {
+            "certificateAuthorityType": "ICA",
+            "issuer": {"issuerType": "Internal"},
+        }
+    }
+
+    with pytest.raises(ArgumentUsageError, match="issuerType 'External'"):
+        fixture_ca_provider.activate(
+            certificate_authority_name="ca",
+            namespace_name="ns",
+            resource_group_name="rg",
+            certificate_chain="chain",
+        )
+    fixture_ca_provider.client.certificate_authorities.begin_activate.assert_not_called()
+
+
+def test_revoke_rejects_external_ica(fixture_ca_provider):
+    fixture_ca_provider.client.certificate_authorities.get.return_value = {
+        "properties": {
+            "certificateAuthorityType": "ICA",
+            "issuer": {"issuerType": "External"},
+        }
+    }
+
+    with pytest.raises(ArgumentUsageError, match="issuerType 'Internal'"):
+        fixture_ca_provider.revoke(
+            certificate_authority_name="ca",
+            namespace_name="ns",
+            resource_group_name="rg",
+        )
+    fixture_ca_provider.client.certificate_authorities.begin_revoke.assert_not_called()
 
 
 # ==================== --no-wait + guards ====================
@@ -226,9 +325,6 @@ def test_delete_ca_no_wait_returns_poller(fixture_ca_provider, mock_poller):
 
 def test_update_ca_requires_a_field(fixture_ca_provider):
     """Update with no updatable fields raises RequiredArgumentMissingError."""
-    from azure.cli.core.azclierror import RequiredArgumentMissingError
-    import pytest
-
     with pytest.raises(RequiredArgumentMissingError):
         fixture_ca_provider.update(
             certificate_authority_name="ca", namespace_name="ns", resource_group_name="rg",

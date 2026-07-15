@@ -63,6 +63,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 assert created["name"] == device_name
                 cp = props(created)
                 assert cp.get("externalDeviceId") == "ext-001"
+                assert cp.get("enablementState") == "Enabled"
                 assert cp.get("manufacturer") == "Contoso"
                 assert cp.get("model") == "RegistryPro"
                 assert cp.get("hardwareRevision") == "A1"
@@ -83,11 +84,12 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 assert device_name in [d["name"] for d in devices]
 
             # --- Step 4: Update properties ---
-            with timed_step("Step 4 ❯ Update software revision"):
+            with timed_step("Step 4 ❯ Disable and update software revision"):
                 updated = adev_cmd(
-                    f"update -n {device_name} --sw-rev 3.0.0"
+                    f"update -n {device_name} --enablement-state Disabled --sw-rev 3.0.0"
                 ).get_output_in_json()
                 assert props(updated).get("softwareRevision") == "3.0.0"
+                assert props(updated).get("enablementState") == "Disabled"
 
             # --- Step 5: Update tags ---
             with timed_step("Step 5 ❯ Update tags"):

@@ -8,7 +8,8 @@ from typing import Dict, Optional
 
 from azure.cli.core.azclierror import RequiredArgumentMissingError
 
-from azext_iot.adr.providers.base import ADRProvider, console
+from azext_iot.adr.common import RegistryDeviceEnablementState
+from azext_iot.adr.providers.base import ADRProvider
 
 
 class RegistryDeviceProvider(ADRProvider):
@@ -17,15 +18,15 @@ class RegistryDeviceProvider(ADRProvider):
 
     @staticmethod
     def _build_properties(
-        external_device_id: Optional[str] = None,
+        enablement_state: Optional[str] = None,
         manufacturer: Optional[str] = None,
         model: Optional[str] = None,
         hardware_revision: Optional[str] = None,
         software_revision: Optional[str] = None,
     ) -> dict:
         properties: dict = {}
-        if external_device_id is not None:
-            properties["externalDeviceId"] = external_device_id
+        if enablement_state is not None:
+            properties["enablementState"] = enablement_state
         if manufacturer is not None:
             properties["manufacturer"] = manufacturer
         if model is not None:
@@ -42,6 +43,7 @@ class RegistryDeviceProvider(ADRProvider):
         namespace_name: str,
         resource_group_name: str,
         external_device_id: Optional[str] = None,
+        enablement_state: str = RegistryDeviceEnablementState.enabled.value,
         manufacturer: Optional[str] = None,
         model: Optional[str] = None,
         hardware_revision: Optional[str] = None,
@@ -52,28 +54,34 @@ class RegistryDeviceProvider(ADRProvider):
     ):
         location = self._resolve_location(namespace_name, resource_group_name, location)
 
+        properties = self._build_properties(
+            enablement_state=enablement_state,
+            manufacturer=manufacturer,
+            model=model,
+            hardware_revision=hardware_revision,
+            software_revision=software_revision,
+        )
+        if external_device_id is not None:
+            properties["externalDeviceId"] = external_device_id
+
         resource = {
             "location": location,
-            "properties": self._build_properties(
-                external_device_id=external_device_id,
-                manufacturer=manufacturer,
-                model=model,
-                hardware_revision=hardware_revision,
-                software_revision=software_revision,
-            ),
+            "properties": properties,
         }
         if tags is not None:
             resource["tags"] = tags
 
-        with console.status(
-            f"Creating registry device '{registry_device_name}' on namespace {namespace_name}..."
-        ):
-            return self.client.registry_devices.create_or_replace(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                registry_device_name=registry_device_name,
-                resource=resource,
-            )
+        poller = self.client.registry_devices.begin_create_or_replace(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            resource=resource,
+        )
+        return self._wait(
+            poller,
+            f"Creating registry device '{registry_device_name}' on namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def show(self, registry_device_name: str, namespace_name: str, resource_group_name: str):
         return self.client.registry_devices.get(
@@ -95,7 +103,7 @@ class RegistryDeviceProvider(ADRProvider):
         registry_device_name: str,
         namespace_name: str,
         resource_group_name: str,
-        external_device_id: Optional[str] = None,
+        enablement_state: Optional[str] = None,
         manufacturer: Optional[str] = None,
         model: Optional[str] = None,
         hardware_revision: Optional[str] = None,
@@ -104,7 +112,7 @@ class RegistryDeviceProvider(ADRProvider):
         **kwargs,
     ):
         properties = self._build_properties(
-            external_device_id=external_device_id,
+            enablement_state=enablement_state,
             manufacturer=manufacturer,
             model=model,
             hardware_revision=hardware_revision,
@@ -112,7 +120,7 @@ class RegistryDeviceProvider(ADRProvider):
         )
         if not properties and tags is None:
             raise RequiredArgumentMissingError(
-                "Nothing to update. Provide at least one of --external-device-id, --manufacturer, "
+                "Nothing to update. Provide at least one of --enablement-state, --manufacturer, "
                 "--model, --hardware-revision, --software-revision, or --tags."
             )
 
@@ -120,15 +128,17 @@ class RegistryDeviceProvider(ADRProvider):
         if tags is not None:
             body["tags"] = tags
 
-        with console.status(
-            f"Updating registry device '{registry_device_name}' on namespace {namespace_name}..."
-        ):
-            return self.client.registry_devices.update(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                registry_device_name=registry_device_name,
-                properties=body,
-            )
+        poller = self.client.registry_devices.begin_update(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            properties=body,
+        )
+        return self._wait(
+            poller,
+            f"Updating registry device '{registry_device_name}' on namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def delete(self, registry_device_name: str, namespace_name: str, resource_group_name: str, **kwargs):
         poller = self.client.registry_devices.begin_delete(
