@@ -195,9 +195,6 @@ class NamespaceProvider(ADRProvider):
             "All child resources (credentials, policies, devices) under namespace '%s' will be deleted.",
             namespace_name,
         )
-        logger.warning(
-            "Deletion will fail if there are DPS or IoT Hub instances linked to this namespace. Unlink them first."
-        )
         poller = self.client.namespaces.begin_delete(
             resource_group_name=resource_group_name, namespace_name=namespace_name
         )
