@@ -3,7 +3,7 @@
 Release History
 ===============
 
-0.33.0b3 (Preview)
+0.33.0b5 (Preview)
 +++++++++++++++
 
 **General updates**
@@ -28,7 +28,7 @@ Release History
 
 * **Namespace outbound managed identity** (new) — ``az iot adr ns create`` and ``az iot adr ns update`` gain ``--outbound-mi-system-assigned`` / ``--outbound-mi-user-assigned`` to control the outbound identity the namespace uses to call linked Hubs and DPS.
 
-* **Namespace certificate management** (new) — ``az iot adr ns create`` and ``az iot adr ns update`` gain ``--enable-certificate-management`` / ``--ecm`` to toggle the namespace ``certificateManagement`` state (``Enabled``/``Disabled``). This is the master switch that gates the certificate authority (CMS) surface. The legacy default credential/policy bootstrap is now decoupled from this flag and emits a deprecation warning pointing to ``az iot adr ns ca``.
+* **2026-11-01-preview alignment** — namespace outbound UAMI assignment is supported; Hub inbound caller identity is optional; certificate authorities use the ``Root|ICA`` model with ``Internal|External`` issuers; and certificate-policy updates are tags-only.
 
 * **Groups** (new) — manage device groups inside a namespace:
 
@@ -49,9 +49,9 @@ Release History
 
 * **Certificate management / CMS** (new) — manage cloud PKI-backed certificate authorities and issuance policies (requires certificate management enabled on the namespace):
 
-  - ``az iot adr ns ca create / show / list / update / delete`` to manage certificate authorities. ``create`` takes ``--type`` (e.g. ``Root``); ``update`` is tags-only.
-  - ``az iot adr ns ca activate`` / ``az iot adr ns ca revoke`` to activate (with a signed certificate chain) or revoke a certificate authority.
-  - ``az iot adr ns ca policy create / show / list / update / delete`` to manage leaf certificate issuance policies under a certificate authority (``--validity-days``, ``--tags``).
+  - ``az iot adr ns ca create / show / list / update / delete`` to manage Root and intermediate certificate authorities. ICA creation specifies an ``Internal`` or ``External`` issuer; ``update`` is tags-only.
+  - ``az iot adr ns ca activate`` activates an externally issued ICA with a signed certificate chain; ``ca revoke`` revokes an internally issued ICA.
+  - ``az iot adr ns ca policy create / show / list / update / delete`` to manage leaf certificate issuance policies. ``--validity-days`` is create-only and updates are tags-only.
   - All long-running ``ca`` / ``ca policy`` commands honor ``--no-wait``.
 
 * **Adaptive devices** (new) — manage adaptive devices under a namespace:
