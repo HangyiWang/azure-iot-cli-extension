@@ -2,12 +2,52 @@
 
 Release History
 ===============
-0.31.0b3 (Preview)
-+++++++++++++++
+0.33.0b6 (Preview)
+++++++++++++++++++++
 
-**DPS updates**
+**General updates**
 
-* Removed ``--hostname-type`` from ``az iot dps linked-hub update``. A linked hub's endpoint hostname (classic vs device) is now fixed at creation and can no longer be changed in place; to move a link to a different endpoint, create a new link at the desired endpoint and delete the old one. ``--hostname-type`` remains available on ``az iot dps linked-hub create``, and ``az iot dps linked-hub update`` continues to support ``--authentication-type``, ``--connection-string``, ``--user-assigned-identity``, ``--allocation-weight`` and ``--apply-allocation-policy``.
+* Updated the Azure Device Registry management SDK and all ``az iot adr ns`` commands to ``2026-11-02-preview``.
+* Added safer long-running-operation handling: resource mutations poll ``provisioningState`` and POST actions poll the authenticated ``Location`` URL rather than the service's unsupported ``Azure-AsyncOperation`` host.
+* Added a sectioned ``scripts/smoke_tests/adr_11_02_full_e2e.sh`` runner that logs commands and API operations across the complete supported namespace surface.
+
+**Azure Device Registry updates**
+
+* **Namespaces and reporting**
+
+  - Added ``az iot adr ns migrate`` for migrating selected ARM resources into a namespace.
+  - Added ``az iot adr ns report generate`` and ``az iot adr ns report latest`` for namespace and group update-compliance reports.
+  - Namespace and child-resource updates now reject empty PATCH requests, inherit child locations from the namespace, and consistently support ``--no-wait`` where the service operation is asynchronous.
+
+* **Namespace links**
+
+  - Added ADU update-instance links through ``az iot adr ns link adu add / show / list / update`` using the ``Microsoft.DeviceUpdate/updateInstances`` contract.
+  - Hub, DPS, and ADU inbound identity parameters now refer to identities attached to the linked resource. Hub provisioning fields remain create-only; link update rotates identity only.
+  - Hub, DPS, and ADU ``show``/``list`` return named endpoint objects.
+  - Removed unsupported ``link hub remove``, ``link dps remove``, and ``link adu remove`` commands.
+
+* **Namespace devices**
+
+  - Extended ``device create`` with external device ID, enablement, attributes, messaging endpoints, discovered-device reference, policy, and tags.
+  - Extended ``device update`` with strict JSON object validation for attributes/endpoints and explicit no-op rejection.
+  - Removed ``device revoke`` because no backing operation exists in this API version.
+
+* **Groups, jobs, and runs**
+
+  - Replaced the unsupported ``group show-members`` preview with paged ``group list-members`` using ``pageSize``/``skipToken``; ``group count`` now uses ``Groups_CountMembers``.
+  - Group deletion now delegates cancellation/dependency behavior to the service instead of deleting referenced jobs client-side.
+  - Job creation now supports the ``SoftwareUpdate`` and ``OnboardingUpdate`` discriminators with ``Continuous`` scheduling and the correct ``target.resourceId`` shape.
+  - Added namespace-wide job-run listing, strict status filters, filtered/paged run results, and ``az iot adr ns job run cancel``.
+
+* **Certificate management / CMS**
+
+  - Certificate authority and CA-policy commands remain under ``az iot adr ns ca`` and ``az iot adr ns ca policy`` with parent-namespace location inheritance and consistent LRO behavior.
+  - Deprecated credential/policy commands remain available, but now validate ECC and 7–30 day certificate options before namespace creation and preserve create-time location/tags.
+  - Removed the unsupported ``--cert-subject`` input; certificate subjects are service-generated.
+
+**Removed preview surface**
+
+* Removed ``az iot adr ns registry-device`` CRUD and its generated operation group from this release scope.
 
 0.33.0b5 (Preview)
 +++++++++++++++
@@ -69,6 +109,13 @@ Release History
 
 * ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups are deprecated and superseded by the CMS remodel under ``az iot adr ns ca`` (and ``az iot adr ns ca policy``). They remain registered during the transition and emit a redirect warning.
 * ``az iot adr ns policy revoke-issuer`` and ``az iot adr ns policy activate-byor`` are deprecated alongside the ``policy`` group; their backing endpoints were not regenerated in ``2026-11-01-preview``.
+
+0.31.0b3 (Preview)
+++++++++++++++++++++
+
+**DPS updates**
+
+* Removed ``--hostname-type`` from ``az iot dps linked-hub update``. A linked hub's endpoint hostname (classic vs device) is now fixed at creation and can no longer be changed in place; to move a link to a different endpoint, create a new link at the desired endpoint and delete the old one. ``--hostname-type`` remains available on ``az iot dps linked-hub create``, and ``az iot dps linked-hub update`` continues to support ``--authentication-type``, ``--connection-string``, ``--user-assigned-identity``, ``--allocation-weight`` and ``--apply-allocation-policy``.
 
 0.31.0b2 (Preview)
 +++++++++++++++

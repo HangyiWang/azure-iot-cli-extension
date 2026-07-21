@@ -9,7 +9,7 @@ The **Azure IoT extension for Azure CLI** aims to accelerate the development, ma
 
 - ❗ When upgrading your Azure CLI core version, for the best experience and to avoid breaking changes, we recommend updating your `azure-iot` extension to the [latest available](https://github.com/Azure/azure-iot-cli-extension/releases).
 
-- 🆕 **`0.33.0b5` Preview** introduces the **Azure Device Registry (ADR) "Ignite" surface** under `az iot adr ns`: namespace-scoped device management, Hub/DPS linking on namespaces, certificate management (CMS) via certificate authorities and policies, adaptive devices, device groups, and Update-job orchestration (with paged job-run results). Built against the new `2026-11-01-preview` Device Registry management API. See the [HISTORY.rst](HISTORY.rst) entry for the full command list. Install with `az extension add --name azure-iot --allow-preview`.
+- 🆕 **`0.33.0b6` Preview** updates `az iot adr ns` to the `2026-11-02-preview` Device Registry management API. It includes namespace/device CRUD, Hub/DPS/ADU update-instance links, CMS certificate authorities and policies, groups, `SoftwareUpdate`/`OnboardingUpdate` jobs, paged and cancellable job runs, namespace migration, and update-compliance reports. Unsupported registry-device, device-revoke, and link-remove commands are no longer exposed. See [HISTORY.rst](HISTORY.rst) for details. Install with `az extension add --name azure-iot --allow-preview`.
 
 - Azure CLI `2.24.0` requires an `azure-iot` extension update to `0.10.11` or later for IoT Hub commands to work properly. However **we recommend** at least `azure-iot` `0.10.14`. Updating the extension can be done with `az extension update --name azure-iot`.
 
@@ -108,24 +108,24 @@ Group
     az iot adr ns : Manage Device Registry namespaces.
 
 Subgroups:
-    adaptive-device : Manage adaptive devices under a Device Registry namespace.
-    ca         : Manage certificate authorities (CMS) for a Device Registry
-                 namespace.
-    credential : Manage Device Registry namespace credentials. (deprecated, use 'ca')
-    device     : Manage devices under a Device Registry namespace.
-    group      : Manage Device Registry namespace groups.
-    job        : Manage Device Registry namespace jobs (Update deployments).
-    link       : Manage links between a Device Registry namespace and downstream
-                 IoT Hub / DPS resources.
-    policy     : Manage Device Registry namespace credential policies. (deprecated, use 'ca policy')
+    ca                      : Manage certificate authorities for a Device Registry namespace.
+    credential [Deprecated] : Manage Device Registry namespace credentials.
+    device                  : Manage Device Registry namespace devices.
+    group                   : Manage Device Registry namespace groups.
+    job                     : Manage Device Registry namespace jobs.
+    link                    : Manage links between a Device Registry namespace and downstream
+                              resources.
+    policy     [Deprecated] : Manage Device Registry namespace policies.
+    report                  : Manage Device Registry update-compliance reports.
 
 Commands:
-    create : Create a Device Registry namespace.
-    delete : Delete a Device Registry namespace.
-    list   : List Device Registry namespaces.
-    show   : Show details of a Device Registry namespace.
-    update : Update a Device Registry namespace.
-    wait   : Wait until an operation on a Device Registry namespace is complete.
+    create                  : Create a Device Registry namespace.
+    delete                  : Delete a Device Registry namespace.
+    list                    : List Device Registry namespaces.
+    migrate                 : Migrate resources into a Device Registry namespace.
+    show                    : Show details of a Device Registry namespace.
+    update                  : Update a Device Registry namespace.
+    wait                    : Wait for a Device Registry namespace to reach a desired state.
 ```
 
 </details>
