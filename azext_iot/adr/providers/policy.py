@@ -6,15 +6,18 @@
 
 from typing import Dict, Optional
 
-from azure.cli.core.azclierror import AzureResponseError
+from azure.cli.core.azclierror import (
+    RequiredArgumentMissingError,
+)
 from azure.core.exceptions import HttpResponseError
 
 from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_KEY_TYPE,
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     POLICY_PARENT_RESOURCE_NOT_FOUND_MSG,
+    validate_policy_certificate_options,
 )
-from azext_iot.adr.providers.base import ADRProvider, console
+from azext_iot.adr.providers.base import ADRProvider
 
 
 class PolicyProvider(ADRProvider):
@@ -29,30 +32,31 @@ class PolicyProvider(ADRProvider):
         location: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         certificate_key_type: Optional[str] = None,
-        certificate_subject: Optional[str] = None,
         certificate_validity_days: Optional[int] = None,
         enable_byor: Optional[bool] = None,
         **kwargs,
     ):
 
-        if not location:
-            namespace = self.client.namespaces.get(
-                resource_group_name=resource_group_name, namespace_name=namespace_name
-            )
-            location = namespace.get("location")
-            if not location:
-                raise AzureResponseError(
-                    "Error attempting to determine location from parent Namespace: "
-                    "Namespace does not contain a location property."
-                )
+        location = self._resolve_location(namespace_name, resource_group_name, location)
+        validate_policy_certificate_options(
+            certificate_key_type, certificate_validity_days
+        )
 
         # Build certificate configuration when any cert parameter or BYOR is specified
         certificate_config = None
-        has_cert_params = any([enable_byor, certificate_key_type, certificate_subject, certificate_validity_days])
+        has_cert_params = (
+            bool(enable_byor)
+            or certificate_key_type is not None
+            or certificate_validity_days is not None
+        )
 
         if has_cert_params:
             key_type = certificate_key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE
-            validity_days = certificate_validity_days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
+            validity_days = (
+                DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
+                if certificate_validity_days is None
+                else certificate_validity_days
+            )
 
             ca_config = {"keyType": key_type}
             if enable_byor:
@@ -63,18 +67,23 @@ class PolicyProvider(ADRProvider):
                 "leafCertificateConfiguration": {"validityPeriodInDays": validity_days},
             }
 
-        resource = {"properties": {}}
+        resource = {"location": location, "properties": {}}
+        if tags is not None:
+            resource["tags"] = tags
         if certificate_config:
             resource["properties"]["certificate"] = certificate_config
 
-        with console.status(f"Creating policy '{policy_name}' for namespace {namespace_name}..."):
-            poller = self.client.policies.begin_create_or_update(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                policy_name=policy_name,
-                resource=resource,
-            )
-            return self._await_terminal(poller, **kwargs)
+        poller = self.client.policies.begin_create_or_update(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            policy_name=policy_name,
+            resource=resource,
+        )
+        return self._wait(
+            poller,
+            f"Creating policy '{policy_name}' for namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def show(self, policy_name: str, namespace_name: str, resource_group_name: str):
         # Ensure namespace exists
@@ -113,13 +122,16 @@ class PolicyProvider(ADRProvider):
             )
 
     def delete(self, policy_name: str, namespace_name: str, resource_group_name: str, **kwargs):
-        with console.status(f"Deleting policy '{policy_name}' from namespace {namespace_name}..."):
-            poller = self.client.policies.begin_delete(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                policy_name=policy_name,
-            )
-            return self._await_terminal(poller, **kwargs)
+        poller = self.client.policies.begin_delete(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            policy_name=policy_name,
+        )
+        return self._wait(
+            poller,
+            f"Deleting policy '{policy_name}' from namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def update(
         self,
@@ -127,7 +139,6 @@ class PolicyProvider(ADRProvider):
         namespace_name: str,
         resource_group_name: str,
         tags: Optional[Dict[str, str]] = None,
-        certificate_key_type: Optional[str] = None,
         certificate_validity_days: Optional[int] = None,
         **kwargs,
     ):
@@ -138,6 +149,7 @@ class PolicyProvider(ADRProvider):
         if tags is not None:
             resource["tags"] = tags
         if certificate_validity_days is not None:
+            validate_policy_certificate_options(None, certificate_validity_days)
             resource["properties"] = {
                 "certificate": {
                     "leafCertificateConfiguration": {
@@ -146,14 +158,25 @@ class PolicyProvider(ADRProvider):
                 }
             }
 
-        with console.status(f"Updating policy '{policy_name}' for namespace {namespace_name}..."):
-            poller = self.client.policies.begin_update(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                policy_name=policy_name,
-                properties=resource,
+        if not resource:
+            raise RequiredArgumentMissingError(
+                "Nothing to update. Provide --tags or --cert-validity-days."
             )
-            self._await_terminal(poller, **kwargs)
+
+        poller = self.client.policies.begin_update(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            policy_name=policy_name,
+            properties=resource,
+        )
+        no_wait = kwargs.pop("no_wait", False)
+        if no_wait:
+            return poller
+        self._wait(
+            poller,
+            f"Updating policy '{policy_name}' for namespace {namespace_name}...",
+            **kwargs,
+        )
 
         # LRO update may return incomplete object; always fetch updated resource
         return self.show(
@@ -162,15 +185,16 @@ class PolicyProvider(ADRProvider):
 
     def revoke_issuer(self, policy_name: str, namespace_name: str, resource_group_name: str, **kwargs):
         """Revoke the CA certificate for a policy, triggering regeneration of a new CA."""
-        with console.status(
-            f"Revoking issuer for policy '{policy_name}' on namespace {namespace_name}..."
-        ):
-            poller = self.client.policies.begin_revoke_issuer(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                policy_name=policy_name,
-            )
-            return self._await_terminal(poller, **kwargs)
+        poller = self.client.policies.begin_revoke_issuer(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            policy_name=policy_name,
+        )
+        return self._wait(
+            poller,
+            f"Revoking issuer for policy '{policy_name}' on namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def activate_byor(
         self,
@@ -182,13 +206,14 @@ class PolicyProvider(ADRProvider):
     ):
         """Activate or renew a Bring Your Own Root policy with a signed certificate chain."""
         body = {"certificateChain": certificate_chain}
-        with console.status(
-            f"Activating Bring Your Own Root for policy '{policy_name}' on namespace {namespace_name}..."
-        ):
-            poller = self.client.policies.begin_activate_bring_your_own_root(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                policy_name=policy_name,
-                body=body,
-            )
-            return self._await_terminal(poller, **kwargs)
+        poller = self.client.policies.begin_activate_bring_your_own_root(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            policy_name=policy_name,
+            body=body,
+        )
+        return self._wait(
+            poller,
+            f"Activating Bring Your Own Root for policy '{policy_name}' on namespace {namespace_name}...",
+            **kwargs,
+        )

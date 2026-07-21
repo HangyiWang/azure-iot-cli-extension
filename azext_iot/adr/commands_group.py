@@ -109,17 +109,21 @@ def adr_group_refresh(
     )
 
 
-def adr_group_show_members(
+def adr_group_list_members(
     cmd,
     group_name: str,
     namespace_name: str,
     resource_group_name: str,
+    page_size: Optional[int] = None,
+    skip_token: Optional[str] = None,
 ):
     provider = GroupProvider(cmd)
-    return provider.show_members(
+    return provider.list_members(
         group_name=group_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
+        page_size=page_size,
+        skip_token=skip_token,
     )
 
 

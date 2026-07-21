@@ -33,11 +33,6 @@ adr_ca_policy_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
-adr_registry_device_ops = CliCommandType(
-    operations_tmpl="azext_iot.adr.commands_registry_device#{}",
-    client_factory=adr_service_factory,
-)
-
 adr_device_ops = CliCommandType(
     operations_tmpl="azext_iot.adr.commands_device#{}",
     client_factory=adr_service_factory,
@@ -63,6 +58,11 @@ adr_job_run_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
+adr_report_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_report#{}",
+    client_factory=adr_service_factory,
+)
+
 
 def load_adr_commands(self, _):
     # Namespace commands
@@ -72,6 +72,7 @@ def load_adr_commands(self, _):
         cmd_group.command("list", "adr_namespace_list")
         cmd_group.command("delete", "adr_namespace_delete", confirmation=True, supports_no_wait=True)
         cmd_group.command("update", "adr_namespace_update", supports_no_wait=True)
+        cmd_group.command("migrate", "adr_namespace_migrate", supports_no_wait=True)
         cmd_group.wait_command("wait", "adr_namespace_show")
 
     # Credential commands
@@ -82,10 +83,10 @@ def load_adr_commands(self, _):
         command_type=adr_credential_ops,
         deprecate_info=self.deprecate(redirect="iot adr ns ca"),
     ) as cmd_group:
-        cmd_group.command("create", "adr_credential_create")
+        cmd_group.command("create", "adr_credential_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_credential_show")
-        cmd_group.command("delete", "adr_credential_delete", confirmation=True)
-        cmd_group.command("sync", "adr_credential_synchronize")
+        cmd_group.command("delete", "adr_credential_delete", confirmation=True, supports_no_wait=True)
+        cmd_group.command("sync", "adr_credential_synchronize", supports_no_wait=True)
 
     # Policy commands
     # Deprecated: superseded by `iot adr ns ca` (and `iot adr ns ca policy`).
@@ -94,13 +95,15 @@ def load_adr_commands(self, _):
         command_type=adr_policy_ops,
         deprecate_info=self.deprecate(redirect="iot adr ns ca"),
     ) as cmd_group:
-        cmd_group.command("create", "adr_policy_create")
+        cmd_group.command("create", "adr_policy_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_policy_show")
         cmd_group.command("list", "adr_policy_list")
-        cmd_group.command("delete", "adr_policy_delete", confirmation=True)
-        cmd_group.command("update", "adr_policy_update")
-        cmd_group.command("revoke-issuer", "adr_policy_revoke_issuer", confirmation=True)
-        cmd_group.command("activate-byor", "adr_policy_activate_byor")
+        cmd_group.command("delete", "adr_policy_delete", confirmation=True, supports_no_wait=True)
+        cmd_group.command("update", "adr_policy_update", supports_no_wait=True)
+        cmd_group.command(
+            "revoke-issuer", "adr_policy_revoke_issuer", confirmation=True, supports_no_wait=True
+        )
+        cmd_group.command("activate-byor", "adr_policy_activate_byor", supports_no_wait=True)
 
     # Certificate Authority commands
     with self.command_group("iot adr ns ca", command_type=adr_ca_ops) as cmd_group:
@@ -120,16 +123,6 @@ def load_adr_commands(self, _):
         cmd_group.command("update", "adr_ca_policy_update", supports_no_wait=True)
         cmd_group.command("delete", "adr_ca_policy_delete", confirmation=True, supports_no_wait=True)
 
-    # Registry Device commands
-    with self.command_group(
-        "iot adr ns registry-device", command_type=adr_registry_device_ops
-    ) as cmd_group:
-        cmd_group.command("create", "adr_registry_device_create", supports_no_wait=True)
-        cmd_group.show_command("show", "adr_registry_device_show")
-        cmd_group.command("list", "adr_registry_device_list")
-        cmd_group.command("update", "adr_registry_device_update", supports_no_wait=True)
-        cmd_group.command("delete", "adr_registry_device_delete", confirmation=True, supports_no_wait=True)
-
     # Device commands
     with self.command_group("iot adr ns device", command_type=adr_device_ops) as cmd_group:
         cmd_group.command("create", "adr_device_create", supports_no_wait=True)
@@ -137,7 +130,6 @@ def load_adr_commands(self, _):
         cmd_group.command("list", "adr_device_list")
         cmd_group.command("update", "adr_device_update", supports_no_wait=True)
         cmd_group.command("delete", "adr_device_delete", confirmation=True, supports_no_wait=True)
-        cmd_group.command("revoke", "adr_device_revoke", confirmation=True)
 
     # Link commands (mutate namespace.properties.messaging.endpoints / provisioning.endpoints)
     with self.command_group("iot adr ns link", command_type=adr_link_ops) as cmd_group:
@@ -146,21 +138,18 @@ def load_adr_commands(self, _):
     with self.command_group("iot adr ns link hub", command_type=adr_link_ops) as cmd_group:
         cmd_group.command("add", "adr_link_hub_add", supports_no_wait=True)
         cmd_group.command("update", "adr_link_hub_update", supports_no_wait=True)
-        cmd_group.command("remove", "adr_link_hub_remove", confirmation=True, supports_no_wait=True)
         cmd_group.show_command("show", "adr_link_hub_show")
         cmd_group.command("list", "adr_link_hub_list")
 
     with self.command_group("iot adr ns link dps", command_type=adr_link_ops) as cmd_group:
         cmd_group.command("add", "adr_link_dps_add", supports_no_wait=True)
         cmd_group.command("update", "adr_link_dps_update", supports_no_wait=True)
-        cmd_group.command("remove", "adr_link_dps_remove", confirmation=True, supports_no_wait=True)
         cmd_group.show_command("show", "adr_link_dps_show")
         cmd_group.command("list", "adr_link_dps_list")
 
     with self.command_group("iot adr ns link adu", command_type=adr_link_ops) as cmd_group:
         cmd_group.command("add", "adr_link_adu_add", supports_no_wait=True)
         cmd_group.command("update", "adr_link_adu_update", supports_no_wait=True)
-        cmd_group.command("remove", "adr_link_adu_remove", confirmation=True, supports_no_wait=True)
         cmd_group.show_command("show", "adr_link_adu_show")
         cmd_group.command("list", "adr_link_adu_list")
 
@@ -172,7 +161,7 @@ def load_adr_commands(self, _):
         cmd_group.command("list", "adr_group_list")
         cmd_group.command("delete", "adr_group_delete", confirmation=True, supports_no_wait=True)
         cmd_group.command("refresh", "adr_group_refresh", supports_no_wait=True)
-        cmd_group.command("show-members", "adr_group_show_members")
+        cmd_group.command("list-members", "adr_group_list_members")
         cmd_group.command("count", "adr_group_count")
         cmd_group.wait_command("wait", "adr_group_show")
 
@@ -191,3 +180,10 @@ def load_adr_commands(self, _):
         cmd_group.show_command("show", "adr_job_run_show")
         cmd_group.command("list", "adr_job_run_list")
         cmd_group.command("results", "adr_job_run_results")
+        cmd_group.command(
+            "cancel", "adr_job_run_cancel", confirmation=True, supports_no_wait=True
+        )
+
+    with self.command_group("iot adr ns report", command_type=adr_report_ops) as cmd_group:
+        cmd_group.command("generate", "adr_report_generate", supports_no_wait=True)
+        cmd_group.command("latest", "adr_report_latest")

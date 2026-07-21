@@ -66,9 +66,10 @@ class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "Group '%s' created", group_name)
 
-            with timed_step("Step 1 ❯ job create (Update + ADU update id triple)"):
+            with timed_step("Step 1 ❯ job create (SoftwareUpdate)"):
                 created = self.cmd(
                     f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--type SoftwareUpdate --description 'Integration rollout' "
                     f"--target-group-name {group_name} "
                     f"--update-id-provider Contoso "
                     f"--update-id-name gateway-firmware "
@@ -79,11 +80,15 @@ class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 # Surface-level: target & update identity should be present in
                 # the response (back-end shape may vary slightly).
                 props = created["properties"]
-                target_id = (props.get("target") or {}).get("targetResourceId", "")
+                assert props["jobType"] == "SoftwareUpdate"
+                assert props["description"] == "Integration rollout"
+                target_id = (props.get("target") or {}).get("resourceId", "")
                 assert group_name.lower() in target_id.lower(), (
-                    f"target group not in targetResourceId: {target_id}"
+                    f"target group not in target.resourceId: {target_id}"
                 )
-                update = (props.get("definition") or {}).get("update") or {}
+                definition = props.get("definition") or {}
+                assert definition.get("schedulingType") == "Continuous"
+                update = definition.get("update") or {}
                 update_id = update.get("updateId") or {}
                 assert update_id.get("provider") == "Contoso"
                 assert update_id.get("name") == "gateway-firmware"
@@ -182,6 +187,44 @@ class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         finally:
             self.cleanup_namespace(namespace_name, rg)
 
+    def test_adr_onboarding_update_job_lifecycle(self):
+        rg = TEST_RG
+        namespace_name = generate_adr_namespace_name()
+        job_name = _generate_job_name()
+
+        try:
+            self.cmd(
+                f"iot adr ns create -n {namespace_name} -g {rg} "
+                f"--location {TEST_LOCATION}"
+            )
+            self.cmd(
+                f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
+                "--type OnboardingUpdate --description 'Onboarding integration rollout' "
+                "--update-id-provider Contoso --update-id-name onboarding-fw "
+                "--update-id-version 1.0.0 --no-wait"
+            )
+            self.cmd(
+                f"iot adr ns job wait -n {job_name} --ns {namespace_name} -g {rg} "
+                "--created"
+            )
+
+            job = self.cmd(
+                f"iot adr ns job show -n {job_name} --ns {namespace_name} -g {rg}"
+            ).get_output_in_json()
+            properties = job["properties"]
+            assert properties["jobType"] == "OnboardingUpdate"
+            assert "target" not in properties
+            assert properties["definition"]["schedulingType"] == "Continuous"
+
+            self.cmd(
+                f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg}"
+            )
+            self.cmd(
+                f"iot adr ns job delete -n {job_name} --ns {namespace_name} -g {rg} -y"
+            )
+        finally:
+            self.cleanup_namespace(namespace_name, rg)
+
 
 @pytest.mark.usefixtures("set_cwd")
 class TestADRJobValidation(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
@@ -226,7 +269,17 @@ class TestADRJobValidation(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "partial update-id triple rejected")
 
-            with timed_step("Neg 3 ❯ job update with forbidden non-tag field"):
+            with timed_step("Neg 3 ❯ OnboardingUpdate rejects a target group"):
+                self.cmd(
+                    f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--type OnboardingUpdate --target-group-name {group_name} "
+                    f"--update-id-provider Contoso --update-id-name fw "
+                    f"--update-id-version 1.0.0",
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "OnboardingUpdate target rejected")
+
+            with timed_step("Neg 4 ❯ job update with forbidden non-tag field"):
                 # Create a job we can poke at
                 self.cmd(
                     f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
@@ -242,7 +295,7 @@ class TestADRJobValidation(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "non-tag update field rejected")
 
-            with timed_step("Neg 4 ❯ job schedule with invalid ISO 8601 timeout"):
+            with timed_step("Neg 5 ❯ job schedule with invalid ISO 8601 timeout"):
                 self.cmd(
                     f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
                     f"--timeout 'not-a-duration'",
@@ -250,13 +303,20 @@ class TestADRJobValidation(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "invalid timeout rejected")
 
-            with timed_step("Neg 5 ❯ job schedule with invalid ISO 8601 scheduled-time"):
+            with timed_step("Neg 6 ❯ job schedule with invalid ISO 8601 scheduled-time"):
                 self.cmd(
                     f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
                     f"--scheduled-time 'tomorrow at noon'",
                     expect_failure=True,
                 )
                 _log(LogKind.OK, "invalid scheduled-time rejected")
+
+            with timed_step("Neg 7 ❯ timezone-naive scheduled time rejected"):
+                self.cmd(
+                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--scheduled-time 2026-11-02T12:00:00",
+                    expect_failure=True,
+                )
 
         finally:
             self.cleanup_namespace(namespace_name, rg)

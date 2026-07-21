@@ -19,7 +19,9 @@ from ._operations import CertificatePoliciesOperations  # type: ignore
 from ._operations import CredentialsOperations  # type: ignore
 from ._operations import PoliciesOperations  # type: ignore
 from ._operations import NamespaceDevicesOperations  # type: ignore
-from ._operations import RegistryDevicesOperations  # type: ignore
+from ._operations import GroupsOperations  # type: ignore
+from ._operations import JobRunsOperations  # type: ignore
+from ._operations import JobsOperations  # type: ignore
 
 from ._patch import __all__ as _patch_all
 from ._patch import *
@@ -33,7 +35,9 @@ __all__ = [
     "CredentialsOperations",
     "PoliciesOperations",
     "NamespaceDevicesOperations",
-    "RegistryDevicesOperations",
+    "GroupsOperations",
+    "JobRunsOperations",
+    "JobsOperations",
 ]
 __all__.extend([p for p in _patch_all if p not in __all__])  # pyright: ignore
 _patch_sdk()

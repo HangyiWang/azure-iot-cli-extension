@@ -4,13 +4,9 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-"""Command-layer unit tests for the ADR thin command wrappers.
+"""Command-layer tests for ADR provider delegation."""
 
-Each command function instantiates a provider and delegates to a single method.
-These tests patch the provider class in the command module and assert the
-delegation, exercising the commands_*.py modules.
-"""
-
+import inspect
 from unittest.mock import Mock
 
 import pytest
@@ -20,13 +16,18 @@ from azext_iot.adr import (
     commands_certificate_policy,
     commands_credential,
     commands_device,
+    commands_group,
+    commands_job,
+    commands_job_run,
+    commands_link,
     commands_namespace,
     commands_policy,
-    commands_registry_device,
+    commands_report,
 )
 
 RG = "test-rg"
 NS = "test-namespace"
+ENDPOINTS = '{"outbound":{"assigned":{}}}'
 
 
 @pytest.fixture()
@@ -36,45 +37,91 @@ def cmd():
 
 def _patch_provider(mocker, module, attr):
     provider = Mock()
-    cls = mocker.patch.object(module, attr, return_value=provider)
-    return cls, provider
+    mocker.patch.object(module, attr, return_value=provider)
+    return provider
 
 
 class TestCredentialCommands:
-    def test_create(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
-        commands_credential.adr_credential_create(cmd, namespace_name=NS, resource_group_name=RG, tags={"a": "b"})
-        provider.create.assert_called_once_with(namespace_name=NS, resource_group_name=RG, tags={"a": "b"})
+    @pytest.mark.parametrize("operation", ["create", "delete", "synchronize"])
+    def test_writes_forward_no_wait(self, mocker, cmd, operation):
+        provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
+        function = getattr(commands_credential, f"adr_credential_{operation}")
+        kwargs = {
+            "cmd": cmd,
+            "namespace_name": NS,
+            "resource_group_name": RG,
+            "no_wait": True,
+        }
+        if operation == "create":
+            kwargs["tags"] = {"a": "b"}
+
+        function(**kwargs)
+
+        expected = {
+            "namespace_name": NS,
+            "resource_group_name": RG,
+            "no_wait": True,
+        }
+        if operation == "create":
+            expected["tags"] = {"a": "b"}
+        getattr(provider, operation).assert_called_once_with(**expected)
 
     def test_show(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
-        commands_credential.adr_credential_show(cmd, namespace_name=NS, resource_group_name=RG)
-        provider.show.assert_called_once_with(namespace_name=NS, resource_group_name=RG)
-
-    def test_delete(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
-        commands_credential.adr_credential_delete(cmd, namespace_name=NS, resource_group_name=RG)
-        provider.delete.assert_called_once_with(namespace_name=NS, resource_group_name=RG)
-
-    def test_synchronize(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
-        commands_credential.adr_credential_synchronize(cmd, namespace_name=NS, resource_group_name=RG)
-        provider.synchronize.assert_called_once_with(namespace_name=NS, resource_group_name=RG)
+        provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
+        commands_credential.adr_credential_show(
+            cmd, namespace_name=NS, resource_group_name=RG
+        )
+        provider.show.assert_called_once_with(
+            namespace_name=NS, resource_group_name=RG
+        )
 
 
 class TestDeviceCommands:
-    def test_show(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_device, "DeviceProvider")
-        commands_device.adr_device_show(cmd, device_name="dev", namespace_name=NS, resource_group_name=RG)
-        provider.show.assert_called_once_with(device_name="dev", namespace_name=NS, resource_group_name=RG)
+    def test_create_forwards_2026_fields(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_device, "DeviceProvider")
 
-    def test_list(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_device, "DeviceProvider")
-        commands_device.adr_device_list(cmd, namespace_name=NS, resource_group_name=RG)
-        provider.list.assert_called_once_with(namespace_name=NS, resource_group_name=RG)
+        commands_device.adr_device_create(
+            cmd,
+            device_name="dev",
+            namespace_name=NS,
+            resource_group_name=RG,
+            location="westus",
+            tags={"a": "b"},
+            manufacturer="Contoso",
+            model="X1",
+            operating_system="Linux",
+            operating_system_version="1.0",
+            external_device_id="external-1",
+            enabled=False,
+            attributes='{"site":"A"}',
+            endpoints=ENDPOINTS,
+            discovered_device_ref="discovered-1",
+            policy_resource_id="/policies/default",
+            no_wait=True,
+        )
 
-    def test_update(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_device, "DeviceProvider")
+        provider.create.assert_called_once_with(
+            device_name="dev",
+            namespace_name=NS,
+            resource_group_name=RG,
+            location="westus",
+            tags={"a": "b"},
+            manufacturer="Contoso",
+            model="X1",
+            operating_system="Linux",
+            operating_system_version="1.0",
+            external_device_id="external-1",
+            enabled=False,
+            attributes='{"site":"A"}',
+            endpoints=ENDPOINTS,
+            discovered_device_ref="discovered-1",
+            policy_resource_id="/policies/default",
+            no_wait=True,
+        )
+
+    def test_update_forwards_endpoints(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_device, "DeviceProvider")
+
         commands_device.adr_device_update(
             cmd,
             device_name="dev",
@@ -84,8 +131,11 @@ class TestDeviceCommands:
             tags={"a": "b"},
             operating_system_version="1.0",
             attributes="{}",
+            endpoints=ENDPOINTS,
             policy_resource_id="pid",
+            no_wait=True,
         )
+
         provider.update.assert_called_once_with(
             device_name="dev",
             namespace_name=NS,
@@ -94,23 +144,24 @@ class TestDeviceCommands:
             tags={"a": "b"},
             operating_system_version="1.0",
             attributes="{}",
+            endpoints=ENDPOINTS,
             policy_resource_id="pid",
-            no_wait=False,
+            no_wait=True,
         )
 
-    def test_revoke(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_device, "DeviceProvider")
-        commands_device.adr_device_revoke(
-            cmd, device_name="dev", namespace_name=NS, resource_group_name=RG, disable=True
-        )
-        provider.revoke.assert_called_once_with(
-            device_name="dev", namespace_name=NS, resource_group_name=RG, disable=True
-        )
+    @pytest.mark.parametrize("operation", ["show", "list"])
+    def test_reads(self, mocker, cmd, operation):
+        provider = _patch_provider(mocker, commands_device, "DeviceProvider")
+        kwargs = {"namespace_name": NS, "resource_group_name": RG}
+        if operation == "show":
+            kwargs["device_name"] = "dev"
+        getattr(commands_device, f"adr_device_{operation}")(cmd, **kwargs)
+        getattr(provider, operation).assert_called_once_with(**kwargs)
 
 
 class TestNamespaceCommands:
     def test_create(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
+        provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
         commands_namespace.adr_namespace_create(
             cmd,
             namespace_name=NS,
@@ -119,8 +170,9 @@ class TestNamespaceCommands:
             tags={"a": "b"},
             policy_name="pol",
             certificate_key_type="ECC",
-            certificate_subject="CN=x",
             certificate_validity_days=30,
+            outbound_mi_system_assigned=True,
+            no_wait=True,
         )
         provider.create.assert_called_once_with(
             namespace_name=NS,
@@ -129,83 +181,82 @@ class TestNamespaceCommands:
             tags={"a": "b"},
             policy_name="pol",
             certificate_key_type="ECC",
-            certificate_subject="CN=x",
             certificate_validity_days=30,
-            outbound_mi_system_assigned=None,
+            outbound_mi_system_assigned=True,
             outbound_mi_user_assigned=None,
-            no_wait=False,
+            no_wait=True,
         )
 
-    def test_show(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
-        commands_namespace.adr_namespace_show(cmd, namespace_name=NS, resource_group_name=RG)
-        provider.show.assert_called_once_with(namespace_name=NS, resource_group_name=RG)
-
-    def test_list(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
-        commands_namespace.adr_namespace_list(cmd, resource_group_name=RG)
-        provider.list.assert_called_once_with(resource_group_name=RG)
-
-    def test_delete(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
-        commands_namespace.adr_namespace_delete(cmd, namespace_name=NS, resource_group_name=RG)
-        provider.delete.assert_called_once_with(namespace_name=NS, resource_group_name=RG, no_wait=False)
+    def test_migrate(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
+        commands_namespace.adr_namespace_migrate(
+            cmd,
+            namespace_name=NS,
+            resource_group_name=RG,
+            resource_ids=["/resources/one", "/resources/two"],
+            scope="Resources",
+            no_wait=True,
+        )
+        provider.migrate.assert_called_once_with(
+            namespace_name=NS,
+            resource_group_name=RG,
+            resource_ids=["/resources/one", "/resources/two"],
+            scope="Resources",
+            no_wait=True,
+        )
 
     def test_update(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
-        commands_namespace.adr_namespace_update(cmd, namespace_name=NS, resource_group_name=RG, tags={"a": "b"})
+        provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
+        commands_namespace.adr_namespace_update(
+            cmd,
+            namespace_name=NS,
+            resource_group_name=RG,
+            tags={"a": "b"},
+            no_wait=True,
+        )
         provider.update.assert_called_once_with(
             namespace_name=NS,
             resource_group_name=RG,
             tags={"a": "b"},
             outbound_mi_system_assigned=None,
             outbound_mi_user_assigned=None,
-            no_wait=False,
+            no_wait=True,
         )
 
 
 class TestPolicyCommands:
-    def test_create(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
+    def test_create_surface_has_no_certificate_subject(self):
+        parameters = inspect.signature(commands_policy.adr_policy_create).parameters
+        assert "certificate_subject" not in parameters
+
+    def test_create_forwards_location_tags_and_no_wait(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
         commands_policy.adr_policy_create(
             cmd,
             policy_name="pol",
             namespace_name=NS,
             resource_group_name=RG,
+            location="westus",
             tags={"a": "b"},
             certificate_key_type="ECC",
-            certificate_subject="CN=x",
             certificate_validity_days=30,
             enable_byor=True,
+            no_wait=True,
         )
         provider.create.assert_called_once_with(
             policy_name="pol",
             namespace_name=NS,
             resource_group_name=RG,
+            location="westus",
             tags={"a": "b"},
             certificate_key_type="ECC",
-            certificate_subject="CN=x",
             certificate_validity_days=30,
             enable_byor=True,
+            no_wait=True,
         )
 
-    def test_show(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
-        commands_policy.adr_policy_show(cmd, policy_name="pol", namespace_name=NS, resource_group_name=RG)
-        provider.show.assert_called_once_with(policy_name="pol", namespace_name=NS, resource_group_name=RG)
-
-    def test_list(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
-        commands_policy.adr_policy_list(cmd, namespace_name=NS, resource_group_name=RG)
-        provider.list.assert_called_once_with(namespace_name=NS, resource_group_name=RG)
-
-    def test_delete(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
-        commands_policy.adr_policy_delete(cmd, policy_name="pol", namespace_name=NS, resource_group_name=RG)
-        provider.delete.assert_called_once_with(policy_name="pol", namespace_name=NS, resource_group_name=RG)
-
-    def test_update(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
+    def test_update_forwards_no_wait(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
         commands_policy.adr_policy_update(
             cmd,
             policy_name="pol",
@@ -213,6 +264,7 @@ class TestPolicyCommands:
             resource_group_name=RG,
             tags={"a": "b"},
             certificate_validity_days=30,
+            no_wait=True,
         )
         provider.update.assert_called_once_with(
             policy_name="pol",
@@ -220,136 +272,720 @@ class TestPolicyCommands:
             resource_group_name=RG,
             tags={"a": "b"},
             certificate_validity_days=30,
-        )
-
-    def test_revoke_issuer(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
-        commands_policy.adr_policy_revoke_issuer(cmd, policy_name="pol", namespace_name=NS, resource_group_name=RG)
-        provider.revoke_issuer.assert_called_once_with(
-            policy_name="pol", namespace_name=NS, resource_group_name=RG
+            no_wait=True,
         )
 
     def test_activate_byor(self, mocker, cmd):
-        _, provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
-        mocker.patch(
-            "azext_iot.common.utility.read_file_content", return_value="cert-chain"
-        )
+        provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
+        mocker.patch("azext_iot.common.utility.read_file_content", return_value="chain")
         commands_policy.adr_policy_activate_byor(
             cmd,
             policy_name="pol",
             namespace_name=NS,
             resource_group_name=RG,
             certificate_chain_file="chain.pem",
+            no_wait=True,
         )
         provider.activate_byor.assert_called_once_with(
             policy_name="pol",
             namespace_name=NS,
             resource_group_name=RG,
-            certificate_chain="cert-chain",
+            certificate_chain="chain",
+            no_wait=True,
         )
 
-
-class TestCertificateAuthorityCommands:
-    def test_create_ica(self, mocker, cmd):
-        _, provider = _patch_provider(
-            mocker, commands_certificate_authority, "CertificateAuthorityProvider"
-        )
-
-        commands_certificate_authority.adr_ca_create(
+    def test_revoke_issuer_forwards_no_wait(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
+        commands_policy.adr_policy_revoke_issuer(
             cmd,
-            certificate_authority_name="ica",
+            policy_name="pol",
             namespace_name=NS,
             resource_group_name=RG,
-            certificate_authority_type="ICA",
-            issuer_type="Internal",
-            issuer_certificate_authority_uuid="issuer-uuid",
+            no_wait=True,
+        )
+        provider.revoke_issuer.assert_called_once_with(
+            policy_name="pol",
+            namespace_name=NS,
+            resource_group_name=RG,
+            no_wait=True,
         )
 
+
+class TestGroupCommands:
+    def test_list_members(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_group, "GroupProvider")
+        commands_group.adr_group_list_members(
+            cmd,
+            group_name="group",
+            namespace_name=NS,
+            resource_group_name=RG,
+            page_size=100,
+            skip_token="token",
+        )
+        provider.list_members.assert_called_once_with(
+            group_name="group",
+            namespace_name=NS,
+            resource_group_name=RG,
+            page_size=100,
+            skip_token="token",
+        )
+
+    def test_count(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_group, "GroupProvider")
+        commands_group.adr_group_count(
+            cmd, group_name="group", namespace_name=NS, resource_group_name=RG
+        )
+        provider.count.assert_called_once_with(
+            group_name="group", namespace_name=NS, resource_group_name=RG
+        )
+
+    def test_delete_no_wait(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_group, "GroupProvider")
+        commands_group.adr_group_delete(
+            cmd,
+            group_name="group",
+            namespace_name=NS,
+            resource_group_name=RG,
+            no_wait=True,
+        )
+        provider.delete.assert_called_once_with(
+            group_name="group",
+            namespace_name=NS,
+            resource_group_name=RG,
+            no_wait=True,
+        )
+
+
+class TestJobCommands:
+    def test_create_forwards_2026_fields(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_job, "JobProvider")
+        commands_job.adr_job_create(
+            cmd,
+            job_name="job",
+            namespace_name=NS,
+            resource_group_name=RG,
+            update_provider="Contoso",
+            update_name="firmware",
+            update_version="1.0",
+            target_group_name="group",
+            job_type="SoftwareUpdate",
+            description="description",
+            location="westus",
+            tags={"a": "b"},
+            no_wait=True,
+        )
         provider.create.assert_called_once_with(
-            certificate_authority_name="ica",
+            job_name="job",
             namespace_name=NS,
             resource_group_name=RG,
-            certificate_authority_type="ICA",
-            issuer_type="Internal",
-            issuer_certificate_authority_uuid="issuer-uuid",
-            key_type=None,
-            location=None,
-            tags=None,
+            update_provider="Contoso",
+            update_name="firmware",
+            update_version="1.0",
+            target_group_name="group",
+            job_type="SoftwareUpdate",
+            description="description",
+            location="westus",
+            tags={"a": "b"},
+            no_wait=True,
         )
 
-
-class TestCertificatePolicyCommands:
-    def test_update_tags(self, mocker, cmd):
-        _, provider = _patch_provider(
-            mocker, commands_certificate_policy, "CertificatePolicyProvider"
-        )
-
-        commands_certificate_policy.adr_ca_policy_update(
+    def test_schedule(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_job, "JobProvider")
+        commands_job.adr_job_schedule(
             cmd,
-            certificate_policy_name="policy",
-            certificate_authority_name="ca",
+            job_name="job",
             namespace_name=NS,
             resource_group_name=RG,
-            tags={"env": "test"},
+            scheduled_time="2026-11-02T12:00:00+00:00",
+            timeout="PT1H",
+            no_wait=True,
         )
-
-        provider.update.assert_called_once_with(
-            certificate_policy_name="policy",
-            certificate_authority_name="ca",
+        provider.schedule.assert_called_once_with(
+            job_name="job",
             namespace_name=NS,
             resource_group_name=RG,
-            tags={"env": "test"},
+            scheduled_time="2026-11-02T12:00:00+00:00",
+            timeout="PT1H",
+            no_wait=True,
         )
 
 
-class TestRegistryDeviceCommands:
-    def test_create_defaults_enabled(self, mocker, cmd):
-        _, provider = _patch_provider(
-            mocker, commands_registry_device, "RegistryDeviceProvider"
-        )
-
-        commands_registry_device.adr_registry_device_create(
+class TestJobRunCommands:
+    def test_list_by_namespace_with_filter(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_job_run, "JobRunProvider")
+        commands_job_run.adr_job_run_list(
             cmd,
-            registry_device_name="device",
             namespace_name=NS,
             resource_group_name=RG,
+            status_filter="status eq 'Active'",
         )
-
-        provider.create.assert_called_once_with(
-            registry_device_name="device",
+        provider.list.assert_called_once_with(
+            job_name=None,
             namespace_name=NS,
             resource_group_name=RG,
-            external_device_id=None,
-            enablement_state="Enabled",
-            manufacturer=None,
-            model=None,
-            hardware_revision=None,
-            software_revision=None,
-            location=None,
-            tags=None,
+            status_filter="status eq 'Active'",
         )
 
-    def test_update_enablement(self, mocker, cmd):
-        _, provider = _patch_provider(
-            mocker, commands_registry_device, "RegistryDeviceProvider"
-        )
-
-        commands_registry_device.adr_registry_device_update(
+    def test_results_flattens_provider_iterator(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_job_run, "JobRunProvider")
+        provider.results.return_value = iter([{"device": "one"}, {"device": "two"}])
+        result = commands_job_run.adr_job_run_results(
             cmd,
-            registry_device_name="device",
+            job_name="job",
+            run_name="run",
             namespace_name=NS,
             resource_group_name=RG,
-            enablement_state="Disabled",
+            status_filter="status eq 'Failed'",
+        )
+        assert result == [{"device": "one"}, {"device": "two"}]
+        provider.results.assert_called_once_with(
+            job_name="job",
+            run_name="run",
+            namespace_name=NS,
+            resource_group_name=RG,
+            status_filter="status eq 'Failed'",
         )
 
-        provider.update.assert_called_once_with(
-            registry_device_name="device",
+    def test_cancel(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_job_run, "JobRunProvider")
+        commands_job_run.adr_job_run_cancel(
+            cmd,
+            job_name="job",
+            run_name="run",
             namespace_name=NS,
             resource_group_name=RG,
-            enablement_state="Disabled",
-            manufacturer=None,
-            model=None,
-            hardware_revision=None,
-            software_revision=None,
-            tags=None,
+            no_wait=True,
         )
+        provider.cancel.assert_called_once_with(
+            job_name="job",
+            run_name="run",
+            namespace_name=NS,
+            resource_group_name=RG,
+            no_wait=True,
+        )
+
+
+class TestReportCommands:
+    @pytest.mark.parametrize(
+        "report_type,group_name",
+        [
+            ("NamespaceUpdateComplianceReport", None),
+            ("GroupBestUpdatesComplianceReport", "group"),
+            ("GroupInstallableUpdatesReport", "group"),
+        ],
+    )
+    def test_generate_all_report_types(
+        self, mocker, cmd, report_type, group_name
+    ):
+        provider = _patch_provider(mocker, commands_report, "ReportProvider")
+        commands_report.adr_report_generate(
+            cmd,
+            namespace_name=NS,
+            resource_group_name=RG,
+            report_type=report_type,
+            group_name=group_name,
+            no_wait=True,
+        )
+        provider.generate.assert_called_once_with(
+            namespace_name=NS,
+            resource_group_name=RG,
+            report_type=report_type,
+            group_name=group_name,
+            no_wait=True,
+        )
+
+    @pytest.mark.parametrize(
+        "report_type,group_name",
+        [
+            ("NamespaceUpdateComplianceReport", None),
+            ("GroupBestUpdatesComplianceReport", "group"),
+            ("GroupInstallableUpdatesReport", "group"),
+        ],
+    )
+    def test_latest_all_report_types(
+        self, mocker, cmd, report_type, group_name
+    ):
+        provider = _patch_provider(mocker, commands_report, "ReportProvider")
+        commands_report.adr_report_latest(
+            cmd,
+            namespace_name=NS,
+            resource_group_name=RG,
+            report_type=report_type,
+            group_name=group_name,
+        )
+        provider.latest.assert_called_once_with(
+            namespace_name=NS,
+            resource_group_name=RG,
+            report_type=report_type,
+            group_name=group_name,
+        )
+
+
+def test_hub_update_surface_is_identity_only(mocker, cmd):
+    provider = _patch_provider(mocker, commands_link, "LinkProvider")
+    commands_link.adr_link_hub_update(
+        cmd,
+        endpoint_name="hub",
+        namespace_name=NS,
+        resource_group_name=RG,
+        mi_system_assigned=True,
+        no_wait=True,
+    )
+    provider.hub_update.assert_called_once_with(
+        endpoint_name="hub",
+        namespace_name=NS,
+        resource_group_name=RG,
+        mi_system_assigned=True,
+        mi_user_assigned=None,
+        no_wait=True,
+    )
+
+
+def test_certificate_authority_command_still_delegates(mocker, cmd):
+    provider = _patch_provider(
+        mocker, commands_certificate_authority, "CertificateAuthorityProvider"
+    )
+    commands_certificate_authority.adr_ca_create(
+        cmd,
+        certificate_authority_name="ca",
+        namespace_name=NS,
+        resource_group_name=RG,
+        certificate_authority_type="Root",
+    )
+    provider.create.assert_called_once()
+
+
+def test_certificate_authority_activate_reads_chain_and_delegates(mocker, cmd):
+    provider = _patch_provider(
+        mocker, commands_certificate_authority, "CertificateAuthorityProvider"
+    )
+    mocker.patch(
+        "azext_iot.common.utility.read_file_content", return_value="certificate-chain"
+    )
+
+    commands_certificate_authority.adr_ca_activate(
+        cmd,
+        certificate_authority_name="ca",
+        namespace_name=NS,
+        resource_group_name=RG,
+        certificate_chain_file="chain.pem",
+        no_wait=True,
+    )
+
+    provider.activate.assert_called_once_with(
+        certificate_authority_name="ca",
+        namespace_name=NS,
+        resource_group_name=RG,
+        certificate_chain="certificate-chain",
+        no_wait=True,
+    )
+
+
+def test_certificate_policy_command_still_delegates(mocker, cmd):
+    provider = _patch_provider(
+        mocker, commands_certificate_policy, "CertificatePolicyProvider"
+    )
+    commands_certificate_policy.adr_ca_policy_update(
+        cmd,
+        certificate_policy_name="policy",
+        certificate_authority_name="ca",
+        namespace_name=NS,
+        resource_group_name=RG,
+        tags={"env": "test"},
+    )
+    provider.update.assert_called_once()
+
+
+_SIMPLE_COMMAND_CASES = [
+    pytest.param(
+        commands_device,
+        "DeviceProvider",
+        "adr_device_delete",
+        "delete",
+        {
+            "device_name": "device",
+            "namespace_name": NS,
+            "resource_group_name": RG,
+        },
+        id="device-delete",
+    ),
+    pytest.param(
+        commands_namespace,
+        "NamespaceProvider",
+        "adr_namespace_show",
+        "show",
+        {"namespace_name": NS, "resource_group_name": RG},
+        id="namespace-show",
+    ),
+    pytest.param(
+        commands_namespace,
+        "NamespaceProvider",
+        "adr_namespace_list",
+        "list",
+        {},
+        id="namespace-list",
+    ),
+    pytest.param(
+        commands_namespace,
+        "NamespaceProvider",
+        "adr_namespace_delete",
+        "delete",
+        {"namespace_name": NS, "resource_group_name": RG},
+        id="namespace-delete",
+    ),
+    pytest.param(
+        commands_policy,
+        "PolicyProvider",
+        "adr_policy_show",
+        "show",
+        {
+            "policy_name": "policy",
+            "namespace_name": NS,
+            "resource_group_name": RG,
+        },
+        id="policy-show",
+    ),
+    pytest.param(
+        commands_policy,
+        "PolicyProvider",
+        "adr_policy_list",
+        "list",
+        {"namespace_name": NS, "resource_group_name": RG},
+        id="policy-list",
+    ),
+    pytest.param(
+        commands_policy,
+        "PolicyProvider",
+        "adr_policy_delete",
+        "delete",
+        {
+            "policy_name": "policy",
+            "namespace_name": NS,
+            "resource_group_name": RG,
+        },
+        id="policy-delete",
+    ),
+    pytest.param(
+        commands_group,
+        "GroupProvider",
+        "adr_group_create",
+        "create",
+        {
+            "group_name": "group",
+            "namespace_name": NS,
+            "resource_group_name": RG,
+            "query_string": "SELECT * FROM devices",
+        },
+        id="group-create",
+    ),
+    pytest.param(
+        commands_group,
+        "GroupProvider",
+        "adr_group_update",
+        "update",
+        {
+            "group_name": "group",
+            "namespace_name": NS,
+            "resource_group_name": RG,
+        },
+        id="group-update",
+    ),
+    pytest.param(
+        commands_group,
+        "GroupProvider",
+        "adr_group_show",
+        "show",
+        {
+            "group_name": "group",
+            "namespace_name": NS,
+            "resource_group_name": RG,
+        },
+        id="group-show",
+    ),
+    pytest.param(
+        commands_group,
+        "GroupProvider",
+        "adr_group_list",
+        "list",
+        {"namespace_name": NS, "resource_group_name": RG},
+        id="group-list",
+    ),
+    pytest.param(
+        commands_group,
+        "GroupProvider",
+        "adr_group_refresh",
+        "refresh",
+        {
+            "group_name": "group",
+            "namespace_name": NS,
+            "resource_group_name": RG,
+        },
+        id="group-refresh",
+    ),
+    pytest.param(
+        commands_job,
+        "JobProvider",
+        "adr_job_update",
+        "update",
+        {"job_name": "job", "namespace_name": NS, "resource_group_name": RG},
+        id="job-update",
+    ),
+    pytest.param(
+        commands_job,
+        "JobProvider",
+        "adr_job_show",
+        "show",
+        {"job_name": "job", "namespace_name": NS, "resource_group_name": RG},
+        id="job-show",
+    ),
+    pytest.param(
+        commands_job,
+        "JobProvider",
+        "adr_job_list",
+        "list",
+        {"namespace_name": NS, "resource_group_name": RG},
+        id="job-list",
+    ),
+    pytest.param(
+        commands_job,
+        "JobProvider",
+        "adr_job_delete",
+        "delete",
+        {"job_name": "job", "namespace_name": NS, "resource_group_name": RG},
+        id="job-delete",
+    ),
+    pytest.param(
+        commands_job_run,
+        "JobRunProvider",
+        "adr_job_run_show",
+        "show",
+        {
+            "job_name": "job",
+            "run_name": "run",
+            "namespace_name": NS,
+            "resource_group_name": RG,
+        },
+        id="job-run-show",
+    ),
+]
+
+_SIMPLE_COMMAND_CASES.extend(
+    [
+        pytest.param(
+            commands_certificate_authority,
+            "CertificateAuthorityProvider",
+            "adr_ca_show",
+            "show",
+            {
+                "certificate_authority_name": "ca",
+                "namespace_name": NS,
+                "resource_group_name": RG,
+            },
+            id="ca-show",
+        ),
+        pytest.param(
+            commands_certificate_authority,
+            "CertificateAuthorityProvider",
+            "adr_ca_list",
+            "list",
+            {"namespace_name": NS, "resource_group_name": RG},
+            id="ca-list",
+        ),
+        pytest.param(
+            commands_certificate_authority,
+            "CertificateAuthorityProvider",
+            "adr_ca_update",
+            "update",
+            {
+                "certificate_authority_name": "ca",
+                "namespace_name": NS,
+                "resource_group_name": RG,
+                "tags": {"env": "test"},
+                "no_wait": True,
+            },
+            id="ca-update",
+        ),
+        pytest.param(
+            commands_certificate_authority,
+            "CertificateAuthorityProvider",
+            "adr_ca_delete",
+            "delete",
+            {
+                "certificate_authority_name": "ca",
+                "namespace_name": NS,
+                "resource_group_name": RG,
+                "no_wait": True,
+            },
+            id="ca-delete",
+        ),
+        pytest.param(
+            commands_certificate_authority,
+            "CertificateAuthorityProvider",
+            "adr_ca_revoke",
+            "revoke",
+            {
+                "certificate_authority_name": "ca",
+                "namespace_name": NS,
+                "resource_group_name": RG,
+                "no_wait": True,
+            },
+            id="ca-revoke",
+        ),
+        pytest.param(
+            commands_certificate_policy,
+            "CertificatePolicyProvider",
+            "adr_ca_policy_create",
+            "create",
+            {
+                "certificate_policy_name": "policy",
+                "certificate_authority_name": "ca",
+                "namespace_name": NS,
+                "resource_group_name": RG,
+                "validity_days": 30,
+                "no_wait": True,
+            },
+            id="ca-policy-create",
+        ),
+        pytest.param(
+            commands_certificate_policy,
+            "CertificatePolicyProvider",
+            "adr_ca_policy_show",
+            "show",
+            {
+                "certificate_policy_name": "policy",
+                "certificate_authority_name": "ca",
+                "namespace_name": NS,
+                "resource_group_name": RG,
+            },
+            id="ca-policy-show",
+        ),
+        pytest.param(
+            commands_certificate_policy,
+            "CertificatePolicyProvider",
+            "adr_ca_policy_list",
+            "list",
+            {
+                "certificate_authority_name": "ca",
+                "namespace_name": NS,
+                "resource_group_name": RG,
+            },
+            id="ca-policy-list",
+        ),
+        pytest.param(
+            commands_certificate_policy,
+            "CertificatePolicyProvider",
+            "adr_ca_policy_delete",
+            "delete",
+            {
+                "certificate_policy_name": "policy",
+                "certificate_authority_name": "ca",
+                "namespace_name": NS,
+                "resource_group_name": RG,
+                "no_wait": True,
+            },
+            id="ca-policy-delete",
+        ),
+    ]
+)
+
+for _kind, _resource_argument in (
+    ("hub", "hub_resource_id"),
+    ("dps", "dps_resource_id"),
+    ("adu", "adu_resource_id"),
+):
+    _SIMPLE_COMMAND_CASES.extend(
+        [
+            pytest.param(
+                commands_link,
+                "LinkProvider",
+                f"adr_link_{_kind}_add",
+                f"{_kind}_add",
+                {
+                    "endpoint_name": "endpoint",
+                    "namespace_name": NS,
+                    "resource_group_name": RG,
+                    _resource_argument: "/resource/id",
+                },
+                id=f"link-{_kind}-add",
+            ),
+            pytest.param(
+                commands_link,
+                "LinkProvider",
+                f"adr_link_{_kind}_show",
+                f"{_kind}_show",
+                {
+                    "endpoint_name": "endpoint",
+                    "namespace_name": NS,
+                    "resource_group_name": RG,
+                },
+                id=f"link-{_kind}-show",
+            ),
+            pytest.param(
+                commands_link,
+                "LinkProvider",
+                f"adr_link_{_kind}_list",
+                f"{_kind}_list",
+                {"namespace_name": NS, "resource_group_name": RG},
+                id=f"link-{_kind}-list",
+            ),
+        ]
+    )
+    if _kind != "hub":
+        _SIMPLE_COMMAND_CASES.append(
+            pytest.param(
+                commands_link,
+                "LinkProvider",
+                f"adr_link_{_kind}_update",
+                f"{_kind}_update",
+                {
+                    "endpoint_name": "endpoint",
+                    "namespace_name": NS,
+                    "resource_group_name": RG,
+                },
+                id=f"link-{_kind}-update",
+            )
+        )
+
+_SIMPLE_COMMAND_CASES.append(
+    pytest.param(
+        commands_link,
+        "LinkProvider",
+        "adr_link_add",
+        "link_add",
+        {
+            "namespace_name": NS,
+            "resource_group_name": RG,
+            "hub_endpoint_name": "hub",
+            "hub_resource_id": "/hubs/hub",
+            "dps_endpoint_name": "dps",
+            "dps_resource_id": "/dps/dps",
+        },
+        id="link-bundled-add",
+    )
+)
+
+
+@pytest.mark.parametrize(
+    "module,provider_name,command_name,provider_method,kwargs",
+    _SIMPLE_COMMAND_CASES,
+)
+def test_simple_command_wrappers_delegate(
+    mocker,
+    cmd,
+    module,
+    provider_name,
+    command_name,
+    provider_method,
+    kwargs,
+):
+    provider = _patch_provider(mocker, module, provider_name)
+    command = getattr(module, command_name)
+
+    command(cmd, **kwargs)
+
+    bound = inspect.signature(command).bind(cmd, **kwargs)
+    bound.apply_defaults()
+    expected = dict(bound.arguments)
+    expected.pop("cmd")
+    expected.update(expected.pop("kwargs", {}))
+    getattr(provider, provider_method).assert_called_once_with(**expected)

@@ -7,219 +7,308 @@
 from unittest.mock import Mock
 
 import pytest
+from azure.cli.core.azclierror import InvalidArgumentValueError
 
 
-# ==================== show / list ====================
-
-
-def test_job_run_show_delegates_to_sdk_get(fixture_job_run_provider):
-    expected = {"name": "run-1", "properties": {"status": "Succeeded"}}
+def test_job_run_show(fixture_job_run_provider):
+    expected = {"name": "run", "properties": {"status": "Succeeded"}}
     fixture_job_run_provider.client.job_runs.get.return_value = expected
 
-    result = fixture_job_run_provider.show(
-        job_name="test-job",
-        run_name="run-1",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
+    assert (
+        fixture_job_run_provider.show("job", "run", "namespace", "rg")
+        is expected
     )
-
-    assert result is expected
     fixture_job_run_provider.client.job_runs.get.assert_called_once_with(
-        resource_group_name="test-rg",
-        namespace_name="test-ns",
-        job_name="test-job",
-        run_name="run-1",
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+        run_name="run",
     )
 
 
-def test_job_run_list_materializes_iterable(fixture_job_run_provider):
-    fixture_job_run_provider.client.job_runs.list_by_job.return_value = iter([
-        {"name": "run-1"},
-        {"name": "run-2"},
-    ])
+def test_job_run_list_by_job(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_by_job.return_value = iter(
+        [{"name": "one"}, {"name": "two"}]
+    )
 
     result = fixture_job_run_provider.list(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
+        "namespace", "rg", job_name="job"
     )
 
-    assert [r["name"] for r in result] == ["run-1", "run-2"]
+    assert result == [{"name": "one"}, {"name": "two"}]
     fixture_job_run_provider.client.job_runs.list_by_job.assert_called_once_with(
-        resource_group_name="test-rg",
-        namespace_name="test-ns",
-        job_name="test-job",
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+    )
+    fixture_job_run_provider.client.job_runs.list_by_namespace.assert_not_called()
+
+
+def test_job_run_list_by_job_with_filter(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_by_job.return_value = iter([])
+
+    fixture_job_run_provider.list(
+        "namespace",
+        "rg",
+        job_name="job",
+        status_filter="status eq 'Active'",
+    )
+
+    fixture_job_run_provider.client.job_runs.list_by_job.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+        filter="status eq 'Active'",
     )
 
 
-# ==================== results (manual pagination) ====================
+def test_job_run_list_by_namespace_with_filter(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_by_namespace.return_value = iter(
+        [{"name": "one"}]
+    )
+
+    result = fixture_job_run_provider.list(
+        "namespace",
+        "rg",
+        status_filter="status eq 'Active'",
+    )
+
+    assert result == [{"name": "one"}]
+    fixture_job_run_provider.client.job_runs.list_by_namespace.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        filter="status eq 'Active'",
+    )
+    fixture_job_run_provider.client.job_runs.list_by_job.assert_not_called()
 
 
-def test_job_run_results_single_page_returns_all_items(fixture_job_run_provider):
-    """A single-page response (no nextLink) yields every value item exactly once."""
-    fixture_job_run_provider.client.job_runs.results.return_value = {
-        "value": [
-            {"deviceUuid": "d1", "status": "Succeeded", "reason": ""},
-            {"deviceUuid": "d2", "status": "Failed", "reason": "timeout"},
-        ],
+def test_job_run_list_accepts_status_equality_or(fixture_job_run_provider):
+    status_filter = "status eq 'Active' or status eq 'Scheduled'"
+    fixture_job_run_provider.client.job_runs.list_by_namespace.return_value = iter([])
+
+    fixture_job_run_provider.list(
+        "namespace", "rg", status_filter=status_filter
+    )
+
+    assert (
+        fixture_job_run_provider.client.job_runs.list_by_namespace.call_args.kwargs[
+            "filter"
+        ]
+        == status_filter
+    )
+
+
+@pytest.mark.parametrize(
+    "status_filter",
+    [
+        "status ne 'Canceled'",
+        "status eq 'Unknown'",
+        "name eq 'Active'",
+    ],
+)
+def test_job_run_list_rejects_unsupported_filters(
+    fixture_job_run_provider, status_filter
+):
+    with pytest.raises(InvalidArgumentValueError):
+        fixture_job_run_provider.list(
+            "namespace", "rg", status_filter=status_filter
+        )
+
+
+def test_job_run_results_posts_empty_body(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_results.return_value = {
+        "value": [{"deviceId": "one"}],
         "nextLink": None,
     }
 
     result = list(
-        fixture_job_run_provider.results(
-            job_name="test-job",
-            run_name="run-1",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-        )
+        fixture_job_run_provider.results("job", "run", "namespace", "rg")
     )
 
-    assert [r["deviceUuid"] for r in result] == ["d1", "d2"]
-    fixture_job_run_provider.client.job_runs.results.assert_called_once_with(
-        resource_group_name="test-rg",
-        namespace_name="test-ns",
-        job_name="test-job",
-        run_name="run-1",
+    assert result == [{"deviceId": "one"}]
+    fixture_job_run_provider.client.job_runs.list_results.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+        run_name="run",
+        body={},
     )
-    # Single page ⇒ no nextLink follow-up.
-    fixture_job_run_provider.client.send_request.assert_not_called()
 
 
-def test_job_run_results_follows_next_link_until_exhausted(fixture_job_run_provider):
-    """Manual pagination: chain pages via client.send_request until nextLink is None."""
-    fixture_job_run_provider.client.job_runs.results.return_value = {
-        "value": [{"deviceUuid": "d1", "status": "Succeeded"}],
-        "nextLink": "https://example/page2",
-    }
-    page2 = Mock()
-    page2.json.return_value = {
-        "value": [{"deviceUuid": "d2", "status": "Failed"}],
-        "nextLink": "https://example/page3",
-    }
-    page3 = Mock()
-    page3.json.return_value = {
-        "value": [{"deviceUuid": "d3", "status": "Succeeded"}],
+def test_job_run_results_posts_filter_body(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_results.return_value = {
+        "value": [],
         "nextLink": None,
     }
-    fixture_job_run_provider.client.send_request.side_effect = [page2, page3]
 
-    result = list(
+    list(
         fixture_job_run_provider.results(
-            job_name="test-job",
-            run_name="run-1",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
+            "job",
+            "run",
+            "namespace",
+            "rg",
+            status_filter="status eq 'Failed'",
         )
     )
 
-    assert [r["deviceUuid"] for r in result] == ["d1", "d2", "d3"]
-    assert fixture_job_run_provider.client.send_request.call_count == 2
-    page2.raise_for_status.assert_called_once()
-    page3.raise_for_status.assert_called_once()
-    # Verify the nextLink URLs were preserved in the follow-up requests.
-    follow_up_urls = [
-        c.args[0].url for c in fixture_job_run_provider.client.send_request.call_args_list
-    ]
-    assert follow_up_urls == ["https://example/page2", "https://example/page3"]
-
-
-def test_job_run_results_handles_empty_envelope(fixture_job_run_provider):
-    """Missing/null ``value`` field degrades to an empty iterator."""
-    fixture_job_run_provider.client.job_runs.results.return_value = {
-        "value": None,
-        "nextLink": None,
-    }
-    result = list(
-        fixture_job_run_provider.results(
-            job_name="test-job",
-            run_name="run-1",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-        )
+    assert (
+        fixture_job_run_provider.client.job_runs.list_results.call_args.kwargs["body"]
+        == {"filter": "status eq 'Failed'"}
     )
-    assert not result
 
 
-def test_job_run_results_is_lazy(fixture_job_run_provider):
-    """Generator should not call send_request until the first page is consumed past."""
-    fixture_job_run_provider.client.job_runs.results.return_value = {
-        "value": [{"deviceUuid": "d1"}, {"deviceUuid": "d2"}],
-        "nextLink": "https://example/page2",
-    }
-    page2 = Mock()
-    page2.json.return_value = {"value": [{"deviceUuid": "d3"}], "nextLink": None}
-    fixture_job_run_provider.client.send_request.side_effect = [page2]
-
-    gen = fixture_job_run_provider.results(
-        job_name="test-job",
-        run_name="run-1",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-    )
-    # Pulling only the first 2 items must NOT trigger nextLink follow-up.
-    first_two = [next(gen), next(gen)]
-    assert [r["deviceUuid"] for r in first_two] == ["d1", "d2"]
-    fixture_job_run_provider.client.send_request.assert_not_called()
-
-    # Pulling the next item advances to page 2.
-    assert next(gen)["deviceUuid"] == "d3"
-    assert fixture_job_run_provider.client.send_request.call_count == 1
-
-    # Generator exhausted.
-    with pytest.raises(StopIteration):
-        next(gen)
-
-
-def test_job_run_results_propagates_http_error_on_next_page(fixture_job_run_provider):
-    """A non-success status on a follow-up page surfaces via raise_for_status."""
-    fixture_job_run_provider.client.job_runs.results.return_value = {
-        "value": [{"deviceUuid": "d1"}],
-        "nextLink": "https://example/page2",
-    }
-    page2 = Mock()
-    page2.raise_for_status.side_effect = RuntimeError("503 Service Unavailable")
-    fixture_job_run_provider.client.send_request.return_value = page2
-
-    with pytest.raises(RuntimeError, match="503"):
+@pytest.mark.parametrize(
+    "status_filter",
+    [
+        "status ne 'Failed'",
+        "status eq 'Unknown'",
+        "status eq 'Failed' or status eq 'Canceled'",
+    ],
+)
+def test_job_run_results_rejects_unsupported_filters(
+    fixture_job_run_provider, status_filter
+):
+    with pytest.raises(InvalidArgumentValueError):
         list(
             fixture_job_run_provider.results(
-                job_name="test-job",
-                run_name="run-1",
-                namespace_name="test-ns",
-                resource_group_name="test-rg",
+                "job",
+                "run",
+                "namespace",
+                "rg",
+                status_filter=status_filter,
             )
         )
 
 
-# ==================== Edge-case fills ====================
-
-
-def test_job_run_results_empty_first_page_with_next_link(fixture_job_run_provider):
-    """Empty ``value`` on page 1 must still trigger the nextLink follow-up.
-
-    Defensive: a backend that returns no items on the first envelope but does
-    advertise a continuation must still drain subsequent pages.
-    """
-    fixture_job_run_provider.client.job_runs.results.return_value = {
-        "value": [],
-        "nextLink": "https://example/page2",
+def test_job_run_results_flattens_next_links(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_results.return_value = {
+        "value": [{"deviceId": "one"}],
+        "nextLink": "https://management.azure.com/page/2",
     }
-    page2 = Mock()
-    page2.json.return_value = {
-        "value": [{"deviceUuid": "d1", "status": "Succeeded"}],
+    page_two = Mock()
+    page_two.json.return_value = {
+        "value": [{"deviceId": "two"}],
+        "nextLink": "https://management.azure.com/page/3",
+    }
+    page_three = Mock()
+    page_three.json.return_value = {
+        "value": [{"deviceId": "three"}],
         "nextLink": None,
     }
-    fixture_job_run_provider.client.send_request.return_value = page2
+    fixture_job_run_provider.client.send_request.side_effect = [
+        page_two,
+        page_three,
+    ]
 
     result = list(
-        fixture_job_run_provider.results(
-            job_name="test-job",
-            run_name="run-1",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-        )
+        fixture_job_run_provider.results("job", "run", "namespace", "rg")
     )
 
-    assert [r["deviceUuid"] for r in result] == ["d1"]
-    assert fixture_job_run_provider.client.send_request.call_count == 1
-    page2.raise_for_status.assert_called_once()
+    assert [item["deviceId"] for item in result] == ["one", "two", "three"]
+    requests = [
+        call.args[0]
+        for call in fixture_job_run_provider.client.send_request.call_args_list
+    ]
+    assert [(request.method, request.url) for request in requests] == [
+        ("GET", "https://management.azure.com/page/2"),
+        ("GET", "https://management.azure.com/page/3"),
+    ]
+    page_two.raise_for_status.assert_called_once_with()
+    page_three.raise_for_status.assert_called_once_with()
+
+
+def test_job_run_results_follows_next_link_after_empty_page(
+    fixture_job_run_provider,
+):
+    fixture_job_run_provider.client.job_runs.list_results.return_value = {
+        "value": None,
+        "nextLink": "https://management.azure.com/page/2",
+    }
+    page_two = Mock()
+    page_two.json.return_value = {
+        "value": [{"deviceId": "one"}],
+        "nextLink": None,
+    }
+    fixture_job_run_provider.client.send_request.return_value = page_two
+
+    assert list(
+        fixture_job_run_provider.results("job", "run", "namespace", "rg")
+    ) == [{"deviceId": "one"}]
+
+
+def test_job_run_results_handles_empty_response(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_results.return_value = None
+
+    assert not list(
+        fixture_job_run_provider.results("job", "run", "namespace", "rg")
+    )
+
+
+def test_job_run_results_is_lazy_across_pages(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_results.return_value = {
+        "value": [{"deviceId": "one"}, {"deviceId": "two"}],
+        "nextLink": "https://management.azure.com/page/2",
+    }
+    page_two = Mock()
+    page_two.json.return_value = {
+        "value": [{"deviceId": "three"}],
+        "nextLink": None,
+    }
+    fixture_job_run_provider.client.send_request.return_value = page_two
+
+    results = fixture_job_run_provider.results(
+        "job", "run", "namespace", "rg"
+    )
+    assert [next(results), next(results)] == [
+        {"deviceId": "one"},
+        {"deviceId": "two"},
+    ]
+    fixture_job_run_provider.client.send_request.assert_not_called()
+    assert next(results) == {"deviceId": "three"}
+
+
+def test_job_run_results_propagates_next_page_error(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_results.return_value = {
+        "value": [],
+        "nextLink": "https://management.azure.com/page/2",
+    }
+    response = Mock()
+    response.raise_for_status.side_effect = RuntimeError("503 unavailable")
+    fixture_job_run_provider.client.send_request.return_value = response
+
+    with pytest.raises(RuntimeError, match="503"):
+        list(
+            fixture_job_run_provider.results(
+                "job", "run", "namespace", "rg"
+            )
+        )
+
+
+def test_job_run_cancel_waits_for_lro(fixture_job_run_provider, mock_poller):
+    fixture_job_run_provider.client.job_runs.begin_cancel.return_value = mock_poller(
+        {"status": "Canceled"}
+    )
+
+    result = fixture_job_run_provider.cancel(
+        "job", "run", "namespace", "rg"
+    )
+
+    assert result == {"status": "Canceled"}
+    fixture_job_run_provider.client.job_runs.begin_cancel.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+        run_name="run",
+    )
+
+
+def test_job_run_cancel_no_wait(fixture_job_run_provider, mock_poller):
+    poller = mock_poller(None)
+    fixture_job_run_provider.client.job_runs.begin_cancel.return_value = poller
+
+    result = fixture_job_run_provider.cancel(
+        "job", "run", "namespace", "rg", no_wait=True
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()

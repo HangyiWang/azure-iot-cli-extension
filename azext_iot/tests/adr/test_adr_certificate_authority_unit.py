@@ -139,6 +139,40 @@ def test_create_root_rejects_issuer(fixture_ca_provider):
         )
 
 
+@pytest.mark.parametrize(
+    "ca_type,issuer_type,issuer_uuid,match",
+    [
+        (
+            "ICA",
+            "External",
+            "11111111-1111-1111-1111-111111111111",
+            "cannot be used",
+        ),
+        ("ICA", "Unknown", None, "either Internal or External"),
+        ("Unknown", None, None, "either Root or ICA"),
+    ],
+)
+def test_create_ca_rejects_invalid_issuer_combinations(
+    fixture_ca_provider,
+    ca_type,
+    issuer_type,
+    issuer_uuid,
+    match,
+):
+    with pytest.raises(ArgumentUsageError, match=match):
+        fixture_ca_provider.create(
+            certificate_authority_name="ca",
+            namespace_name="ns",
+            resource_group_name="rg",
+            certificate_authority_type=ca_type,
+            issuer_type=issuer_type,
+            issuer_certificate_authority_uuid=issuer_uuid,
+            location="eastus",
+        )
+
+    fixture_ca_provider.client.certificate_authorities.begin_create_or_replace.assert_not_called()
+
+
 # ==================== Show / List ====================
 
 

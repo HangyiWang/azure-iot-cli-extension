@@ -36,10 +36,9 @@ console = Console()
 # async-operation URL returns HTTP 500 "ARM PoP token authentication failed"
 # even though the mutation itself succeeds (HTTP 202). Per the Device Registry
 # team this async-status implementation is incomplete/temporary; until it is
-# fixed we poll the resource's own ``provisioningState`` instead. This matches
-# the Device Registry team's own reference tool (Create-AdrNamespace), which
-# likewise polls provisioningState "rather than the broken Azure-AsyncOperation
-# URL", so this is the sanctioned approach and not merely a client-side hack.
+# fixed we poll a mutation's resource ``provisioningState`` or a POST action's
+# Location URL instead. Resource polling matches the Device Registry team's
+# reference tool, which avoids the broken Azure-AsyncOperation URL.
 #
 # TO REVERT once the backend is fixed: set POLL_PROVISIONING_STATE_WORKAROUND to
 # ``False`` (or delete this block, the workaround branch in ``_await_terminal``
@@ -51,11 +50,11 @@ POLL_PROVISIONING_STATE_WORKAROUND = True
 _PROVISIONING_SUCCEEDED = "Succeeded"
 _PROVISIONING_FAILURES = ("Failed", "Canceled")
 
-# Only PUT/PATCH/DELETE LROs address the resource itself, so their initial
-# request URL can be GET-polled for ``provisioningState``. POST-style action
-# LROs (synchronize, revoke, refresh, run, ...) have no such pollable resource
-# URL, so they fall back to the default SDK polling.
+# PUT/PATCH/DELETE LROs address the resource itself, so their initial request
+# URL can be GET-polled for ``provisioningState``. POST actions are polled
+# through their Location header to avoid the broken Azure-AsyncOperation host.
 _RESOURCE_MUTATION_METHODS = ("PUT", "PATCH", "DELETE")
+_ACTION_METHOD = "POST"
 
 
 class ADRProvider(object):
@@ -91,28 +90,51 @@ class ADRProvider(object):
         return wait_for_terminal_state(poller, **kwargs)
 
     @staticmethod
-    def _poller_initial_request(poller):
-        """Best-effort ``(url, method)`` of the mutating request a poller wraps.
-
-        That request URL *is* the resource URL, which is exactly what we GET to
-        read ``provisioningState``. Reaches through SDK internals defensively and
-        returns ``(None, None)`` when the poller is not shaped as expected, so the
-        caller can fall back to the default polling.
-        """
+    def _poller_initial_response(poller):
         method = getattr(poller, "_polling_method", None)
         if method is None and hasattr(poller, "polling_method"):
-            # Best-effort only; any failure just falls back to default polling.
             try:
                 method = poller.polling_method()
             except Exception:  # noqa: BLE001
                 method = None
-        initial = getattr(method, "_initial_response", None)
+        return getattr(method, "_initial_response", None)
+
+    @classmethod
+    def _poller_initial_request(cls, poller):
+        """Best-effort ``(url, method)`` of the request wrapped by a poller."""
+        initial = cls._poller_initial_response(poller)
         request = getattr(initial, "http_request", None)
         if request is None:
             request = getattr(getattr(initial, "http_response", None), "request", None)
         if request is None:
             return None, None
         return getattr(request, "url", None), (getattr(request, "method", "") or "").upper()
+
+    @classmethod
+    def _poller_location(cls, poller):
+        response = cls._poller_initial_http_response(poller)
+        headers = getattr(response, "headers", None)
+        if not headers:
+            return None
+        return headers.get("Location") or headers.get("location")
+
+    @classmethod
+    def _poller_initial_http_response(cls, poller):
+        initial = cls._poller_initial_response(poller)
+        return getattr(initial, "http_response", None)
+
+    @classmethod
+    def _poller_is_async(cls, poller):
+        response = cls._poller_initial_http_response(poller)
+        if response is None:
+            return False
+        headers = getattr(response, "headers", None) or {}
+        return response.status_code == 202 or bool(
+            headers.get("Azure-AsyncOperation")
+            or headers.get("azure-asyncoperation")
+            or headers.get("Location")
+            or headers.get("location")
+        )
 
     @staticmethod
     def _extract_failure_detail(body):
@@ -196,22 +218,24 @@ class ADRProvider(object):
           exposes no ``provisioningState``) returns the body; ``Failed`` /
           ``Canceled`` raises ``AzureResponseError``.
 
-        For a DELETE a 404 means the resource is gone (success). For any other
-        method a 404 is treated as "not readable yet" and retried (the by-name
-        read path can briefly 404 on some backend partitions). Action-style
-        (POST) LROs and any poller we cannot introspect fall back to the default
-        SDK polling, so behavior is never worse than before the workaround.
+        For a DELETE a 404 means the resource is gone (success). Other resource
+        404 responses are retried. POST actions use the authenticated SDK
+        pipeline to poll the Location URL.
         """
         from time import sleep
 
-        # Fast path: an LRO that completed inline is already terminal with no
-        # further network calls, so return its result and skip the PoP-500 hop.
-        if poller.done():
-            return poller.result()
-
         url, method = self._poller_initial_request(poller)
-        if not url or method not in _RESOURCE_MUTATION_METHODS:
-            # No pollable resource URL (e.g. a POST action) -> default polling.
+        initial_response = self._poller_initial_http_response(poller)
+        if method == _ACTION_METHOD:
+            if initial_response is not None and not self._poller_is_async(poller):
+                return poller.result()
+            return self._poll_location(poller, wait_sec=wait_sec)
+        if url and method in _RESOURCE_MUTATION_METHODS:
+            if initial_response is not None and not self._poller_is_async(poller):
+                return poller.result()
+        else:
+            if poller.done():
+                return poller.result()
             return wait_for_terminal_state(poller, wait_sec=wait_sec)
 
         is_delete = method == "DELETE"
@@ -233,9 +257,61 @@ class ADRProvider(object):
                     raise AzureResponseError(self._format_failure(state, last_body, response))
                 sleep(wait_sec)  # still provisioning (Accepted/Updating/...) -> re-check
                 continue
-            # Unexpected status (e.g. a transient 5xx) -> brief backoff and retry.
+            if 400 <= code < 500:
+                response.raise_for_status()
+            # Transient service failure: briefly back off before retrying.
             sleep(wait_sec)
-        return last_body  # budget exhausted -> return last-known body (may be None)
+        state = ((last_body or {}).get("properties") or {}).get("provisioningState")
+        raise AzureResponseError(
+            "Timed out waiting for the operation to complete"
+            + (f" (last provisioningState='{state}')." if state else ".")
+        )
+
+    def _poll_location(self, poller, wait_sec: int):
+        from time import sleep
+
+        location = self._poller_location(poller)
+        if not location:
+            raise AzureResponseError(
+                "The service returned an asynchronous POST operation without a Location header."
+            )
+
+        last_status = None
+        for _ in range(LRO_POLL_RETRIES):
+            response = self.client.send_request(HttpRequest("GET", location))
+            code = response.status_code
+            if code == 404:
+                sleep(wait_sec)
+                continue
+            if 200 <= code < 300:
+                body = None
+                if code != 204:
+                    try:
+                        body = response.json()
+                    except ValueError:
+                        body = None
+                properties = (body or {}).get("properties") or {}
+                last_status = (body or {}).get("status") or properties.get(
+                    "provisioningState"
+                )
+                if last_status in _PROVISIONING_FAILURES:
+                    raise AzureResponseError(
+                        self._format_failure(last_status, body or {}, response)
+                    )
+                if code != 202 and (
+                    last_status == _PROVISIONING_SUCCEEDED or last_status is None
+                ):
+                    return body
+                sleep(wait_sec)
+                continue
+            if 400 <= code < 500:
+                response.raise_for_status()
+            sleep(wait_sec)
+
+        raise AzureResponseError(
+            "Timed out waiting for the POST operation to complete"
+            + (f" (last status='{last_status}')." if last_status else ".")
+        )
 
     def _raise_if_parent_not_found(self, error: Exception, message: str):
         """Translate a backend "ParentResourceNotFound" 404 into a friendly error.
@@ -258,10 +334,9 @@ class ADRProvider(object):
     ):
         """Resolve a child resource location from its parent Device Registry namespace.
 
-        Child resources (certificate authorities, certificate policies, registry devices) must be
-        co-located with their parent namespace, so default to the namespace's location when the
-        caller does not specify one explicitly. Use this when a parent namespace is guaranteed to
-        exist; use ``_ensure_location`` instead when only the resource group is available.
+        Namespace child resources must be co-located with their parent, so
+        default to the namespace's location when the caller does not specify
+        one explicitly.
         """
         if location:
             return location

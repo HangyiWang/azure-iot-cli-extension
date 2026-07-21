@@ -8,430 +8,443 @@ from unittest.mock import Mock, patch
 
 import pytest
 from azure.cli.core.azclierror import (
+    InvalidArgumentValueError,
     MutuallyExclusiveArgumentError,
+    RequiredArgumentMissingError,
 )
 
 from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_KEY_TYPE,
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     DEFAULT_NS_POLICY_NAME,
-    IdentityType,
+)
+from azext_iot.adr.providers.namespace import _build_namespace_identity
+
+
+UAMI_ID = (
+    "/subscriptions/sub/resourceGroups/rg/providers/"
+    "Microsoft.ManagedIdentity/userAssignedIdentities/identity"
 )
 
 
-# ==================== Create ====================
+def test_namespace_create_basic(fixture_namespace_provider, mock_poller):
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace"})
+    )
+
+    result = fixture_namespace_provider.create(
+        namespace_name="namespace",
+        resource_group_name="rg",
+        location="eastus",
+        tags={"env": "test"},
+    )
+
+    assert result == {"name": "namespace", "resourceGroup": "rg"}
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        resource={
+            "location": "eastus",
+            "tags": {"env": "test"},
+            "identity": {"type": "SystemAssigned"},
+        },
+    )
 
 
-@pytest.mark.parametrize("policy_name", [None, "test-policy"])
-@pytest.mark.parametrize("cert_key_type", [None, DEFAULT_NS_POLICY_CERT_KEY_TYPE])
-@pytest.mark.parametrize("cert_validity_days", [None, 30])
-@pytest.mark.parametrize("cert_subject", [None, "CN=TestSubject"])
-def test_create_namespace(
+def test_namespace_create_resolves_resource_group_location(
+    fixture_namespace_provider, mock_poller
+):
+    fixture_namespace_provider._ensure_location = Mock(return_value="westus2")
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace", "resourceGroup": "rg"})
+    )
+
+    fixture_namespace_provider.create("namespace", "rg")
+
+    fixture_namespace_provider._ensure_location.assert_called_once_with(
+        fixture_namespace_provider.cmd.cli_ctx, "rg", None
+    )
+
+
+@pytest.mark.parametrize(
+    "legacy_args",
+    [
+        {"policy_name": "custom"},
+        {"certificate_key_type": "ECC"},
+        {"certificate_validity_days": 14},
+    ],
+)
+def test_namespace_create_bootstraps_legacy_ecc_policy(
     fixture_namespace_provider,
     fixture_credential_provider,
     fixture_policy_provider,
     mock_poller,
-    cert_key_type,
-    cert_validity_days,
-    cert_subject,
-    policy_name,
+    legacy_args,
 ):
-    """Namespace creation with credential-policy matrix."""
-    ns_name, rg, location = "test-namespace", "test-rg", "eastus"
-
-    fixture_credential_provider.create = Mock(return_value={"id": "credential-id"})
-    fixture_policy_provider.create = Mock(return_value={"id": "policy-id"})
-
-    # The legacy credential/policy bootstrap is triggered only by explicit policy args.
-    has_policy_args = any([policy_name, cert_key_type, cert_subject, cert_validity_days])
-
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace", "resourceGroup": "rg"})
+    )
+    fixture_credential_provider.create = Mock(return_value={})
+    fixture_policy_provider.create = Mock(return_value={})
     with patch(
-        "azext_iot.adr.providers.namespace.CredentialProvider", return_value=fixture_credential_provider
-    ), patch("azext_iot.adr.providers.namespace.PolicyProvider", return_value=fixture_policy_provider):
-        ns_result_data = {
-            "id": (
-                f"/subscriptions/test-sub/resourceGroups/{rg}/"
-                f"providers/Microsoft.DeviceRegistry/namespaces/{ns_name}"
-            ),
-            "name": ns_name,
-            "type": "Microsoft.DeviceRegistry/namespaces",
-            "location": location,
-            "identity": {"principalId": "test-principal-id", "type": "SystemAssigned"},
-            "resourceGroup": rg,
-        }
-        fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
-            ns_result_data
+        "azext_iot.adr.providers.namespace.CredentialProvider",
+        return_value=fixture_credential_provider,
+    ), patch(
+        "azext_iot.adr.providers.namespace.PolicyProvider",
+        return_value=fixture_policy_provider,
+    ):
+        fixture_namespace_provider.create(
+            "namespace", "rg", location="eastus", **legacy_args
         )
 
-        create_kwargs = {
-            "namespace_name": ns_name,
-            "resource_group_name": rg,
-            "location": location,
-            "tags": None,
-            "policy_name": policy_name,
-            "certificate_key_type": cert_key_type,
-            "certificate_subject": cert_subject,
-            "certificate_validity_days": cert_validity_days,
-        }
-
-        result = fixture_namespace_provider.create(**create_kwargs)
-
-        assert result["name"] == ns_name
-        assert result["resourceGroup"] == rg
-
-        call_args = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]
-        assert call_args["resource"]["location"] == location
-        assert call_args["resource"]["identity"] == {"type": IdentityType.system_assigned.value}
-
-        if has_policy_args:
-            fixture_credential_provider.create.assert_called_once_with(
-                namespace_name=ns_name, resource_group_name=rg, location=location,
-            )
-            fixture_policy_provider.create.assert_called_once_with(
-                policy_name=policy_name or DEFAULT_NS_POLICY_NAME,
-                namespace_name=ns_name,
-                resource_group_name=rg,
-                location=location,
-                certificate_key_type=cert_key_type if cert_key_type is not None else DEFAULT_NS_POLICY_CERT_KEY_TYPE,
-                certificate_subject=cert_subject,
-                certificate_validity_days=(
-                    cert_validity_days if cert_validity_days is not None else DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
-                ),
-            )
-        else:
-            fixture_credential_provider.create.assert_not_called()
-            fixture_policy_provider.create.assert_not_called()
-
-
-def test_create_namespace_resolves_location_and_tags(
-    fixture_namespace_provider, mock_poller
-):
-    """When location is omitted it is resolved; tags are passed through."""
-    ns_name, rg = "test-namespace", "test-rg"
-    fixture_namespace_provider._ensure_location = Mock(return_value="resolvedloc")
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
-        {"name": ns_name}
+    fixture_credential_provider.create.assert_called_once_with(
+        namespace_name="namespace",
+        resource_group_name="rg",
+        location="eastus",
     )
-
-    fixture_namespace_provider.create(
-        namespace_name=ns_name,
-        resource_group_name=rg,
-        location=None,
-        tags={"env": "test"},
+    fixture_policy_provider.create.assert_called_once_with(
+        policy_name=legacy_args.get("policy_name") or DEFAULT_NS_POLICY_NAME,
+        namespace_name="namespace",
+        resource_group_name="rg",
+        location="eastus",
+        certificate_key_type=legacy_args.get("certificate_key_type")
+        or DEFAULT_NS_POLICY_CERT_KEY_TYPE,
+        certificate_validity_days=legacy_args.get("certificate_validity_days")
+        or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     )
-
-    fixture_namespace_provider._ensure_location.assert_called_once()
-    call_args = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]
-    assert call_args["resource"]["location"] == "resolvedloc"
-    assert call_args["resource"]["tags"] == {"env": "test"}
+    assert DEFAULT_NS_POLICY_CERT_KEY_TYPE == "ECC"
 
 
-def test_create_namespace_credential_and_policy_errors_logged(
+def test_namespace_create_without_legacy_options_skips_bootstrap(
     fixture_namespace_provider, fixture_credential_provider, fixture_policy_provider, mock_poller
 ):
-    """Credential/policy creation failures are caught and logged, not raised."""
-    ns_name, rg, location = "test-namespace", "test-rg", "eastus"
-    fixture_credential_provider.create = Mock(side_effect=Exception("cred boom"))
-    fixture_policy_provider.create = Mock(side_effect=Exception("policy boom"))
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
-        {"name": ns_name, "resourceGroup": rg}
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace", "resourceGroup": "rg"})
     )
-
+    fixture_credential_provider.create = Mock(return_value={})
+    fixture_policy_provider.create = Mock(return_value={})
     with patch(
-        "azext_iot.adr.providers.namespace.CredentialProvider", return_value=fixture_credential_provider
-    ), patch("azext_iot.adr.providers.namespace.PolicyProvider", return_value=fixture_policy_provider):
-        result = fixture_namespace_provider.create(
-            namespace_name=ns_name,
-            resource_group_name=rg,
-            location=location,
-            policy_name="default",
-        )
+        "azext_iot.adr.providers.namespace.CredentialProvider",
+        return_value=fixture_credential_provider,
+    ), patch(
+        "azext_iot.adr.providers.namespace.PolicyProvider",
+        return_value=fixture_policy_provider,
+    ):
+        fixture_namespace_provider.create("namespace", "rg", location="eastus")
 
-    assert result["name"] == ns_name
-    fixture_credential_provider.create.assert_called_once()
-    fixture_policy_provider.create.assert_called_once()
-
-
-# ==================== Show ====================
-
-
-def test_show_namespace(fixture_namespace_provider):
-    """Show returns the serialized namespace."""
-    expected = {"name": "test-namespace", "location": "eastus"}
-    fixture_namespace_provider.client.namespaces.get.return_value = expected
-
-    result = fixture_namespace_provider.show(namespace_name="test-namespace", resource_group_name="test-rg")
-
-    assert result == expected
-    fixture_namespace_provider.client.namespaces.get.assert_called_once_with(
-        resource_group_name="test-rg", namespace_name="test-namespace",
-    )
-
-
-# ==================== Delete ====================
-
-
-def test_delete_namespace(fixture_namespace_provider):
-    """Delete triggers begin_delete LRO."""
-    fixture_namespace_provider.client.namespaces.begin_delete.return_value = Mock()
-
-    result = fixture_namespace_provider.delete(namespace_name="test-namespace", resource_group_name="test-rg")
-
-    assert result is not None
-    fixture_namespace_provider.client.namespaces.begin_delete.assert_called_once_with(
-        resource_group_name="test-rg", namespace_name="test-namespace",
-    )
-
-
-# ==================== List ====================
-
-
-def test_list_namespaces_by_resource_group(fixture_namespace_provider):
-    """List by resource group returns serialized results."""
-    expected = [{"name": "ns1", "location": "eastus"}, {"name": "ns2", "location": "westus"}]
-    fixture_namespace_provider.client.namespaces.list_by_resource_group.return_value = expected
-
-    assert fixture_namespace_provider.list(resource_group_name="test-rg") == expected
-    fixture_namespace_provider.client.namespaces.list_by_resource_group.assert_called_once_with(
-        resource_group_name="test-rg",
-    )
-
-
-def test_list_namespaces_by_subscription(fixture_namespace_provider):
-    """List by subscription returns serialized results."""
-    expected = [{"name": "ns1", "location": "eastus"}, {"name": "ns2", "location": "westus"}]
-    fixture_namespace_provider.client.namespaces.list_by_subscription.return_value = expected
-
-    assert fixture_namespace_provider.list() == expected
-    fixture_namespace_provider.client.namespaces.list_by_subscription.assert_called_once()
-
-
-# ==================== Update ====================
+    fixture_credential_provider.create.assert_not_called()
+    fixture_policy_provider.create.assert_not_called()
 
 
 @pytest.mark.parametrize(
-    "namespace_name, resource_group_name, tags",
+    "legacy_args",
     [
-        ("test-namespace", "test-rg", {"env": "production"}),
-        ("prod-namespace", "prod-rg", {"team": "platform", "env": "prod"}),
-        ("update-namespace", "update-rg", None),
+        {"certificate_validity_days": 0},
+        {"certificate_validity_days": 31},
+        {"certificate_key_type": "RSA"},
     ],
 )
-def test_update_namespace(fixture_namespace_provider, mock_poller, namespace_name, resource_group_name, tags):
-    """Update triggers begin_update LRO and returns the serialized result."""
-    expected = {"name": namespace_name, "location": "eastus"}
-    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(expected)
+def test_namespace_rejects_invalid_legacy_policy_before_create(
+    fixture_namespace_provider, legacy_args
+):
+    with pytest.raises(InvalidArgumentValueError):
+        fixture_namespace_provider.create(
+            "namespace",
+            "rg",
+            location="eastus",
+            **legacy_args,
+        )
 
-    result = fixture_namespace_provider.update(
-        namespace_name=namespace_name, resource_group_name=resource_group_name, tags=tags,
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.assert_not_called()
+
+
+def test_namespace_create_no_wait_skips_legacy_bootstrap(
+    fixture_namespace_provider, fixture_credential_provider, fixture_policy_provider, mock_poller
+):
+    poller = mock_poller({"name": "namespace"})
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = poller
+    fixture_credential_provider.create = Mock(return_value={})
+    fixture_policy_provider.create = Mock(return_value={})
+    with patch(
+        "azext_iot.adr.providers.namespace.CredentialProvider",
+        return_value=fixture_credential_provider,
+    ), patch(
+        "azext_iot.adr.providers.namespace.PolicyProvider",
+        return_value=fixture_policy_provider,
+    ):
+        result = fixture_namespace_provider.create(
+            "namespace",
+            "rg",
+            location="eastus",
+            policy_name="default",
+            no_wait=True,
+        )
+
+    assert result is poller
+    poller.result.assert_not_called()
+    fixture_credential_provider.create.assert_not_called()
+    fixture_policy_provider.create.assert_not_called()
+
+
+def test_namespace_create_no_wait_without_legacy_handles_whitespace_uami(
+    fixture_namespace_provider, mock_poller
+):
+    poller = mock_poller({"name": "namespace"})
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        poller
     )
 
-    assert result == expected
-
-    kw = fixture_namespace_provider.client.namespaces.begin_update.call_args[1]
-    assert kw["resource_group_name"] == resource_group_name
-    assert kw["namespace_name"] == namespace_name
-    if tags is not None:
-        assert kw["properties"]["tags"] == tags
-    else:
-        assert kw["properties"] == {}
-
-
-# ==================== Outbound Identity (P2) ====================
-
-
-def test_create_namespace_outbound_sami(fixture_namespace_provider, mock_poller):
-    """Passing --outbound-mi-system-assigned writes OutboundIdentity SAMI under properties."""
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
-        {"name": "ns", "location": "eastus", "resourceGroup": "rg"}
-    )
-    fixture_namespace_provider.create(
-        namespace_name="ns",
-        resource_group_name="rg",
+    result = fixture_namespace_provider.create(
+        "namespace",
+        "rg",
         location="eastus",
-        outbound_mi_system_assigned=True,
+        outbound_mi_user_assigned=" ",
+        no_wait=True,
     )
-    body = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]["resource"]
-    assert body["properties"]["outboundIdentity"] == {
-        "type": IdentityType.system_assigned.value
-    }
+
+    assert result is poller
+    body = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]
     assert body["identity"] == {"type": "SystemAssigned"}
+    assert "properties" not in body
 
 
-UAMI_RESOURCE_ID = (
-    "/subscriptions/x/resourceGroups/y/providers/"
-    "Microsoft.ManagedIdentity/userAssignedIdentities/uami"
-)
+def test_namespace_identity_can_be_user_assigned_only():
+    assert _build_namespace_identity(
+        user_assigned_identity=UAMI_ID
+    ) == {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {UAMI_ID: {}},
+    }
 
 
-def test_create_namespace_outbound_uami(fixture_namespace_provider, mock_poller):
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
-        {"name": "ns", "location": "eastus", "resourceGroup": "rg"}
+def test_namespace_legacy_bootstrap_failures_are_nonfatal(
+    fixture_namespace_provider,
+    fixture_credential_provider,
+    fixture_policy_provider,
+    mock_poller,
+):
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace"})
+    )
+    fixture_credential_provider.create = Mock(
+        side_effect=RuntimeError("credential unavailable")
+    )
+    fixture_policy_provider.create = Mock(
+        side_effect=RuntimeError("policy unavailable")
+    )
+
+    with patch(
+        "azext_iot.adr.providers.namespace.CredentialProvider",
+        return_value=fixture_credential_provider,
+    ), patch(
+        "azext_iot.adr.providers.namespace.PolicyProvider",
+        return_value=fixture_policy_provider,
+    ), patch("azext_iot.adr.providers.namespace.logger.warning") as warning:
+        result = fixture_namespace_provider.create(
+            "namespace",
+            "rg",
+            location="eastus",
+            policy_name="default",
+        )
+
+    assert result == {"name": "namespace", "resourceGroup": "rg"}
+    messages = " ".join(call.args[0] for call in warning.call_args_list)
+    assert "default credential creation failed" in messages
+    assert "default policy creation failed" in messages
+
+
+def test_namespace_create_outbound_uami(fixture_namespace_provider, mock_poller):
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace", "resourceGroup": "rg"})
     )
 
     fixture_namespace_provider.create(
-        namespace_name="ns",
-        resource_group_name="rg",
+        "namespace",
+        "rg",
         location="eastus",
-        outbound_mi_user_assigned=UAMI_RESOURCE_ID,
+        outbound_mi_user_assigned=UAMI_ID,
     )
 
-    body = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]["resource"]
+    body = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]
     assert body["properties"]["outboundIdentity"] == {
-        "type": IdentityType.user_assigned.value,
-        "userAssignedIdentity": UAMI_RESOURCE_ID,
+        "type": "UserAssigned",
+        "userAssignedIdentity": UAMI_ID,
     }
     assert body["identity"] == {
         "type": "SystemAssigned,UserAssigned",
-        "userAssignedIdentities": {UAMI_RESOURCE_ID: {}},
+        "userAssignedIdentities": {UAMI_ID: {}},
     }
 
 
-def test_create_namespace_outbound_mi_mutually_exclusive(fixture_namespace_provider):
-    """SAMI + UAMI together raises MutuallyExclusiveArgumentError."""
+def test_namespace_outbound_identity_is_mutually_exclusive(
+    fixture_namespace_provider,
+):
     with pytest.raises(MutuallyExclusiveArgumentError):
         fixture_namespace_provider.create(
-            namespace_name="ns",
-            resource_group_name="rg",
+            "namespace",
+            "rg",
             location="eastus",
             outbound_mi_system_assigned=True,
-            outbound_mi_user_assigned=UAMI_RESOURCE_ID,
+            outbound_mi_user_assigned=UAMI_ID,
         )
 
 
-def test_update_namespace_outbound_sami(fixture_namespace_provider, mock_poller):
-    """Updating with --outbound-mi-system-assigned nests OutboundIdentity under properties.properties."""
-    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
-        {"name": "ns"}
-    )
+def test_namespace_show_and_list(fixture_namespace_provider):
     fixture_namespace_provider.client.namespaces.get.return_value = {
-        "identity": {
-            "type": "SystemAssigned,UserAssigned",
-            "userAssignedIdentities": {UAMI_RESOURCE_ID: {"principalId": "ignored"}},
-        }
+        "name": "namespace"
     }
-    fixture_namespace_provider.update(
-        namespace_name="ns",
-        resource_group_name="rg",
-        outbound_mi_system_assigned=True,
+    fixture_namespace_provider.client.namespaces.list_by_resource_group.return_value = iter(
+        [{"name": "one"}]
     )
-    body = fixture_namespace_provider.client.namespaces.begin_update.call_args[1]["properties"]
-    assert body["properties"]["outboundIdentity"] == {
-        "type": IdentityType.system_assigned.value
+    fixture_namespace_provider.client.namespaces.list_by_subscription.return_value = iter(
+        [{"name": "one"}, {"name": "two"}]
+    )
+
+    assert fixture_namespace_provider.show("namespace", "rg") == {
+        "name": "namespace"
     }
-    assert body["identity"] == {
-        "type": "SystemAssigned,UserAssigned",
-        "userAssignedIdentities": {UAMI_RESOURCE_ID: {}},
-    }
+    assert fixture_namespace_provider.list("rg") == [{"name": "one"}]
+    assert fixture_namespace_provider.list() == [
+        {"name": "one"},
+        {"name": "two"},
+    ]
 
 
-def test_update_namespace_outbound_uami_preserves_existing_assignments(
+def test_namespace_update_tags(fixture_namespace_provider, mock_poller):
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "namespace"}
+    )
+
+    fixture_namespace_provider.update(
+        "namespace", "rg", tags={"env": "production"}
+    )
+
+    fixture_namespace_provider.client.namespaces.begin_update.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        properties={"tags": {"env": "production"}},
+    )
+
+
+def test_namespace_update_outbound_uami_preserves_identity_assignments(
     fixture_namespace_provider, mock_poller
 ):
-    existing_uami = UAMI_RESOURCE_ID.replace("/uami", "/existing")
+    existing_id = UAMI_ID.replace("identity", "existing")
     fixture_namespace_provider.client.namespaces.get.return_value = {
         "identity": {
             "type": "SystemAssigned,UserAssigned",
-            "userAssignedIdentities": {existing_uami: {"principalId": "ignored"}},
+            "userAssignedIdentities": {existing_id: {"principalId": "ignored"}},
         }
     }
     fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
-        {"name": "ns"}
+        {"name": "namespace"}
     )
 
     fixture_namespace_provider.update(
-        namespace_name="ns",
-        resource_group_name="rg",
-        outbound_mi_user_assigned=UAMI_RESOURCE_ID,
+        "namespace", "rg", outbound_mi_user_assigned=UAMI_ID
     )
 
-    body = fixture_namespace_provider.client.namespaces.begin_update.call_args[1]["properties"]
-    assert body["properties"]["outboundIdentity"] == {
-        "type": IdentityType.user_assigned.value,
-        "userAssignedIdentity": UAMI_RESOURCE_ID,
-    }
-    assert body["identity"] == {
-        "type": "SystemAssigned,UserAssigned",
-        "userAssignedIdentities": {
-            existing_uami: {},
-            UAMI_RESOURCE_ID: {},
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body == {
+        "identity": {
+            "type": "SystemAssigned,UserAssigned",
+            "userAssignedIdentities": {
+                existing_id: {},
+                UAMI_ID: {},
+            },
+        },
+        "properties": {
+            "outboundIdentity": {
+                "type": "UserAssigned",
+                "userAssignedIdentity": UAMI_ID,
+            }
         },
     }
 
 
-# ==================== --no-wait short-circuit ====================
+def test_namespace_update_rejects_empty_patch(fixture_namespace_provider):
+    with pytest.raises(RequiredArgumentMissingError, match="Nothing to update"):
+        fixture_namespace_provider.update("namespace", "rg")
+    fixture_namespace_provider.client.namespaces.begin_update.assert_not_called()
 
 
-def test_namespace_delete_no_wait_returns_poller(fixture_namespace_provider, mock_poller):
+def test_namespace_update_no_wait(fixture_namespace_provider, mock_poller):
+    poller = mock_poller({})
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = poller
+
+    result = fixture_namespace_provider.update(
+        "namespace", "rg", tags={}, no_wait=True
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_namespace_migrate_scope_and_resources(
+    fixture_namespace_provider, mock_poller
+):
+    fixture_namespace_provider.client.namespaces.begin_migrate.return_value = (
+        mock_poller({"status": "Succeeded"})
+    )
+
+    result = fixture_namespace_provider.migrate(
+        "namespace",
+        "rg",
+        resource_ids=[" /resources/one ", "", " /resources/two"],
+        scope="Resources",
+    )
+
+    assert result == {"status": "Succeeded"}
+    fixture_namespace_provider.client.namespaces.begin_migrate.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        body={
+            "scope": "Resources",
+            "resourceIds": ["/resources/one", "/resources/two"],
+        },
+    )
+
+
+@pytest.mark.parametrize("resource_ids", [[], ["", "   "]])
+def test_namespace_migrate_requires_resources(
+    fixture_namespace_provider, resource_ids
+):
+    with pytest.raises(RequiredArgumentMissingError, match="at least one"):
+        fixture_namespace_provider.migrate(
+            "namespace", "rg", resource_ids=resource_ids, scope="Resources"
+        )
+    fixture_namespace_provider.client.namespaces.begin_migrate.assert_not_called()
+
+
+def test_namespace_migrate_no_wait(fixture_namespace_provider, mock_poller):
+    poller = mock_poller(None)
+    fixture_namespace_provider.client.namespaces.begin_migrate.return_value = poller
+
+    result = fixture_namespace_provider.migrate(
+        "namespace",
+        "rg",
+        resource_ids=["/resources/one"],
+        scope="Resources",
+        no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_namespace_delete_no_wait(fixture_namespace_provider, mock_poller):
     poller = mock_poller(None)
     fixture_namespace_provider.client.namespaces.begin_delete.return_value = poller
 
     result = fixture_namespace_provider.delete(
-        namespace_name="ns", resource_group_name="rg", no_wait=True
+        "namespace", "rg", no_wait=True
     )
 
     assert result is poller
     poller.result.assert_not_called()
-
-
-def test_namespace_update_no_wait_returns_poller(fixture_namespace_provider, mock_poller):
-    poller = mock_poller({"name": "ns"})
-    fixture_namespace_provider.client.namespaces.begin_update.return_value = poller
-    fixture_namespace_provider.client.namespaces.get.return_value = {
-        "identity": {"type": "SystemAssigned"}
-    }
-
-    result = fixture_namespace_provider.update(
-        namespace_name="ns",
-        resource_group_name="rg",
-        outbound_mi_system_assigned=True,
-        no_wait=True,
-    )
-
-    assert result is poller
-    poller.result.assert_not_called()
-
-
-def test_namespace_create_no_wait_skips_credential_policy_chain(
-    fixture_namespace_provider, mock_poller
-):
-    """When --no-wait is set, chained credential+policy creates must be skipped
-    (otherwise they race the still-provisioning namespace)."""
-    poller = mock_poller({"name": "ns", "resourceGroup": "rg"})
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = poller
-
-    result = fixture_namespace_provider.create(
-        namespace_name="ns",
-        resource_group_name="rg",
-        location="eastus",
-        policy_name="default",
-        no_wait=True,
-    )
-
-    # Returned the poller, no chained calls happened.
-    assert result is poller
-    poller.result.assert_not_called()
-    # Credential/policy provider methods would have hit the same client surface;
-    # since we never imported them, the easiest check is that no namespace_credential
-    # or namespace_policy calls were issued on the shared mock client.
-    fixture_namespace_provider.client.namespace_credential.begin_create_or_replace.assert_not_called()
-    fixture_namespace_provider.client.namespace_policies.begin_create_or_replace.assert_not_called()
-
-
-def test_create_namespace_outbound_uami_whitespace_treated_as_unset(
-    fixture_namespace_provider, mock_poller
-):
-    """A whitespace-only --outbound-mi-user-assigned is normalized to unset (no rejection)."""
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = mock_poller(
-        {"name": "ns", "location": "eastus", "resourceGroup": "rg"}
-    )
-
-    fixture_namespace_provider.create(
-        namespace_name="ns",
-        resource_group_name="rg",
-        location="eastus",
-        outbound_mi_user_assigned="   ",
-    )
-
-    body = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args[1]["resource"]
-    assert "outboundIdentity" not in body.get("properties", {})

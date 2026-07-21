@@ -53,6 +53,25 @@ from ...operations._operations import (
     build_credentials_list_by_namespace_request,
     build_credentials_synchronize_request,
     build_credentials_update_request,
+    build_groups_count_members_request,
+    build_groups_create_or_replace_request,
+    build_groups_delete_request,
+    build_groups_get_request,
+    build_groups_list_by_namespace_request,
+    build_groups_list_members_request,
+    build_groups_refresh_members_request,
+    build_groups_update_request,
+    build_job_runs_cancel_request,
+    build_job_runs_get_request,
+    build_job_runs_list_by_job_request,
+    build_job_runs_list_by_namespace_request,
+    build_job_runs_list_results_request,
+    build_jobs_create_or_replace_request,
+    build_jobs_delete_request,
+    build_jobs_get_request,
+    build_jobs_list_by_namespace_request,
+    build_jobs_schedule_request,
+    build_jobs_update_request,
     build_namespace_devices_create_or_replace_request,
     build_namespace_devices_delete_request,
     build_namespace_devices_get_request,
@@ -60,6 +79,8 @@ from ...operations._operations import (
     build_namespace_devices_update_request,
     build_namespaces_create_or_replace_request,
     build_namespaces_delete_request,
+    build_namespaces_generate_report_request,
+    build_namespaces_get_latest_report_request,
     build_namespaces_get_request,
     build_namespaces_list_by_resource_group_request,
     build_namespaces_list_by_subscription_request,
@@ -72,11 +93,6 @@ from ...operations._operations import (
     build_policies_list_by_credential_request,
     build_policies_revoke_issuer_request,
     build_policies_update_request,
-    build_registry_devices_create_or_replace_request,
-    build_registry_devices_delete_request,
-    build_registry_devices_get_request,
-    build_registry_devices_list_by_namespace_request,
-    build_registry_devices_update_request,
 )
 from .._configuration import MicrosoftDeviceRegistryManagementServiceConfiguration
 
@@ -294,6 +310,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -461,6 +495,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -631,6 +683,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -859,6 +929,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -947,6 +1035,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -1065,6 +1171,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -1175,6 +1299,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -1263,6 +1405,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -1490,6 +1650,24 @@ class NamespacesOperations:
                                     "linkingState": "str"
                                 }
                             }
+                        },
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
                         }
                     },
                     "systemData": {
@@ -1578,6 +1756,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -1696,6 +1892,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -1801,6 +2015,24 @@ class NamespacesOperations:
                                     "linkingState": "str"
                                 }
                             }
+                        },
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
                         }
                     },
                     "systemData": {
@@ -1889,6 +2121,24 @@ class NamespacesOperations:
                             }
                         },
                         "provisioningState": "str",
+                        "updating": {
+                            "endpoints": {
+                                "str": {
+                                    "endpointType": "str",
+                                    "inboundCallerIdentity": {
+                                        "type": "str",
+                                        "userAssignedIdentity": "str"
+                                    },
+                                    "resourceId": "str",
+                                    "linkingError": {
+                                        "code": "str",
+                                        "message": "str"
+                                    },
+                                    "linkingState": "str",
+                                    "serviceAddress": "str"
+                                }
+                            }
+                        },
                         "uuid": "str"
                     },
                     "systemData": {
@@ -2059,6 +2309,890 @@ class NamespacesOperations:
                 deserialization_callback=get_long_running_output,
             )
         return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _generate_report_initial(
+        self, resource_group_name: str, namespace_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(body, (IOBase, bytes)):
+            _content = body
+        else:
+            _json = body
+
+        _request = build_namespaces_generate_report_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_generate_report(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        body: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Generate a report for a namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param body: The content of the action request. Required.
+        :type body: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report_selector = {
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report_selector = {
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report_selector = {
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                body = report_selector
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report = {
+                    "bestUpdates": [
+                        {
+                            "devicesNotOnBestUpdateCount": 0,
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            },
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    ],
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "updateCompliance": {
+                        "bestUpdateAvailableDeviceCount": 0,
+                        "devicesInProgressOnBestUpdate": 0,
+                        "onBestUpdateDeviceCount": 0,
+                        "totalNotUpdateableDeviceCount": 0,
+                        "totalUpdateableDeviceCount": 0
+                    },
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "installableUpdatesAndTargetDevices": [
+                        {
+                            "installableUpdates": [
+                                {
+                                    "name": "str",
+                                    "provider": "str",
+                                    "version": "str"
+                                }
+                            ],
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            }
+                        }
+                    ],
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "newUpdatesAvailableDeviceCount": 0,
+                    "onLatestUpdateDeviceCount": 0,
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "totalNotUpdateableDeviceCount": 0,
+                    "totalUpdateableDeviceCount": 0,
+                    "updatesInProgressDeviceCount": 0,
+                    "reportTarget": "str"
+                }
+
+                # response body for status code(s): 200
+                response == report
+        """
+
+    @overload
+    async def begin_generate_report(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        body: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Generate a report for a namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param body: The content of the action request. Required.
+        :type body: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report = {
+                    "bestUpdates": [
+                        {
+                            "devicesNotOnBestUpdateCount": 0,
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            },
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    ],
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "updateCompliance": {
+                        "bestUpdateAvailableDeviceCount": 0,
+                        "devicesInProgressOnBestUpdate": 0,
+                        "onBestUpdateDeviceCount": 0,
+                        "totalNotUpdateableDeviceCount": 0,
+                        "totalUpdateableDeviceCount": 0
+                    },
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "installableUpdatesAndTargetDevices": [
+                        {
+                            "installableUpdates": [
+                                {
+                                    "name": "str",
+                                    "provider": "str",
+                                    "version": "str"
+                                }
+                            ],
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            }
+                        }
+                    ],
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "newUpdatesAvailableDeviceCount": 0,
+                    "onLatestUpdateDeviceCount": 0,
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "totalNotUpdateableDeviceCount": 0,
+                    "totalUpdateableDeviceCount": 0,
+                    "updatesInProgressDeviceCount": 0,
+                    "reportTarget": "str"
+                }
+
+                # response body for status code(s): 200
+                response == report
+        """
+
+    @distributed_trace_async
+    async def begin_generate_report(
+        self, resource_group_name: str, namespace_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Generate a report for a namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type body: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report_selector = {
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report_selector = {
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report_selector = {
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                body = report_selector
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report = {
+                    "bestUpdates": [
+                        {
+                            "devicesNotOnBestUpdateCount": 0,
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            },
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    ],
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "updateCompliance": {
+                        "bestUpdateAvailableDeviceCount": 0,
+                        "devicesInProgressOnBestUpdate": 0,
+                        "onBestUpdateDeviceCount": 0,
+                        "totalNotUpdateableDeviceCount": 0,
+                        "totalUpdateableDeviceCount": 0
+                    },
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "installableUpdatesAndTargetDevices": [
+                        {
+                            "installableUpdates": [
+                                {
+                                    "name": "str",
+                                    "provider": "str",
+                                    "version": "str"
+                                }
+                            ],
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            }
+                        }
+                    ],
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "newUpdatesAvailableDeviceCount": 0,
+                    "onLatestUpdateDeviceCount": 0,
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "totalNotUpdateableDeviceCount": 0,
+                    "totalUpdateableDeviceCount": 0,
+                    "updatesInProgressDeviceCount": 0,
+                    "reportTarget": "str"
+                }
+
+                # response body for status code(s): 200
+                response == report
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._generate_report_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                body=body,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    @overload
+    async def get_latest_report(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        body: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Get the most recently generated report of the given type and target without triggering a new
+        report generation.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param body: The content of the action request. Required.
+        :type body: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report_selector = {
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report_selector = {
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report_selector = {
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                body = report_selector
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report = {
+                    "bestUpdates": [
+                        {
+                            "devicesNotOnBestUpdateCount": 0,
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            },
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    ],
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "updateCompliance": {
+                        "bestUpdateAvailableDeviceCount": 0,
+                        "devicesInProgressOnBestUpdate": 0,
+                        "onBestUpdateDeviceCount": 0,
+                        "totalNotUpdateableDeviceCount": 0,
+                        "totalUpdateableDeviceCount": 0
+                    },
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "installableUpdatesAndTargetDevices": [
+                        {
+                            "installableUpdates": [
+                                {
+                                    "name": "str",
+                                    "provider": "str",
+                                    "version": "str"
+                                }
+                            ],
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            }
+                        }
+                    ],
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "newUpdatesAvailableDeviceCount": 0,
+                    "onLatestUpdateDeviceCount": 0,
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "totalNotUpdateableDeviceCount": 0,
+                    "totalUpdateableDeviceCount": 0,
+                    "updatesInProgressDeviceCount": 0,
+                    "reportTarget": "str"
+                }
+
+                # response body for status code(s): 200
+                response == report
+        """
+
+    @overload
+    async def get_latest_report(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        body: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Get the most recently generated report of the given type and target without triggering a new
+        report generation.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param body: The content of the action request. Required.
+        :type body: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report = {
+                    "bestUpdates": [
+                        {
+                            "devicesNotOnBestUpdateCount": 0,
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            },
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    ],
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "updateCompliance": {
+                        "bestUpdateAvailableDeviceCount": 0,
+                        "devicesInProgressOnBestUpdate": 0,
+                        "onBestUpdateDeviceCount": 0,
+                        "totalNotUpdateableDeviceCount": 0,
+                        "totalUpdateableDeviceCount": 0
+                    },
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "installableUpdatesAndTargetDevices": [
+                        {
+                            "installableUpdates": [
+                                {
+                                    "name": "str",
+                                    "provider": "str",
+                                    "version": "str"
+                                }
+                            ],
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            }
+                        }
+                    ],
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "newUpdatesAvailableDeviceCount": 0,
+                    "onLatestUpdateDeviceCount": 0,
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "totalNotUpdateableDeviceCount": 0,
+                    "totalUpdateableDeviceCount": 0,
+                    "updatesInProgressDeviceCount": 0,
+                    "reportTarget": "str"
+                }
+
+                # response body for status code(s): 200
+                response == report
+        """
+
+    @distributed_trace_async
+    async def get_latest_report(
+        self, resource_group_name: str, namespace_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> JSON:
+        """Get the most recently generated report of the given type and target without triggering a new
+        report generation.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type body: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report_selector = {
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report_selector = {
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report_selector = {
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                body = report_selector
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportType":
+
+                # JSON input template for discriminator value "GroupBestUpdatesComplianceReport":
+                report = {
+                    "bestUpdates": [
+                        {
+                            "devicesNotOnBestUpdateCount": 0,
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            },
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    ],
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "reportType": "GroupBestUpdatesComplianceReport",
+                    "updateCompliance": {
+                        "bestUpdateAvailableDeviceCount": 0,
+                        "devicesInProgressOnBestUpdate": 0,
+                        "onBestUpdateDeviceCount": 0,
+                        "totalNotUpdateableDeviceCount": 0,
+                        "totalUpdateableDeviceCount": 0
+                    },
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "GroupInstallableUpdatesReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "installableUpdatesAndTargetDevices": [
+                        {
+                            "installableUpdates": [
+                                {
+                                    "name": "str",
+                                    "provider": "str",
+                                    "version": "str"
+                                }
+                            ],
+                            "targetDevices": {
+                                "agentProfile": 0,
+                                "compatProperties": {
+                                    "str": "str"
+                                }
+                            }
+                        }
+                    ],
+                    "reportType": "GroupInstallableUpdatesReport",
+                    "reportTarget": "str"
+                }
+
+                # JSON input template for discriminator value "NamespaceUpdateComplianceReport":
+                report = {
+                    "expiresAt": "2020-02-20 00:00:00",
+                    "generatedAt": "2020-02-20 00:00:00",
+                    "newUpdatesAvailableDeviceCount": 0,
+                    "onLatestUpdateDeviceCount": 0,
+                    "reportType": "NamespaceUpdateComplianceReport",
+                    "totalNotUpdateableDeviceCount": 0,
+                    "totalUpdateableDeviceCount": 0,
+                    "updatesInProgressDeviceCount": 0,
+                    "reportTarget": "str"
+                }
+
+                # response body for status code(s): 200
+                response == report
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(body, (IOBase, bytes)):
+            _content = body
+        else:
+            _json = body
+
+        _request = build_namespaces_get_latest_report_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
 
     async def _migrate_initial(
         self, resource_group_name: str, namespace_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
@@ -9812,14 +10946,14 @@ class NamespaceDevicesOperations:
         return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
 
-class RegistryDevicesOperations:
+class GroupsOperations:
     """
     .. warning::
         **DO NOT** instantiate this class directly.
 
         Instead, you should access the following operations through
         :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
-        :attr:`registry_devices` attribute.
+        :attr:`groups` attribute.
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -9833,7 +10967,7 @@ class RegistryDevicesOperations:
 
     @distributed_trace
     def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
-        """List RegistryDevice resources by Namespace.
+        """List Group resources by Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -9850,17 +10984,21 @@ class RegistryDevicesOperations:
                 # response body for status code(s): 200
                 response == {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -9893,7 +11031,7 @@ class RegistryDevicesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                _request = build_registry_devices_list_by_namespace_request(
+                _request = build_groups_list_by_namespace_request(
                     resource_group_name=resource_group_name,
                     namespace_name=namespace_name,
                     subscription_id=self._config.subscription_id,
@@ -9945,18 +11083,16 @@ class RegistryDevicesOperations:
         return AsyncItemPaged(get_next, extract_data)
 
     @distributed_trace_async
-    async def get(
-        self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any
-    ) -> JSON:
-        """Get a RegistryDevice.
+    async def get(self, resource_group_name: str, namespace_name: str, group_name: str, **kwargs: Any) -> JSON:
+        """Get a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
         :return: JSON object
         :rtype: JSON
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -9967,17 +11103,21 @@ class RegistryDevicesOperations:
                 # response body for status code(s): 200
                 response == {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -10007,10 +11147,10 @@ class RegistryDevicesOperations:
 
         cls: ClsType[JSON] = kwargs.pop("cls", None)
 
-        _request = build_registry_devices_get_request(
+        _request = build_groups_get_request(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
-            registry_device_name=registry_device_name,
+            group_name=group_name,
             subscription_id=self._config.subscription_id,
             api_version=self._config.api_version,
             headers=_headers,
@@ -10043,7 +11183,7 @@ class RegistryDevicesOperations:
         self,
         resource_group_name: str,
         namespace_name: str,
-        registry_device_name: str,
+        group_name: str,
         resource: Union[JSON, IO[bytes]],
         **kwargs: Any
     ) -> AsyncIterator[bytes]:
@@ -10069,10 +11209,10 @@ class RegistryDevicesOperations:
         else:
             _json = resource
 
-        _request = build_registry_devices_create_or_replace_request(
+        _request = build_groups_create_or_replace_request(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
-            registry_device_name=registry_device_name,
+            group_name=group_name,
             subscription_id=self._config.subscription_id,
             content_type=content_type,
             api_version=self._config.api_version,
@@ -10117,21 +11257,21 @@ class RegistryDevicesOperations:
         self,
         resource_group_name: str,
         namespace_name: str,
-        registry_device_name: str,
+        group_name: str,
         resource: JSON,
         *,
         content_type: str = "application/json",
         **kwargs: Any
     ) -> AsyncLROPoller[JSON]:
-        """Create a RegistryDevice.
+        """Create a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
         :param resource: Resource create parameters. Required.
         :type resource: JSON
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
@@ -10147,17 +11287,21 @@ class RegistryDevicesOperations:
                 # JSON input template you can fill out and use as your body input.
                 resource = {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -10177,17 +11321,21 @@ class RegistryDevicesOperations:
                 # response body for status code(s): 200, 201
                 response == {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -10210,21 +11358,21 @@ class RegistryDevicesOperations:
         self,
         resource_group_name: str,
         namespace_name: str,
-        registry_device_name: str,
+        group_name: str,
         resource: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
     ) -> AsyncLROPoller[JSON]:
-        """Create a RegistryDevice.
+        """Create a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
         :param resource: Resource create parameters. Required.
         :type resource: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
@@ -10240,17 +11388,21 @@ class RegistryDevicesOperations:
                 # response body for status code(s): 200, 201
                 response == {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -10273,19 +11425,19 @@ class RegistryDevicesOperations:
         self,
         resource_group_name: str,
         namespace_name: str,
-        registry_device_name: str,
+        group_name: str,
         resource: Union[JSON, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[JSON]:
-        """Create a RegistryDevice.
+        """Create a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
         :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
          Required.
         :type resource: JSON or IO[bytes]
@@ -10299,17 +11451,21 @@ class RegistryDevicesOperations:
                 # JSON input template you can fill out and use as your body input.
                 resource = {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -10329,17 +11485,21 @@ class RegistryDevicesOperations:
                 # response body for status code(s): 200, 201
                 response == {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -10368,7 +11528,7 @@ class RegistryDevicesOperations:
             raw_result = await self._create_or_replace_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
-                registry_device_name=registry_device_name,
+                group_name=group_name,
                 resource=resource,
                 content_type=content_type,
                 cls=lambda x, y, z: x,
@@ -10411,7 +11571,7 @@ class RegistryDevicesOperations:
         self,
         resource_group_name: str,
         namespace_name: str,
-        registry_device_name: str,
+        group_name: str,
         properties: Union[JSON, IO[bytes]],
         **kwargs: Any
     ) -> AsyncIterator[bytes]:
@@ -10437,10 +11597,10 @@ class RegistryDevicesOperations:
         else:
             _json = properties
 
-        _request = build_registry_devices_update_request(
+        _request = build_groups_update_request(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
-            registry_device_name=registry_device_name,
+            group_name=group_name,
             subscription_id=self._config.subscription_id,
             content_type=content_type,
             api_version=self._config.api_version,
@@ -10483,21 +11643,21 @@ class RegistryDevicesOperations:
         self,
         resource_group_name: str,
         namespace_name: str,
-        registry_device_name: str,
+        group_name: str,
         properties: JSON,
         *,
         content_type: str = "application/json",
         **kwargs: Any
     ) -> AsyncLROPoller[JSON]:
-        """Update a RegistryDevice.
+        """Update a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
         :param properties: The resource properties to be updated. Required.
         :type properties: JSON
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
@@ -10513,13 +11673,13 @@ class RegistryDevicesOperations:
                 # JSON input template you can fill out and use as your body input.
                 properties = {
                     "id": "str",
+                    "identity": {
+                        "type": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "softwareRevision": "str"
+                        "description": "str",
+                        "displayName": "str"
                     },
                     "systemData": {
                         "createdAt": "2020-02-20 00:00:00",
@@ -10538,17 +11698,21 @@ class RegistryDevicesOperations:
                 # response body for status code(s): 200
                 response == {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -10571,21 +11735,21 @@ class RegistryDevicesOperations:
         self,
         resource_group_name: str,
         namespace_name: str,
-        registry_device_name: str,
+        group_name: str,
         properties: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
     ) -> AsyncLROPoller[JSON]:
-        """Update a RegistryDevice.
+        """Update a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
         :param properties: The resource properties to be updated. Required.
         :type properties: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
@@ -10601,17 +11765,21 @@ class RegistryDevicesOperations:
                 # response body for status code(s): 200
                 response == {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -10634,19 +11802,19 @@ class RegistryDevicesOperations:
         self,
         resource_group_name: str,
         namespace_name: str,
-        registry_device_name: str,
+        group_name: str,
         properties: Union[JSON, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[JSON]:
-        """Update a RegistryDevice.
+        """Update a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
         :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
          type. Required.
         :type properties: JSON or IO[bytes]
@@ -10660,13 +11828,13 @@ class RegistryDevicesOperations:
                 # JSON input template you can fill out and use as your body input.
                 properties = {
                     "id": "str",
+                    "identity": {
+                        "type": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
-                        "softwareRevision": "str"
+                        "description": "str",
+                        "displayName": "str"
                     },
                     "systemData": {
                         "createdAt": "2020-02-20 00:00:00",
@@ -10685,17 +11853,21 @@ class RegistryDevicesOperations:
                 # response body for status code(s): 200
                 response == {
                     "location": "str",
-                    "etag": "str",
                     "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
                     "name": "str",
                     "properties": {
-                        "enablementState": "str",
-                        "externalDeviceId": "str",
-                        "hardwareRevision": "str",
-                        "manufacturer": "str",
-                        "model": "str",
+                        "groupType": "str",
+                        "query": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
                         "provisioningState": "str",
-                        "softwareRevision": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -10724,7 +11896,7 @@ class RegistryDevicesOperations:
             raw_result = await self._update_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
-                registry_device_name=registry_device_name,
+                group_name=group_name,
                 properties=properties,
                 content_type=content_type,
                 cls=lambda x, y, z: x,
@@ -10763,7 +11935,7 @@ class RegistryDevicesOperations:
         return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     async def _delete_initial(
-        self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any
+        self, resource_group_name: str, namespace_name: str, group_name: str, **kwargs: Any
     ) -> AsyncIterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
@@ -10778,10 +11950,10 @@ class RegistryDevicesOperations:
 
         cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
 
-        _request = build_registry_devices_delete_request(
+        _request = build_groups_delete_request(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
-            registry_device_name=registry_device_name,
+            group_name=group_name,
             subscription_id=self._config.subscription_id,
             api_version=self._config.api_version,
             headers=_headers,
@@ -10818,17 +11990,17 @@ class RegistryDevicesOperations:
 
     @distributed_trace_async
     async def begin_delete(
-        self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any
+        self, resource_group_name: str, namespace_name: str, group_name: str, **kwargs: Any
     ) -> AsyncLROPoller[None]:
-        """Delete a RegistryDevice.
+        """Delete a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
         :type resource_group_name: str
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
-        :param registry_device_name: The name of the new device. Required.
-        :type registry_device_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
         :return: An instance of AsyncLROPoller that returns None
         :rtype: ~azure.core.polling.AsyncLROPoller[None]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -10844,7 +12016,2776 @@ class RegistryDevicesOperations:
             raw_result = await self._delete_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
-                registry_device_name=registry_device_name,
+                group_name=group_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    @distributed_trace_async
+    async def count_members(
+        self, resource_group_name: str, namespace_name: str, group_name: str, **kwargs: Any
+    ) -> JSON:
+        """Returns the current count of members of this group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "count": 0
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_groups_count_members_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            group_name=group_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    @overload
+    async def list_members(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        group_name: str,
+        body: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Lists the current members of a namespace group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
+        :param body: The content of the action request. Required.
+        :type body: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "pageSize": 0,
+                    "skipToken": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "members": [
+                        {
+                            "id": "str"
+                        }
+                    ],
+                    "skipToken": "str"
+                }
+        """
+
+    @overload
+    async def list_members(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        group_name: str,
+        body: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Lists the current members of a namespace group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
+        :param body: The content of the action request. Required.
+        :type body: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "members": [
+                        {
+                            "id": "str"
+                        }
+                    ],
+                    "skipToken": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def list_members(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        group_name: str,
+        body: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> JSON:
+        """Lists the current members of a namespace group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
+        :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type body: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "pageSize": 0,
+                    "skipToken": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "members": [
+                        {
+                            "id": "str"
+                        }
+                    ],
+                    "skipToken": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(body, (IOBase, bytes)):
+            _content = body
+        else:
+            _json = body
+
+        _request = build_groups_list_members_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            group_name=group_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _refresh_members_initial(
+        self, resource_group_name: str, namespace_name: str, group_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_groups_refresh_members_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            group_name=group_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_refresh_members(
+        self, resource_group_name: str, namespace_name: str, group_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Refreshes the members of this group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._refresh_members_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                group_name=group_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class JobRunsOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`job_runs` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_namespace(
+        self, resource_group_name: str, namespace_name: str, *, filter: Optional[str] = None, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List job runs by namespace, across all jobs in the namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :keyword filter: An OData filter expression to restrict results by job run status. Supports
+         equality on the status property, e.g. "status eq 'Active'", and logical OR for multiple
+         statuses, e.g. "status eq 'Active' or status eq 'Scheduled'". Accepted status values:
+         Scheduled, Queued, Active, Succeeded, Failed, TimedOut, Canceled. When omitted, all job runs
+         are returned. Default value is None.
+        :paramtype filter: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "cancellationReason": "str",
+                        "endTime": "2020-02-20 00:00:00",
+                        "provisioningState": "str",
+                        "results": {
+                            "canceled": 0,
+                            "failed": 0,
+                            "inProgress": 0,
+                            "notApplied": 0,
+                            "pending": 0,
+                            "succeeded": 0,
+                            "total": 0
+                        },
+                        "scheduledTime": "2020-02-20 00:00:00",
+                        "startTime": "2020-02-20 00:00:00",
+                        "status": "str",
+                        "targetResourceId": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_job_runs_list_by_namespace_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    subscription_id=self._config.subscription_id,
+                    filter=filter,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace
+    def list_by_job(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        *,
+        filter: Optional[str] = None,
+        **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List JobRun resources by Job.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :keyword filter: An OData filter expression to restrict results by job run status. Supports
+         equality on the status property, e.g. "status eq 'Active'", and logical OR for multiple
+         statuses, e.g. "status eq 'Active' or status eq 'Scheduled'". Accepted status values:
+         Scheduled, Queued, Active, Succeeded, Failed, TimedOut, Canceled. When omitted, all job runs
+         are returned. Default value is None.
+        :paramtype filter: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "cancellationReason": "str",
+                        "endTime": "2020-02-20 00:00:00",
+                        "provisioningState": "str",
+                        "results": {
+                            "canceled": 0,
+                            "failed": 0,
+                            "inProgress": 0,
+                            "notApplied": 0,
+                            "pending": 0,
+                            "succeeded": 0,
+                            "total": 0
+                        },
+                        "scheduledTime": "2020-02-20 00:00:00",
+                        "startTime": "2020-02-20 00:00:00",
+                        "status": "str",
+                        "targetResourceId": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_job_runs_list_by_job_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    job_name=job_name,
+                    subscription_id=self._config.subscription_id,
+                    filter=filter,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self, resource_group_name: str, namespace_name: str, job_name: str, run_name: str, **kwargs: Any
+    ) -> JSON:
+        """Get a JobRun.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "cancellationReason": "str",
+                        "endTime": "2020-02-20 00:00:00",
+                        "provisioningState": "str",
+                        "results": {
+                            "canceled": 0,
+                            "failed": 0,
+                            "inProgress": 0,
+                            "notApplied": 0,
+                            "pending": 0,
+                            "succeeded": 0,
+                            "total": 0
+                        },
+                        "scheduledTime": "2020-02-20 00:00:00",
+                        "startTime": "2020-02-20 00:00:00",
+                        "status": "str",
+                        "targetResourceId": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_job_runs_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            run_name=run_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _cancel_initial(
+        self, resource_group_name: str, namespace_name: str, job_name: str, run_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_job_runs_cancel_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            run_name=run_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_cancel(
+        self, resource_group_name: str, namespace_name: str, job_name: str, run_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Cancel a job run.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._cancel_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                job_name=job_name,
+                run_name=run_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    @overload
+    async def list_results(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        run_name: str,
+        body: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Browse the results of a job run to find individual device statuses.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :param body: The content of the action request. Required.
+        :type body: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "filter": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "value": [
+                        {
+                            "installResult": {
+                                "extendedResultCodes": "str",
+                                "failureOrigin": "str",
+                                "outcome": "str",
+                                "resultCode": 0,
+                                "resultDetails": "str",
+                                "stepResults": [
+                                    {
+                                        "extendedResultCodes": "str",
+                                        "failureOrigin": "str",
+                                        "outcome": "str",
+                                        "resultCode": 0,
+                                        "updateId": {
+                                            "name": "str",
+                                            "provider": "str",
+                                            "version": "str"
+                                        },
+                                        "resultDetails": "str"
+                                    }
+                                ]
+                            },
+                            "reason": "str",
+                            "resourceExternalId": "str",
+                            "resourceType": "str",
+                            "resourceUuid": "str",
+                            "status": "str"
+                        }
+                    ],
+                    "nextLink": "str"
+                }
+        """
+
+    @overload
+    async def list_results(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        run_name: str,
+        body: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Browse the results of a job run to find individual device statuses.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :param body: The content of the action request. Required.
+        :type body: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "value": [
+                        {
+                            "installResult": {
+                                "extendedResultCodes": "str",
+                                "failureOrigin": "str",
+                                "outcome": "str",
+                                "resultCode": 0,
+                                "resultDetails": "str",
+                                "stepResults": [
+                                    {
+                                        "extendedResultCodes": "str",
+                                        "failureOrigin": "str",
+                                        "outcome": "str",
+                                        "resultCode": 0,
+                                        "updateId": {
+                                            "name": "str",
+                                            "provider": "str",
+                                            "version": "str"
+                                        },
+                                        "resultDetails": "str"
+                                    }
+                                ]
+                            },
+                            "reason": "str",
+                            "resourceExternalId": "str",
+                            "resourceType": "str",
+                            "resourceUuid": "str",
+                            "status": "str"
+                        }
+                    ],
+                    "nextLink": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def list_results(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        run_name: str,
+        body: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> JSON:
+        """Browse the results of a job run to find individual device statuses.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type body: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "filter": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "value": [
+                        {
+                            "installResult": {
+                                "extendedResultCodes": "str",
+                                "failureOrigin": "str",
+                                "outcome": "str",
+                                "resultCode": 0,
+                                "resultDetails": "str",
+                                "stepResults": [
+                                    {
+                                        "extendedResultCodes": "str",
+                                        "failureOrigin": "str",
+                                        "outcome": "str",
+                                        "resultCode": 0,
+                                        "updateId": {
+                                            "name": "str",
+                                            "provider": "str",
+                                            "version": "str"
+                                        },
+                                        "resultDetails": "str"
+                                    }
+                                ]
+                            },
+                            "reason": "str",
+                            "resourceExternalId": "str",
+                            "resourceType": "str",
+                            "resourceUuid": "str",
+                            "status": "str"
+                        }
+                    ],
+                    "nextLink": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(body, (IOBase, bytes)):
+            _content = body
+        else:
+            _json = body
+
+        _request = build_job_runs_list_results_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            run_name=run_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+
+class JobsOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`jobs` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List Job resources by Namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_jobs_list_by_namespace_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, namespace_name: str, job_name: str, **kwargs: Any) -> JSON:
+        """Get a Job.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_jobs_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_replace_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_jobs_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a Job.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a Job.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a Job.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                job_name=job_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    @overload
+    async def update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Update a Job.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Update a Job.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> JSON:
+        """Update a Job.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "jobType":
+
+                # JSON input template for discriminator value "OnboardingUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "OnboardingUpdate",
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # JSON input template for discriminator value "SoftwareUpdate":
+                job_properties = {
+                    "definition": {
+                        "schedulingType": "str",
+                        "update": {
+                            "updateId": {
+                                "name": "str",
+                                "provider": "str",
+                                "version": "str"
+                            }
+                        }
+                    },
+                    "jobType": "SoftwareUpdate",
+                    "target": {
+                        "resourceId": "str"
+                    },
+                    "description": "str",
+                    "provisioningState": "str",
+                    "uuid": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": job_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_jobs_update_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, job_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_jobs_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, namespace_name: str, job_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a Job.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                job_name=job_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _schedule_initial(
+        self, resource_group_name: str, namespace_name: str, job_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(body, (IOBase, bytes)):
+            _content = body
+        else:
+            _json = body
+
+        _request = build_jobs_schedule_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_schedule(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        body: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Schedule the job for execution.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param body: The content of the action request. Required.
+        :type body: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "scheduledTime": "2020-02-20 00:00:00",
+                    "timeout": "1 day, 0:00:00"
+                }
+        """
+
+    @overload
+    async def begin_schedule(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        body: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Schedule the job for execution.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param body: The content of the action request. Required.
+        :type body: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+
+    @distributed_trace_async
+    async def begin_schedule(
+        self, resource_group_name: str, namespace_name: str, job_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Schedule the job for execution.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type body: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "scheduledTime": "2020-02-20 00:00:00",
+                    "timeout": "1 day, 0:00:00"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._schedule_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                job_name=job_name,
+                body=body,
+                content_type=content_type,
                 cls=lambda x, y, z: x,
                 headers=_headers,
                 params=_params,

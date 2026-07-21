@@ -42,8 +42,6 @@ def adr_link_hub_update(
     resource_group_name: str,
     mi_system_assigned: bool = False,
     mi_user_assigned: Optional[str] = None,
-    availability: Optional[str] = None,
-    allocation_weight: Optional[int] = None,
     no_wait: bool = False,
 ):
     provider = LinkProvider(cmd)
@@ -53,24 +51,6 @@ def adr_link_hub_update(
         resource_group_name=resource_group_name,
         mi_system_assigned=mi_system_assigned,
         mi_user_assigned=mi_user_assigned,
-        availability=availability,
-        allocation_weight=allocation_weight,
-        no_wait=no_wait,
-    )
-
-
-def adr_link_hub_remove(
-    cmd,
-    endpoint_name: str,
-    namespace_name: str,
-    resource_group_name: str,
-    no_wait: bool = False,
-):
-    provider = LinkProvider(cmd)
-    return provider.hub_remove(
-        endpoint_name=endpoint_name,
-        namespace_name=namespace_name,
-        resource_group_name=resource_group_name,
         no_wait=no_wait,
     )
 
@@ -137,22 +117,6 @@ def adr_link_dps_update(
     )
 
 
-def adr_link_dps_remove(
-    cmd,
-    endpoint_name: str,
-    namespace_name: str,
-    resource_group_name: str,
-    no_wait: bool = False,
-):
-    provider = LinkProvider(cmd)
-    return provider.dps_remove(
-        endpoint_name=endpoint_name,
-        namespace_name=namespace_name,
-        resource_group_name=resource_group_name,
-        no_wait=no_wait,
-    )
-
-
 def adr_link_dps_show(cmd, endpoint_name: str, namespace_name: str, resource_group_name: str):
     provider = LinkProvider(cmd)
     return provider.dps_show(
@@ -211,22 +175,6 @@ def adr_link_adu_update(
         resource_group_name=resource_group_name,
         mi_system_assigned=mi_system_assigned,
         mi_user_assigned=mi_user_assigned,
-        no_wait=no_wait,
-    )
-
-
-def adr_link_adu_remove(
-    cmd,
-    endpoint_name: str,
-    namespace_name: str,
-    resource_group_name: str,
-    no_wait: bool = False,
-):
-    provider = LinkProvider(cmd)
-    return provider.adu_remove(
-        endpoint_name=endpoint_name,
-        namespace_name=namespace_name,
-        resource_group_name=resource_group_name,
         no_wait=no_wait,
     )
 

@@ -13,9 +13,20 @@ from azext_iot.adr.providers.credential import CredentialProvider
 logger = get_logger(__name__)
 
 
-def adr_credential_create(cmd, namespace_name: str, resource_group_name: str, tags: Optional[Dict[str, str]] = None):
+def adr_credential_create(
+    cmd,
+    namespace_name: str,
+    resource_group_name: str,
+    tags: Optional[Dict[str, str]] = None,
+    no_wait: bool = False,
+):
     provider = CredentialProvider(cmd)
-    return provider.create(namespace_name=namespace_name, resource_group_name=resource_group_name, tags=tags)
+    return provider.create(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        tags=tags,
+        no_wait=no_wait,
+    )
 
 
 def adr_credential_show(cmd, namespace_name: str, resource_group_name: str):
@@ -23,11 +34,23 @@ def adr_credential_show(cmd, namespace_name: str, resource_group_name: str):
     return provider.show(namespace_name=namespace_name, resource_group_name=resource_group_name)
 
 
-def adr_credential_delete(cmd, namespace_name: str, resource_group_name: str):
+def adr_credential_delete(
+    cmd, namespace_name: str, resource_group_name: str, no_wait: bool = False
+):
     provider = CredentialProvider(cmd)
-    return provider.delete(namespace_name=namespace_name, resource_group_name=resource_group_name)
+    return provider.delete(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        no_wait=no_wait,
+    )
 
 
-def adr_credential_synchronize(cmd, namespace_name: str, resource_group_name: str):
+def adr_credential_synchronize(
+    cmd, namespace_name: str, resource_group_name: str, no_wait: bool = False
+):
     provider = CredentialProvider(cmd)
-    return provider.synchronize(namespace_name=namespace_name, resource_group_name=resource_group_name)
+    return provider.synchronize(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        no_wait=no_wait,
+    )

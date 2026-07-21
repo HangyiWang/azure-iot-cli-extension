@@ -101,6 +101,18 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns migrate"
+    ] = """
+  type: command
+  short-summary: Migrate resources into a Device Registry namespace.
+  examples:
+    - name: Migrate resources into a namespace
+      text: |
+        az iot adr ns migrate -n myNamespace -g myResourceGroup \\
+          --scope Resources --resource-ids /subscriptions/.../resources/resource1
+  """
+
+    helps[
         "iot adr ns credential"
     ] = """
   type: group
@@ -406,63 +418,6 @@ def load_adr_help():
   """
 
     helps[
-        "iot adr ns registry-device"
-    ] = """
-    type: group
-    short-summary: Manage Device Registry namespace registry devices.
-  """
-
-    helps[
-        "iot adr ns registry-device create"
-    ] = """
-  type: command
-  short-summary: Create a registry device in a Device Registry namespace.
-  examples:
-    - name: Create an enabled registry device with descriptive metadata
-      text: az iot adr ns registry-device create -n myDevice --ns myNamespace -g myResourceGroup --enablement-state Enabled --manufacturer Contoso --model X1 --external-device-id ext-123
-  """
-
-    helps[
-        "iot adr ns registry-device show"
-    ] = """
-  type: command
-  short-summary: Show the details of a registry device.
-  examples:
-    - name: Show a registry device
-      text: az iot adr ns registry-device show -n myDevice --ns myNamespace -g myResourceGroup
-  """
-
-    helps[
-        "iot adr ns registry-device list"
-    ] = """
-  type: command
-  short-summary: List the registry devices in a Device Registry namespace.
-  examples:
-    - name: List registry devices
-      text: az iot adr ns registry-device list --ns myNamespace -g myResourceGroup
-  """
-
-    helps[
-        "iot adr ns registry-device update"
-    ] = """
-  type: command
-  short-summary: Update a registry device.
-  examples:
-    - name: Disable a registry device and update its software revision
-      text: az iot adr ns registry-device update -n myDevice --ns myNamespace -g myResourceGroup --enablement-state Disabled --software-revision 2.0
-  """
-
-    helps[
-        "iot adr ns registry-device delete"
-    ] = """
-  type: command
-  short-summary: Delete a registry device from a Device Registry namespace.
-  examples:
-    - name: Delete a registry device
-      text: az iot adr ns registry-device delete -n myDevice --ns myNamespace -g myResourceGroup
-  """
-
-    helps[
         "iot adr ns device"
     ] = """
     type: group
@@ -485,16 +440,25 @@ def load_adr_help():
   type: command
   short-summary: Create a device in a Device Registry namespace.
   examples:
-    - name: Create a device with minimal arguments (location inferred from resource group)
+    - name: Create a device with minimal arguments (location inherited from the namespace)
       text: az iot adr ns device create -n myDevice --ns myNamespace -g myResourceGroup
     - name: Create a device with manufacturer, model, and OS details
       text: |
         az iot adr ns device create -n myDevice --ns myNamespace -g myResourceGroup \\
           --manufacturer Contoso --model X100 --os Linux --os-version 5.15
+    - name: Create an enabled device with external identity and attributes
+      text: |
+        az iot adr ns device create -n myDevice --ns myNamespace -g myResourceGroup \\
+          --external-device-id device-42 --enabled true \\
+          --attributes '{"environment":"production"}'
     - name: Create a device bound to a credential policy
       text: |
         az iot adr ns device create -n myDevice --ns myNamespace -g myResourceGroup \\
           --policy-resource-id /subscriptions/.../policies/default
+    - name: Create a device with an assigned outbound endpoint
+      text: |
+        az iot adr ns device create -n myDevice --ns myNamespace -g myResourceGroup \\
+          --endpoints '{"outbound":{"assigned":{"events":{"endpointType":"Microsoft.Devices","address":"https://example.eventgrid.azure.net/api/events"}}}}'
   """
 
     helps[
@@ -527,22 +491,6 @@ def load_adr_help():
   examples:
     - name: Delete a device
       text: az iot adr ns device delete -n myDevice --ns myNamespace -g myResourceGroup
-  """
-
-    helps[
-        "iot adr ns device revoke"
-    ] = """
-  type: command
-  short-summary: Revoke credentials for a device in a Device Registry namespace.
-  long-summary: |
-    This command revokes all active credentials for the specified device. The device will need to re-authenticate and obtain new credentials.
-
-    Use --disable to also prevent the device from obtaining new credentials.
-  examples:
-    - name: Revoke device credentials
-      text: az iot adr ns device revoke -n myDevice --ns myNamespace -g myResourceGroup
-    - name: Revoke credentials and disable the device
-      text: az iot adr ns device revoke -n myDevice --ns myNamespace -g myResourceGroup --disable
   """
 
     helps[
@@ -590,7 +538,7 @@ def load_adr_help():
     and the Hub's own managed identity needs Contributor on the namespace. Creating these role
     assignments requires Owner or User Access Administrator on the scope.
   examples:
-    - name: Link a Hub using the namespace's system-assigned identity for inbound calls
+    - name: Link a Hub using the Hub's system-assigned identity for inbound calls
       text: |
         az iot adr ns link hub add -n primary --ns myNamespace -g myResourceGroup \\
           --hub-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/IotHubs/<hub> \\
@@ -613,29 +561,11 @@ def load_adr_help():
   type: command
   short-summary: Update an existing IoT Hub messaging endpoint on a Device Registry namespace.
   long-summary: |
-    Only the inbound caller identity and provisioning fields can be updated. The linked Hub
-    resource cannot be changed in place.
+    Only the inbound caller identity can be updated. The linked Hub resource and provisioning
+    settings cannot be changed in place.
   examples:
     - name: Switch a Hub link to a system-assigned identity
       text: az iot adr ns link hub update -n primary --ns myNamespace -g myResourceGroup --mi-system-assigned
-    - name: Disable an existing Hub endpoint
-      text: az iot adr ns link hub update -n primary --ns myNamespace -g myResourceGroup --availability Disabled
-  """
-
-    helps[
-        "iot adr ns link hub remove"
-    ] = """
-  type: command
-  short-summary: (Not supported by design) Removing a Hub link entry directly is not allowed.
-  long-summary: |
-    This command always fails. By design, Hub link entries are bound to the lifecycle of the
-    underlying IoT Hub and cannot be removed from the namespace in isolation. To unlink:
-      * delete the IoT Hub resource ('az iot hub delete'), or
-      * delete the Device Registry namespace ('az iot adr ns delete').
-    The command is kept so the failure surfaces a clear, actionable error rather than a 'not found'.
-  examples:
-    - name: Invocation will fail - use one of the suggested commands instead
-      text: az iot adr ns link hub remove -n primary --ns myNamespace -g myResourceGroup
   """
 
     helps[
@@ -682,7 +612,7 @@ def load_adr_help():
     needs Contributor on the namespace. Creating these role assignments requires Owner or User
     Access Administrator on the scope.
   examples:
-    - name: Link a DPS using the namespace's system-assigned identity
+    - name: Link a DPS using the DPS resource's system-assigned identity
       text: |
         az iot adr ns link dps add -n primary --ns myNamespace -g myResourceGroup \\
           --dps-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Devices/provisioningServices/<dps> \\
@@ -705,22 +635,6 @@ def load_adr_help():
   examples:
     - name: Rotate to a system-assigned identity on an existing DPS link
       text: az iot adr ns link dps update -n primary --ns myNamespace -g myResourceGroup --mi-system-assigned
-  """
-
-    helps[
-        "iot adr ns link dps remove"
-    ] = """
-  type: command
-  short-summary: (Not supported by design) Removing a DPS link entry directly is not allowed.
-  long-summary: |
-    This command always fails. By design, DPS link entries are bound to the lifecycle of the
-    underlying DPS resource and cannot be removed from the namespace in isolation. To unlink:
-      * delete the DPS resource ('az iot dps delete'), or
-      * delete the Device Registry namespace ('az iot adr ns delete').
-    The command is kept so the failure surfaces a clear, actionable error rather than a 'not found'.
-  examples:
-    - name: Invocation will fail - use one of the suggested commands instead
-      text: az iot adr ns link dps remove -n primary --ns myNamespace -g myResourceGroup
   """
 
     helps[
@@ -754,7 +668,7 @@ def load_adr_help():
   type: group
   short-summary: Manage Azure Device Update (ADU) links (updating endpoints) on a Device Registry namespace.
   long-summary: |
-    Links an ADU 'Microsoft.DeviceUpdate/linkedAccounts' resource to the namespace as an
+    Links a 'Microsoft.DeviceUpdate/updateInstances' resource to the namespace as an
     updating endpoint under properties.updating.endpoints. Links live on the namespace, not on
     the ADU resource. Linking is asynchronous; read-only address fields (serviceAddress,
     deviceAddress, legacyDeviceAddress) are resolved once linking succeeds.
@@ -764,21 +678,21 @@ def load_adr_help():
         "iot adr ns link adu add"
     ] = """
   type: command
-  short-summary: Link an Azure Device Update (ADU) account to a Device Registry namespace.
+  short-summary: Link an Azure Device Update instance to a Device Registry namespace.
   long-summary: |
     Adds an ADU updating endpoint entry under the namespace's properties.updating.endpoints.
     Exactly one of --mi-system-assigned or --mi-user-assigned must be provided to set the
-    inbound caller identity that the ADU account will use to call back into the namespace.
+    inbound caller identity that the update instance will use to call back into the namespace.
   examples:
-    - name: Link an ADU account using the namespace's system-assigned identity for inbound calls
+    - name: Link an ADU instance using its system-assigned identity for inbound calls
       text: |
         az iot adr ns link adu add -n my-adu --ns myNamespace -g myResourceGroup \\
-          --adu-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/linkedAccounts/<account> \\
+          --adu-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/updateInstances/<instance> \\
           --mi-system-assigned
     - name: Link an ADU account with a user-assigned identity
       text: |
         az iot adr ns link adu add -n my-adu --ns myNamespace -g myResourceGroup \\
-          --adu-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/linkedAccounts/<account> \\
+          --adu-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/updateInstances/<instance> \\
           --mi-user-assigned /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<id>
   """
 
@@ -788,28 +702,11 @@ def load_adr_help():
   type: command
   short-summary: Update an existing ADU updating endpoint on a Device Registry namespace.
   long-summary: |
-    Only the inbound caller identity may be updated. The linked ADU account cannot be changed;
-    to point the endpoint at a different account, remove and re-add it.
+    Only the inbound caller identity may be updated. The linked update instance cannot be changed
+    in place.
   examples:
     - name: Rotate to a system-assigned identity on an existing ADU link
       text: az iot adr ns link adu update -n my-adu --ns myNamespace -g myResourceGroup --mi-system-assigned
-  """
-
-    helps[
-        "iot adr ns link adu remove"
-    ] = """
-  type: command
-  short-summary: (Not supported by design) Removing an ADU link entry directly is not allowed.
-  long-summary: |
-    This command always fails. By design, ADU link entries are bound to the lifecycle of the
-    underlying Device Update linked account and cannot be removed from the namespace in isolation.
-    To unlink:
-      * delete the ADU linked account resource ('az resource delete'), or
-      * delete the Device Registry namespace ('az iot adr ns delete').
-    The command is kept so the failure surfaces a clear, actionable error rather than a 'not found'.
-  examples:
-    - name: Invocation will fail - use one of the suggested commands instead
-      text: az iot adr ns link adu remove -n my-adu --ns myNamespace -g myResourceGroup
   """
 
     helps[
@@ -930,18 +827,8 @@ def load_adr_help():
     ] = """
   type: command
   short-summary: Delete a group from a Device Registry namespace.
-  long-summary: |
-    DELETE is a long-running operation. Any jobs that target this group will be
-    cascade-deleted first (one sequential DELETE per job, then the group DELETE),
-    because the service rejects deleting a group that still has referencing jobs.
-    The command HARD-BLOCKS the entire operation when any referencing job has:
-      * an in-flight run (status in: Scheduled, Queued, Active), or
-      * a non-terminal provisioningState (Accepted, Creating, Updating, Deleting,
-        Provisioning, Running).
-    In that case nothing is deleted and the error lists the offending jobs so you
-    can wait for them, cancel them, or delete them explicitly before retrying.
   examples:
-    - name: Delete a group (cascade-deletes referencing jobs if any)
+    - name: Delete a group
       text: az iot adr ns group delete -n myGroup --ns myNamespace -g myResourceGroup
     - name: Delete a group without confirmation prompt
       text: az iot adr ns group delete -n myGroup --ns myNamespace -g myResourceGroup --yes
@@ -962,17 +849,16 @@ def load_adr_help():
   """
 
     helps[
-        "iot adr ns group show-members"
+        "iot adr ns group list-members"
     ] = """
   type: command
-  short-summary: Preview a sample of members of a group (up to 10).
+  short-summary: List the current members of a group.
   long-summary: |
-    Returns a synchronous sample of at most 10 current members. This is a preview
-    only; it is not a paginated full membership list. Use 'az iot adr ns group count'
-    for the total member count.
+    Follows the service's skip-token pagination and returns member resource ID
+    objects.
   examples:
-    - name: Preview group members
-      text: az iot adr ns group show-members -n myGroup --ns myNamespace -g myResourceGroup
+    - name: List group members
+      text: az iot adr ns group list-members -n myGroup --ns myNamespace -g myResourceGroup
   """
 
     helps[
@@ -1010,11 +896,9 @@ def load_adr_help():
   type: command
   short-summary: Create a job in a Device Registry namespace.
   long-summary: |
-    PUT is a long-running operation. Only --type 'Update' is supported in this
-    preview API ('Action' and 'State' are reserved discriminator values for a
-    future API version). The job's --type, target group, and update identity
-    are immutable after creation; only --tags can be modified later via
-    'az iot adr ns job update'.
+    PUT is a long-running operation. SoftwareUpdate jobs require a target group.
+    OnboardingUpdate jobs target all compatible onboarding devices and do not
+    accept a target group. Job definition fields are immutable after creation.
 
     The target group is specified by --target-group-name and must live in the
     same namespace and resource group as the job (cross-namespace targets are
@@ -1022,10 +906,16 @@ def load_adr_help():
     (--update-id-provider, --update-id-name, --update-id-version) is passed
     opaquely to the backend; no ADU preflight is performed.
   examples:
-    - name: Create an Update job targeting a group in the same namespace
+    - name: Create a SoftwareUpdate job targeting a group
       text: |
         az iot adr ns job create -n myJob --ns myNamespace -g myResourceGroup \\
+          --type SoftwareUpdate \\
           --target-group-name myGroup \\
+          --update-id-provider Contoso --update-id-name gateway-firmware --update-id-version 1.2.3
+    - name: Create an OnboardingUpdate job
+      text: |
+        az iot adr ns job create -n onboarding --ns myNamespace -g myResourceGroup \\
+          --type OnboardingUpdate \\
           --update-id-provider Contoso --update-id-name gateway-firmware --update-id-version 1.2.3
   """
 
@@ -1116,12 +1006,10 @@ def load_adr_help():
         "iot adr ns job run"
     ] = """
     type: group
-    short-summary: Inspect runs of a Device Registry namespace job.
+    short-summary: Manage runs of Device Registry namespace jobs.
     long-summary: |
-      Job runs are spawned by the service when a job is scheduled; they are
-      read-only from the CLI (no `create`, `cancel`, or `delete` - there is no
-      supported write surface). Use these commands to monitor an
-      Update deployment's progress and to drill into per-device results.
+      Job runs are spawned when a job is scheduled. Commands can inspect,
+      filter, and cancel runs.
   """
 
     helps[
@@ -1138,10 +1026,12 @@ def load_adr_help():
         "iot adr ns job run list"
     ] = """
   type: command
-  short-summary: List runs for a Device Registry job.
+  short-summary: List job runs by parent job or across a namespace.
   examples:
     - name: List all runs for a job
       text: az iot adr ns job run list --job-name myJob --ns myNamespace -g myResourceGroup
+    - name: List active runs across the namespace
+      text: az iot adr ns job run list --ns myNamespace -g myResourceGroup --filter "status eq 'Active'"
   """
 
     helps[
@@ -1150,15 +1040,53 @@ def load_adr_help():
   type: command
   short-summary: Browse per-device results of a job run.
   long-summary: |
-    Returns a flat list of per-device results (deviceUuid, status, reason)
-    aggregated across all pages of the service-side `POST .../results`
-    response. Use Azure CLI `--query` to filter or project specific fields,
-    e.g. `--query "[?status=='Failed']"`.
+    Returns a flat list of per-device results aggregated across all pages of
+    the service-side `POST .../listResults` response. Use --filter for
+    server-side status filtering.
   examples:
     - name: List every per-device result for a run
       text: az iot adr ns job run results -n myRun --job-name myJob --ns myNamespace -g myResourceGroup
     - name: Show only the failed devices in a run
       text: |
         az iot adr ns job run results -n myRun --job-name myJob --ns myNamespace -g myResourceGroup \\
-          --query "[?status=='Failed']"
+          --filter "status eq 'Failed'"
+  """
+
+    helps[
+        "iot adr ns job run cancel"
+    ] = """
+  type: command
+  short-summary: Cancel a Device Registry job run.
+  examples:
+    - name: Cancel a run
+      text: az iot adr ns job run cancel -n myRun --job-name myJob --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns report"
+    ] = """
+  type: group
+  short-summary: Manage Device Registry update-compliance reports.
+  """
+
+    helps[
+        "iot adr ns report generate"
+    ] = """
+  type: command
+  short-summary: Generate an update-compliance report.
+  examples:
+    - name: Generate a namespace update-compliance report
+      text: az iot adr ns report generate --ns myNamespace -g myResourceGroup --report-type NamespaceUpdateComplianceReport
+    - name: Generate a group best-updates report
+      text: az iot adr ns report generate --ns myNamespace -g myResourceGroup --report-type GroupBestUpdatesComplianceReport --group-name myGroup
+  """
+
+    helps[
+        "iot adr ns report latest"
+    ] = """
+  type: command
+  short-summary: Show the latest update-compliance report.
+  examples:
+    - name: Show the latest namespace update-compliance report
+      text: az iot adr ns report latest --ns myNamespace -g myResourceGroup --report-type NamespaceUpdateComplianceReport
   """

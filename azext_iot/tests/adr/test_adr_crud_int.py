@@ -22,7 +22,6 @@ from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._log import LogKind, _log
 from azext_iot.tests.adr.conftest import (
     CUSTOM_CERT_KEY_TYPE,
-    CUSTOM_CERT_SUBJECT,
     CUSTOM_CERT_UPDATE_VALIDITY_DAYS,
     CUSTOM_CERT_VALIDITY_DAYS,
     CUSTOM_POLICY_NAME,
@@ -135,12 +134,15 @@ class TestADRCrudLifecycle(CaptureOutputLiveScenarioTest):
             policy_create_cmd = (
                 f"iot adr ns policy create --ns {namespace_name} -g {rg} "
                 f"--policy-name {DEFAULT_NS_POLICY_NAME} "
+                f"--location {TEST_LOCATION} --tags kind=default "
                 f"--cert-validity-days {DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS} "
                 f"--cert-key-type {DEFAULT_NS_POLICY_CERT_KEY_TYPE}"
             )
             _log(LogKind.CMD, "az %s", policy_create_cmd)
             default_policy = self.cmd(policy_create_cmd).get_output_in_json()
             assert default_policy["name"] == DEFAULT_NS_POLICY_NAME
+            assert default_policy["location"] == TEST_LOCATION
+            assert default_policy["tags"]["kind"] == "default"
             assert default_policy["properties"]["provisioningState"] == "Succeeded"
             leaf, ca = _cert_config(default_policy)
             assert leaf["validityPeriodInDays"] == DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
@@ -177,7 +179,7 @@ class TestADRCrudLifecycle(CaptureOutputLiveScenarioTest):
             custom_cmd = (
                 f"iot adr ns policy create --ns {namespace_name} -g {rg} "
                 f"--policy-name {CUSTOM_POLICY_NAME} "
-                f"--cert-subject '{CUSTOM_CERT_SUBJECT}' "
+                f"--location {TEST_LOCATION} --tags kind=custom "
                 f"--cert-validity-days {CUSTOM_CERT_VALIDITY_DAYS} "
                 f"--cert-key-type {CUSTOM_CERT_KEY_TYPE}"
             )
@@ -185,12 +187,12 @@ class TestADRCrudLifecycle(CaptureOutputLiveScenarioTest):
             custom_policy = self.cmd(custom_cmd).get_output_in_json()
 
             assert custom_policy["name"] == CUSTOM_POLICY_NAME
+            assert custom_policy["location"] == TEST_LOCATION
+            assert custom_policy["tags"]["kind"] == "custom"
             assert custom_policy["properties"]["provisioningState"] == "Succeeded"
             leaf, ca = _cert_config(custom_policy)
             assert leaf["validityPeriodInDays"] == CUSTOM_CERT_VALIDITY_DAYS
             assert ca["keyType"] == CUSTOM_CERT_KEY_TYPE
-            # TODO - cert subject not respected
-            # assert ca["subject"] == CUSTOM_CERT_SUBJECT
             _log(
                 LogKind.RESULT, "policy=%s, keyType=%s, validityDays=%s",
                 CUSTOM_POLICY_NAME, CUSTOM_CERT_KEY_TYPE, CUSTOM_CERT_VALIDITY_DAYS,
@@ -205,8 +207,6 @@ class TestADRCrudLifecycle(CaptureOutputLiveScenarioTest):
             leaf, ca = _cert_config(custom_policy_show)
             assert leaf["validityPeriodInDays"] == CUSTOM_CERT_VALIDITY_DAYS
             assert ca["keyType"] == CUSTOM_CERT_KEY_TYPE
-            # TODO - cert subject not respected
-            # assert ca["subject"] == CUSTOM_CERT_SUBJECT
             _log(LogKind.OK, "Custom policy show returned correctly")
 
             # TODO - service currently only supports validity period updates

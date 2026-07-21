@@ -9,8 +9,7 @@ ADR client-side validation negatives (cross-surface).
 
 Every scenario in this module exercises argument validation that the providers
 perform *before* issuing any service round trip — required-argument guards,
-mutually-exclusive identity flags, and the "not-yet-supported" UAMI rejection on
-namespace outbound identity.
+mutually-exclusive identity flags, and discriminator-specific requirements.
 
 Because these commands fail client-side, they require neither pre-provisioned
 ADR resources nor backend readiness: each ``self.cmd(...)`` is expected to fail
@@ -66,10 +65,34 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 expect_failure=True,
             )
 
-        # --- Registry device: update requires at least one mutable field ---
-        with timed_step("registry-device update ❯ nothing-to-update rejected"):
+        # --- Namespace resources: empty updates are rejected client-side ---
+        with timed_step("namespace update ❯ nothing-to-update rejected"):
             self.cmd(
-                f"iot adr ns registry-device update -n mydev --ns {ns} -g {rg}",
+                f"iot adr ns update -n {ns} -g {rg}",
+                expect_failure=True,
+            )
+        with timed_step("device update ❯ nothing-to-update rejected"):
+            self.cmd(
+                f"iot adr ns device update -n mydev --ns {ns} -g {rg}",
+                expect_failure=True,
+            )
+        with timed_step("group update ❯ nothing-to-update rejected"):
+            self.cmd(
+                f"iot adr ns group update -n mygroup --ns {ns} -g {rg}",
+                expect_failure=True,
+            )
+
+        with timed_step("namespace migrate ❯ resource IDs required"):
+            self.cmd(
+                f"iot adr ns migrate -n {ns} -g {rg} --scope Resources "
+                "--resource-ids ''",
+                expect_failure=True,
+            )
+
+        with timed_step("group report ❯ group name required"):
+            self.cmd(
+                f"iot adr ns report generate --ns {ns} -g {rg} "
+                "--report-type GroupBestUpdatesComplianceReport",
                 expect_failure=True,
             )
 

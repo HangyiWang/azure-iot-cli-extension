@@ -15,9 +15,9 @@ Validates the namespace-linking surface exposed as ``iot adr ns link ...``:
   identities, multi-hub list, identity rotation via ``hub update``
 * ``link add`` bundled Hub+DPS PATCH in a single round trip
 * ``link adu add / update / show / list`` — ADU (device update) updating
-  endpoints with UAMI/SAMI identity rotation (currently skipped — ADU linked
-  account provisioning is not yet available in the test environment)
-* ``remove`` for both endpoint types is rejected by design
+  endpoints with UAMI/SAMI identity rotation. Set
+  ``azext_iot_adr_update_instance_id`` to a pre-provisioned ADU update-instance
+  resource ID to enable this test.
 
 These tests require real Hub and DPS resources to be linked to a real ADR
 namespace, so they re-use :class:`ADRHubInfraHelper` to provision the full
@@ -33,6 +33,7 @@ What is intentionally NOT covered here (covered by unit tests):
 - Invalid DPS resource id rejection
 """
 
+import os
 import time
 from typing import Optional
 
@@ -50,6 +51,54 @@ from azext_iot.tests.adr.conftest import (
 )
 
 
+_ADU_UPDATE_INSTANCE_ENV = "azext_iot_adr_update_instance_id"
+_ADU_UPDATE_INSTANCE_ID = os.getenv(_ADU_UPDATE_INSTANCE_ENV, "").strip()
+_LINKING_POLL_ATTEMPTS = 18
+_LINKING_POLL_INTERVAL_SECONDS = 10
+
+
+def _wait_for_linking_succeeded(
+    test_case,
+    link_kind: str,
+    namespace_name: str,
+    resource_group_name: str,
+    endpoint_name: str,
+    expected_identity_type: Optional[str] = None,
+) -> dict:
+    """Poll a namespace endpoint until its contract linking state succeeds."""
+    shown = {}
+    linking_state = None
+    identity_type = None
+    for attempt in range(_LINKING_POLL_ATTEMPTS):
+        shown = test_case.cmd(
+            f"iot adr ns link {link_kind} show --ns {namespace_name} "
+            f"-g {resource_group_name} -n {endpoint_name}"
+        ).get_output_in_json()
+        properties = shown.get("properties") or shown
+        linking_state = properties.get("linkingState") or shown.get("linkingState")
+        identity = (
+            properties.get("inboundCallerIdentity")
+            or shown.get("inboundCallerIdentity")
+            or {}
+        )
+        identity_type = identity.get("type")
+        if linking_state == "Succeeded" and (
+            expected_identity_type is None
+            or identity_type == expected_identity_type
+        ):
+            assert linking_state == "Succeeded"
+            return shown
+        if attempt < _LINKING_POLL_ATTEMPTS - 1:
+            time.sleep(_LINKING_POLL_INTERVAL_SECONDS)
+
+    pytest.fail(
+        f"{link_kind} endpoint '{endpoint_name}' did not reach linkingState "
+        f"'Succeeded' with identity {expected_identity_type!r}; "
+        f"last state={linking_state!r}, last identity={identity_type!r}, "
+        f"response={shown}"
+    )
+
+
 @pytest.mark.usefixtures("set_cwd")
 class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     """End-to-end lifecycle of namespace-side Hub and DPS link entries.
@@ -64,11 +113,8 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     3. Step 2: ``link dps show`` asserts ``brownfieldHubs`` enumerates the Hub
     4. Step 3-4: secondary Hub linked with **UAMI** + show/list (single entry)
     5. Step 5-6: tertiary Hub linked with **SAMI** + multi-hub list assertion
-    6. Step 7: ``link hub update`` flips availability/weight on secondary
-    7. Step 8: ``link hub update`` rotates tertiary's identity SAMI ↔ UAMI ↔ SAMI
-    8. Step 9: ``link dps update`` rotates DPS identity
-    9. Step 10-11: ``link hub remove`` and ``link dps remove`` must fail (rejected
-       by design — namespace cleanup is the only removal path)
+    6. Step 7-8: ``link hub update`` rotates inbound identities
+    7. Step 9: ``link dps update`` rotates DPS identity
     """
 
     def test_adr_link_lifecycle(self):
@@ -86,10 +132,9 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         dps_endpoint = "dps-primary"
 
         def _names_in(listed):
-            """Normalize `link * list` payload (dict or list) to a set of endpoint names."""
-            if isinstance(listed, dict):
-                return set(listed.keys())
-            return {item.get("name") or item.get("endpointName") for item in (listed or [])}
+            """Read endpoint names from the 2026 named-object list shape."""
+            assert isinstance(listed, list)
+            return {item["name"] for item in listed}
 
         try:
             infra = self.setup_full_infra(
@@ -146,13 +191,21 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", add_cmd)
                 self.cmd(add_cmd)
+                _wait_for_linking_succeeded(
+                    self,
+                    "dps",
+                    namespace_name,
+                    rg,
+                    dps_endpoint,
+                    expected_identity_type="UserAssigned",
+                )
                 _log(LogKind.OK, "DPS link '%s' created", dps_endpoint)
 
             with timed_step("Step 2 ❯ link dps show (+ brownfield Hubs) / list"):
                 shown = self.cmd(
                     f"iot adr ns link dps show --ns {namespace_name} -g {rg} -n {dps_endpoint}"
                 ).get_output_in_json()
-                assert shown.get("name") == dps_endpoint or shown.get("endpointName") == dps_endpoint, (
+                assert shown.get("name") == dps_endpoint, (
                     f"link dps show did not surface name field: {shown}"
                 )
 
@@ -193,12 +246,25 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             with timed_step("Step 3 ❯ link hub add - secondary, UAMI (DPS-first satisfied)"):
                 hub_cmd = (
                     f"iot hub create -n {secondary_hub} -g {rg} --sku GEN2 "
-                    f"--mi-user-assigned {identity_resource_id}"
+                    f"--mi-system-assigned --mi-user-assigned {identity_resource_id}"
                 )
                 _log(LogKind.CMD, "az %s", hub_cmd)
                 hub = self.cmd(hub_cmd).get_output_in_json()
                 hub_id = hub["id"]
-                _log(LogKind.RESULT, "Secondary Hub '%s' created (id=%s)", secondary_hub, hub_id)
+                hub_identity_types = {
+                    identity_type.strip()
+                    for identity_type in (hub.get("identity", {}).get("type") or "").split(",")
+                    if identity_type.strip()
+                }
+                assert {"SystemAssigned", "UserAssigned"}.issubset(
+                    hub_identity_types
+                ), f"Secondary Hub must have both identities, got: {hub.get('identity')}"
+                _log(
+                    LogKind.RESULT,
+                    "Secondary Hub '%s' created with SAMI+UAMI (id=%s)",
+                    secondary_hub,
+                    hub_id,
+                )
 
                 add_cmd = (
                     f"iot adr ns link hub add --ns {namespace_name} -g {rg} "
@@ -208,16 +274,23 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", add_cmd)
                 self.cmd(add_cmd)
+                _wait_for_linking_succeeded(
+                    self,
+                    "hub",
+                    namespace_name,
+                    rg,
+                    secondary_endpoint,
+                    expected_identity_type="UserAssigned",
+                )
                 _log(LogKind.OK, "Hub link '%s' created (UAMI)", secondary_endpoint)
 
             with timed_step("Step 4 ❯ link hub show / list (single entry)"):
                 shown = self.cmd(
                     f"iot adr ns link hub show --ns {namespace_name} -g {rg} -n {secondary_endpoint}"
                 ).get_output_in_json()
-                assert (
-                    shown.get("name") == secondary_endpoint
-                    or shown.get("endpointName") == secondary_endpoint
-                ), f"link hub show did not surface name field: {shown}"
+                assert shown.get("name") == secondary_endpoint, (
+                    f"link hub show did not surface name field: {shown}"
+                )
 
                 listed = self.cmd(
                     f"iot adr ns link hub list --ns {namespace_name} -g {rg}"
@@ -228,13 +301,12 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "Hub list returned %d entry/entries", len(names))
 
-            # Step 5: link hub (SAMI) — second Hub uses --mi-system-assigned.
-            # The tertiary Hub is provisioned with a system-assigned identity so
-            # the inbound caller identity write reflects a real principal.
+            # Step 5: link hub (SAMI). Provision both identities so subsequent
+            # SAMI/UAMI rotations always reference identities on the Hub.
             with timed_step("Step 5 ❯ link hub add - tertiary, SAMI"):
                 hub_cmd = (
                     f"iot hub create -n {tertiary_hub} -g {rg} --sku GEN2 "
-                    f"--mi-system-assigned"
+                    f"--mi-system-assigned --mi-user-assigned {identity_resource_id}"
                 )
                 _log(LogKind.CMD, "az %s", hub_cmd)
                 hub = self.cmd(hub_cmd).get_output_in_json()
@@ -249,6 +321,14 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", add_cmd)
                 self.cmd(add_cmd)
+                _wait_for_linking_succeeded(
+                    self,
+                    "hub",
+                    namespace_name,
+                    rg,
+                    tertiary_endpoint,
+                    expected_identity_type="SystemAssigned",
+                )
                 _log(LogKind.OK, "Hub link '%s' created (SAMI)", tertiary_endpoint)
 
             with timed_step("Step 6 ❯ link hub list (multi-hub, both endpoints)"):
@@ -261,28 +341,32 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "Hub list returned %d entries (both endpoints present)", len(names))
 
-            with timed_step("Step 7 ❯ link hub update (availability + weight on secondary)"):
+            with timed_step("Step 7 ❯ link hub update (rotate secondary identity)"):
                 update_cmd = (
                     f"iot adr ns link hub update --ns {namespace_name} -g {rg} "
-                    f"-n {secondary_endpoint} --availability Unavailable --weight 5"
+                    f"-n {secondary_endpoint} --mi-system-assigned"
                 )
                 _log(LogKind.CMD, "az %s", update_cmd)
                 self.cmd(update_cmd)
-                updated = self.cmd(
-                    f"iot adr ns link hub show --ns {namespace_name} -g {rg} -n {secondary_endpoint}"
-                ).get_output_in_json()
-                prov = updated.get("properties", updated).get("provisioning") or updated.get(
-                    "provisioning"
-                ) or {}
-                avail = prov.get("availability") or updated.get("availability")
-                weight = prov.get("allocationWeight") or updated.get("allocationWeight")
-                assert avail == "Unavailable", f"Availability not updated, saw {avail}"
-                assert weight == 5, f"Weight not updated, saw {weight}"
-                _log(LogKind.OK, "Hub link updated: availability=Unavailable, weight=5")
+                updated = _wait_for_linking_succeeded(
+                    self,
+                    "hub",
+                    namespace_name,
+                    rg,
+                    secondary_endpoint,
+                    expected_identity_type="SystemAssigned",
+                )
+                identity = (
+                    updated.get("properties", updated).get("inboundCallerIdentity")
+                    or updated.get("inboundCallerIdentity")
+                    or {}
+                )
+                assert identity.get("type") == "SystemAssigned"
+                _log(LogKind.OK, "Hub link inbound identity rotated")
 
             # Step 8: rotate the tertiary Hub's inbound identity SAMI → UAMI → SAMI.
             # Exercises the --mi-system-assigned / --mi-user-assigned branches of
-            # hub_update which Step 7 (provisioning-only patch) does not touch.
+            # hub_update.
             with timed_step("Step 8 ❯ link hub update (rotate identity SAMI → UAMI → SAMI)"):
                 def _identity_type(endpoint: dict) -> Optional[str]:
                     ici = (endpoint.get("properties", endpoint).get("inboundCallerIdentity")
@@ -296,9 +380,14 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", update_cmd)
                 self.cmd(update_cmd)
-                shown = self.cmd(
-                    f"iot adr ns link hub show --ns {namespace_name} -g {rg} -n {tertiary_endpoint}"
-                ).get_output_in_json()
+                shown = _wait_for_linking_succeeded(
+                    self,
+                    "hub",
+                    namespace_name,
+                    rg,
+                    tertiary_endpoint,
+                    expected_identity_type="UserAssigned",
+                )
                 assert _identity_type(shown) == "UserAssigned", (
                     f"Expected UserAssigned after rotation, saw: {_identity_type(shown)}"
                 )
@@ -311,9 +400,14 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", update_cmd)
                 self.cmd(update_cmd)
-                shown = self.cmd(
-                    f"iot adr ns link hub show --ns {namespace_name} -g {rg} -n {tertiary_endpoint}"
-                ).get_output_in_json()
+                shown = _wait_for_linking_succeeded(
+                    self,
+                    "hub",
+                    namespace_name,
+                    rg,
+                    tertiary_endpoint,
+                    expected_identity_type="SystemAssigned",
+                )
                 assert _identity_type(shown) == "SystemAssigned", (
                     f"Expected SystemAssigned after rotation, saw: {_identity_type(shown)}"
                 )
@@ -326,39 +420,15 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", update_cmd)
                 self.cmd(update_cmd)
+                _wait_for_linking_succeeded(
+                    self,
+                    "dps",
+                    namespace_name,
+                    rg,
+                    dps_endpoint,
+                    expected_identity_type="UserAssigned",
+                )
                 _log(LogKind.OK, "DPS link identity rotated (idempotent)")
-
-            with timed_step("Step 10 ❯ link hub remove (must fail by design)"):
-                remove_cmd = (
-                    f"iot adr ns link hub remove --ns {namespace_name} -g {rg} "
-                    f"-n {secondary_endpoint} -y"
-                )
-                _log(LogKind.CMD, "az %s", remove_cmd)
-                self.cmd(remove_cmd, expect_failure=True)
-                listed = self.cmd(
-                    f"iot adr ns link hub list --ns {namespace_name} -g {rg}"
-                ).get_output_in_json()
-                names = _names_in(listed)
-                assert secondary_endpoint in names, (
-                    f"Hub link '{secondary_endpoint}' was unexpectedly removed: {names}"
-                )
-                _log(LogKind.OK, "Hub link remove rejected as designed; entry untouched")
-
-            with timed_step("Step 11 ❯ link dps remove (must fail by design)"):
-                remove_cmd = (
-                    f"iot adr ns link dps remove --ns {namespace_name} -g {rg} "
-                    f"-n {dps_endpoint} -y"
-                )
-                _log(LogKind.CMD, "az %s", remove_cmd)
-                self.cmd(remove_cmd, expect_failure=True)
-                listed = self.cmd(
-                    f"iot adr ns link dps list --ns {namespace_name} -g {rg}"
-                ).get_output_in_json()
-                names = _names_in(listed)
-                assert dps_endpoint in names, (
-                    f"DPS link '{dps_endpoint}' was unexpectedly removed: {names}"
-                )
-                _log(LogKind.OK, "DPS link remove rejected as designed; entry untouched")
 
             _log(LogKind.OK, "Link lifecycle passed")
 
@@ -447,6 +517,22 @@ class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", bundled_cmd)
                 self.cmd(bundled_cmd)
+                _wait_for_linking_succeeded(
+                    self,
+                    "hub",
+                    namespace_name,
+                    rg,
+                    "primary",
+                    expected_identity_type="UserAssigned",
+                )
+                _wait_for_linking_succeeded(
+                    self,
+                    "dps",
+                    namespace_name,
+                    rg,
+                    "dps-primary",
+                    expected_identity_type="UserAssigned",
+                )
                 _log(LogKind.OK, "Bundled link add succeeded")
 
             with timed_step("Step 2 ❯ Verify both endpoints landed"):
@@ -470,10 +556,12 @@ class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             )
 
 
-@pytest.mark.skip(
-    reason="ADU (Microsoft.DeviceUpdate/linkedAccounts) provisioning is not yet "
-    "available in the test subscription/region. Enable once a linkable ADU account "
-    "can be created in the integration environment."
+@pytest.mark.skipif(
+    not _ADU_UPDATE_INSTANCE_ID,
+    reason=(
+        "Set azext_iot_adr_update_instance_id to the full resource ID of a "
+        "pre-provisioned Microsoft.DeviceUpdate/updateInstances resource."
+    ),
 )
 @pytest.mark.usefixtures("set_cwd")
 class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
@@ -481,14 +569,13 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     Mirrors the Hub/DPS link lifecycle for the ``iot adr ns link adu`` surface:
 
-    1. Setup: provision a UAMI and an ADR namespace (no Hub/DPS needed — ADU
-       linking has no DPS-first ordering constraint).
-    2. Create a ``Microsoft.DeviceUpdate/linkedAccounts`` resource to link.
+    1. Use the pre-provisioned ``Microsoft.DeviceUpdate/updateInstances`` resource
+       supplied by ``azext_iot_adr_update_instance_id``. It must have both SAMI
+       and UAMI identities.
+    2. Create an ADR namespace and authorize the update instance identities.
     3. Step 1: ``link adu add`` (UAMI) attaches the ADU updating endpoint.
     4. Step 2: ``link adu show`` / ``list`` surface the single entry.
     5. Step 3: ``link adu update`` rotates the inbound caller identity UAMI → SAMI.
-    6. Step 4: ``link adu remove`` must fail (rejected by design — namespace
-       cleanup is the only removal path).
 
     What is intentionally NOT covered here (covered by unit tests):
     - Duplicate endpoint-name rejection
@@ -502,44 +589,50 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
-        identity_name = generate_identity_name()
-        adu_account_name = f"testadu{generate_adr_namespace_name()[-8:]}"
         adu_endpoint = "adu-primary"
 
         def _names_in(listed):
-            if isinstance(listed, dict):
-                return set(listed.keys())
-            return {item.get("name") or item.get("endpointName") for item in (listed or [])}
+            assert isinstance(listed, list)
+            return {item["name"] for item in listed}
 
         def _identity_type(endpoint: dict) -> Optional[str]:
             ici = (endpoint.get("properties", endpoint).get("inboundCallerIdentity")
                    or endpoint.get("inboundCallerIdentity") or {})
             return ici.get("type")
 
-        adu_id = None
+        adu_id = _ADU_UPDATE_INSTANCE_ID
         try:
-            with timed_step("Setup 1/3 ❯ Create UAMI"):
-                identity = self.cmd(
-                    f"identity create -n {identity_name} -g {rg} --location {TEST_LOCATION}"
+            with timed_step("Setup 1/2 ❯ Resolve ADU SAMI and UAMI"):
+                update_instance = self.cmd(
+                    f"resource show --ids {adu_id}"
                 ).get_output_in_json()
-                identity_resource_id = identity["id"]
-                identity_principal_id = identity["principalId"]
+                identity = update_instance.get("identity") or {}
+                sami_principal_id = identity.get("principalId")
+                user_identities = identity.get("userAssignedIdentities") or {}
+                if not sami_principal_id or not user_identities:
+                    pytest.skip(
+                        "The supplied update instance must have both system-assigned "
+                        "and user-assigned identities."
+                    )
+                identity_resource_id = next(iter(user_identities))
+                uami = self.cmd(
+                    f"identity show --ids {identity_resource_id}"
+                ).get_output_in_json()
+                identity_principal_id = uami.get("principalId")
+                if not identity_principal_id:
+                    pytest.skip(
+                        "The supplied update instance UAMI has no principalId."
+                    )
 
-            with timed_step("Setup 2/3 ❯ Create ADR namespace"):
+            with timed_step("Setup 2/2 ❯ Create ADR namespace"):
                 ns = self.cmd(
                     f"iot adr ns create -n {namespace_name} -g {rg} --location {TEST_LOCATION}"
                 ).get_output_in_json()
                 self.assign_adr_roles_to_identity(identity_principal_id, ns["id"])
-
-            with timed_step("Setup 3/3 ❯ Create ADU linked account"):
-                # No first-class CLI verb for linkedAccounts; create via generic ARM.
-                adu = self.cmd(
-                    f"resource create -g {rg} -n {adu_account_name} "
-                    f"--resource-type Microsoft.DeviceUpdate/linkedAccounts "
-                    f"--location {TEST_LOCATION} --properties {{}}"
-                ).get_output_in_json()
-                adu_id = adu["id"]
-                _log(LogKind.RESULT, "ADU linked account '%s' created (id=%s)", adu_account_name, adu_id)
+                self.assign_adr_roles_to_identity(sami_principal_id, ns["id"])
+                namespace_principal_id = (ns.get("identity") or {}).get("principalId")
+                assert namespace_principal_id, "Namespace SAMI principalId is required."
+                self.assign_role(namespace_principal_id, "Contributor", adu_id)
 
             # Allow role assignments to propagate
             time.sleep(30)
@@ -552,16 +645,23 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", add_cmd)
                 self.cmd(add_cmd)
+                _wait_for_linking_succeeded(
+                    self,
+                    "adu",
+                    namespace_name,
+                    rg,
+                    adu_endpoint,
+                    expected_identity_type="UserAssigned",
+                )
                 _log(LogKind.OK, "ADU link '%s' created (UAMI)", adu_endpoint)
 
             with timed_step("Step 2 ❯ link adu show / list (single entry)"):
                 shown = self.cmd(
                     f"iot adr ns link adu show --ns {namespace_name} -g {rg} -n {adu_endpoint}"
                 ).get_output_in_json()
-                assert (
-                    shown.get("name") == adu_endpoint
-                    or shown.get("endpointName") == adu_endpoint
-                ), f"link adu show did not surface name field: {shown}"
+                assert shown.get("name") == adu_endpoint, (
+                    f"link adu show did not surface name field: {shown}"
+                )
                 assert _identity_type(shown) == "UserAssigned", (
                     f"Expected UserAssigned inbound identity, saw: {_identity_type(shown)}"
                 )
@@ -583,29 +683,18 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", update_cmd)
                 self.cmd(update_cmd)
-                shown = self.cmd(
-                    f"iot adr ns link adu show --ns {namespace_name} -g {rg} -n {adu_endpoint}"
-                ).get_output_in_json()
+                shown = _wait_for_linking_succeeded(
+                    self,
+                    "adu",
+                    namespace_name,
+                    rg,
+                    adu_endpoint,
+                    expected_identity_type="SystemAssigned",
+                )
                 assert _identity_type(shown) == "SystemAssigned", (
                     f"Expected SystemAssigned after rotation, saw: {_identity_type(shown)}"
                 )
                 _log(LogKind.OK, "Rotated UAMI → SAMI")
-
-            with timed_step("Step 4 ❯ link adu remove (must fail by design)"):
-                remove_cmd = (
-                    f"iot adr ns link adu remove --ns {namespace_name} -g {rg} "
-                    f"-n {adu_endpoint} -y"
-                )
-                _log(LogKind.CMD, "az %s", remove_cmd)
-                self.cmd(remove_cmd, expect_failure=True)
-                listed = self.cmd(
-                    f"iot adr ns link adu list --ns {namespace_name} -g {rg}"
-                ).get_output_in_json()
-                names = _names_in(listed)
-                assert adu_endpoint in names, (
-                    f"ADU link '{adu_endpoint}' was unexpectedly removed: {names}"
-                )
-                _log(LogKind.OK, "ADU link remove rejected as designed; entry untouched")
 
             _log(LogKind.OK, "ADU link lifecycle passed")
 
@@ -616,19 +705,6 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     _log(LogKind.RESULT, "ADR namespace deleted")
                 except Exception as e:  # noqa: BLE001 — best-effort cleanup
                     _log(LogKind.WARN, "Namespace cleanup failed: %s", e)
-            if adu_id:
-                with timed_step("Cleanup ❯ Delete ADU linked account"):
-                    try:
-                        self.cmd(f"resource delete --ids {adu_id}")
-                        _log(LogKind.RESULT, "ADU linked account deleted")
-                    except Exception as e:  # noqa: BLE001 — best-effort cleanup
-                        _log(LogKind.WARN, "ADU cleanup failed: %s", e)
-            with timed_step("Cleanup ❯ Delete UAMI"):
-                try:
-                    self.cmd(f"identity delete -n {identity_name} -g {rg}")
-                    _log(LogKind.RESULT, "UAMI deleted")
-                except Exception as e:  # noqa: BLE001 — best-effort cleanup
-                    _log(LogKind.WARN, "UAMI cleanup failed: %s", e)
 
 
 @pytest.mark.usefixtures("set_cwd")

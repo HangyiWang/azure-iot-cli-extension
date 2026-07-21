@@ -7,334 +7,347 @@
 from unittest.mock import Mock
 
 import pytest
-from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
+from azure.cli.core.azclierror import (
+    AzureResponseError,
+    InvalidArgumentValueError,
+    RequiredArgumentMissingError,
+    ResourceNotFoundError,
+)
 from azure.core.exceptions import HttpResponseError
 
-from azext_iot.adr.common import DEFAULT_NS_POLICY_CERT_KEY_TYPE, DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
+from azext_iot.adr.common import PolicyCertificateKeyType
 
 
-# ==================== Helpers ====================
+def test_legacy_policy_key_type_surface_is_ecc_only():
+    assert [member.value for member in PolicyCertificateKeyType] == ["ECC"]
 
 
-def _setup_create(provider, mock_poller, serialized: dict, ns_location: str = "eastus"):
-    """Wire up mocks needed for a ``create()`` call."""
-    provider.client.policies.begin_create_or_update.return_value = mock_poller(serialized)
-    provider.client.namespaces.get.return_value = {"location": ns_location}
+def test_policy_create_rejects_non_ecc_key_type(fixture_policy_provider):
+    with pytest.raises(InvalidArgumentValueError, match="must be ECC"):
+        fixture_policy_provider.create(
+            "policy",
+            "namespace",
+            "rg",
+            location="eastus",
+            certificate_key_type="RSA",
+        )
+    fixture_policy_provider.client.policies.begin_create_or_update.assert_not_called()
 
 
-def _setup_show(provider, serialized: dict):
-    """Wire up mocks needed for a ``show()`` call (namespaces.get + policies.get)."""
-    provider.client.namespaces.get.return_value = {}
-    provider.client.policies.get.return_value = serialized
-
-
-def _get_create_cert(provider) -> dict:
-    """Extract the certificate dict from the last ``begin_create_or_update`` resource body."""
-    resource = provider.client.policies.begin_create_or_update.call_args[1]["resource"]
-    return resource.get("properties", {}).get("certificate")
-
-
-# ==================== Create ====================
-
-
-@pytest.mark.parametrize(
-    "key_type, subject, days, location",
-    [
-        ("ECC", "test", 30, None),
-        (None, None, None, None),
-        ("ECC", "test", 30, "westus"),
-    ],
-    ids=["all-cert-params", "no-cert-params", "explicit-location"],
-)
-def test_create_policy(fixture_policy_provider, mock_poller, key_type, subject, days, location):
-    """Policy creation with various parameter combinations."""
-    expected = {"name": "policy", "properties": {"provisioningState": "Succeeded"}}
-    _setup_create(fixture_policy_provider, mock_poller, expected)
+def test_policy_create_all_fields(fixture_policy_provider, mock_poller):
+    fixture_policy_provider.client.policies.begin_create_or_update.return_value = (
+        mock_poller({"name": "policy"})
+    )
 
     result = fixture_policy_provider.create(
-        policy_name="policy", namespace_name="ns", resource_group_name="rg",
-        location=location, certificate_key_type=key_type,
-        certificate_subject=subject, certificate_validity_days=days,
+        policy_name="policy",
+        namespace_name="namespace",
+        resource_group_name="rg",
+        location="eastus",
+        tags={"env": "test"},
+        certificate_key_type="ECC",
+        certificate_validity_days=14,
     )
 
-    assert result == expected
+    assert result == {"name": "policy"}
+    fixture_policy_provider.client.policies.begin_create_or_update.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        policy_name="policy",
+        resource={
+            "location": "eastus",
+            "tags": {"env": "test"},
+            "properties": {
+                "certificate": {
+                    "certificateAuthorityConfiguration": {"keyType": "ECC"},
+                    "leafCertificateConfiguration": {
+                        "validityPeriodInDays": 14
+                    },
+                }
+            },
+        },
+    )
 
-    if location:
-        fixture_policy_provider.client.namespaces.get.assert_not_called()
-    else:
-        fixture_policy_provider.client.namespaces.get.assert_called_once()
 
-    cert = _get_create_cert(fixture_policy_provider)
-    if any([key_type, subject, days]):
-        assert isinstance(cert, dict)
-        assert cert["certificateAuthorityConfiguration"]["keyType"] == (key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE)
-        assert cert["leafCertificateConfiguration"]["validityPeriodInDays"] == (days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS)
-    else:
-        assert cert is None
-
-
-@pytest.mark.parametrize("key_type", [None, "ECC"])
-@pytest.mark.parametrize("days", [None, 30])
-@pytest.mark.parametrize("subject", [None, "test"])
-def test_create_policy_defaults(fixture_policy_provider, mock_poller, key_type, days, subject):
-    """Defaults are applied when at least one cert param is specified."""
-    _setup_create(fixture_policy_provider, mock_poller, {"name": "p"})
+def test_policy_create_without_certificate_options(fixture_policy_provider, mock_poller):
+    fixture_policy_provider.client.policies.begin_create_or_update.return_value = (
+        mock_poller({})
+    )
 
     fixture_policy_provider.create(
-        policy_name="p", namespace_name="ns", resource_group_name="rg",
-        certificate_key_type=key_type, certificate_subject=subject, certificate_validity_days=days,
+        "policy", "namespace", "rg", location="eastus"
     )
 
-    cert = _get_create_cert(fixture_policy_provider)
-    if any([key_type, subject, days]):
-        assert cert["certificateAuthorityConfiguration"]["keyType"] == (key_type or DEFAULT_NS_POLICY_CERT_KEY_TYPE)
-        assert cert["leafCertificateConfiguration"]["validityPeriodInDays"] == (days or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS)
-    else:
-        assert cert is None
+    resource = fixture_policy_provider.client.policies.begin_create_or_update.call_args.kwargs[
+        "resource"
+    ]
+    assert resource == {"location": "eastus", "properties": {}}
 
 
-def test_create_byor(fixture_policy_provider, mock_poller):
-    """BYOR creation sets BringYourOwnRoot(enabled=True) with default cert params."""
-    _setup_create(fixture_policy_provider, mock_poller, {"name": "byor"})
+def test_policy_create_byor_uses_ecc_defaults(fixture_policy_provider, mock_poller):
+    fixture_policy_provider.client.policies.begin_create_or_update.return_value = (
+        mock_poller({})
+    )
 
     fixture_policy_provider.create(
-        policy_name="byor", namespace_name="ns", resource_group_name="rg", enable_byor=True,
+        "policy",
+        "namespace",
+        "rg",
+        location="eastus",
+        enable_byor=True,
     )
 
-    cert = _get_create_cert(fixture_policy_provider)
-    assert isinstance(cert, dict)
-    ca = cert["certificateAuthorityConfiguration"]
-    assert ca["bringYourOwnRoot"]["enabled"] is True
-    assert ca["keyType"] == DEFAULT_NS_POLICY_CERT_KEY_TYPE
-    assert cert["leafCertificateConfiguration"]["validityPeriodInDays"] == DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
+    certificate = fixture_policy_provider.client.policies.begin_create_or_update.call_args.kwargs[
+        "resource"
+    ]["properties"]["certificate"]
+    assert certificate == {
+        "certificateAuthorityConfiguration": {
+            "keyType": "ECC",
+            "bringYourOwnRoot": {"enabled": True},
+        },
+        "leafCertificateConfiguration": {"validityPeriodInDays": 30},
+    }
 
 
-def test_create_byor_with_custom_options(fixture_policy_provider, mock_poller):
-    """BYOR with explicit cert options respects the overrides."""
-    _setup_create(fixture_policy_provider, mock_poller, {"name": "byor"})
-
-    fixture_policy_provider.create(
-        policy_name="byor", namespace_name="ns", resource_group_name="rg",
-        enable_byor=True, certificate_key_type="ECC", certificate_validity_days=60,
+def test_policy_create_inherits_parent_namespace_location(
+    fixture_policy_provider, mock_poller
+):
+    fixture_policy_provider.client.namespaces.get.return_value = {
+        "location": "westus2"
+    }
+    fixture_policy_provider.client.policies.begin_create_or_update.return_value = (
+        mock_poller({})
     )
 
-    cert = _get_create_cert(fixture_policy_provider)
-    assert cert["certificateAuthorityConfiguration"]["bringYourOwnRoot"]["enabled"] is True
-    assert cert["certificateAuthorityConfiguration"]["keyType"] == "ECC"
-    assert cert["leafCertificateConfiguration"]["validityPeriodInDays"] == 60
+    fixture_policy_provider.create("policy", "namespace", "rg")
+
+    resource = fixture_policy_provider.client.policies.begin_create_or_update.call_args.kwargs[
+        "resource"
+    ]
+    assert resource["location"] == "westus2"
 
 
-# ==================== Show ====================
-
-
-def test_create_policy_namespace_missing_location(fixture_policy_provider):
-    """Create raises when parent namespace has no location to inherit."""
+def test_policy_create_requires_parent_location(fixture_policy_provider):
     fixture_policy_provider.client.namespaces.get.return_value = {}
 
-    with pytest.raises(AzureResponseError):
-        fixture_policy_provider.create(
-            policy_name="p", namespace_name="ns", resource_group_name="rg", location=None,
-        )
+    with pytest.raises(AzureResponseError, match="location"):
+        fixture_policy_provider.create("policy", "namespace", "rg")
 
 
-def test_show_policy(fixture_policy_provider):
-    """Show returns the serialized policy and calls the correct SDK methods."""
-    expected = {"name": "p", "properties": {"provisioningState": "Succeeded"}}
-    _setup_show(fixture_policy_provider, expected)
-
-    result = fixture_policy_provider.show(
-        policy_name="p", namespace_name="ns", resource_group_name="rg",
+@pytest.mark.parametrize("validity_days", [7, 8, 29, 30])
+def test_policy_accepts_validity_range(
+    fixture_policy_provider, mock_poller, validity_days
+):
+    fixture_policy_provider.client.policies.begin_create_or_update.return_value = (
+        mock_poller({})
     )
 
-    assert result == expected
-    fixture_policy_provider.client.policies.get.assert_called_once_with(
-        resource_group_name="rg", namespace_name="ns", policy_name="p",
+    fixture_policy_provider.create(
+        "policy",
+        "namespace",
+        "rg",
+        location="eastus",
+        certificate_validity_days=validity_days,
+    )
+
+    certificate = fixture_policy_provider.client.policies.begin_create_or_update.call_args.kwargs[
+        "resource"
+    ]["properties"]["certificate"]
+    assert (
+        certificate["leafCertificateConfiguration"]["validityPeriodInDays"]
+        == validity_days
     )
 
 
-def test_show_policy_reraises_non_parent_error(fixture_policy_provider):
-    """Show re-raises HttpResponseError when not a ParentResourceNotFound 404."""
+@pytest.mark.parametrize("validity_days", [-1, 0, 6, 31, 365])
+@pytest.mark.parametrize("operation", ["create", "update"])
+def test_policy_rejects_validity_outside_7_to_30(
+    fixture_policy_provider, validity_days, operation
+):
+    kwargs = {
+        "policy_name": "policy",
+        "namespace_name": "namespace",
+        "resource_group_name": "rg",
+        "certificate_validity_days": validity_days,
+    }
+    if operation == "create":
+        kwargs["location"] = "eastus"
+
+    with pytest.raises(InvalidArgumentValueError, match="between 7 and 30"):
+        getattr(fixture_policy_provider, operation)(**kwargs)
+
+
+def test_policy_create_no_wait(fixture_policy_provider, mock_poller):
+    poller = mock_poller({})
+    fixture_policy_provider.client.policies.begin_create_or_update.return_value = (
+        poller
+    )
+
+    result = fixture_policy_provider.create(
+        "policy", "namespace", "rg", location="eastus", no_wait=True
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_policy_show_and_list(fixture_policy_provider):
     fixture_policy_provider.client.namespaces.get.return_value = {}
-    fixture_policy_provider.client.policies.get.side_effect = HttpResponseError(
-        response=Mock(status_code=500)
+    fixture_policy_provider.client.policies.get.return_value = {"name": "policy"}
+    fixture_policy_provider.client.policies.list_by_credential.return_value = iter(
+        [{"name": "one"}, {"name": "two"}]
     )
 
-    with pytest.raises(HttpResponseError):
-        fixture_policy_provider.show(policy_name="p", namespace_name="ns", resource_group_name="rg")
-
-
-# ==================== List ====================
-
-
-def test_list_policies(fixture_policy_provider):
-    """List returns serialized results for each policy."""
-    fixture_policy_provider.client.namespaces.get.return_value = Mock()
-    fixture_policy_provider.client.policies.list_by_credential.return_value = [
-        {"name": "a"},
-        {"name": "b"},
+    assert fixture_policy_provider.show("policy", "namespace", "rg") == {
+        "name": "policy"
+    }
+    assert fixture_policy_provider.list("namespace", "rg") == [
+        {"name": "one"},
+        {"name": "two"},
     ]
 
-    result = fixture_policy_provider.list(namespace_name="ns", resource_group_name="rg")
 
-    assert result == [{"name": "a"}, {"name": "b"}]
-
-
-def test_list_policies_reraises_non_parent_error(fixture_policy_provider):
-    """List re-raises HttpResponseError when not a ParentResourceNotFound 404."""
-    fixture_policy_provider.client.namespaces.get.return_value = {}
-    fixture_policy_provider.client.policies.list_by_credential.side_effect = HttpResponseError(
-        response=Mock(status_code=500)
-    )
-
-    with pytest.raises(HttpResponseError):
-        fixture_policy_provider.list(namespace_name="ns", resource_group_name="rg")
-
-# ==================== Delete ====================
-
-
-def test_delete_policy(fixture_policy_provider, mock_poller):
-    """Delete triggers begin_delete LRO and returns the result."""
-    sentinel = Mock()
-    fixture_policy_provider.client.policies.begin_delete.return_value = mock_poller(sentinel)
-
-    result = fixture_policy_provider.delete(
-        policy_name="p", namespace_name="ns", resource_group_name="rg",
-    )
-
-    assert result == sentinel
-    fixture_policy_provider.client.policies.begin_delete.assert_called_once_with(
-        resource_group_name="rg", namespace_name="ns", policy_name="p",
-    )
-
-# ==================== Update ====================
-
-
-@pytest.mark.parametrize("days", [None, 20], ids=["no-update", "update-validity"])
-def test_update_policy(fixture_policy_provider, mock_poller, days):
-    """Update triggers begin_update LRO then fetches fresh state via show()."""
-    fixture_policy_provider.client.policies.begin_update.return_value = mock_poller(Mock())
-    _setup_show(fixture_policy_provider, {"name": "p", "properties": {"provisioningState": "Succeeded"}})
-
-    result = fixture_policy_provider.update(
-        policy_name="p", namespace_name="ns", resource_group_name="rg",
-        certificate_validity_days=days,
-    )
-
-    assert result["name"] == "p"
-
-    resource = fixture_policy_provider.client.policies.begin_update.call_args[1]["properties"]
-    if days is not None:
-        cert_config = resource["properties"]["certificate"]
-        assert cert_config["leafCertificateConfiguration"]["validityPeriodInDays"] == days
-    else:
-        assert "certificate" not in resource.get("properties", {})
-
-
-def test_update_policy_with_tags(fixture_policy_provider, mock_poller):
-    """Update passes tags through in the resource body."""
-    fixture_policy_provider.client.policies.begin_update.return_value = mock_poller(Mock())
-    _setup_show(fixture_policy_provider, {"name": "p"})
-
-    fixture_policy_provider.update(
-        policy_name="p", namespace_name="ns", resource_group_name="rg", tags={"env": "test"},
-    )
-
-    resource = fixture_policy_provider.client.policies.begin_update.call_args[1]["properties"]
-    assert resource["tags"] == {"env": "test"}
-
-
-# ==================== Revoke Issuer ====================
-
-
-def test_revoke_issuer(fixture_policy_provider, mock_poller):
-    """revoke-issuer triggers begin_revoke_issuer LRO and returns the result."""
-    sentinel = Mock()
-    fixture_policy_provider.client.policies.begin_revoke_issuer.return_value = mock_poller(sentinel)
-
-    result = fixture_policy_provider.revoke_issuer(
-        policy_name="p", namespace_name="ns", resource_group_name="rg",
-    )
-
-    assert result == sentinel
-    fixture_policy_provider.client.policies.begin_revoke_issuer.assert_called_once_with(
-        resource_group_name="rg", namespace_name="ns", policy_name="p",
-    )
-
-
-# ==================== Activate BYOR ====================
-
-
-def test_activate_byor(fixture_policy_provider, mock_poller):
-    """activate-byor triggers begin_activate_bring_your_own_root with the chain body."""
-    sentinel = Mock()
-    chain = "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----"
-    fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.return_value = mock_poller(
-        sentinel
-    )
-
-    result = fixture_policy_provider.activate_byor(
-        policy_name="p", namespace_name="ns", resource_group_name="rg",
-        certificate_chain=chain,
-    )
-
-    assert result == sentinel
-    fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.assert_called_once_with(
-        resource_group_name="rg", namespace_name="ns", policy_name="p",
-        body={"certificateChain": chain},
-    )
-
-
-# ==================== Error Scenarios ====================
-
-
-def _make_parent_not_found_error():
-    """Create an HttpResponseError mimicking a ParentResourceNotFound 404."""
-    resp = Mock(status_code=404)
-
-    class _Error(HttpResponseError):
+def _parent_not_found_error():
+    class ParentNotFound(HttpResponseError):
         def __str__(self):
             return "ParentResourceNotFound"
 
-    return _Error(response=resp)
+    return ParentNotFound(response=Mock(status_code=404))
 
 
-@pytest.mark.parametrize("ns_exists", [True, False], ids=["credential-missing", "namespace-missing"])
-def test_show_policy_not_found(fixture_policy_provider, ns_exists):
-    """Show raises appropriate error when namespace or credential is missing."""
-    _assert_not_found(fixture_policy_provider, "show",
-                      {"policy_name": "p", "namespace_name": "ns", "resource_group_name": "rg"},
-                      ns_exists)
+@pytest.mark.parametrize("operation", ["show", "list"])
+def test_policy_translates_missing_credential(
+    fixture_policy_provider, operation
+):
+    fixture_policy_provider.client.namespaces.get.return_value = {}
+    target = (
+        fixture_policy_provider.client.policies.get
+        if operation == "show"
+        else fixture_policy_provider.client.policies.list_by_credential
+    )
+    target.side_effect = _parent_not_found_error()
+    args = (
+        ("policy", "namespace", "rg")
+        if operation == "show"
+        else ("namespace", "rg")
+    )
+
+    with pytest.raises(ResourceNotFoundError, match="No credential exists"):
+        getattr(fixture_policy_provider, operation)(*args)
 
 
-@pytest.mark.parametrize("ns_exists", [True, False], ids=["credential-missing", "namespace-missing"])
-def test_list_policies_not_found(fixture_policy_provider, ns_exists):
-    """List raises appropriate error when namespace or credential is missing."""
-    _assert_not_found(fixture_policy_provider, "list",
-                      {"namespace_name": "ns", "resource_group_name": "rg"},
-                      ns_exists)
+def test_policy_update_tags_and_validity(fixture_policy_provider, mock_poller):
+    fixture_policy_provider.client.policies.begin_update.return_value = mock_poller(
+        {}
+    )
+    fixture_policy_provider.client.namespaces.get.return_value = {}
+    fixture_policy_provider.client.policies.get.return_value = {"name": "policy"}
+
+    result = fixture_policy_provider.update(
+        "policy",
+        "namespace",
+        "rg",
+        tags={"env": "prod"},
+        certificate_validity_days=20,
+    )
+
+    assert result == {"name": "policy"}
+    fixture_policy_provider.client.policies.begin_update.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        policy_name="policy",
+        properties={
+            "tags": {"env": "prod"},
+            "properties": {
+                "certificate": {
+                    "leafCertificateConfiguration": {
+                        "validityPeriodInDays": 20
+                    }
+                }
+            },
+        },
+    )
 
 
-def _assert_not_found(provider, method_name, kwargs, namespace_exists):
-    """
-    If the namespace exists but credential doesn't → friendly ResourceNotFoundError.
-    If the namespace itself is missing → raw HttpResponseError propagates.
-    """
-    resp_404 = Mock(status_code=404)
+def test_policy_update_rejects_empty_patch(fixture_policy_provider):
+    with pytest.raises(RequiredArgumentMissingError, match="Nothing to update"):
+        fixture_policy_provider.update("policy", "namespace", "rg")
+    fixture_policy_provider.client.policies.begin_update.assert_not_called()
 
-    if namespace_exists:
-        provider.client.namespaces.get.return_value = Mock()
-        error = _make_parent_not_found_error()
-        target = (
-            provider.client.policies.list_by_credential
-            if method_name == "list"
-            else provider.client.policies.get
-        )
-        target.side_effect = error
 
-        with pytest.raises(ResourceNotFoundError, match="No credential exists"):
-            getattr(provider, method_name)(**kwargs)
-    else:
-        provider.client.namespaces.get.side_effect = HttpResponseError(response=resp_404)
+def test_policy_update_no_wait_does_not_get_resource(
+    fixture_policy_provider, mock_poller
+):
+    poller = mock_poller({})
+    fixture_policy_provider.client.policies.begin_update.return_value = poller
 
-        with pytest.raises(HttpResponseError):
-            getattr(provider, method_name)(**kwargs)
+    result = fixture_policy_provider.update(
+        "policy", "namespace", "rg", tags={}, no_wait=True
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+    fixture_policy_provider.client.policies.get.assert_not_called()
+
+
+def test_policy_delete_no_wait(fixture_policy_provider, mock_poller):
+    poller = mock_poller(None)
+    fixture_policy_provider.client.policies.begin_delete.return_value = poller
+
+    result = fixture_policy_provider.delete(
+        "policy", "namespace", "rg", no_wait=True
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_policy_revoke_and_activate_actions(fixture_policy_provider, mock_poller):
+    fixture_policy_provider.client.policies.begin_revoke_issuer.return_value = (
+        mock_poller({"revoked": True})
+    )
+    fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.return_value = (
+        mock_poller({"active": True})
+    )
+
+    assert fixture_policy_provider.revoke_issuer(
+        "policy", "namespace", "rg"
+    ) == {"revoked": True}
+    assert fixture_policy_provider.activate_byor(
+        "policy", "namespace", "rg", "certificate-chain"
+    ) == {"active": True}
+    fixture_policy_provider.client.policies.begin_activate_bring_your_own_root.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        policy_name="policy",
+        body={"certificateChain": "certificate-chain"},
+    )
+
+
+@pytest.mark.parametrize(
+    "operation,sdk_method,extra_args",
+    [
+        ("revoke_issuer", "begin_revoke_issuer", ()),
+        (
+            "activate_byor",
+            "begin_activate_bring_your_own_root",
+            ("certificate-chain",),
+        ),
+    ],
+)
+def test_policy_actions_support_no_wait(
+    fixture_policy_provider,
+    mock_poller,
+    operation,
+    sdk_method,
+    extra_args,
+):
+    poller = mock_poller(None)
+    getattr(fixture_policy_provider.client.policies, sdk_method).return_value = poller
+
+    result = getattr(fixture_policy_provider, operation)(
+        "policy", "namespace", "rg", *extra_args, no_wait=True
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()

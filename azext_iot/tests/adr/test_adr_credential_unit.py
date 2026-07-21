@@ -206,3 +206,29 @@ def test_synchronize_credential_raises_real_error(fixture_credential_provider):
         fixture_credential_provider.synchronize(
             namespace_name="test-namespace", resource_group_name="test-rg",
         )
+
+
+@pytest.mark.parametrize("operation", ["create", "delete", "synchronize"])
+def test_credential_writes_support_no_wait(
+    fixture_credential_provider, mock_poller, operation
+):
+    poller = mock_poller(None)
+    sdk_method = {
+        "create": fixture_credential_provider.client.credentials.begin_create_or_update,
+        "delete": fixture_credential_provider.client.credentials.begin_delete,
+        "synchronize": fixture_credential_provider.client.credentials.begin_synchronize,
+    }[operation]
+    sdk_method.return_value = poller
+
+    kwargs = {
+        "namespace_name": "test-namespace",
+        "resource_group_name": "test-rg",
+        "no_wait": True,
+    }
+    if operation == "create":
+        kwargs["location"] = "eastus"
+
+    result = getattr(fixture_credential_provider, operation)(**kwargs)
+
+    assert result is poller
+    poller.result.assert_not_called()

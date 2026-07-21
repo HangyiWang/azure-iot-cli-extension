@@ -4,549 +4,325 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from unittest.mock import Mock
-
 import pytest
-
-from azure.cli.core.azclierror import (
-    ArgumentUsageError,
-    InvalidArgumentValueError,
-)
+from azure.cli.core.azclierror import ArgumentUsageError, InvalidArgumentValueError
 
 
-_FAKE_SUB_ID = "00000000-0000-0000-0000-000000000000"
+_SUBSCRIPTION_ID = "00000000-0000-0000-0000-000000000000"
 
 
 @pytest.fixture(autouse=True)
 def _patch_subscription_id(monkeypatch):
-    """Stub get_subscription_id used by JobProvider.create to compose target ARM ID."""
     monkeypatch.setattr(
         "azext_iot.adr.providers.job.get_subscription_id",
-        lambda _ctx: _FAKE_SUB_ID,
+        lambda _ctx: _SUBSCRIPTION_ID,
     )
 
 
-# ==================== create ====================
+def _create_job(provider, **overrides):
+    kwargs = {
+        "job_name": "job",
+        "namespace_name": "namespace",
+        "resource_group_name": "rg",
+        "update_provider": "Contoso",
+        "update_name": "firmware",
+        "update_version": "1.2.3",
+        "target_group_name": "group",
+        "location": "eastus",
+    }
+    kwargs.update(overrides)
+    return provider.create(**kwargs)
 
 
-def test_job_create_minimal_with_target_group_name(fixture_job_provider, mock_poller):
-    mock_job = Mock()
-    fixture_job_provider.client.jobs.begin_create_or_replace.return_value = mock_poller(mock_job)
-
-    result = fixture_job_provider.create(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        target_group_name="test-group",
-        update_provider="Contoso",
-        update_name="gateway-firmware",
-        update_version="1.2.3",
-        location="eastus",
+def test_software_update_job_payload(fixture_job_provider, mock_poller):
+    fixture_job_provider.client.jobs.begin_create_or_replace.return_value = (
+        mock_poller({"name": "job"})
     )
 
-    assert result == mock_job
-    expected_target = (
-        f"/subscriptions/{_FAKE_SUB_ID}/resourceGroups/test-rg"
-        "/providers/Microsoft.DeviceRegistry/namespaces/test-ns/groups/test-group"
+    result = _create_job(
+        fixture_job_provider,
+        job_type="SoftwareUpdate",
+        description="Production rollout",
+        tags={"env": "prod"},
+    )
+
+    assert result == {"name": "job"}
+    target_id = (
+        f"/subscriptions/{_SUBSCRIPTION_ID}/resourceGroups/rg/providers/"
+        "Microsoft.DeviceRegistry/namespaces/namespace/groups/group"
     )
     fixture_job_provider.client.jobs.begin_create_or_replace.assert_called_once_with(
-        resource_group_name="test-rg",
-        namespace_name="test-ns",
-        job_name="test-job",
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
         resource={
             "location": "eastus",
             "properties": {
-                "jobType": "Update",
-                "target": {"targetResourceId": expected_target},
+                "jobType": "SoftwareUpdate",
+                "description": "Production rollout",
+                "target": {"resourceId": target_id},
                 "definition": {
-                    "schedulingType": "continuous",
+                    "schedulingType": "Continuous",
                     "update": {
                         "updateId": {
                             "provider": "Contoso",
-                            "name": "gateway-firmware",
+                            "name": "firmware",
                             "version": "1.2.3",
                         }
                     },
                 },
             },
+            "tags": {"env": "prod"},
         },
     )
 
 
-def test_job_create_with_target_group_in_same_namespace(fixture_job_provider, mock_poller):
-    """Target group is always composed against the job's own subscription/RG/namespace."""
-    fixture_job_provider.client.jobs.begin_create_or_replace.return_value = mock_poller(Mock())
-
-    fixture_job_provider.create(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        target_group_name="test-group",
-        update_provider="P",
-        update_name="N",
-        update_version="V",
-        location="eastus",
+def test_onboarding_update_job_has_no_target(fixture_job_provider, mock_poller):
+    fixture_job_provider.client.jobs.begin_create_or_replace.return_value = (
+        mock_poller({"name": "onboarding"})
     )
 
-    expected_id = (
-        f"/subscriptions/{_FAKE_SUB_ID}/resourceGroups/test-rg"
-        "/providers/Microsoft.DeviceRegistry/namespaces/test-ns/groups/test-group"
-    )
-    call_args = fixture_job_provider.client.jobs.begin_create_or_replace.call_args[1]
-    assert call_args["resource"]["properties"]["target"]["targetResourceId"] == expected_id
-
-
-def test_job_create_with_tags(fixture_job_provider, mock_poller):
-    fixture_job_provider.client.jobs.begin_create_or_replace.return_value = mock_poller(Mock())
-
-    fixture_job_provider.create(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        target_group_name="test-group",
-        update_provider="P", update_name="N", update_version="V",
-        location="eastus",
-        tags={"env": "prod"},
+    _create_job(
+        fixture_job_provider,
+        job_name="onboarding",
+        job_type="OnboardingUpdate",
+        target_group_name=None,
     )
 
-    call_args = fixture_job_provider.client.jobs.begin_create_or_replace.call_args[1]
-    assert call_args["resource"]["tags"] == {"env": "prod"}
+    properties = fixture_job_provider.client.jobs.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]["properties"]
+    assert properties["jobType"] == "OnboardingUpdate"
+    assert properties["definition"]["schedulingType"] == "Continuous"
+    assert "target" not in properties
 
 
-def test_job_create_infers_location(fixture_job_provider, mock_poller):
-    fixture_job_provider.client.jobs.begin_create_or_replace.return_value = mock_poller(Mock())
-    fixture_job_provider._ensure_location = Mock(return_value="westus2")
-
-    fixture_job_provider.create(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        target_group_name="test-group",
-        update_provider="P", update_name="N", update_version="V",
+def test_job_create_inherits_parent_namespace_location(
+    fixture_job_provider, mock_poller
+):
+    fixture_job_provider.client.namespaces.get.return_value = {"location": "westus2"}
+    fixture_job_provider.client.jobs.begin_create_or_replace.return_value = (
+        mock_poller({})
     )
 
-    fixture_job_provider._ensure_location.assert_called_once()
-    call_args = fixture_job_provider.client.jobs.begin_create_or_replace.call_args[1]
-    assert call_args["resource"]["location"] == "westus2"
+    _create_job(fixture_job_provider, location=None)
+
+    fixture_job_provider.client.namespaces.get.assert_called_once_with(
+        resource_group_name="rg", namespace_name="namespace"
+    )
+    resource = fixture_job_provider.client.jobs.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]
+    assert resource["location"] == "westus2"
 
 
-def test_job_create_rejects_type_action(fixture_job_provider):
-    with pytest.raises(ArgumentUsageError, match="Only --type Update is supported"):
-        fixture_job_provider.create(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-            target_group_name="test-group",
-            update_provider="P", update_name="N", update_version="V",
-            job_type="Action",
-            location="eastus",
-        )
+@pytest.mark.parametrize("job_type", ["Update", "Action", "State", "unknown"])
+def test_job_create_rejects_unsupported_type(fixture_job_provider, job_type):
+    with pytest.raises(
+        ArgumentUsageError, match="SoftwareUpdate or OnboardingUpdate"
+    ):
+        _create_job(fixture_job_provider, job_type=job_type)
+    fixture_job_provider.client.jobs.begin_create_or_replace.assert_not_called()
 
 
-def test_job_create_rejects_type_state(fixture_job_provider):
-    with pytest.raises(ArgumentUsageError, match="Only --type Update is supported"):
-        fixture_job_provider.create(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-            target_group_name="test-group",
-            update_provider="P", update_name="N", update_version="V",
-            job_type="State",
-            location="eastus",
-        )
-
-
-def test_job_create_requires_a_target(fixture_job_provider):
+def test_software_update_requires_target_group(fixture_job_provider):
     with pytest.raises(ArgumentUsageError, match="--target-group-name is required"):
-        fixture_job_provider.create(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-            update_provider="P", update_name="N", update_version="V",
-            location="eastus",
+        _create_job(
+            fixture_job_provider,
+            job_type="SoftwareUpdate",
+            target_group_name=None,
         )
 
 
-def test_job_create_requires_full_update_triple(fixture_job_provider):
-    with pytest.raises(ArgumentUsageError, match="--update-id-provider, --update-id-name, and --update-id-version"):
-        fixture_job_provider.create(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-            target_group_name="test-group",
-            update_provider="P",
-            update_name="N",
-            # update_version omitted
-            location="eastus",
-        )
+def test_onboarding_update_rejects_target_group(fixture_job_provider):
+    with pytest.raises(ArgumentUsageError, match="cannot be used"):
+        _create_job(fixture_job_provider, job_type="OnboardingUpdate")
 
 
-def test_job_create_no_wait_returns_poller(fixture_job_provider, mock_poller):
-    poller = mock_poller({"name": "test-job"})
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"update_provider": None},
+        {"update_name": None},
+        {"update_version": None},
+        {
+            "update_provider": None,
+            "update_name": None,
+            "update_version": None,
+        },
+    ],
+)
+def test_job_create_requires_complete_update_id(fixture_job_provider, updates):
+    with pytest.raises(ArgumentUsageError, match="are required"):
+        _create_job(fixture_job_provider, **updates)
+
+
+def test_job_create_no_wait(fixture_job_provider, mock_poller):
+    poller = mock_poller({"name": "job"})
     fixture_job_provider.client.jobs.begin_create_or_replace.return_value = poller
 
-    result = fixture_job_provider.create(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        target_group_name="test-group",
-        update_provider="P", update_name="N", update_version="V",
-        location="eastus",
-        no_wait=True,
-    )
+    result = _create_job(fixture_job_provider, no_wait=True)
 
     assert result is poller
     poller.result.assert_not_called()
 
 
-# ==================== update (sync, tags-only) ====================
-
-
-def test_job_update_tags_only_calls_sync_update(fixture_job_provider):
-    fixture_job_provider.client.jobs.update.return_value = {"name": "test-job"}
+@pytest.mark.parametrize(
+    "tags,expected", [({"env": "staging"}, {"env": "staging"}), ({}, {})]
+)
+def test_job_update_is_synchronous_tags_only(
+    fixture_job_provider, tags, expected
+):
+    fixture_job_provider.client.jobs.update.return_value = {"name": "job"}
 
     result = fixture_job_provider.update(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        tags={"env": "staging"},
+        "job", "namespace", "rg", tags=tags
     )
 
-    assert result == {"name": "test-job"}
+    assert result == {"name": "job"}
     fixture_job_provider.client.jobs.update.assert_called_once_with(
-        resource_group_name="test-rg",
-        namespace_name="test-ns",
-        job_name="test-job",
-        properties={"tags": {"env": "staging"}},
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+        properties={"tags": expected},
     )
 
 
-def test_job_update_empty_tags_clears(fixture_job_provider):
-    """Explicit `--tags ""` (tags={}) clears all tags via ArmTagsPatchSync."""
-    fixture_job_provider.client.jobs.update.return_value = Mock()
-
-    fixture_job_provider.update(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        tags={},
-    )
-    call_args = fixture_job_provider.client.jobs.update.call_args[1]
-    assert call_args["properties"] == {"tags": {}}
-
-
-def test_job_update_no_args_raises_nothing_to_update(fixture_job_provider):
-    """Calling `job update` without --tags is a guard error (no silent tag-clear)."""
+def test_job_update_rejects_empty_update(fixture_job_provider):
     with pytest.raises(ArgumentUsageError, match="Nothing to update"):
-        fixture_job_provider.update(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-            tags=None,
-        )
+        fixture_job_provider.update("job", "namespace", "rg")
     fixture_job_provider.client.jobs.update.assert_not_called()
 
 
-def test_job_update_rejects_non_tag_fields(fixture_job_provider):
-    with pytest.raises(ArgumentUsageError, match="Only --tags can be modified"):
+def test_job_update_rejects_immutable_fields(fixture_job_provider):
+    with pytest.raises(ArgumentUsageError, match="Only --tags"):
         fixture_job_provider.update(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
+            "job",
+            "namespace",
+            "rg",
             tags={"a": "b"},
-            target_group_name="will-be-rejected",
+            description="immutable",
         )
 
 
-# ==================== show / list ====================
-
-
-def test_job_show(fixture_job_provider):
-    mock_job = Mock()
-    fixture_job_provider.client.jobs.get.return_value = mock_job
-
-    result = fixture_job_provider.show(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
+def test_job_show_and_list(fixture_job_provider):
+    fixture_job_provider.client.jobs.get.return_value = {"name": "job"}
+    fixture_job_provider.client.jobs.list_by_namespace.return_value = iter(
+        [{"name": "one"}, {"name": "two"}]
     )
 
-    assert result == mock_job
+    assert fixture_job_provider.show("job", "namespace", "rg") == {"name": "job"}
+    assert fixture_job_provider.list("namespace", "rg") == [
+        {"name": "one"},
+        {"name": "two"},
+    ]
     fixture_job_provider.client.jobs.get.assert_called_once_with(
-        resource_group_name="test-rg",
-        namespace_name="test-ns",
-        job_name="test-job",
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+    )
+    fixture_job_provider.client.jobs.list_by_namespace.assert_called_once_with(
+        resource_group_name="rg", namespace_name="namespace"
     )
 
 
-def test_job_list(fixture_job_provider):
-    fixture_job_provider.client.jobs.list_by_namespace.return_value = iter(["j1", "j2"])
+def test_job_delete_calls_jobs_delete_directly(fixture_job_provider, mock_poller):
+    fixture_job_provider.client.jobs.begin_delete.return_value = mock_poller(None)
 
-    result = fixture_job_provider.list(
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-    )
+    fixture_job_provider.delete("job", "namespace", "rg")
 
-    assert result == ["j1", "j2"]
-
-
-# ==================== delete + in-flight runs probe ====================
-
-
-def test_job_delete_in_flight_runs_warning(fixture_job_provider, mock_poller, caplog):
-    fixture_job_provider.client.job_runs.list_by_job.return_value = iter([
-        {"name": "run-1", "properties": {"status": "Active"}},
-        {"name": "run-2", "properties": {"status": "Scheduled"}},
-        {"name": "run-3", "properties": {"status": "Queued"}},
-        {"name": "run-done", "properties": {"status": "Succeeded"}},
-        {"name": "run-failed", "properties": {"status": "Failed"}},
-    ])
-    fixture_job_provider.client.jobs.begin_delete.return_value = mock_poller()
-
-    import logging
-    with caplog.at_level(logging.WARNING, logger="azext_iot.adr.providers.job"):
-        fixture_job_provider.delete(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-        )
-
-    # In-flight runs warning surfaced exactly once.
-    in_flight_msgs = [r for r in caplog.records if "in-flight run(s)" in r.message]
-    assert len(in_flight_msgs) == 1
-    assert "3 in-flight run(s)" in in_flight_msgs[0].message
     fixture_job_provider.client.jobs.begin_delete.assert_called_once_with(
-        resource_group_name="test-rg",
-        namespace_name="test-ns",
-        job_name="test-job",
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
     )
+    fixture_job_provider.client.job_runs.list_by_job.assert_not_called()
 
 
-def test_job_delete_no_in_flight_runs(fixture_job_provider, mock_poller, caplog):
-    fixture_job_provider.client.job_runs.list_by_job.return_value = iter([
-        {"name": "run-done", "properties": {"status": "Succeeded"}},
-    ])
-    fixture_job_provider.client.jobs.begin_delete.return_value = mock_poller()
-
-    import logging
-    with caplog.at_level(logging.WARNING, logger="azext_iot.adr.providers.job"):
-        fixture_job_provider.delete(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-        )
-
-    assert not any("in-flight run(s)" in r.message for r in caplog.records)
-    fixture_job_provider.client.jobs.begin_delete.assert_called_once()
-
-
-def test_job_delete_in_flight_probe_rbac_failure_degrades(fixture_job_provider, mock_poller, caplog):
-    """RBAC failure on job_runs.list_by_job must NOT block deletion."""
-    fixture_job_provider.client.job_runs.list_by_job.side_effect = RuntimeError("forbidden")
-    fixture_job_provider.client.jobs.begin_delete.return_value = mock_poller()
-
-    import logging
-    with caplog.at_level(logging.WARNING, logger="azext_iot.adr.providers.job"):
-        fixture_job_provider.delete(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-        )
-
-    # Delete still issued.
-    fixture_job_provider.client.jobs.begin_delete.assert_called_once()
-    # Best-effort warning (probe failure) surfaced.
-    assert any("Unable to enumerate job runs" in r.message for r in caplog.records)
-
-
-def test_job_delete_no_wait_returns_poller(fixture_job_provider, mock_poller):
-    fixture_job_provider.client.job_runs.list_by_job.return_value = iter([])
+def test_job_delete_no_wait(fixture_job_provider, mock_poller):
     poller = mock_poller(None)
     fixture_job_provider.client.jobs.begin_delete.return_value = poller
 
     result = fixture_job_provider.delete(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        no_wait=True,
+        "job", "namespace", "rg", no_wait=True
     )
 
     assert result is poller
     poller.result.assert_not_called()
 
 
-# ==================== schedule ====================
-
-
-def test_job_schedule_empty_body(fixture_job_provider, mock_poller):
-    fixture_job_provider.client.jobs.begin_schedule.return_value = mock_poller()
-
-    fixture_job_provider.schedule(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
+@pytest.mark.parametrize(
+    "scheduled_time",
+    [
+        "2026-11-02T08:00:00Z",
+        "2026-11-02T08:00:00+00:00",
+        "2026-11-02T08:00:00-07:00",
+    ],
+)
+def test_job_schedule_accepts_timezone_aware_time(
+    fixture_job_provider, mock_poller, scheduled_time
+):
+    fixture_job_provider.client.jobs.begin_schedule.return_value = mock_poller(
+        {"name": "run"}
     )
 
-    fixture_job_provider.client.jobs.begin_schedule.assert_called_once_with(
-        resource_group_name="test-rg",
-        namespace_name="test-ns",
-        job_name="test-job",
-        body={},
-    )
-
-
-def test_job_schedule_with_iso_timeout_and_time(fixture_job_provider, mock_poller):
-    fixture_job_provider.client.jobs.begin_schedule.return_value = mock_poller()
-
     fixture_job_provider.schedule(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        scheduled_time="2025-12-01T08:00:00Z",
+        "job",
+        "namespace",
+        "rg",
+        scheduled_time=scheduled_time,
         timeout="PT2H",
     )
 
-    call_args = fixture_job_provider.client.jobs.begin_schedule.call_args[1]
-    assert call_args["body"] == {
-        "scheduledTime": "2025-12-01T08:00:00Z",
-        "timeout": "PT2H",
-    }
+    fixture_job_provider.client.jobs.begin_schedule.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+        body={"scheduledTime": scheduled_time, "timeout": "PT2H"},
+    )
 
 
-def test_job_schedule_invalid_timeout_raises(fixture_job_provider):
-    with pytest.raises(InvalidArgumentValueError, match="ISO 8601 duration"):
-        fixture_job_provider.schedule(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-            timeout="not-a-duration",
-        )
-    fixture_job_provider.client.jobs.begin_schedule.assert_not_called()
+def test_job_schedule_allows_empty_body(fixture_job_provider, mock_poller):
+    fixture_job_provider.client.jobs.begin_schedule.return_value = mock_poller({})
+
+    fixture_job_provider.schedule("job", "namespace", "rg")
+
+    assert (
+        fixture_job_provider.client.jobs.begin_schedule.call_args.kwargs["body"]
+        == {}
+    )
 
 
-def test_job_schedule_invalid_scheduled_time_raises(fixture_job_provider):
+@pytest.mark.parametrize(
+    "scheduled_time",
+    ["2026-11-02T08:00:00", "not-a-time", "2026-11-02"],
+)
+def test_job_schedule_rejects_non_absolute_time(
+    fixture_job_provider, scheduled_time
+):
     with pytest.raises(InvalidArgumentValueError, match="ISO 8601 UTC datetime"):
         fixture_job_provider.schedule(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-            scheduled_time="tomorrow at noon",
+            "job", "namespace", "rg", scheduled_time=scheduled_time
         )
     fixture_job_provider.client.jobs.begin_schedule.assert_not_called()
 
 
-def test_job_schedule_no_wait_returns_poller(fixture_job_provider, mock_poller):
+@pytest.mark.parametrize("timeout", ["not-a-duration", "2 hours", ""])
+def test_job_schedule_rejects_invalid_timeout(fixture_job_provider, timeout):
+    with pytest.raises(InvalidArgumentValueError, match="ISO 8601 duration"):
+        fixture_job_provider.schedule(
+            "job", "namespace", "rg", timeout=timeout
+        )
+    fixture_job_provider.client.jobs.begin_schedule.assert_not_called()
+
+
+def test_job_schedule_no_wait(fixture_job_provider, mock_poller):
     poller = mock_poller(None)
     fixture_job_provider.client.jobs.begin_schedule.return_value = poller
 
     result = fixture_job_provider.schedule(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        no_wait=True,
+        "job", "namespace", "rg", no_wait=True
     )
 
     assert result is poller
     poller.result.assert_not_called()
-
-
-# ==================== Edge-case fills ====================
-
-
-@pytest.mark.parametrize(
-    "missing_field",
-    [
-        # Each tuple omits exactly one of (provider, name, version)
-        {"update_name": "N", "update_version": "V"},  # provider missing
-        {"update_provider": "P", "update_version": "V"},  # name missing
-        {"update_provider": "P", "update_name": "N"},  # version missing
-    ],
-    ids=["missing_provider", "missing_name", "missing_version"],
-)
-def test_job_create_partial_update_triple_each_component(fixture_job_provider, missing_field):
-    """Each individual missing field in the update-id triple raises the same guard."""
-    with pytest.raises(
-        ArgumentUsageError,
-        match="--update-id-provider, --update-id-name, and --update-id-version",
-    ):
-        fixture_job_provider.create(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-            target_group_name="test-group",
-            location="eastus",
-            **missing_field,
-        )
-
-
-def test_job_schedule_only_timeout(fixture_job_provider, mock_poller):
-    """Timeout without scheduled-time produces a single-key body."""
-    fixture_job_provider.client.jobs.begin_schedule.return_value = mock_poller()
-
-    fixture_job_provider.schedule(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        timeout="PT30M",
-    )
-
-    call_args = fixture_job_provider.client.jobs.begin_schedule.call_args[1]
-    assert call_args["body"] == {"timeout": "PT30M"}
-
-
-def test_job_schedule_only_scheduled_time(fixture_job_provider, mock_poller):
-    """Scheduled-time without timeout produces a single-key body."""
-    fixture_job_provider.client.jobs.begin_schedule.return_value = mock_poller()
-
-    fixture_job_provider.schedule(
-        job_name="test-job",
-        namespace_name="test-ns",
-        resource_group_name="test-rg",
-        scheduled_time="2025-12-01T08:00:00Z",
-    )
-
-    call_args = fixture_job_provider.client.jobs.begin_schedule.call_args[1]
-    assert call_args["body"] == {"scheduledTime": "2025-12-01T08:00:00Z"}
-
-
-def test_job_delete_terminal_runs_not_counted(fixture_job_provider, mock_poller, caplog):
-    """Only Scheduled/Queued/Active runs count toward the in-flight tally.
-    Succeeded/Failed/Canceled/Skipped runs must be excluded from the warning."""
-    fixture_job_provider.client.job_runs.list_by_job.return_value = iter([
-        {"name": "r-succ", "properties": {"status": "Succeeded"}},
-        {"name": "r-fail", "properties": {"status": "Failed"}},
-        {"name": "r-canc", "properties": {"status": "Canceled"}},
-        {"name": "r-skip", "properties": {"status": "Skipped"}},
-    ])
-    fixture_job_provider.client.jobs.begin_delete.return_value = mock_poller()
-
-    import logging
-    with caplog.at_level(logging.WARNING, logger="azext_iot.adr.providers.job"):
-        fixture_job_provider.delete(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-        )
-
-    assert not any("in-flight run(s)" in r.message for r in caplog.records)
-    fixture_job_provider.client.jobs.begin_delete.assert_called_once()
-
-
-def test_job_delete_single_in_flight_run(fixture_job_provider, mock_poller, caplog):
-    """Singular phrasing in the warning when exactly one run is in-flight."""
-    fixture_job_provider.client.job_runs.list_by_job.return_value = iter([
-        {"name": "run-1", "properties": {"status": "Active"}},
-    ])
-    fixture_job_provider.client.jobs.begin_delete.return_value = mock_poller()
-
-    import logging
-    with caplog.at_level(logging.WARNING, logger="azext_iot.adr.providers.job"):
-        fixture_job_provider.delete(
-            job_name="test-job",
-            namespace_name="test-ns",
-            resource_group_name="test-rg",
-        )
-
-    in_flight_msgs = [r for r in caplog.records if "in-flight run(s)" in r.message]
-    assert len(in_flight_msgs) == 1
-    assert "1 in-flight run(s)" in in_flight_msgs[0].message

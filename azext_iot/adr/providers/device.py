@@ -4,15 +4,42 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
-from azure.cli.core.azclierror import CLIError
-from knack.log import get_logger
+from azure.cli.core.azclierror import (
+    CLIInternalError,
+    InvalidArgumentValueError,
+    RequiredArgumentMissingError,
+)
 
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.common.utility import shell_safe_json_parse
 
-logger = get_logger(__name__)
+
+def _parse_json_object(value, argument_name: str):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = shell_safe_json_parse(value)
+        except CLIInternalError as error:
+            raise InvalidArgumentValueError(
+                f"{argument_name} must be valid JSON."
+            ) from error
+    if not isinstance(value, dict):
+        raise InvalidArgumentValueError(f"{argument_name} must be a JSON object.")
+    return value
+
+
+def _parse_endpoints(value):
+    endpoints = _parse_json_object(value, "--endpoints")
+    unsupported = set(endpoints) - {"inbound", "outbound"}
+    if unsupported:
+        names = ", ".join(sorted(unsupported))
+        raise InvalidArgumentValueError(
+            f"--endpoints only supports 'inbound' and 'outbound' properties; found: {names}."
+        )
+    return endpoints
 
 
 class DeviceProvider(ADRProvider):
@@ -30,13 +57,16 @@ class DeviceProvider(ADRProvider):
         model: Optional[str] = None,
         operating_system: Optional[str] = None,
         operating_system_version: Optional[str] = None,
+        external_device_id: Optional[str] = None,
+        enabled: Optional[bool] = None,
+        attributes: Optional[str] = None,
+        endpoints: Optional[str] = None,
         discovered_device_ref: Optional[str] = None,
         policy_resource_id: Optional[str] = None,
         **kwargs,
     ):
         """Create a device in the namespace."""
-        if not location:
-            location = self._ensure_location(self.cmd.cli_ctx, resource_group_name, location)
+        location = self._resolve_location(namespace_name, resource_group_name, location)
 
         inner_props = {}
         if manufacturer is not None:
@@ -47,6 +77,14 @@ class DeviceProvider(ADRProvider):
             inner_props["operatingSystem"] = operating_system
         if operating_system_version is not None:
             inner_props["operatingSystemVersion"] = operating_system_version
+        if external_device_id is not None:
+            inner_props["externalDeviceId"] = external_device_id
+        if enabled is not None:
+            inner_props["enabled"] = enabled
+        if attributes is not None:
+            inner_props["attributes"] = _parse_json_object(attributes, "--attributes")
+        if endpoints is not None:
+            inner_props["endpoints"] = _parse_endpoints(endpoints)
         if discovered_device_ref is not None:
             inner_props["discoveredDeviceRef"] = discovered_device_ref
         if policy_resource_id is not None:
@@ -55,7 +93,7 @@ class DeviceProvider(ADRProvider):
         resource = {"location": location}
         if inner_props:
             resource["properties"] = inner_props
-        if tags:
+        if tags is not None:
             resource["tags"] = tags
 
         poller = self.client.namespace_devices.begin_create_or_replace(
@@ -76,22 +114,6 @@ class DeviceProvider(ADRProvider):
         **kwargs,
     ):
         """Delete a device from the namespace."""
-        # Best-effort dependency check (assets reference devices via deviceRef.deviceName).
-        # Today the assets surface is not yet in this extension's SDK, so this is a no-op;
-        # when assets ship, this hook surfaces a warning before the standard confirmation.
-        dependents = self._check_dependent_resources(
-            device_name=device_name,
-            namespace_name=namespace_name,
-            resource_group_name=resource_group_name,
-        )
-        if dependents:
-            logger.warning(
-                "%d resource(s) reference device '%s'; deleting will orphan them: %s",
-                len(dependents),
-                device_name,
-                ", ".join(dependents),
-            )
-
         poller = self.client.namespace_devices.begin_delete(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
@@ -100,24 +122,6 @@ class DeviceProvider(ADRProvider):
         return self._wait(
             poller, f"Deleting device '{device_name}' from namespace {namespace_name}...", **kwargs
         )
-
-    def _check_dependent_resources(
-        self,
-        device_name: str,
-        namespace_name: str,
-        resource_group_name: str,
-    ) -> List[str]:
-        """Return identifiers of resources that reference this device.
-
-        Phase 1 stub: assets (and other resources that carry ``deviceRef.deviceName``)
-        are not yet exposed via this extension's SDK surface, so we cannot enumerate
-        them. When the assets SDK lands, replace the empty return below with a
-        best-effort list/filter call (wrapped in try/except so RBAC failures degrade
-        gracefully).
-        """
-        # TODO: when assets ship, query namespace_assets + namespace_discovered_assets
-        # and return [a["name"] for a in ... if deviceRef.deviceName == device_name].
-        return []
 
     def show(self, device_name: str, namespace_name: str, resource_group_name: str):
         return self.client.namespace_devices.get(
@@ -143,6 +147,7 @@ class DeviceProvider(ADRProvider):
         tags: Optional[Dict[str, str]] = None,
         operating_system_version: Optional[str] = None,
         attributes: Optional[str] = None,
+        endpoints: Optional[str] = None,
         policy_resource_id: Optional[str] = None,
         **kwargs,
     ):
@@ -154,16 +159,18 @@ class DeviceProvider(ADRProvider):
         if operating_system_version is not None:
             inner_props["operatingSystemVersion"] = operating_system_version
         if attributes is not None:
-            # Param layer delivers a string; unit-test callers may pass an already-parsed
-            # dict. An empty string is treated as an explicit clear (sends None);
-            # any non-empty string is parsed as JSON.
-            if isinstance(attributes, str):
-                inner_props["attributes"] = None if attributes == "" else shell_safe_json_parse(attributes)
-            else:
-                inner_props["attributes"] = attributes
+            inner_props["attributes"] = _parse_json_object(attributes, "--attributes")
+        if endpoints is not None:
+            inner_props["endpoints"] = _parse_endpoints(endpoints)
         if policy_resource_id is not None:
             inner_props["policy"] = (
                 None if policy_resource_id == "" else {"resourceId": policy_resource_id}
+            )
+
+        if not inner_props and tags is None:
+            raise RequiredArgumentMissingError(
+                "Nothing to update. Provide --enabled, --os-version, --attributes, "
+                "--endpoints, --policy-resource-id, or --tags."
             )
 
         properties = {}
@@ -180,19 +187,4 @@ class DeviceProvider(ADRProvider):
         )
         return self._wait(
             poller, f"Updating device '{device_name}' in namespace {namespace_name}...", **kwargs
-        )
-
-    def revoke(
-        self,
-        device_name: str,
-        namespace_name: str,
-        resource_group_name: str,
-        disable: bool = False,
-        **kwargs,
-    ):
-        """Revoke credentials for a device in the namespace."""
-        # The backing endpoint is not available in the current preview.
-        raise CLIError(
-            "'az iot adr ns device revoke' is not available yet. "
-            "Please try again in a future release."
         )

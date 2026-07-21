@@ -12,7 +12,6 @@ from azure.cli.core.azclierror import (
     RequiredArgumentMissingError,
     ResourceNotFoundError,
 )
-from azure.core.exceptions import HttpResponseError
 from knack.log import get_logger
 from msrestazure.tools import is_valid_resource_id, parse_resource_id
 
@@ -36,19 +35,19 @@ DPS_FIRST_REQUIRED_MSG = (
 
 DPS_CAP_EXCEEDED_MSG = (
     "Namespace already has a linked DPS; use 'az iot adr ns link dps update' "
-    "or remove the existing entry first. Only one DPS may be linked per namespace."
+    "to rotate its identity. Only one DPS may be linked per namespace."
 )
 
 _MI_MUTEX_MSG = (
-    "Specify only one identity: use --mi-system-assigned for the namespace's "
+    "Specify only one linked-resource identity: use --mi-system-assigned for its "
     "system-assigned identity, or --mi-user-assigned <uami-resource-id> for a "
-    "user-assigned managed identity (the two options are mutually exclusive)."
+    "user-assigned identity attached to that resource."
 )
 
 _MI_REQUIRED_MSG = (
-    "An inbound caller identity is required. Pass --mi-system-assigned to use the "
-    "namespace's system-assigned identity, or --mi-user-assigned <uami-resource-id> "
-    "to use a user-assigned managed identity."
+    "An inbound caller identity is required from the linked resource. Pass "
+    "--mi-system-assigned for its system-assigned identity, or "
+    "--mi-user-assigned <uami-resource-id> for an attached user-assigned identity."
 )
 
 
@@ -93,16 +92,16 @@ def _parse_dps_resource_id(dps_resource_id: str) -> dict:
 
 
 def _parse_adu_resource_id(adu_resource_id: str) -> dict:
-    """Parse an ADU (Device Update) linked account ARM resource ID into its components.
+    """Parse an ADU update-instance ARM resource ID into its components.
 
     Expected shape:
         /subscriptions/<sub>/resourceGroups/<rg>/providers/
-            Microsoft.DeviceUpdate/linkedAccounts/<name>
+            Microsoft.DeviceUpdate/updateInstances/<name>
     """
     raw = (adu_resource_id or "").strip()
     if not raw:
         raise InvalidArgumentValueError(
-            "--adu-id is required and must be a Microsoft.DeviceUpdate/linkedAccounts ARM resource ID."
+            "--adu-id is required and must be a Microsoft.DeviceUpdate/updateInstances ARM resource ID."
         )
     # Friendly hint: a bare name (no slashes) is the most common mistake here.
     if "/" not in raw:
@@ -114,15 +113,15 @@ def _parse_adu_resource_id(adu_resource_id: str) -> dict:
             f"'{adu_resource_id}' is not a valid ARM resource ID."
         )
     parsed = parse_resource_id(raw)
-    # Reject child resources and any non-linkedAccounts resource type.
+    # Reject child resources and any non-updateInstances resource type.
     if (
         (parsed.get("namespace") or "").lower() != "microsoft.deviceupdate"
-        or (parsed.get("type") or "").lower() != "linkedaccounts"
+        or (parsed.get("type") or "").lower() != "updateinstances"
         or "child_name_1" in parsed
     ):
         raise InvalidArgumentValueError(
-            f"'{adu_resource_id}' is not a Microsoft.DeviceUpdate/linkedAccounts resource ID. "
-            "Pass the full ARM resource ID of the linked Device Update account."
+            f"'{adu_resource_id}' is not a Microsoft.DeviceUpdate/updateInstances resource ID. "
+            "Pass the full ARM resource ID of the Device Update instance."
         )
     return {
         "subscription_id": parsed["subscription"],
@@ -236,16 +235,13 @@ def _build_adu_endpoint_body(
 def _endpoint_update_body(
     existing: Optional[dict],
     inbound_identity: Optional[dict] = None,
-    provisioning_changes: Optional[dict] = None,
 ) -> dict:
     """Build the endpoint body for an *update* PATCH.
 
     A namespace endpoint update must re-send the endpoint's identity (``endpointType`` and
     ``resourceId``), not a sparse delta, or the backend rejects it with InvalidRequestContent.
-    Provisioning (availability / allocationWeight) is only included when the caller actually
-    changes it: re-sending it unchanged makes the backend flag the endpoint as "(Modified)" and
-    reject the whole PATCH with EndpointLinkImmutable. Because the update is a PATCH, omitting
-    provisioning leaves the stored availability / allocationWeight intact.
+    Provisioning is intentionally omitted because established links only
+    support inbound-identity rotation.
     """
     existing = existing or {}
     body: dict = {
@@ -257,43 +253,7 @@ def _endpoint_update_body(
         body["inboundCallerIdentity"] = current_inbound
     if inbound_identity is not None:
         body["inboundCallerIdentity"] = inbound_identity
-    # Only send provisioning when the caller changes it (merged onto existing so the sibling
-    # field is preserved); an identity-only update omits it so the unchanged availability /
-    # allocationWeight are not flagged as modified and rejected with EndpointLinkImmutable.
-    if provisioning_changes:
-        provisioning = dict(existing.get("provisioning") or {})
-        provisioning.update(provisioning_changes)
-        if provisioning:
-            body["provisioning"] = provisioning
     return body
-
-
-_ENDPOINT_LINK_IMMUTABLE_CODE = "EndpointLinkImmutable"
-
-
-def _endpoint_link_immutable_error(error: HttpResponseError) -> ArgumentUsageError:
-    """Build clearer guidance for the backend's EndpointLinkImmutable rejection.
-
-    The service rejects any change to an established endpoint's availability, allocation weight or
-    linked resource via PATCH (only the inbound caller identity may be rotated); its raw error
-    names the endpoint without saying which inputs are immutable, so add that context here.
-    """
-    corr = None
-    response = getattr(error, "response", None)
-    headers = getattr(response, "headers", None)
-    if headers:
-        corr = headers.get("x-ms-correlation-request-id")
-    message = (
-        "This endpoint link cannot be modified in place. An established endpoint's "
-        "availability, allocation weight and linked resource are immutable; only the "
-        "inbound caller identity can be rotated (--mi-system-assigned / --mi-user-assigned). "
-        "To change availability or allocation weight, delete and re-create the link "
-        "(delete the linked resource or the namespace, then re-add). "
-        f"Service error: {getattr(error, 'message', None) or str(error)}"
-    )
-    if corr:
-        message += f" Correlation id: {corr}."
-    return ArgumentUsageError(message)
 
 
 class LinkProvider(ADRProvider):
@@ -374,8 +334,6 @@ class LinkProvider(ADRProvider):
         resource_group_name: str,
         mi_system_assigned: bool = False,
         mi_user_assigned: Optional[str] = None,
-        availability: Optional[str] = None,
-        allocation_weight: Optional[int] = None,
         **kwargs,
     ):
         """Partial-update an existing IoT Hub messaging endpoint on a namespace."""
@@ -390,16 +348,10 @@ class LinkProvider(ADRProvider):
             )
 
         inbound_identity = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
-        provisioning_changes = {}
-        if availability is not None:
-            provisioning_changes["availability"] = availability
-        if allocation_weight is not None:
-            provisioning_changes["allocationWeight"] = allocation_weight
-
-        if inbound_identity is None and not provisioning_changes:
+        if inbound_identity is None:
             raise RequiredArgumentMissingError(
-                "Nothing to update. Pass at least one of --mi-system-assigned, "
-                "--mi-user-assigned <uami-resource-id>, --availability, or --allocation-weight."
+                "Nothing to update. Pass --mi-system-assigned or "
+                "--mi-user-assigned <uami-resource-id>."
             )
 
         # The backend requires the full endpoint identity (endpointType + resourceId) on update,
@@ -408,48 +360,13 @@ class LinkProvider(ADRProvider):
         endpoint_patch = _endpoint_update_body(
             endpoints.get(endpoint_name),
             inbound_identity=inbound_identity,
-            provisioning_changes=provisioning_changes,
         )
 
-        try:
-            return self._patch_messaging_endpoints(
-                namespace_name=namespace_name,
-                resource_group_name=resource_group_name,
-                endpoints_patch={endpoint_name: endpoint_patch},
-                **kwargs,
-            )
-        except HttpResponseError as error:
-            # Availability / allocation-weight changes on an established link are rejected with
-            # EndpointLinkImmutable; re-raise with a clearer explanation of what can be updated.
-            if _ENDPOINT_LINK_IMMUTABLE_CODE not in str(error):
-                raise
-            raise _endpoint_link_immutable_error(error) from error
-
-    def hub_remove(
-        self,
-        endpoint_name: str,
-        namespace_name: str,
-        resource_group_name: str,
-        **kwargs,
-    ):
-        """Removing a Hub link entry directly is not supported by design.
-
-        Hub links are bound to the lifecycle of the underlying IoT Hub. To unlink,
-        delete the IoT Hub resource or the namespace itself.
-        """
-        hub_resource_id = "<hub-resource-id>"
-        try:
-            existing = self._get_namespace(namespace_name, resource_group_name)
-            endpoint = _get_messaging_endpoints(existing).get(endpoint_name) or {}
-            hub_resource_id = endpoint.get("resourceId") or hub_resource_id
-        except Exception:  # noqa: BLE001 - best-effort enrichment only
-            pass
-
-        raise ArgumentUsageError(
-            f"Removing Hub link '{endpoint_name}' directly is not supported. "
-            "Hub links are tied to the underlying IoT Hub lifecycle. To unlink, delete "
-            f"the IoT Hub ('az iot hub delete --ids {hub_resource_id}') or the namespace "
-            f"('az iot adr ns delete -n {namespace_name} -g {resource_group_name}')."
+        return self._patch_messaging_endpoints(
+            namespace_name=namespace_name,
+            resource_group_name=resource_group_name,
+            endpoints_patch={endpoint_name: endpoint_patch},
+            **kwargs,
         )
 
     def hub_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
@@ -460,18 +377,18 @@ class LinkProvider(ADRProvider):
             raise ResourceNotFoundError(
                 f"Hub endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
             )
-        return endpoints[endpoint_name]
+        return {"name": endpoint_name, **(endpoints[endpoint_name] or {})}
 
     def hub_list(self, namespace_name: str, resource_group_name: str):
         """List all Hub messaging endpoints on the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_messaging_endpoints(ns)
         # Filter to only Hub-typed entries (defensively; other endpointTypes may exist later)
-        return {
-            name: ep
+        return [
+            {"name": name, **(ep or {})}
             for name, ep in endpoints.items()
             if (ep or {}).get("endpointType") == IOT_HUB_ENDPOINT_TYPE
-        }
+        ]
 
     # DPS commands
 
@@ -504,7 +421,7 @@ class LinkProvider(ADRProvider):
         """
         try:
             parsed = _parse_dps_resource_id(dps_resource_id)
-        except Exception:  # pragma: no cover - parse already validated upstream
+        except InvalidArgumentValueError:  # pragma: no cover - validated upstream
             return {}
         dps_name = parsed["name"]
         try:
@@ -594,33 +511,6 @@ class LinkProvider(ADRProvider):
             **kwargs,
         )
 
-    def dps_remove(
-        self,
-        endpoint_name: str,
-        namespace_name: str,
-        resource_group_name: str,
-        **kwargs,
-    ):
-        """Removing a DPS link entry directly is not supported by design.
-
-        DPS links are bound to the lifecycle of the underlying DPS resource. To unlink,
-        delete the DPS resource or the namespace itself.
-        """
-        dps_resource_id = "<dps-resource-id>"
-        try:
-            existing = self._get_namespace(namespace_name, resource_group_name)
-            endpoint = _get_provisioning_endpoints(existing).get(endpoint_name) or {}
-            dps_resource_id = endpoint.get("resourceId") or dps_resource_id
-        except Exception:  # noqa: BLE001 - best-effort enrichment only
-            pass
-
-        raise ArgumentUsageError(
-            f"Removing DPS link '{endpoint_name}' directly is not supported. "
-            "DPS links are tied to the underlying DPS lifecycle. To unlink, delete "
-            f"the DPS ('az iot dps delete --ids {dps_resource_id}') or the namespace "
-            f"('az iot adr ns delete -n {namespace_name} -g {resource_group_name}')."
-        )
-
     def dps_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
         """Project a single DPS provisioning endpoint, enriched with the DPS RP's existing IoT Hub registrations."""
         ns = self._get_namespace(namespace_name, resource_group_name)
@@ -630,6 +520,7 @@ class LinkProvider(ADRProvider):
                 f"DPS endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
             )
         endpoint = dict(endpoints[endpoint_name] or {})
+        endpoint["name"] = endpoint_name
         dps_resource_id = endpoint.get("resourceId")
         if dps_resource_id:
             dps = self._side_get_dps_resource(dps_resource_id)
@@ -643,11 +534,11 @@ class LinkProvider(ADRProvider):
         """List all DPS provisioning endpoints on the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_provisioning_endpoints(ns)
-        return {
-            name: ep
+        return [
+            {"name": name, **(ep or {})}
             for name, ep in endpoints.items()
             if (ep or {}).get("endpointType") == DPS_ENDPOINT_TYPE
-        }
+        ]
 
     # ADU commands
 
@@ -743,33 +634,6 @@ class LinkProvider(ADRProvider):
             **kwargs,
         )
 
-    def adu_remove(
-        self,
-        endpoint_name: str,
-        namespace_name: str,
-        resource_group_name: str,
-        **kwargs,
-    ):
-        """Removing an ADU link entry directly is not supported by design.
-
-        ADU links are bound to the lifecycle of the underlying Device Update linked account.
-        To unlink, delete the linked account resource or the namespace itself.
-        """
-        adu_resource_id = "<adu-resource-id>"
-        try:
-            existing = self._get_namespace(namespace_name, resource_group_name)
-            endpoint = _get_updating_endpoints(existing).get(endpoint_name) or {}
-            adu_resource_id = endpoint.get("resourceId") or adu_resource_id
-        except Exception:  # noqa: BLE001 - best-effort enrichment only
-            pass
-
-        raise ArgumentUsageError(
-            f"Removing device update link '{endpoint_name}' directly is not supported. "
-            "ADU links are tied to the underlying Device Update linked account lifecycle. To unlink, "
-            f"delete the linked account ('az resource delete --ids {adu_resource_id}') or the namespace "
-            f"('az iot adr ns delete -n {namespace_name} -g {resource_group_name}')."
-        )
-
     def adu_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
         """Project a single ADU updating endpoint from the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
@@ -778,17 +642,17 @@ class LinkProvider(ADRProvider):
             raise ResourceNotFoundError(
                 f"Device update endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
             )
-        return endpoints[endpoint_name]
+        return {"name": endpoint_name, **(endpoints[endpoint_name] or {})}
 
     def adu_list(self, namespace_name: str, resource_group_name: str):
         """List all ADU updating endpoints on the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_updating_endpoints(ns)
-        return {
-            name: ep
+        return [
+            {"name": name, **(ep or {})}
             for name, ep in endpoints.items()
             if (ep or {}).get("endpointType") == ADU_ENDPOINT_TYPE
-        }
+        ]
 
     # Bundled link add
 

@@ -20,6 +20,10 @@ def adr_device_create(
     model: Optional[str] = None,
     operating_system: Optional[str] = None,
     operating_system_version: Optional[str] = None,
+    external_device_id: Optional[str] = None,
+    enabled: Optional[bool] = None,
+    attributes: Optional[str] = None,
+    endpoints: Optional[str] = None,
     discovered_device_ref: Optional[str] = None,
     policy_resource_id: Optional[str] = None,
     no_wait: bool = False,
@@ -35,6 +39,10 @@ def adr_device_create(
         model=model,
         operating_system=operating_system,
         operating_system_version=operating_system_version,
+        external_device_id=external_device_id,
+        enabled=enabled,
+        attributes=attributes,
+        endpoints=endpoints,
         discovered_device_ref=discovered_device_ref,
         policy_resource_id=policy_resource_id,
         no_wait=no_wait,
@@ -83,6 +91,7 @@ def adr_device_update(
     tags: Optional[Dict[str, str]] = None,
     operating_system_version: Optional[str] = None,
     attributes: Optional[str] = None,
+    endpoints: Optional[str] = None,
     policy_resource_id: Optional[str] = None,
     no_wait: bool = False,
 ):
@@ -95,22 +104,7 @@ def adr_device_update(
         tags=tags,
         operating_system_version=operating_system_version,
         attributes=attributes,
+        endpoints=endpoints,
         policy_resource_id=policy_resource_id,
         no_wait=no_wait,
-    )
-
-
-def adr_device_revoke(
-    cmd,
-    device_name: str,
-    namespace_name: str,
-    resource_group_name: str,
-    disable: bool = False,
-):
-    provider = DeviceProvider(cmd)
-    return provider.revoke(
-        device_name=device_name,
-        namespace_name=namespace_name,
-        resource_group_name=resource_group_name,
-        disable=disable,
     )

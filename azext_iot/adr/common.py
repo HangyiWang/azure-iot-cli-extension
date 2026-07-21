@@ -7,6 +7,8 @@
 from enum import Enum
 from typing import Optional
 
+from azure.cli.core.azclierror import InvalidArgumentValueError
+
 
 class IdentityType(Enum):
     system_assigned = "SystemAssigned"
@@ -24,13 +26,6 @@ class MessagingEndpointAvailability(Enum):
     disabled = "Disabled"
 
 
-class LinkingState(Enum):
-    """Linking state of a messaging/provisioning endpoint entry on a Namespace."""
-    in_progress = "InProgress"
-    succeeded = "Succeeded"
-    failed = "Failed"
-
-
 class GroupType(Enum):
     """Type of a Device Registry group.
 
@@ -40,69 +35,27 @@ class GroupType(Enum):
     device = "Device"
 
 
-class GroupMembershipState(Enum):
-    """Membership state of a Device Registry group (read-only on the resource)."""
-    creating = "Creating"
-    refreshing_members = "RefreshingMembers"
-    ready = "Ready"
-
-
 class JobType(Enum):
-    """Type of a Device Registry job.
-
-    Only ``Update`` is currently supported. ``action`` and ``state`` are
-    reserved for future use. The enum is exposed in CLI help today so that
-    future variants can be added without changing the surface, but the create
-    provider rejects non-``Update`` values client-side until backend support
-    lands.
-    """
-    update = "Update"
-    action = "Action"
-    state = "State"
+    software_update = "SoftwareUpdate"
+    onboarding_update = "OnboardingUpdate"
 
 
 class JobSchedulingType(Enum):
-    """Scheduling type for an Update job definition.
-
-    Only ``continuous`` is allowed for ``Update`` jobs in the current preview
-    (ADU deployments target the group until superseded, canceled, or the parent
-    job is deleted).
-    """
-    continuous = "continuous"
+    continuous = "Continuous"
 
 
-class JobRunStatus(Enum):
-    """Status values for a job run.
-
-    Used by the Group/Job pre-delete checks to determine which runs are still
-    "in flight" (i.e. consuming concurrency quota or actively executing).
-    """
-    scheduled = "Scheduled"
-    queued = "Queued"
-    active = "Active"
-    succeeded = "Succeeded"
-    failed = "Failed"
-    timed_out = "TimedOut"
-    canceled = "Canceled"
+class ReportType(Enum):
+    namespace_update_compliance = "NamespaceUpdateComplianceReport"
+    group_best_updates_compliance = "GroupBestUpdatesComplianceReport"
+    group_installable_updates = "GroupInstallableUpdatesReport"
 
 
-#: Job-run statuses that count as "in flight" for the job/group pre-delete
-#: warning surface. The operator is warned that deleting will cancel any runs
-#: in these states.
-JOB_RUN_IN_FLIGHT_STATUSES = frozenset(
-    {JobRunStatus.scheduled.value, JobRunStatus.queued.value, JobRunStatus.active.value}
-)
-
-#: Job provisioning states that are still mutable (not yet terminal). Used by
-#: the Group cascade warning to filter out completed jobs.
-JOB_ACTIVE_PROVISIONING_STATES = frozenset(
-    {"Accepted", "Creating", "Updating", "Deleting", "Provisioning", "Running"}
-)
+class NamespaceMigrateScope(Enum):
+    resources = "Resources"
 
 
 class PolicyCertificateKeyType(Enum):
     ecc = "ECC"
-    rsa = "RSA"
 
 
 class CertificateAuthorityType(Enum):
@@ -119,15 +72,10 @@ class CertificateAuthorityIssuerType(Enum):
     external = "External"
 
 
-class RegistryDeviceEnablementState(Enum):
-    enabled = "Enabled"
-    disabled = "Disabled"
-
-
 # Endpoint type discriminators on Namespace messaging / provisioning / updating endpoints
 IOT_HUB_ENDPOINT_TYPE = "Microsoft.Devices/IotHubs"
 DPS_ENDPOINT_TYPE = "Microsoft.Devices/provisioningServices"
-ADU_ENDPOINT_TYPE = "Microsoft.DeviceUpdate/linkedAccounts"
+ADU_ENDPOINT_TYPE = "Microsoft.DeviceUpdate/updateInstances"
 
 
 DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS = 30
@@ -135,6 +83,18 @@ DEFAULT_NS_CREDENTIAL_NAME = "default"
 DEFAULT_NS_POLICY_NAME = "default"
 DEFAULT_NS_POLICY_CERT_KEY_TYPE = PolicyCertificateKeyType.ecc.value
 DEFAULT_NS_CA_KEY_TYPE = CertificateAuthorityKeyType.ecc.value
+
+
+def validate_policy_certificate_options(
+    key_type: Optional[str],
+    validity_days: Optional[int],
+) -> None:
+    if key_type is not None and key_type != DEFAULT_NS_POLICY_CERT_KEY_TYPE:
+        raise InvalidArgumentValueError("--cert-key-type must be ECC.")
+    if validity_days is not None and not 7 <= validity_days <= 30:
+        raise InvalidArgumentValueError(
+            "--cert-validity-days must be between 7 and 30."
+        )
 
 
 def build_mi_body(

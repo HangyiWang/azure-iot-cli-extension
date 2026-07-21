@@ -4,10 +4,11 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from knack.log import get_logger
 
+from azext_iot.adr.common import NamespaceMigrateScope
 from azext_iot.adr.providers.namespace import NamespaceProvider
 
 logger = get_logger(__name__)
@@ -21,7 +22,6 @@ def adr_namespace_create(
     tags: Optional[Dict[str, str]] = None,
     policy_name: Optional[str] = None,
     certificate_key_type: Optional[str] = None,
-    certificate_subject: Optional[str] = None,
     certificate_validity_days: Optional[int] = None,
     outbound_mi_system_assigned: Optional[bool] = None,
     outbound_mi_user_assigned: Optional[str] = None,
@@ -35,10 +35,27 @@ def adr_namespace_create(
         tags=tags,
         policy_name=policy_name,
         certificate_key_type=certificate_key_type,
-        certificate_subject=certificate_subject,
         certificate_validity_days=certificate_validity_days,
         outbound_mi_system_assigned=outbound_mi_system_assigned,
         outbound_mi_user_assigned=outbound_mi_user_assigned,
+        no_wait=no_wait,
+    )
+
+
+def adr_namespace_migrate(
+    cmd,
+    namespace_name: str,
+    resource_group_name: str,
+    resource_ids: List[str],
+    scope: str = NamespaceMigrateScope.resources.value,
+    no_wait: bool = False,
+):
+    provider = NamespaceProvider(cmd)
+    return provider.migrate(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        resource_ids=resource_ids,
+        scope=scope,
         no_wait=no_wait,
     )
 

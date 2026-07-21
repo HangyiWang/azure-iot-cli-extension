@@ -4,10 +4,11 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from azure.cli.core.azclierror import (
     MutuallyExclusiveArgumentError,
+    RequiredArgumentMissingError,
 )
 from knack.log import get_logger
 
@@ -18,6 +19,7 @@ from azext_iot.adr.common import (
     IdentityType,
     ManagedServiceIdentityType,
     build_mi_body,
+    validate_policy_certificate_options,
 )
 from azext_iot.adr.providers.base import ADRProvider, console
 from azext_iot.adr.providers.credential import CredentialProvider
@@ -94,18 +96,19 @@ class NamespaceProvider(ADRProvider):
         tags: Optional[Dict[str, str]] = None,
         policy_name: Optional[str] = None,
         certificate_key_type: Optional[str] = None,
-        certificate_subject: Optional[str] = None,
         certificate_validity_days: Optional[int] = None,
         outbound_mi_system_assigned: Optional[bool] = None,
         outbound_mi_user_assigned: Optional[str] = None,
         **kwargs,
     ):
+        validate_policy_certificate_options(
+            certificate_key_type, certificate_validity_days
+        )
         # Legacy credential/policy bootstrap (DEPRECATED): triggered only by explicit legacy policy
         # args. Certificate authorities and policies are managed via `iot adr ns ca`.
         should_create_credential_policy = any([
             policy_name,
             certificate_key_type,
-            certificate_subject,
             certificate_validity_days,
         ])
 
@@ -127,7 +130,7 @@ class NamespaceProvider(ADRProvider):
 
         namespace_resource = {"location": location}
 
-        if tags:
+        if tags is not None:
             namespace_resource["tags"] = tags
 
         outbound_identity = _resolve_outbound_identity(
@@ -188,7 +191,6 @@ class NamespaceProvider(ADRProvider):
                     resource_group_name=resource_group_name,
                     location=location,
                     certificate_key_type=certificate_key_type,
-                    certificate_subject=certificate_subject,
                     certificate_validity_days=certificate_validity_days,
                     **kwargs,
                 )
@@ -213,7 +215,8 @@ class NamespaceProvider(ADRProvider):
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
         logger.warning(
-            "All child resources (credentials, policies, devices) under namespace '%s' will be deleted.",
+            "All child resources (credentials, policies, devices, groups, and jobs) under "
+            "namespace '%s' will be deleted.",
             namespace_name,
         )
         poller = self.client.namespaces.begin_delete(
@@ -253,6 +256,10 @@ class NamespaceProvider(ADRProvider):
             )
         if properties:
             body["properties"] = properties
+        if not body:
+            raise RequiredArgumentMissingError(
+                "Nothing to update. Provide --tags or an outbound managed identity."
+            )
 
         poller = self.client.namespaces.begin_update(
             resource_group_name=resource_group_name,
@@ -260,3 +267,30 @@ class NamespaceProvider(ADRProvider):
             properties=body,
         )
         return self._wait(poller, f"Updating namespace {namespace_name}...", **kwargs)
+
+    def migrate(
+        self,
+        namespace_name: str,
+        resource_group_name: str,
+        resource_ids: List[str],
+        scope: str,
+        **kwargs,
+    ):
+        resource_ids = [
+            resource_id.strip()
+            for resource_id in resource_ids
+            if isinstance(resource_id, str) and resource_id.strip()
+        ]
+        if not resource_ids:
+            raise RequiredArgumentMissingError("Provide at least one resource ID to migrate.")
+
+        poller = self.client.namespaces.begin_migrate(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            body={"scope": scope, "resourceIds": resource_ids},
+        )
+        return self._wait(
+            poller,
+            f"Migrating {len(resource_ids)} resource(s) into namespace {namespace_name}...",
+            **kwargs,
+        )

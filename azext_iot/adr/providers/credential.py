@@ -6,7 +6,7 @@
 
 from typing import TYPE_CHECKING, Dict, Optional
 
-from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
+from azure.cli.core.azclierror import ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 from knack.log import get_logger
 
@@ -31,28 +31,20 @@ class CredentialProvider(ADRProvider):
         tags: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
-        if not location:
-            namespace = self.client.namespaces.get(
-                resource_group_name=resource_group_name, namespace_name=namespace_name
-            )
-            location = namespace.get("location")
-            if not location:
-                raise AzureResponseError(
-                    "Error attempting to determine location from parent Namespace: "
-                    "Namespace does not contain a location property."
-                )
-
-        with console.status(f"Creating credentials for namespace {namespace_name}..."):
-            resource = {"location": location}
-            if tags:
-                resource["tags"] = tags
-            poller = self.client.credentials.begin_create_or_update(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                resource=resource,
-            )
-            result = self._await_terminal(poller, **kwargs)
-            return result
+        location = self._resolve_location(namespace_name, resource_group_name, location)
+        resource = {"location": location}
+        if tags is not None:
+            resource["tags"] = tags
+        poller = self.client.credentials.begin_create_or_update(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            resource=resource,
+        )
+        return self._wait(
+            poller,
+            f"Creating credentials for namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def show(self, namespace_name: str, resource_group_name: str):
         # Check if parent namespace exists, will 404 if not
@@ -71,36 +63,37 @@ class CredentialProvider(ADRProvider):
             raise
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
-        with console.status(f"Deleting credentials for namespace {namespace_name}..."):
-            poller = self.client.credentials.begin_delete(
-                resource_group_name=resource_group_name, namespace_name=namespace_name
-            )
-            return self._await_terminal(poller, **kwargs)
+        poller = self.client.credentials.begin_delete(
+            resource_group_name=resource_group_name, namespace_name=namespace_name
+        )
+        return self._wait(
+            poller,
+            f"Deleting credentials for namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def synchronize(self, namespace_name: str, resource_group_name: str, **kwargs):
-        with console.status(f"Synchronizing credentials for namespace {namespace_name}..."):
-            poller: LROPoller = self.client.credentials.begin_synchronize(
-                resource_group_name=resource_group_name, namespace_name=namespace_name
+        poller: LROPoller = self.client.credentials.begin_synchronize(
+            resource_group_name=resource_group_name, namespace_name=namespace_name
+        )
+        no_wait = kwargs.pop("no_wait", False)
+        if no_wait:
+            return poller
+        try:
+            result = self._wait(
+                poller,
+                f"Synchronizing credentials for namespace {namespace_name}...",
+                **kwargs,
             )
-            try:
-                result = self._await_terminal(poller, **kwargs)
-            except HttpResponseError as e:
-                # The backend returns 200 OK with an empty body when the LRO completes,
-                # but ARMPolling expects a "status" or "provisioningState" field in the
-                # response to determine the terminal state. Without it, ARMPolling falls
-                # back to the HTTP reason phrase "OK" which is not a recognized terminal
-                # state, causing a false-positive error. A real failure would surface as
-                # a 4xx/5xx status code. Swallow the false positive here.
-                if e.response and e.response.status_code == 200:
-                    logger.debug(
-                        "Synchronize LRO returned HTTP 200 but ARMPolling could not "
-                        "determine terminal state from response body. Treating as success."
-                    )
-                    result = None
-                else:
-                    raise
-            console.print(
-                f"Successfully synchronized credentials for namespace '{namespace_name}'",
-                style="green",
-            )
-            return result
+        except HttpResponseError as e:
+            # The service can complete this action with an empty 200 response,
+            # which older ARMPolling versions do not recognize as terminal.
+            if not e.response or e.response.status_code != 200:
+                raise
+            logger.debug("Treating the empty HTTP 200 synchronize response as success.")
+            result = None
+        console.print(
+            f"Successfully synchronized credentials for namespace '{namespace_name}'",
+            style="green",
+        )
+        return result

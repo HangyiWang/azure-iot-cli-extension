@@ -8,7 +8,7 @@
 ADR device lifecycle integration tests.
 
 Exercises the full `iot adr ns device` command surface (create / show / list /
-update / revoke / delete) directly against a minimal namespace + default policy.
+update / delete) directly against a minimal namespace + default policy.
 No external SDK or DPS provisioning is required -- devices are created via the
 CLI itself.
 
@@ -28,11 +28,15 @@ from azext_iot.tests.adr.conftest import (
     generate_device_id,
 )
 
-# Substring of the provider's `CLIError` stub message emitted while the
-# Microsoft.DeviceRegistry revoke API is still being finalized. Once the
-# backend ships, the revoke call will succeed and the post-revoke assertions
-# in Step 9 will run automatically -- no test changes required.
-_REVOKE_STUB_MARKER = "not available yet"
+
+_ENDPOINT_NAME = "eventGridEndpoint"
+_ENDPOINT_TYPE = "Microsoft.Devices/IoTHubs"
+_CREATE_ENDPOINT_ADDRESS = (
+    "https://myeventgridtopic.westeurope-1.eventgrid.azure.net/api/events"
+)
+_UPDATE_ENDPOINT_ADDRESS = (
+    "https://updatedeventgridtopic.westeurope-1.eventgrid.azure.net/api/events"
+)
 
 
 @pytest.mark.usefixtures("set_cwd")
@@ -41,7 +45,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     No DPS, hub, or preview SDK required -- a single ADR namespace with the
     default credential policy is enough to cover create / show / list /
-    update (all option groups) / revoke / delete and the corresponding
+    update (all option groups) / delete and the corresponding
     negative paths.
     """
 
@@ -85,6 +89,11 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 created = device_cmd(
                     f"create -n {device_id} "
                     f"--manufacturer Contoso --model SensorPro --os Linux --os-version 1.2.3 "
+                    f"--external-device-id external-42 --enabled true "
+                    f"--attributes '{{\"site\":\"west\"}}' "
+                    f"--endpoints '{{\"outbound\":{{\"assigned\":{{\"{_ENDPOINT_NAME}\":"
+                    f"{{\"address\":\"{_CREATE_ENDPOINT_ADDRESS}\","
+                    f"\"endpointType\":\"{_ENDPOINT_TYPE}\"}}}}}}}}' "
                     f"--policy-resource-id {policy_resource_id} --tags env=int owner=adr-tests"
                 ).get_output_in_json()
                 assert created["name"] == device_id
@@ -93,6 +102,16 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 assert cp.get("model") == "SensorPro"
                 assert cp.get("operatingSystem") == "Linux"
                 assert cp.get("operatingSystemVersion") == "1.2.3"
+                assert cp.get("externalDeviceId") == "external-42"
+                assert cp.get("enabled") is True
+                assert cp.get("attributes", {}).get("site") == "west"
+                assigned_endpoint = (
+                    cp["endpoints"]["outbound"]["assigned"][_ENDPOINT_NAME]
+                )
+                assert assigned_endpoint == {
+                    "address": _CREATE_ENDPOINT_ADDRESS,
+                    "endpointType": _ENDPOINT_TYPE,
+                }
                 assert (cp.get("policy") or {}).get("resourceId") == policy_resource_id
                 assert created.get("tags", {}).get("env") == "int"
                 assert created.get("tags", {}).get("owner") == "adr-tests"
@@ -140,19 +159,36 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             # --- Step 7: Update --attributes set + clear ---
             with timed_step("Step 7 ❯ Update --attributes set & clear"):
                 updated = device_cmd(
-                    f'update -n {device_id} --attributes \'{{{{"region": "us", "tier": 1}}}}\''
+                    f'update -n {device_id} --attributes \'{{"region": "us", "tier": 1}}\''
                 ).get_output_in_json()
                 assert props(updated).get("attributes", {}).get("region") == "us"
                 assert props(updated).get("attributes", {}).get("tier") == 1
                 _log(LogKind.OK, "attributes set on device '%s'", device_id)
 
-                updated = device_cmd(f"update -n {device_id} --attributes ''").get_output_in_json()
+                updated = device_cmd(
+                    f"update -n {device_id} --attributes '{{}}'"
+                ).get_output_in_json()
                 attrs = props(updated).get("attributes")
-                assert attrs == {} or attrs is None
+                assert attrs == {}
                 _log(LogKind.OK, "attributes cleared on device '%s'", device_id)
 
-            # --- Step 8: Update --policy-resource-id clear + reassign ---
-            with timed_step("Step 8 ❯ Update --policy-resource-id clear & reassign"):
+            with timed_step("Step 8 ❯ Update contract-valid --endpoints"):
+                updated = device_cmd(
+                    f'update -n {device_id} --endpoints '
+                    f'\'{{"outbound":{{"assigned":{{"{_ENDPOINT_NAME}":'
+                    f'{{"address":"{_UPDATE_ENDPOINT_ADDRESS}",'
+                    f'"endpointType":"{_ENDPOINT_TYPE}"}}}}}}}}\''
+                ).get_output_in_json()
+                assigned_endpoint = (
+                    props(updated)["endpoints"]["outbound"]["assigned"][_ENDPOINT_NAME]
+                )
+                assert assigned_endpoint == {
+                    "address": _UPDATE_ENDPOINT_ADDRESS,
+                    "endpointType": _ENDPOINT_TYPE,
+                }
+
+            # --- Step 9: Update --policy-resource-id clear + reassign ---
+            with timed_step("Step 9 ❯ Update --policy-resource-id clear & reassign"):
                 updated = device_cmd(
                     f"update -n {device_id} --policy-resource-id ''"
                 ).get_output_in_json()
@@ -166,67 +202,12 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 assert (props(updated).get("policy") or {}).get("resourceId") == policy_resource_id
                 _log(LogKind.OK, "policy reassigned on device '%s'", device_id)
 
-            # --- Step 9: Revoke (graceful while backend API is being finalized) ---
-            with timed_step("Step 9 ❯ Revoke credentials"):
-                # Re-enable device first; policy already assigned.
-                device_cmd(f"update -n {device_id} --enabled true")
-
-                def revoke_and_check(revoke_args, expected_enabled, label):
-                    """Call revoke and verify; tolerate the stub `CLIError` until the backend ships."""
-                    full_cmd = f"revoke -n {device_id} {revoke_args} -y".strip()
-                    try:
-                        revoke_result = device_cmd(full_cmd).get_output_in_json()
-                    except Exception as e:  # noqa: BLE001 - stub returns CLIError until backend ships
-                        msg = str(e)
-                        if _REVOKE_STUB_MARKER in msg:
-                            _log(
-                                LogKind.WARN,
-                                "[%s] revoke API not yet shipped -- deferring assertions. msg=%s",
-                                label, msg[:200],
-                            )
-                            return
-                        raise
-
-                    _log(
-                        LogKind.OK,
-                        "[%s] Revoke response: result=%s, error=%s",
-                        label,
-                        revoke_result.get("result"),
-                        revoke_result.get("error"),
-                    )
-                    assert revoke_result.get("error") is None, (
-                        f"[{label}] Revoke returned error: {revoke_result.get('error')}"
-                    )
-
-                    d = device_cmd(f"show -n {device_id}").get_output_in_json()
-                    dp = props(d)
-                    if expected_enabled is not None:
-                        assert dp.get("enabled") is expected_enabled, (
-                            f"[{label}] expected enabled={expected_enabled}, got {dp.get('enabled')}"
-                        )
-                    _log(
-                        LogKind.OK,
-                        "[%s] ADR device: enabled=%s, version=%s",
-                        label, dp.get("enabled"), dp.get("version"),
-                    )
-
-                revoke_and_check("", expected_enabled=True, label="revoke-default")
-                revoke_and_check("--disable", expected_enabled=False, label="revoke-disable")
-                revoke_and_check("", expected_enabled=None, label="revoke-while-disabled")
-
-                device_cmd(f"update -n {device_id} --enabled true")
-                _log(LogKind.RESULT, "Device re-enabled for idempotency test")
-                revoke_and_check("", expected_enabled=True, label="revoke-idempotency")
-
-            # --- Step 10: Negative: revoke nonexistent device ---
-            with timed_step("Step 10 ❯ Negative: revoke nonexistent device fails"):
-                bad_revoke = (
-                    f"iot adr ns device revoke -n nonexistent-device "
-                    f"--ns {namespace_name} -g {rg} -y"
+            with timed_step("Step 10 ❯ Reject empty update"):
+                self.cmd(
+                    f"iot adr ns device update -n {device_id} "
+                    f"--ns {namespace_name} -g {rg}",
+                    expect_failure=True,
                 )
-                _log(LogKind.CMD, "az %s  (expect failure)", bad_revoke)
-                self.cmd(bad_revoke, expect_failure=True)
-                _log(LogKind.OK, "Revoking nonexistent device correctly failed")
 
             # --- Step 11: Minimal create (no optional flags) round-trip ---
             with timed_step("Step 11 ❯ Create device with no optional flags"):

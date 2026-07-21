@@ -18,22 +18,24 @@ def adr_policy_create(
     policy_name: str,
     namespace_name: str,
     resource_group_name: str,
+    location: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
     certificate_key_type: Optional[str] = None,
-    certificate_subject: Optional[str] = None,
     certificate_validity_days: Optional[int] = None,
     enable_byor: Optional[bool] = None,
+    no_wait: bool = False,
 ):
     provider = PolicyProvider(cmd)
     return provider.create(
         policy_name=policy_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
+        location=location,
         tags=tags,
         certificate_key_type=certificate_key_type,
-        certificate_subject=certificate_subject,
         certificate_validity_days=certificate_validity_days,
         enable_byor=enable_byor,
+        no_wait=no_wait,
     )
 
 
@@ -49,10 +51,15 @@ def adr_policy_list(cmd, namespace_name: str, resource_group_name: str):
     return provider.list(namespace_name=namespace_name, resource_group_name=resource_group_name)
 
 
-def adr_policy_delete(cmd, policy_name: str, namespace_name: str, resource_group_name: str):
+def adr_policy_delete(
+    cmd, policy_name: str, namespace_name: str, resource_group_name: str, no_wait: bool = False
+):
     provider = PolicyProvider(cmd)
     return provider.delete(
-        policy_name=policy_name, namespace_name=namespace_name, resource_group_name=resource_group_name
+        policy_name=policy_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        no_wait=no_wait,
     )
 
 
@@ -63,6 +70,7 @@ def adr_policy_update(
     resource_group_name: str,
     tags: Optional[Dict[str, str]] = None,
     certificate_validity_days: Optional[int] = None,
+    no_wait: bool = False,
 ):
     provider = PolicyProvider(cmd)
     return provider.update(
@@ -71,6 +79,7 @@ def adr_policy_update(
         resource_group_name=resource_group_name,
         tags=tags,
         certificate_validity_days=certificate_validity_days,
+        no_wait=no_wait,
     )
 
 
@@ -79,12 +88,14 @@ def adr_policy_revoke_issuer(
     policy_name: str,
     namespace_name: str,
     resource_group_name: str,
+    no_wait: bool = False,
 ):
     provider = PolicyProvider(cmd)
     return provider.revoke_issuer(
         policy_name=policy_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
+        no_wait=no_wait,
     )
 
 
@@ -94,6 +105,7 @@ def adr_policy_activate_byor(
     namespace_name: str,
     resource_group_name: str,
     certificate_chain_file: str,
+    no_wait: bool = False,
 ):
     from azext_iot.common.utility import read_file_content
 
@@ -104,4 +116,5 @@ def adr_policy_activate_byor(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         certificate_chain=certificate_chain,
+        no_wait=no_wait,
     )

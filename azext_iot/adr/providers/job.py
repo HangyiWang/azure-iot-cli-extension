@@ -4,11 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-# The SDK client does not currently expose the `jobs` or `job_runs` members, so
-# suppress the resulting no-member false positives.
-# pylint: disable=no-member
-
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import isodate
 from azure.cli.core.azclierror import (
@@ -16,30 +12,21 @@ from azure.cli.core.azclierror import (
     InvalidArgumentValueError,
 )
 from azure.cli.core.commands.client_factory import get_subscription_id
-from knack.log import get_logger
-
 from azext_iot.adr.common import (
-    JOB_RUN_IN_FLIGHT_STATUSES,
     JobSchedulingType,
     JobType,
 )
 from azext_iot.adr.providers.base import ADRProvider
 
-logger = get_logger(__name__)
-
-
-# Error templates
-_ONLY_UPDATE_SUPPORTED_MSG = (
-    "Only --type Update is supported in this preview release. "
-    "'Action' and 'State' are not currently supported."
-)
 _TARGET_GROUP_REQUIRED_MSG = (
-    "--target-group-name is required. The target group must live in the same namespace and resource "
-    "group as the job (cross-namespace targets are not supported in this preview release)."
+    "--target-group-name is required for --type SoftwareUpdate. The group must be in the "
+    "same namespace and resource group as the job."
 )
+_TARGET_GROUP_FORBIDDEN_MSG = "--target-group-name cannot be used with --type OnboardingUpdate."
 _UPDATE_FIELDS_REQUIRED_MSG = (
-    "--update-id-provider, --update-id-name, and --update-id-version are required for --type Update."
+    "--update-id-provider, --update-id-name, and --update-id-version are required."
 )
+_INVALID_JOB_TYPE_MSG = "--type must be SoftwareUpdate or OnboardingUpdate."
 _IMMUTABLE_FIELDS_MSG = (
     "Only --tags can be modified after creation. The job's --type, --target-group-name, --update-id-* and "
     "scheduling fields are immutable. To change these, delete and recreate the job."
@@ -53,6 +40,7 @@ _INVALID_SCHEDULED_TIME_MSG = (
 _NOTHING_TO_UPDATE_MSG = (
     "Nothing to update. Pass --tags k=v [k2=v2 ...] to set tags or --tags \"\" to clear all tags."
 )
+_JOB_TYPES = {item.value for item in JobType}
 
 
 def _compose_group_arm_id(
@@ -84,61 +72,54 @@ class JobProvider(ADRProvider):
         update_name: Optional[str] = None,
         update_version: Optional[str] = None,
         target_group_name: Optional[str] = None,
-        job_type: str = JobType.update.value,
+        job_type: str = JobType.software_update.value,
+        description: Optional[str] = None,
         location: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
         **kwargs,
     ):
-        """Create a job in the namespace.
-
-        Only ``jobType: Update`` is currently supported. The CLI rejects
-        ``Action``/``State`` client-side with a clear message even though help
-        names them for forward-compat.
-
-        The target group is always resolved against the job's own namespace and
-        resource group (cross-namespace targets are not supported in this
-        preview release).
-        """
-        # Reject non-Update types client-side (forward-compat enum surface).
-        if job_type != JobType.update.value:
-            raise ArgumentUsageError(_ONLY_UPDATE_SUPPORTED_MSG)
-
-        if not target_group_name:
+        """Create a software-update or onboarding-update job."""
+        if job_type not in _JOB_TYPES:
+            raise ArgumentUsageError(_INVALID_JOB_TYPE_MSG)
+        if job_type == JobType.software_update.value and not target_group_name:
             raise ArgumentUsageError(_TARGET_GROUP_REQUIRED_MSG)
+        if job_type == JobType.onboarding_update.value and target_group_name:
+            raise ArgumentUsageError(_TARGET_GROUP_FORBIDDEN_MSG)
 
-        target_resource_id = _compose_group_arm_id(
-            subscription_id=get_subscription_id(self.cmd.cli_ctx),
-            resource_group_name=resource_group_name,
-            namespace_name=namespace_name,
-            group_name=target_group_name,
-        )
-
-        # Update-job requires the ADU update identity triple (passed opaquely;
-        # no ADU preflight).
         if not (update_provider and update_name and update_version):
             raise ArgumentUsageError(_UPDATE_FIELDS_REQUIRED_MSG)
 
-        if not location:
-            location = self._ensure_location(self.cmd.cli_ctx, resource_group_name, location)
+        location = self._resolve_location(namespace_name, resource_group_name, location)
 
-        resource = {
-            "location": location,
-            "properties": {
-                "jobType": JobType.update.value,
-                "target": {"targetResourceId": target_resource_id},
-                "definition": {
-                    "schedulingType": JobSchedulingType.continuous.value,
-                    "update": {
-                        "updateId": {
-                            "provider": update_provider,
-                            "name": update_name,
-                            "version": update_version,
-                        }
-                    },
+        job_properties = {
+            "jobType": job_type,
+            "definition": {
+                "schedulingType": JobSchedulingType.continuous.value,
+                "update": {
+                    "updateId": {
+                        "provider": update_provider,
+                        "name": update_name,
+                        "version": update_version,
+                    }
                 },
             },
         }
-        if tags:
+        if description is not None:
+            job_properties["description"] = description
+        if job_type == JobType.software_update.value:
+            target_resource_id = _compose_group_arm_id(
+                subscription_id=get_subscription_id(self.cmd.cli_ctx),
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                group_name=target_group_name,
+            )
+            job_properties["target"] = {"resourceId": target_resource_id}
+
+        resource = {
+            "location": location,
+            "properties": job_properties,
+        }
+        if tags is not None:
             resource["tags"] = tags
 
         poller = self.client.jobs.begin_create_or_replace(
@@ -212,26 +193,6 @@ class JobProvider(ADRProvider):
         resource_group_name: str,
         **kwargs,
     ):
-        """Delete a job from the namespace.
-
-        Surface a best-effort warning if any in-flight runs (status in
-        ``Scheduled``/``Queued``/``Active``) belong to this job; deletion
-        proceeds regardless (the backend DELETE cancels affected runs with
-        ``CanceledByCustomer``).
-        """
-        in_flight_runs = self._check_in_flight_runs(
-            job_name=job_name,
-            namespace_name=namespace_name,
-            resource_group_name=resource_group_name,
-        )
-        if in_flight_runs:
-            logger.warning(
-                "%d in-flight run(s) for job '%s' will be cancelled: %s",
-                len(in_flight_runs),
-                job_name,
-                ", ".join(in_flight_runs),
-            )
-
         poller = self.client.jobs.begin_delete(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
@@ -277,37 +238,6 @@ class JobProvider(ADRProvider):
             poller, f"Scheduling job '{job_name}' in namespace {namespace_name}...", **kwargs
         )
 
-    def _check_in_flight_runs(
-        self,
-        job_name: str,
-        namespace_name: str,
-        resource_group_name: str,
-    ) -> List[str]:
-        """Return identifiers of in-flight job runs for this job.
-
-        Best-effort: any exception (RBAC, transient SDK error) is logged at
-        warning level and yields an empty list so that deletion is never
-        blocked by a probe-failure.
-        """
-        try:
-            runs = self.client.job_runs.list_by_job(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                job_name=job_name,
-            )
-            return [
-                r.get("name", "<unknown>")
-                for r in runs
-                if (r.get("properties") or {}).get("status") in JOB_RUN_IN_FLIGHT_STATUSES
-            ]
-        except Exception as ex:  # noqa: BLE001 - best-effort probe
-            logger.warning(
-                "Unable to enumerate job runs for '%s' (continuing with delete): %s",
-                job_name,
-                ex,
-            )
-            return []
-
     @staticmethod
     def _validate_iso8601_duration(value: str) -> None:
         """Validate that *value* is an ISO 8601 duration string.
@@ -324,12 +254,12 @@ class JobProvider(ADRProvider):
     def _validate_iso8601_datetime(value: str) -> None:
         """Validate that *value* is an ISO 8601 datetime string.
 
-        Defers to :mod:`isodate` (SDK transitive dep). Accepts both timezone-
-        aware and naive forms - the backend rejects naive values, so we only
-        guard against malformed input here. Raises
-        :class:`InvalidArgumentValueError` on any parse error.
+        The service requires an absolute time, so a timezone offset is
+        mandatory.
         """
         try:
-            isodate.parse_datetime(value)
+            parsed = isodate.parse_datetime(value)
+            if parsed.utcoffset() is None:
+                raise ValueError("timezone offset is required")
         except Exception:  # noqa: BLE001 - any parse error is invalid input
             raise InvalidArgumentValueError(_INVALID_SCHEDULED_TIME_MSG.format(value=value))

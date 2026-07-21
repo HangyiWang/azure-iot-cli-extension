@@ -7,11 +7,12 @@
 """
 ADR job run integration tests (P7).
 
-Covers the **read-only** ``iot adr ns job run`` surface:
+Covers the ``iot adr ns job run`` surface:
 
-* ``run list``    — paginated list of runs for a job
+* ``run list``    — by job or namespace, with optional filtering
 * ``run show``    — single run by name
 * ``run results`` — per-device target results, paginated manually via nextLink
+* ``run cancel``  — cancellation LRO when an active run is available
 
 Job runs are produced by the backend after a job is *scheduled* and the
 scheduling window opens. Without a real device-update target deployed to a
@@ -22,11 +23,19 @@ test job. So the integration coverage here is intentionally minimal:
   freshly-scheduled job with no matching devices.
 * Verify ``run show`` on a non-existent run returns a clean error.
 * Verify ``run results`` on a non-existent run returns a clean error.
+* Verify ``run cancel`` on a non-existent run returns a clean error.
 
 The full results-pagination behavior (single page, nextLink follow-through,
 HTTP error propagation, lazy generator) is covered exhaustively by
 :mod:`azext_iot.tests.adr.test_adr_job_run_unit`.
+
+Set all of ``azext_iot_adr_job_run_resource_group``,
+``azext_iot_adr_job_run_namespace``, ``azext_iot_adr_job_run_job``, and
+``azext_iot_adr_job_run_name`` to enable the pre-provisioned positive test.
+The supplied run must be active and safe for the test to cancel.
 """
+
+import os
 
 import pytest
 
@@ -49,9 +58,20 @@ def _generate_job_name() -> str:
     return f"testjob{generate_generic_id()[:8]}"
 
 
+_PREPROVISIONED_RUN_ENV_VARS = (
+    "azext_iot_adr_job_run_resource_group",
+    "azext_iot_adr_job_run_namespace",
+    "azext_iot_adr_job_run_job",
+    "azext_iot_adr_job_run_name",
+)
+_PREPROVISIONED_RUN = {
+    variable: os.getenv(variable, "").strip()
+    for variable in _PREPROVISIONED_RUN_ENV_VARS
+}
+
+
 @pytest.mark.usefixtures("set_cwd")
-class TestADRJobRunReadOnly(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
-    """Read-only smoke for ``iot adr ns job run`` surface."""
+class TestADRJobRunSurface(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_adr_job_run_surface_smoke(self):
         _log(LogKind.TEST, "test_adr_job_run_surface_smoke")
@@ -71,6 +91,7 @@ class TestADRJobRunReadOnly(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 self.cmd(
                     f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"--type SoftwareUpdate "
                     f"--target-group-name {group_name} "
                     f"--update-id-provider Contoso --update-id-name fw --update-id-version 1.0.0"
                 )
@@ -92,31 +113,11 @@ class TestADRJobRunReadOnly(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.RESULT, "runs returned=%d", len(runs))
 
-                # If the backend did produce a run, exercise show + results
-                # against the first one to confirm the surface end-to-end.
-                if runs:
-                    first = runs[0]
-                    run_name = first.get("name")
-                    _log(LogKind.RESULT, "first run name=%s", run_name)
-
-                    shown = self.cmd(
-                        f"iot adr ns job run show --ns {namespace_name} -g {rg} "
-                        f"--jn {job_name} -n {run_name}"
-                    ).get_output_in_json()
-                    assert shown.get("name") == run_name
-                    _log(LogKind.OK, "run show returned matching name")
-
-                    # results is a generator surfaced as a list; for an empty
-                    # device group it will be [], but the surface itself must
-                    # succeed.
-                    results = self.cmd(
-                        f"iot adr ns job run results --ns {namespace_name} -g {rg} "
-                        f"--jn {job_name} --rn {run_name}"
-                    ).get_output_in_json()
-                    assert isinstance(results, list), (
-                        f"job run results should return list, got {type(results)}"
-                    )
-                    _log(LogKind.OK, "run results returned (count=%d)", len(results))
+                namespace_runs = self.cmd(
+                    f"iot adr ns job run list --ns {namespace_name} -g {rg} "
+                    f"--filter \"status eq 'Active' or status eq 'Succeeded'\""
+                ).get_output_in_json()
+                assert isinstance(namespace_runs, list)
 
             with timed_step("Neg ❯ run show on non-existent run fails cleanly"):
                 self.cmd(
@@ -142,5 +143,45 @@ class TestADRJobRunReadOnly(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "list under non-existent job rejected")
 
+            with timed_step("Neg ❯ run cancel on non-existent run fails cleanly"):
+                self.cmd(
+                    f"iot adr ns job run cancel --ns {namespace_name} -g {rg} "
+                    f"--jn {job_name} --rn does-not-exist-{generate_generic_id()[:8]} -y",
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "cancel for non-existent run rejected")
+
         finally:
             self.cleanup_namespace(namespace_name, rg)
+
+    @pytest.mark.skipif(
+        not all(_PREPROVISIONED_RUN.values()),
+        reason=(
+            "Set azext_iot_adr_job_run_resource_group, "
+            "azext_iot_adr_job_run_namespace, azext_iot_adr_job_run_job, and "
+            "azext_iot_adr_job_run_name to an active pre-provisioned run."
+        ),
+    )
+    def test_adr_preprovisioned_job_run_positive(self):
+        """Exercise every positive run command against an explicitly supplied active run."""
+        rg = _PREPROVISIONED_RUN["azext_iot_adr_job_run_resource_group"]
+        namespace_name = _PREPROVISIONED_RUN["azext_iot_adr_job_run_namespace"]
+        job_name = _PREPROVISIONED_RUN["azext_iot_adr_job_run_job"]
+        run_name = _PREPROVISIONED_RUN["azext_iot_adr_job_run_name"]
+
+        shown = self.cmd(
+            f"iot adr ns job run show --ns {namespace_name} -g {rg} "
+            f"--jn {job_name} --rn {run_name}"
+        ).get_output_in_json()
+        assert shown.get("name") == run_name
+
+        results = self.cmd(
+            f"iot adr ns job run results --ns {namespace_name} -g {rg} "
+            f"--jn {job_name} --rn {run_name} --filter \"status eq 'Succeeded'\""
+        ).get_output_in_json()
+        assert isinstance(results, list)
+
+        self.cmd(
+            f"iot adr ns job run cancel --ns {namespace_name} -g {rg} "
+            f"--jn {job_name} --rn {run_name} -y"
+        )
