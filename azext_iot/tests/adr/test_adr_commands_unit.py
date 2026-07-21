@@ -674,7 +674,7 @@ _SIMPLE_COMMAND_CASES = [
             "group_name": "group",
             "namespace_name": NS,
             "resource_group_name": RG,
-            "query_string": "SELECT * FROM devices",
+            "query_string": "SELECT * FROM DEVICE",
         },
         id="group-create",
     ),

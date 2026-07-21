@@ -41,7 +41,7 @@ class TestADRGroupLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 created = self.cmd(
                     f"iot adr ns group create -n {group_name} "
                     f"--ns {namespace_name} -g {rg} "
-                    '--query-string "SELECT * FROM devices"'
+                    '--query-string "SELECT * FROM DEVICE"'
                 ).get_output_in_json()
                 assert created["name"] == group_name
 

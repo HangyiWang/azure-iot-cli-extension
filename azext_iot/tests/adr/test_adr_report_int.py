@@ -53,7 +53,7 @@ class TestADRReports(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             )
             self.cmd(
                 f"iot adr ns group create -n {group_name} --ns {namespace_name} -g {rg} "
-                '--query-string "SELECT * FROM devices"'
+                '--query-string "SELECT * FROM DEVICE"'
             )
 
             self.cmd(

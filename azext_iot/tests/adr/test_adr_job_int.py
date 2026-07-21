@@ -62,7 +62,7 @@ class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 self.cmd(
                     f"iot adr ns group create -n {group_name} --ns {namespace_name} -g {rg} "
-                    f"--query-string \"SELECT * FROM devices\""
+                    f"--query-string \"SELECT * FROM DEVICE\""
                 )
                 _log(LogKind.OK, "Group '%s' created", group_name)
 
@@ -249,7 +249,7 @@ class TestADRJobValidation(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 self.cmd(
                     f"iot adr ns group create -n {group_name} --ns {namespace_name} -g {rg} "
-                    f"--query-string \"SELECT * FROM devices\""
+                    f"--query-string \"SELECT * FROM DEVICE\""
                 )
 
             with timed_step("Neg 1 ❯ job create missing --target-group-name"):

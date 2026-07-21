@@ -87,7 +87,7 @@ class TestADRJobRunSurface(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 self.cmd(
                     f"iot adr ns group create -n {group_name} --ns {namespace_name} -g {rg} "
-                    f"--query-string \"SELECT * FROM devices\""
+                    f"--query-string \"SELECT * FROM DEVICE\""
                 )
                 self.cmd(
                     f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "

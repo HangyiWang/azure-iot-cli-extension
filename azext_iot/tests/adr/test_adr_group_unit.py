@@ -21,7 +21,7 @@ def test_group_create_all_fields(fixture_group_provider, mock_poller):
         group_name="group",
         namespace_name="namespace",
         resource_group_name="rg",
-        query_string="SELECT * FROM devices",
+        query_string="SELECT * FROM DEVICE",
         group_type="Device",
         location="eastus",
         display_name="Production",
@@ -38,7 +38,7 @@ def test_group_create_all_fields(fixture_group_provider, mock_poller):
             "location": "eastus",
             "properties": {
                 "groupType": "Device",
-                "query": "SELECT * FROM devices",
+                "query": "SELECT * FROM DEVICE",
                 "displayName": "Production",
                 "description": "Production devices",
             },
@@ -57,7 +57,7 @@ def test_group_create_inherits_parent_location(fixture_group_provider, mock_poll
         group_name="group",
         namespace_name="namespace",
         resource_group_name="rg",
-        query_string="SELECT * FROM devices",
+        query_string="SELECT * FROM DEVICE",
     )
 
     fixture_group_provider.client.namespaces.get.assert_called_once_with(
@@ -77,7 +77,7 @@ def test_group_create_no_wait(fixture_group_provider, mock_poller):
         group_name="group",
         namespace_name="namespace",
         resource_group_name="rg",
-        query_string="SELECT * FROM devices",
+        query_string="SELECT * FROM DEVICE",
         location="eastus",
         no_wait=True,
     )

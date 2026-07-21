@@ -778,11 +778,11 @@ def load_adr_help():
     - name: Create a device group with a membership query
       text: |
         az iot adr ns group create -n myGroup --ns myNamespace -g myResourceGroup \\
-          --query-string "SELECT * FROM devices WHERE tags.env = 'prod'"
+          --query-string "SELECT * FROM DEVICE WHERE tags.env = 'prod'"
     - name: Create a device group with a display name and description
       text: |
         az iot adr ns group create -n myGroup --ns myNamespace -g myResourceGroup \\
-          --query-string "SELECT * FROM devices WHERE tags.env = 'prod'" \\
+          --query-string "SELECT * FROM DEVICE WHERE tags.env = 'prod'" \\
           --display-name "Production devices" --description "All prod-tagged devices"
   """
 
