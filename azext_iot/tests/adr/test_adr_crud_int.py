@@ -128,6 +128,17 @@ class TestADRCrudLifecycle(CaptureOutputLiveScenarioTest):
             assert credential_show["properties"]["provisioningState"] == "Succeeded"
             _log(LogKind.OK, "Credential show returned correctly")
 
+            credential_list = self.cmd(
+                f"iot adr ns credential list --ns {namespace_name} -g {rg}"
+            ).get_output_in_json()
+            assert "default" in [item["name"] for item in credential_list]
+
+            credential_update = self.cmd(
+                f"iot adr ns credential update --ns {namespace_name} -g {rg} "
+                "--tags phase=updated"
+            ).get_output_in_json()
+            assert credential_update["tags"]["phase"] == "updated"
+
             # Create default credential policy
             _log(LogKind.STEP, "Step 5 ❯ Default Policy CRUD")
             # TODO - once service issue is resolved, remove extra default inputs besides name

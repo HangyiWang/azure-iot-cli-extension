@@ -4,31 +4,21 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
-from azure.cli.core.azclierror import (
-    CLIInternalError,
-    InvalidArgumentValueError,
-    RequiredArgumentMissingError,
-)
+from azure.cli.core.azclierror import InvalidArgumentValueError, RequiredArgumentMissingError
 
 from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import shell_safe_json_parse
+from azext_iot.adr.providers._resource import (
+    parse_extended_location,
+    parse_json_object,
+)
 
 
 def _parse_json_object(value, argument_name: str):
     if value is None:
         return None
-    if isinstance(value, str):
-        try:
-            value = shell_safe_json_parse(value)
-        except CLIInternalError as error:
-            raise InvalidArgumentValueError(
-                f"{argument_name} must be valid JSON."
-            ) from error
-    if not isinstance(value, dict):
-        raise InvalidArgumentValueError(f"{argument_name} must be a JSON object.")
-    return value
+    return parse_json_object(value, argument_name)
 
 
 def _parse_endpoints(value):
@@ -63,6 +53,7 @@ class DeviceProvider(ADRProvider):
         endpoints: Optional[str] = None,
         discovered_device_ref: Optional[str] = None,
         policy_resource_id: Optional[str] = None,
+        extended_location: Any = None,
         **kwargs,
     ):
         """Create a device in the namespace."""
@@ -91,6 +82,8 @@ class DeviceProvider(ADRProvider):
             inner_props["policy"] = {"resourceId": policy_resource_id}
 
         resource = {"location": location}
+        if extended_location is not None:
+            resource["extendedLocation"] = parse_extended_location(extended_location)
         if inner_props:
             resource["properties"] = inner_props
         if tags is not None:

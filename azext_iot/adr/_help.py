@@ -48,6 +48,8 @@ def load_adr_help():
       text: |
         az iot adr ns create -n myNamespace -g myResourceGroup \\
           --outbound-mi-user-assigned /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<id>
+    - name: Create a namespace with management endpoints from a JSON file
+      text: az iot adr ns create -n myNamespace -g myResourceGroup --management-endpoints management-endpoints.json
   """
 
     helps[
@@ -98,6 +100,10 @@ def load_adr_help():
       text: |
         az iot adr ns update -n myNamespace -g myResourceGroup \\
           --outbound-mi-user-assigned /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<id>
+    - name: Clear the explicit outbound identity and use the namespace default
+      text: az iot adr ns update -n myNamespace -g myResourceGroup --outbound-mi-system-assigned false
+    - name: Replace direct endpoint configuration from inline JSON
+      text: az iot adr ns update -n myNamespace -g myResourceGroup --management-endpoints '{"edge":{"endpointType":"Microsoft.EventGrid/Namespaces","address":"example","scopeId":"scope","resourceId":"/subscriptions/.../providers/Microsoft.EventGrid/namespaces/example"}}'
   """
 
     helps[
@@ -137,6 +143,27 @@ def load_adr_help():
   examples:
     - name: Show namespace credentials
       text: az iot adr ns credential show --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns credential list"
+    ] = """
+  type: command
+  short-summary: List credentials in a Device Registry namespace.
+  examples:
+    - name: List namespace credentials
+      text: az iot adr ns credential list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns credential update"
+    ] = """
+  type: command
+  short-summary: Update writable credential fields.
+  long-summary: The 2026-11-02-preview contract currently permits updating credential tags.
+  examples:
+    - name: Update credential tags
+      text: az iot adr ns credential update --ns myNamespace -g myResourceGroup --tags env=prod
   """
 
     helps[
@@ -459,6 +486,10 @@ def load_adr_help():
       text: |
         az iot adr ns device create -n myDevice --ns myNamespace -g myResourceGroup \\
           --endpoints '{"outbound":{"assigned":{"events":{"endpointType":"Microsoft.Devices","address":"https://example.eventgrid.azure.net/api/events"}}}}'
+    - name: Create a device at a custom location
+      text: |
+        az iot adr ns device create -n myDevice --ns myNamespace -g myResourceGroup \\
+          --extended-location '{"name":"/subscriptions/.../customLocations/edge","type":"CustomLocation"}'
   """
 
     helps[
@@ -784,6 +815,10 @@ def load_adr_help():
         az iot adr ns group create -n myGroup --ns myNamespace -g myResourceGroup \\
           --query-string "SELECT * FROM DEVICE WHERE tags.env = 'prod'" \\
           --display-name "Production devices" --description "All prod-tagged devices"
+    - name: Create a group with a system-assigned identity
+      text: |
+        az iot adr ns group create -n myGroup --ns myNamespace -g myResourceGroup \\
+          --query-string "SELECT * FROM DEVICE" --mi-system-assigned true
   """
 
     helps[
@@ -793,13 +828,15 @@ def load_adr_help():
   short-summary: Update a group in a Device Registry namespace.
   long-summary: |
     PATCH is a long-running operation. Only mutable fields are exposed:
-    --display-name, --description, and --tags. The group's type and membership
+    --display-name, --description, --tags, and its system-assigned identity. The group's type and membership
     query cannot be changed after creation; recreate the group instead.
   examples:
     - name: Update a group's display name
       text: az iot adr ns group update -n myGroup --ns myNamespace -g myResourceGroup --display-name "New name"
     - name: Update a group's description and tags
       text: az iot adr ns group update -n myGroup --ns myNamespace -g myResourceGroup --description "Updated" --tags env=prod
+    - name: Remove a group's system-assigned identity
+      text: az iot adr ns group update -n myGroup --ns myNamespace -g myResourceGroup --mi-system-assigned false
   """
 
     helps[
@@ -1090,3 +1127,323 @@ def load_adr_help():
     - name: Show the latest namespace update-compliance report
       text: az iot adr ns report latest --ns myNamespace -g myResourceGroup --report-type NamespaceUpdateComplianceReport
   """
+
+    helps.update(
+        {
+            "iot adr ns registry-device": """
+  type: group
+  short-summary: Manage Registry Devices in a Device Registry namespace.
+  long-summary: Registry Devices are distinct from Namespace Devices and expose service-materialized authentication profiles, attributes, and capabilities.
+  examples:
+    - name: List Registry Devices
+      text: az iot adr ns registry-device list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device create": """
+  type: command
+  short-summary: Create a Registry Device.
+  examples:
+    - name: Create an enabled Registry Device
+      text: az iot adr ns registry-device create -n myDevice --ns myNamespace -g myResourceGroup --enablement-state Enabled --external-device-id edge-01
+  """,
+            "iot adr ns registry-device show": """
+  type: command
+  short-summary: Show a Registry Device.
+  examples:
+    - name: Show a Registry Device
+      text: az iot adr ns registry-device show -n myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device list": """
+  type: command
+  short-summary: List Registry Devices in a namespace.
+  examples:
+    - name: List Registry Devices
+      text: az iot adr ns registry-device list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device update": """
+  type: command
+  short-summary: Update writable Registry Device properties.
+  examples:
+    - name: Disable a Registry Device
+      text: az iot adr ns registry-device update -n myDevice --ns myNamespace -g myResourceGroup --enablement-state Disabled
+  """,
+            "iot adr ns registry-device delete": """
+  type: command
+  short-summary: Delete a Registry Device.
+  examples:
+    - name: Delete a Registry Device without prompting
+      text: az iot adr ns registry-device delete -n myDevice --ns myNamespace -g myResourceGroup --yes
+  """,
+            "iot adr ns registry-device auth-profile": """
+  type: group
+  short-summary: Inspect authentication profiles materialized beneath a Registry Device.
+  examples:
+    - name: List authentication profiles
+      text: az iot adr ns registry-device auth-profile list --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device auth-profile list": """
+  type: command
+  short-summary: List Registry Device authentication profiles.
+  examples:
+    - name: List authentication profiles
+      text: az iot adr ns registry-device auth-profile list --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device auth-profile show": """
+  type: command
+  short-summary: Show a Registry Device authentication profile.
+  examples:
+    - name: Show an authentication profile
+      text: az iot adr ns registry-device auth-profile show -n default --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device auth-profile get-keys": """
+  type: command
+  short-summary: Retrieve plaintext keys for a symmetric-key authentication profile.
+  long-summary: The response contains secrets. Store and display it securely. The command rejects non-SymmetricKey profiles before requesting keys.
+  examples:
+    - name: Retrieve symmetric keys
+      text: az iot adr ns registry-device auth-profile get-keys -n default --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device auth-profile revoke-certificates": """
+  type: command
+  short-summary: Revoke Microsoft-managed certificates for an authentication profile.
+  long-summary: This destructive action applies only to CertificateAuthority profiles and requires confirmation unless --yes is supplied.
+  examples:
+    - name: Revoke certificates without prompting
+      text: az iot adr ns registry-device auth-profile revoke-certificates -n default --registry-device-name myDevice --ns myNamespace -g myResourceGroup --yes
+  """,
+            "iot adr ns registry-device attribute": """
+  type: group
+  short-summary: Inspect read-only Registry Device attributes.
+  examples:
+    - name: List attributes
+      text: az iot adr ns registry-device attribute list --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device attribute list": """
+  type: command
+  short-summary: List read-only Registry Device attributes.
+  examples:
+    - name: List attributes
+      text: az iot adr ns registry-device attribute list --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device attribute show": """
+  type: command
+  short-summary: Show a read-only Registry Device attribute.
+  examples:
+    - name: Show an attribute
+      text: az iot adr ns registry-device attribute show -n agent --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device capability": """
+  type: group
+  short-summary: Inspect read-only Registry Device capabilities.
+  examples:
+    - name: List capabilities
+      text: az iot adr ns registry-device capability list --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device capability list": """
+  type: command
+  short-summary: List read-only Registry Device capabilities.
+  examples:
+    - name: List capabilities
+      text: az iot adr ns registry-device capability list --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns registry-device capability show": """
+  type: command
+  short-summary: Show a read-only Registry Device capability.
+  examples:
+    - name: Show a capability
+      text: az iot adr ns registry-device capability show -n iothub --registry-device-name myDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns asset": """
+  type: group
+  short-summary: Manage assets beneath a Device Registry namespace.
+  long-summary: Asset definitions use lossless inline JSON or JSON-file input for their nested properties and require a connected device plus custom location.
+  examples:
+    - name: List namespace assets
+      text: az iot adr ns asset list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns asset create": """
+  type: command
+  short-summary: Create a namespace asset.
+  examples:
+    - name: Create an asset from JSON files
+      text: az iot adr ns asset create -n myAsset --ns myNamespace -g myResourceGroup --extended-location extended-location.json --properties asset-properties.json
+  """,
+            "iot adr ns asset show": """
+  type: command
+  short-summary: Show a namespace asset.
+  examples:
+    - name: Show an asset
+      text: az iot adr ns asset show -n myAsset --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns asset list": """
+  type: command
+  short-summary: List assets in a Device Registry namespace.
+  examples:
+    - name: List assets
+      text: az iot adr ns asset list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns asset update": """
+  type: command
+  short-summary: Update writable namespace asset properties.
+  examples:
+    - name: Update an asset from a JSON file
+      text: az iot adr ns asset update -n myAsset --ns myNamespace -g myResourceGroup --properties asset-update.json
+  """,
+            "iot adr ns asset delete": """
+  type: command
+  short-summary: Delete a namespace asset.
+  examples:
+    - name: Delete an asset without prompting
+      text: az iot adr ns asset delete -n myAsset --ns myNamespace -g myResourceGroup --yes
+  """,
+            "iot adr ns asset execute-action": """
+  type: command
+  short-summary: Execute a management action on a namespace asset.
+  examples:
+    - name: Execute an asset action
+      text: az iot adr ns asset execute-action -n myAsset --ns myNamespace -g myResourceGroup --management-group-name maintenance --action-name reboot --payload '{"delaySeconds":5}'
+  """,
+            "iot adr ns discovered-device": """
+  type: group
+  short-summary: Manage discovered-device resources beneath a namespace.
+  long-summary: A Discovered Device is a discovery record, not a promoted Namespace Device.
+  examples:
+    - name: List discovered devices
+      text: az iot adr ns discovered-device list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns discovered-device create": """
+  type: command
+  short-summary: Create or replace a discovered-device resource.
+  examples:
+    - name: Create a discovered device from JSON
+      text: az iot adr ns discovered-device create -n foundDevice --ns myNamespace -g myResourceGroup --extended-location extended-location.json --properties '{"discoveryId":"scan-1","version":1}'
+  """,
+            "iot adr ns discovered-device show": """
+  type: command
+  short-summary: Show a discovered-device resource.
+  examples:
+    - name: Show a discovered device
+      text: az iot adr ns discovered-device show -n foundDevice --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns discovered-device list": """
+  type: command
+  short-summary: List discovered-device resources.
+  examples:
+    - name: List discovered devices
+      text: az iot adr ns discovered-device list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns discovered-device update": """
+  type: command
+  short-summary: Update writable discovered-device properties.
+  examples:
+    - name: Update a discovery version
+      text: az iot adr ns discovered-device update -n foundDevice --ns myNamespace -g myResourceGroup --properties '{"discoveryId":"scan-2","version":2}'
+  """,
+            "iot adr ns discovered-device delete": """
+  type: command
+  short-summary: Delete a discovered-device resource.
+  examples:
+    - name: Delete a discovered device
+      text: az iot adr ns discovered-device delete -n foundDevice --ns myNamespace -g myResourceGroup --yes
+  """,
+            "iot adr ns discovered-asset": """
+  type: group
+  short-summary: Manage discovered-asset resources beneath a namespace.
+  long-summary: A Discovered Asset is a discovery record, not a promoted Namespace Asset.
+  examples:
+    - name: List discovered assets
+      text: az iot adr ns discovered-asset list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns discovered-asset create": """
+  type: command
+  short-summary: Create or replace a discovered-asset resource.
+  examples:
+    - name: Create a discovered asset from a JSON file
+      text: az iot adr ns discovered-asset create -n foundAsset --ns myNamespace -g myResourceGroup --extended-location extended-location.json --properties discovered-asset.json
+  """,
+            "iot adr ns discovered-asset show": """
+  type: command
+  short-summary: Show a discovered-asset resource.
+  examples:
+    - name: Show a discovered asset
+      text: az iot adr ns discovered-asset show -n foundAsset --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns discovered-asset list": """
+  type: command
+  short-summary: List discovered-asset resources.
+  examples:
+    - name: List discovered assets
+      text: az iot adr ns discovered-asset list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns discovered-asset update": """
+  type: command
+  short-summary: Update writable discovered-asset properties.
+  examples:
+    - name: Update a discovered asset from JSON
+      text: az iot adr ns discovered-asset update -n foundAsset --ns myNamespace -g myResourceGroup --properties discovered-asset-update.json
+  """,
+            "iot adr ns discovered-asset delete": """
+  type: command
+  short-summary: Delete a discovered-asset resource.
+  examples:
+    - name: Delete a discovered asset
+      text: az iot adr ns discovered-asset delete -n foundAsset --ns myNamespace -g myResourceGroup --yes
+  """,
+            "iot adr ns identity": """
+  type: group
+  short-summary: Manage identities assigned to a Device Registry namespace.
+  examples:
+    - name: Show namespace identities
+      text: az iot adr ns identity show -n myNamespace -g myResourceGroup
+  """,
+            "iot adr ns identity show": """
+  type: command
+  short-summary: Show identities assigned to a namespace.
+  examples:
+    - name: Show namespace identities
+      text: az iot adr ns identity show -n myNamespace -g myResourceGroup
+  """,
+            "iot adr ns identity assign": """
+  type: command
+  short-summary: Assign system- or user-assigned identities to a namespace.
+  examples:
+    - name: Assign a system and user identity
+      text: az iot adr ns identity assign -n myNamespace -g myResourceGroup --system --user /subscriptions/.../userAssignedIdentities/myIdentity
+  """,
+            "iot adr ns identity remove": """
+  type: command
+  short-summary: Remove system- or user-assigned identities from a namespace.
+  long-summary: An identity configured as the namespace outbound identity must be changed before it can be removed.
+  examples:
+    - name: Remove all user-assigned identities
+      text: az iot adr ns identity remove -n myNamespace -g myResourceGroup --user
+  """,
+            "iot adr ns management-endpoint": """
+  type: group
+  short-summary: Configure namespace management endpoints.
+  examples:
+    - name: List management endpoints
+      text: az iot adr ns management-endpoint list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns management-endpoint set": """
+  type: command
+  short-summary: Add or replace a namespace management endpoint.
+  examples:
+    - name: Set an Event Grid management endpoint
+      text: az iot adr ns management-endpoint set -n edge --ns myNamespace -g myResourceGroup --endpoint-type Microsoft.EventGrid/Namespaces --address example.eastus.ts.eventgrid.azure.net --scope-id scope-1 --resource-id /subscriptions/.../providers/Microsoft.EventGrid/namespaces/example
+  """,
+            "iot adr ns management-endpoint show": """
+  type: command
+  short-summary: Show a namespace management endpoint.
+  examples:
+    - name: Show a management endpoint
+      text: az iot adr ns management-endpoint show -n edge --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns management-endpoint list": """
+  type: command
+  short-summary: List namespace management endpoints.
+  examples:
+    - name: List management endpoints
+      text: az iot adr ns management-endpoint list --ns myNamespace -g myResourceGroup
+  """,
+        }
+    )

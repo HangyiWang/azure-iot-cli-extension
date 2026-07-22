@@ -42,7 +42,7 @@ def _patch_provider(mocker, module, attr):
 
 
 class TestCredentialCommands:
-    @pytest.mark.parametrize("operation", ["create", "delete", "synchronize"])
+    @pytest.mark.parametrize("operation", ["create", "update", "delete", "synchronize"])
     def test_writes_forward_no_wait(self, mocker, cmd, operation):
         provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
         function = getattr(commands_credential, f"adr_credential_{operation}")
@@ -54,6 +54,8 @@ class TestCredentialCommands:
         }
         if operation == "create":
             kwargs["tags"] = {"a": "b"}
+        elif operation == "update":
+            kwargs["tags"] = {"a": "b"}
 
         function(**kwargs)
 
@@ -64,6 +66,8 @@ class TestCredentialCommands:
         }
         if operation == "create":
             expected["tags"] = {"a": "b"}
+        elif operation == "update":
+            expected["tags"] = {"a": "b"}
         getattr(provider, operation).assert_called_once_with(**expected)
 
     def test_show(self, mocker, cmd):
@@ -72,6 +76,15 @@ class TestCredentialCommands:
             cmd, namespace_name=NS, resource_group_name=RG
         )
         provider.show.assert_called_once_with(
+            namespace_name=NS, resource_group_name=RG
+        )
+
+    def test_list(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
+        commands_credential.adr_credential_list(
+            cmd, namespace_name=NS, resource_group_name=RG
+        )
+        provider.list.assert_called_once_with(
             namespace_name=NS, resource_group_name=RG
         )
 
@@ -97,6 +110,7 @@ class TestDeviceCommands:
             endpoints=ENDPOINTS,
             discovered_device_ref="discovered-1",
             policy_resource_id="/policies/default",
+            extended_location={"name": "/custom/location", "type": "CustomLocation"},
             no_wait=True,
         )
 
@@ -116,6 +130,7 @@ class TestDeviceCommands:
             endpoints=ENDPOINTS,
             discovered_device_ref="discovered-1",
             policy_resource_id="/policies/default",
+            extended_location={"name": "/custom/location", "type": "CustomLocation"},
             no_wait=True,
         )
 
@@ -172,6 +187,7 @@ class TestNamespaceCommands:
             certificate_key_type="ECC",
             certificate_validity_days=30,
             outbound_mi_system_assigned=True,
+            management_endpoints={"edge": {}},
             no_wait=True,
         )
         provider.create.assert_called_once_with(
@@ -184,6 +200,10 @@ class TestNamespaceCommands:
             certificate_validity_days=30,
             outbound_mi_system_assigned=True,
             outbound_mi_user_assigned=None,
+            management_endpoints={"edge": {}},
+            messaging_endpoints=None,
+            provisioning_endpoints=None,
+            updating_endpoints=None,
             no_wait=True,
         )
 
@@ -212,6 +232,7 @@ class TestNamespaceCommands:
             namespace_name=NS,
             resource_group_name=RG,
             tags={"a": "b"},
+            management_endpoints={},
             no_wait=True,
         )
         provider.update.assert_called_once_with(
@@ -220,7 +241,99 @@ class TestNamespaceCommands:
             tags={"a": "b"},
             outbound_mi_system_assigned=None,
             outbound_mi_user_assigned=None,
+            management_endpoints={},
+            messaging_endpoints=None,
+            provisioning_endpoints=None,
+            updating_endpoints=None,
             no_wait=True,
+        )
+
+    @pytest.mark.parametrize(
+        "function_name, provider_method, kwargs",
+        [
+            (
+                "adr_namespace_identity_show",
+                "identity_show",
+                {},
+            ),
+            (
+                "adr_namespace_identity_assign",
+                "identity_assign",
+                {
+                    "system_assigned": True,
+                    "user_assigned_identities": ["/identity"],
+                    "no_wait": True,
+                },
+            ),
+            (
+                "adr_namespace_identity_remove",
+                "identity_remove",
+                {
+                    "system_assigned": False,
+                    "user_assigned_identities": ["/identity"],
+                    "no_wait": True,
+                },
+            ),
+        ],
+    )
+    def test_identity_commands(
+        self, mocker, cmd, function_name, provider_method, kwargs
+    ):
+        provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
+        getattr(commands_namespace, function_name)(
+            cmd,
+            namespace_name=NS,
+            resource_group_name=RG,
+            **kwargs,
+        )
+        getattr(provider, provider_method).assert_called_once_with(
+            namespace_name=NS,
+            resource_group_name=RG,
+            **kwargs,
+        )
+
+    def test_management_endpoint_set(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
+        commands_namespace.adr_namespace_management_endpoint_set(
+            cmd,
+            endpoint_name="edge",
+            namespace_name=NS,
+            resource_group_name=RG,
+            endpoint_type="custom",
+            address="example",
+            scope_id="scope",
+            resource_id="/resource",
+            no_wait=True,
+        )
+        provider.management_endpoint_set.assert_called_once_with(
+            endpoint_name="edge",
+            namespace_name=NS,
+            resource_group_name=RG,
+            endpoint_type="custom",
+            address="example",
+            scope_id="scope",
+            resource_id="/resource",
+            no_wait=True,
+        )
+        commands_namespace.adr_namespace_management_endpoint_show(
+            cmd,
+            endpoint_name="edge",
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+        provider.management_endpoint_show.assert_called_once_with(
+            endpoint_name="edge",
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+        commands_namespace.adr_namespace_management_endpoint_list(
+            cmd,
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+        provider.management_endpoint_list.assert_called_once_with(
+            namespace_name=NS,
+            resource_group_name=RG,
         )
 
 
@@ -312,6 +425,33 @@ class TestPolicyCommands:
 
 
 class TestGroupCommands:
+    @pytest.mark.parametrize("operation", ["create", "update"])
+    def test_identity_configuration(self, mocker, cmd, operation):
+        provider = _patch_provider(mocker, commands_group, "GroupProvider")
+        kwargs = {
+            "group_name": "group",
+            "namespace_name": NS,
+            "resource_group_name": RG,
+            "mi_system_assigned": True,
+        }
+        if operation == "create":
+            kwargs["query_string"] = "SELECT * FROM DEVICE"
+
+        getattr(commands_group, f"adr_group_{operation}")(cmd, **kwargs)
+
+        expected = dict(kwargs)
+        expected.update(
+            {
+                "display_name": None,
+                "description": None,
+                "tags": None,
+                "no_wait": False,
+            }
+        )
+        if operation == "create":
+            expected.update({"group_type": "Device", "location": None})
+        getattr(provider, operation).assert_called_once_with(**expected)
+
     def test_list_members(self, mocker, cmd):
         provider = _patch_provider(mocker, commands_group, "GroupProvider")
         commands_group.adr_group_list_members(

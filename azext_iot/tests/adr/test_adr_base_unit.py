@@ -15,6 +15,10 @@ from azure.cli.core.azclierror import (
 from azure.core.exceptions import HttpResponseError
 
 from azext_iot.adr.providers.base import ADRProvider
+from azext_iot.tests.adr._helpers import (
+    is_retryable_resource_error,
+    wait_for_resource_succeeded,
+)
 
 
 @pytest.mark.parametrize("input_location", ["location", None])
@@ -603,3 +607,84 @@ def test_raise_if_parent_not_found_translates_matching_error(
         fixture_adr_provider._raise_if_parent_not_found(
             error, "friendly message"
         )
+
+
+def test_wait_for_resource_succeeded_retries_initial_not_found():
+    test = Mock()
+    response = Mock()
+    response.get_output_in_json.return_value = {
+        "properties": {"provisioningState": "Succeeded"}
+    }
+    test.cmd.side_effect = [RuntimeError("ResourceNotFound (404)"), response]
+
+    with patch("azext_iot.tests.adr._helpers.time.sleep") as sleep:
+        result = wait_for_resource_succeeded(
+            test, "show resource", max_polls=2, poll_interval=0
+        )
+
+    assert result["properties"]["provisioningState"] == "Succeeded"
+    sleep.assert_called_once_with(0)
+
+
+def test_wait_for_resource_succeeded_raises_terminal_failure():
+    response = Mock()
+    response.get_output_in_json.return_value = {
+        "properties": {"provisioningState": "Failed"}
+    }
+    test = Mock()
+    test.cmd.return_value = response
+
+    with pytest.raises(AssertionError, match="terminal state 'Failed'"):
+        wait_for_resource_succeeded(
+            test, "show resource", max_polls=1, poll_interval=0
+        )
+
+
+def test_wait_for_resource_succeeded_times_out_with_last_error():
+    test = Mock()
+    test.cmd.side_effect = RuntimeError("ResourceNotFound: still missing")
+
+    with patch("azext_iot.tests.adr._helpers.time.sleep"), pytest.raises(
+        AssertionError, match="still missing"
+    ):
+        wait_for_resource_succeeded(
+            test, "show resource", max_polls=2, poll_interval=0
+        )
+
+
+def test_wait_for_resource_succeeded_propagates_non_retryable_error():
+    test = Mock()
+    test.cmd.side_effect = RuntimeError("invalid command argument")
+
+    with patch("azext_iot.tests.adr._helpers.time.sleep") as sleep, pytest.raises(
+        RuntimeError, match="invalid command argument"
+    ):
+        wait_for_resource_succeeded(
+            test, "show resource", max_polls=2, poll_interval=0
+        )
+
+    sleep.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "status_code",
+    [404, 408, 409, 429, 500, 502, 503, 504],
+)
+def test_retryable_resource_error_uses_structured_status(status_code):
+    error = RuntimeError("structured ARM error")
+    error.status_code = status_code
+    assert is_retryable_resource_error(error)
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Code: Conflict",
+        "Code: InternalServerError",
+        "Code: BadGateway",
+        "Code: ServiceUnavailable",
+        "Code: GatewayTimeout",
+    ],
+)
+def test_retryable_resource_error_uses_symbolic_code(message):
+    assert is_retryable_resource_error(RuntimeError(message))

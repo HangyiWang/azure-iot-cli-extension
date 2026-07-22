@@ -4,7 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from azext_iot.adr.providers.device import DeviceProvider
 
@@ -26,6 +26,7 @@ def adr_device_create(
     endpoints: Optional[str] = None,
     discovered_device_ref: Optional[str] = None,
     policy_resource_id: Optional[str] = None,
+    extended_location: Any = None,
     no_wait: bool = False,
 ):
     provider = DeviceProvider(cmd)
@@ -45,6 +46,7 @@ def adr_device_create(
         endpoints=endpoints,
         discovered_device_ref=discovered_device_ref,
         policy_resource_id=policy_resource_id,
+        extended_location=extended_location,
         no_wait=no_wait,
     )
 

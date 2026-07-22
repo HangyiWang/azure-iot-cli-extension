@@ -15,6 +15,7 @@ Contains:
 """
 
 import os
+import re
 import subprocess
 import tempfile
 import time
@@ -39,6 +40,76 @@ ROLE_PROPAGATION_DELAY = 30
 POLICY_PROPAGATION_DELAY = 15
 BYOR_ACTIVATION_POLL_INTERVAL = 15
 BYOR_ACTIVATION_MAX_POLLS = 24  # up to ~6 minutes
+RESOURCE_POLL_INTERVAL = 10
+RESOURCE_MAX_POLLS = 30
+RESOURCE_RETRYABLE_STATUS_CODES = {
+    404,
+    408,
+    409,
+    429,
+    500,
+    502,
+    503,
+    504,
+}
+RESOURCE_RETRYABLE_ERROR = re.compile(
+    r"ResourceNotFound|ParentResourceNotFound|"
+    r"RequestTimeout|TooManyRequests|Conflict|"
+    r"InternalServerError|BadGateway|ServiceUnavailable|GatewayTimeout|"
+    r"\b(408|409|429|500|502|503|504)\b",
+    re.IGNORECASE,
+)
+
+
+def is_retryable_resource_error(error: Exception) -> bool:
+    status_code = getattr(error, "status_code", None)
+    if status_code is None:
+        status_code = getattr(getattr(error, "response", None), "status_code", None)
+    return (
+        status_code in RESOURCE_RETRYABLE_STATUS_CODES
+        or RESOURCE_RETRYABLE_ERROR.search(str(error)) is not None
+    )
+
+
+def wait_for_resource_succeeded(
+    test,
+    show_command: str,
+    *,
+    max_polls: int = RESOURCE_MAX_POLLS,
+    poll_interval: int = RESOURCE_POLL_INTERVAL,
+) -> dict:
+    """Poll an ADR resource until provisioning succeeds or fails."""
+    last_state = None
+    last_error = None
+    for _ in range(max_polls):
+        try:
+            resource = test.cmd(show_command).get_output_in_json()
+        except Exception as error:  # noqa: BLE001 - an initial 404 is expected
+            if not is_retryable_resource_error(error):
+                raise
+            last_error = error
+        else:
+            last_error = None
+            last_state = (resource.get("properties") or {}).get(
+                "provisioningState"
+            )
+            if last_state == "Succeeded":
+                return resource
+            if last_state in {"Failed", "Canceled", "Cancelled"}:
+                raise AssertionError(
+                    f"Resource provisioning reached terminal state '{last_state}'."
+                )
+        time.sleep(poll_interval)
+
+    detail = (
+        f"last state: {last_state}"
+        if last_error is None
+        else f"last error: {last_error}"
+    )
+    raise AssertionError(
+        f"Resource did not reach provisioningState 'Succeeded' "
+        f"after {max_polls} polls ({detail})."
+    )
 
 
 def get_byor_config(policy: dict) -> dict:

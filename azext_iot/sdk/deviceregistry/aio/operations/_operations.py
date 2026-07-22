@@ -34,7 +34,21 @@ from azure.mgmt.core.polling.async_arm_polling import AsyncARMPolling
 
 from ..._serialization import Deserializer, Serializer
 from ...operations._operations import (
+    build_asset_endpoint_profiles_create_or_replace_request,
+    build_asset_endpoint_profiles_delete_request,
+    build_asset_endpoint_profiles_get_request,
+    build_asset_endpoint_profiles_list_by_resource_group_request,
+    build_asset_endpoint_profiles_list_by_subscription_request,
+    build_asset_endpoint_profiles_update_request,
+    build_assets_create_or_replace_request,
+    build_assets_delete_request,
+    build_assets_get_request,
+    build_assets_list_by_resource_group_request,
+    build_assets_list_by_subscription_request,
+    build_assets_update_request,
     build_async_operation_status_get_request,
+    build_billing_containers_get_request,
+    build_billing_containers_list_by_subscription_request,
     build_certificate_authorities_activate_request,
     build_certificate_authorities_create_or_replace_request,
     build_certificate_authorities_delete_request,
@@ -72,11 +86,27 @@ from ...operations._operations import (
     build_jobs_list_by_namespace_request,
     build_jobs_schedule_request,
     build_jobs_update_request,
+    build_namespace_assets_create_or_replace_request,
+    build_namespace_assets_delete_request,
+    build_namespace_assets_execute_action_request,
+    build_namespace_assets_get_request,
+    build_namespace_assets_list_by_resource_group_request,
+    build_namespace_assets_update_request,
     build_namespace_devices_create_or_replace_request,
     build_namespace_devices_delete_request,
     build_namespace_devices_get_request,
     build_namespace_devices_list_by_resource_group_request,
     build_namespace_devices_update_request,
+    build_namespace_discovered_assets_create_or_replace_request,
+    build_namespace_discovered_assets_delete_request,
+    build_namespace_discovered_assets_get_request,
+    build_namespace_discovered_assets_list_by_resource_group_request,
+    build_namespace_discovered_assets_update_request,
+    build_namespace_discovered_devices_create_or_replace_request,
+    build_namespace_discovered_devices_delete_request,
+    build_namespace_discovered_devices_get_request,
+    build_namespace_discovered_devices_list_by_resource_group_request,
+    build_namespace_discovered_devices_update_request,
     build_namespaces_create_or_replace_request,
     build_namespaces_delete_request,
     build_namespaces_generate_report_request,
@@ -86,6 +116,8 @@ from ...operations._operations import (
     build_namespaces_list_by_subscription_request,
     build_namespaces_migrate_request,
     build_namespaces_update_request,
+    build_operation_status_get_request,
+    build_operations_list_request,
     build_policies_activate_bring_your_own_root_request,
     build_policies_create_or_update_request,
     build_policies_delete_request,
@@ -93,12 +125,3757 @@ from ...operations._operations import (
     build_policies_list_by_credential_request,
     build_policies_revoke_issuer_request,
     build_policies_update_request,
+    build_registry_device_attributes_get_request,
+    build_registry_device_attributes_list_by_device_request,
+    build_registry_device_authentication_profiles_get_keys_request,
+    build_registry_device_authentication_profiles_get_request,
+    build_registry_device_authentication_profiles_list_by_device_request,
+    build_registry_device_authentication_profiles_revoke_certificates_request,
+    build_registry_device_capabilities_get_request,
+    build_registry_device_capabilities_list_by_device_request,
+    build_registry_devices_create_or_replace_request,
+    build_registry_devices_delete_request,
+    build_registry_devices_get_request,
+    build_registry_devices_list_by_namespace_request,
+    build_registry_devices_update_request,
+    build_schema_registries_create_or_replace_request,
+    build_schema_registries_delete_request,
+    build_schema_registries_get_request,
+    build_schema_registries_list_by_resource_group_request,
+    build_schema_registries_list_by_subscription_request,
+    build_schema_registries_update_request,
+    build_schema_versions_create_or_replace_request,
+    build_schema_versions_delete_request,
+    build_schema_versions_get_request,
+    build_schema_versions_list_by_schema_request,
+    build_schemas_create_or_replace_request,
+    build_schemas_delete_request,
+    build_schemas_get_request,
+    build_schemas_list_by_schema_registry_request,
 )
 from .._configuration import MicrosoftDeviceRegistryManagementServiceConfiguration
 
 JSON = MutableMapping[str, Any]
 T = TypeVar("T")
 ClsType = Optional[Callable[[PipelineResponse[HttpRequest, AsyncHttpResponse], T, Dict[str, Any]], Any]]
+
+
+class Operations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`operations` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list(self, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List the operations for the provider.
+
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "actionType": "str",
+                    "display": {
+                        "description": "str",
+                        "operation": "str",
+                        "provider": "str",
+                        "resource": "str"
+                    },
+                    "isDataAction": bool,
+                    "name": "str",
+                    "origin": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_operations_list_request(
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+
+class AssetEndpointProfilesOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`asset_endpoint_profiles` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_subscription(self, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List AssetEndpointProfile resources by subscription ID.
+
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_asset_endpoint_profiles_list_by_subscription_request(
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace
+    def list_by_resource_group(self, resource_group_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List AssetEndpointProfile resources by resource group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_asset_endpoint_profiles_list_by_resource_group_request(
+                    resource_group_name=resource_group_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, asset_endpoint_profile_name: str, **kwargs: Any) -> JSON:
+        """Get a AssetEndpointProfile.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_endpoint_profile_name: Asset Endpoint Profile name parameter. Required.
+        :type asset_endpoint_profile_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_asset_endpoint_profiles_get_request(
+            resource_group_name=resource_group_name,
+            asset_endpoint_profile_name=asset_endpoint_profile_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_replace_initial(
+        self,
+        resource_group_name: str,
+        asset_endpoint_profile_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_asset_endpoint_profiles_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            asset_endpoint_profile_name=asset_endpoint_profile_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        asset_endpoint_profile_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a AssetEndpointProfile.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_endpoint_profile_name: Asset Endpoint Profile name parameter. Required.
+        :type asset_endpoint_profile_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        asset_endpoint_profile_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a AssetEndpointProfile.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_endpoint_profile_name: Asset Endpoint Profile name parameter. Required.
+        :type asset_endpoint_profile_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        asset_endpoint_profile_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a AssetEndpointProfile.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_endpoint_profile_name: Asset Endpoint Profile name parameter. Required.
+        :type asset_endpoint_profile_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                asset_endpoint_profile_name=asset_endpoint_profile_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _update_initial(
+        self,
+        resource_group_name: str,
+        asset_endpoint_profile_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_asset_endpoint_profiles_update_request(
+            resource_group_name=resource_group_name,
+            asset_endpoint_profile_name=asset_endpoint_profile_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        asset_endpoint_profile_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a AssetEndpointProfile.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_endpoint_profile_name: Asset Endpoint Profile name parameter. Required.
+        :type asset_endpoint_profile_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "endpointProfileType": "str",
+                        "targetAddress": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        asset_endpoint_profile_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a AssetEndpointProfile.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_endpoint_profile_name: Asset Endpoint Profile name parameter. Required.
+        :type asset_endpoint_profile_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        asset_endpoint_profile_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a AssetEndpointProfile.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_endpoint_profile_name: Asset Endpoint Profile name parameter. Required.
+        :type asset_endpoint_profile_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "endpointProfileType": "str",
+                        "targetAddress": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "endpointProfileType": "str",
+                        "targetAddress": "str",
+                        "additionalConfiguration": "str",
+                        "authentication": {
+                            "method": "str",
+                            "usernamePasswordCredentials": {
+                                "passwordSecretName": "str",
+                                "usernameSecretName": "str"
+                            },
+                            "x509Credentials": {
+                                "certificateSecretName": "str"
+                            }
+                        },
+                        "discoveredAssetEndpointProfileRef": "str",
+                        "provisioningState": "str",
+                        "status": {
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ]
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._update_initial(
+                resource_group_name=resource_group_name,
+                asset_endpoint_profile_name=asset_endpoint_profile_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, asset_endpoint_profile_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_asset_endpoint_profiles_delete_request(
+            resource_group_name=resource_group_name,
+            asset_endpoint_profile_name=asset_endpoint_profile_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, asset_endpoint_profile_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a AssetEndpointProfile.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_endpoint_profile_name: Asset Endpoint Profile name parameter. Required.
+        :type asset_endpoint_profile_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                asset_endpoint_profile_name=asset_endpoint_profile_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class AssetsOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`assets` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_subscription(self, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List Asset resources by subscription ID.
+
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_assets_list_by_subscription_request(
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace
+    def list_by_resource_group(self, resource_group_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List Asset resources by resource group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_assets_list_by_resource_group_request(
+                    resource_group_name=resource_group_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, asset_name: str, **kwargs: Any) -> JSON:
+        """Get a Asset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_assets_get_request(
+            resource_group_name=resource_group_name,
+            asset_name=asset_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_replace_initial(
+        self, resource_group_name: str, asset_name: str, resource: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_assets_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            asset_name=asset_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        asset_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a Asset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        asset_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a Asset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_replace(
+        self, resource_group_name: str, asset_name: str, resource: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a Asset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                asset_name=asset_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _update_initial(
+        self, resource_group_name: str, asset_name: str, properties: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_assets_update_request(
+            resource_group_name=resource_group_name,
+            asset_name=asset_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        asset_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a Asset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        asset_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a Asset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_update(
+        self, resource_group_name: str, asset_name: str, properties: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a Asset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "assetEndpointProfileRef": "str",
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "observabilityMode": "str"
+                                    }
+                                ],
+                                "datasetConfiguration": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultEventsConfiguration": "str",
+                        "defaultTopic": {
+                            "path": "str",
+                            "retain": "str"
+                        },
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "events": [
+                            {
+                                "eventNotifier": "str",
+                                "name": "str",
+                                "eventConfiguration": "str",
+                                "observabilityMode": "str",
+                                "topic": {
+                                    "path": "str",
+                                    "retain": "str"
+                                }
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "errors": [
+                                {
+                                    "code": 0,
+                                    "message": "str"
+                                }
+                            ],
+                            "events": [
+                                {
+                                    "name": "str",
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "version": 0
+                        },
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._update_initial(
+                resource_group_name=resource_group_name,
+                asset_name=asset_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _delete_initial(self, resource_group_name: str, asset_name: str, **kwargs: Any) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_assets_delete_request(
+            resource_group_name=resource_group_name,
+            asset_name=asset_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(self, resource_group_name: str, asset_name: str, **kwargs: Any) -> AsyncLROPoller[None]:
+        """Delete a Asset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                asset_name=asset_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class BillingContainersOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`billing_containers` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_subscription(self, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List BillingContainer resources by subscription ID.
+
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_billing_containers_list_by_subscription_request(
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(self, billing_container_name: str, **kwargs: Any) -> JSON:
+        """Get a BillingContainer.
+
+        :param billing_container_name: Name of the billing container. Required.
+        :type billing_container_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_billing_containers_get_request(
+            billing_container_name=billing_container_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
 
 
 class AsyncOperationStatusOperations:
@@ -177,6 +3954,113 @@ class AsyncOperationStatusOperations:
         cls: ClsType[JSON] = kwargs.pop("cls", None)
 
         _request = build_async_operation_status_get_request(
+            location=location,
+            operation_id=operation_id,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+
+class OperationStatusOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`operation_status` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace_async
+    async def get(self, location: str, operation_id: str, **kwargs: Any) -> JSON:
+        """Returns the current status of an async operation.
+
+        :param location: The name of the Azure region. Required.
+        :type location: str
+        :param operation_id: The ID of an ongoing async operation. Required.
+        :type operation_id: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "status": "str",
+                    "endTime": "2020-02-20 00:00:00",
+                    "error": {
+                        "additionalInfo": [
+                            {
+                                "info": {},
+                                "type": "str"
+                            }
+                        ],
+                        "code": "str",
+                        "details": [
+                            ...
+                        ],
+                        "message": "str",
+                        "target": "str"
+                    },
+                    "id": "str",
+                    "name": "str",
+                    "operations": [
+                        ...
+                    ],
+                    "percentComplete": 0.0,
+                    "resourceId": "str",
+                    "startTime": "2020-02-20 00:00:00"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_operation_status_get_request(
             location=location,
             operation_id=operation_id,
             subscription_id=self._config.subscription_id,
@@ -3460,6 +7344,5100 @@ class NamespacesOperations:
         if polling is True:
             polling_method: AsyncPollingMethod = cast(
                 AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class SchemaRegistriesOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`schema_registries` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_subscription(self, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List SchemaRegistry resources by subscription ID.
+
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_schema_registries_list_by_subscription_request(
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace
+    def list_by_resource_group(self, resource_group_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List SchemaRegistry resources by resource group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_schema_registries_list_by_resource_group_request(
+                    resource_group_name=resource_group_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, schema_registry_name: str, **kwargs: Any) -> JSON:
+        """Get a SchemaRegistry.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_schema_registries_get_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_replace_initial(
+        self, resource_group_name: str, schema_registry_name: str, resource: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_schema_registries_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a SchemaRegistry.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a SchemaRegistry.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_replace(
+        self, resource_group_name: str, schema_registry_name: str, resource: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a SchemaRegistry.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                schema_registry_name=schema_registry_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _update_initial(
+        self, resource_group_name: str, schema_registry_name: str, properties: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_schema_registries_update_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a SchemaRegistry.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "id": "str",
+                    "identity": {
+                        "type": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "description": "str",
+                        "displayName": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a SchemaRegistry.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_update(
+        self, resource_group_name: str, schema_registry_name: str, properties: Union[JSON, IO[bytes]], **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a SchemaRegistry.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "id": "str",
+                    "identity": {
+                        "type": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "description": "str",
+                        "displayName": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "identity": {
+                        "type": "str",
+                        "principalId": "str",
+                        "tenantId": "str"
+                    },
+                    "name": "str",
+                    "properties": {
+                        "namespace": "str",
+                        "storageAccountContainerUrl": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._update_initial(
+                resource_group_name=resource_group_name,
+                schema_registry_name=schema_registry_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, schema_registry_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_schema_registries_delete_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, schema_registry_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a SchemaRegistry.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                schema_registry_name=schema_registry_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class NamespaceAssetsOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`namespace_assets` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_resource_group(
+        self, resource_group_name: str, namespace_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List NamespaceAsset resources by Namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_namespace_assets_list_by_resource_group_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, namespace_name: str, asset_name: str, **kwargs: Any) -> JSON:
+        """Get a NamespaceAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_namespace_assets_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            asset_name=asset_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_replace_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_namespace_assets_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            asset_name=asset_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a NamespaceAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a NamespaceAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a NamespaceAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                asset_name=asset_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _update_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_namespace_assets_update_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            asset_name=asset_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a NamespaceAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a NamespaceAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a NamespaceAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "discoveredAssetRefs": [
+                            "str"
+                        ],
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "enabled": bool,
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "lastTransitionTime": "2020-02-20 00:00:00",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "status": {
+                            "config": {
+                                "error": {
+                                    "code": "str",
+                                    "details": [
+                                        {
+                                            "code": "str",
+                                            "correlationId": "str",
+                                            "info": "str",
+                                            "message": "str"
+                                        }
+                                    ],
+                                    "message": "str"
+                                },
+                                "lastTransitionTime": "2020-02-20 00:00:00",
+                                "version": 0
+                            },
+                            "datasets": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ],
+                            "eventGroups": [
+                                {
+                                    "name": "str",
+                                    "events": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                                            "messageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "healthState": {
+                                "lastTransitionTime": "str",
+                                "lastUpdateTime": "str",
+                                "message": "str",
+                                "reasonCode": "str",
+                                "status": "str"
+                            },
+                            "managementGroups": [
+                                {
+                                    "name": "str",
+                                    "actions": [
+                                        {
+                                            "name": "str",
+                                            "error": {
+                                                "code": "str",
+                                                "details": [
+                                                    {
+                "code": "str",
+                "correlationId": "str",
+                "info": "str",
+                "message": "str"
+                                                    }
+                                                ],
+                                                "message": "str"
+                                            },
+                "requestMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            },
+                "responseMessageSchemaReference": {
+                                                "schemaName": "str",
+                "schemaRegistryNamespace": "str",
+                                                "schemaVersion":
+                                                  "str"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ],
+                            "streams": [
+                                {
+                                    "name": "str",
+                                    "error": {
+                                        "code": "str",
+                                        "details": [
+                                            {
+                                                "code": "str",
+                                                "correlationId":
+                                                  "str",
+                                                "info": "str",
+                                                "message": "str"
+                                            }
+                                        ],
+                                        "message": "str"
+                                    },
+                                    "messageSchemaReference": {
+                                        "schemaName": "str",
+                                        "schemaRegistryNamespace": "str",
+                                        "schemaVersion": "str"
+                                    }
+                                }
+                            ]
+                        },
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "uuid": "str",
+                        "version": 0
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._update_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                asset_name=asset_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, asset_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_namespace_assets_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            asset_name=asset_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, namespace_name: str, asset_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a NamespaceAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                asset_name=asset_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _execute_action_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        body: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(body, (IOBase, bytes)):
+            _content = body
+        else:
+            _json = body
+
+        _request = build_namespace_assets_execute_action_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            asset_name=asset_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_execute_action(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        body: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """A long-running resource action.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param body: The content of the action request. Required.
+        :type body: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "managementActionName": "str",
+                    "managementGroupName": "str",
+                    "payload": {
+                        "str": {}
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "assetResourceId": "str",
+                    "managementActionName": "str",
+                    "managementGroupName": "str",
+                    "status": "str",
+                    "error": {
+                        "code": "str",
+                        "details": [
+                            {
+                                "code": "str",
+                                "correlationId": "str",
+                                "info": "str",
+                                "message": "str"
+                            }
+                        ],
+                        "message": "str"
+                    },
+                    "response": "str"
+                }
+        """
+
+    @overload
+    async def begin_execute_action(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        body: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """A long-running resource action.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param body: The content of the action request. Required.
+        :type body: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "assetResourceId": "str",
+                    "managementActionName": "str",
+                    "managementGroupName": "str",
+                    "status": "str",
+                    "error": {
+                        "code": "str",
+                        "details": [
+                            {
+                                "code": "str",
+                                "correlationId": "str",
+                                "info": "str",
+                                "message": "str"
+                            }
+                        ],
+                        "message": "str"
+                    },
+                    "response": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_execute_action(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        asset_name: str,
+        body: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """A long-running resource action.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param asset_name: The name of the asset. Required.
+        :type asset_name: str
+        :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type body: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                body = {
+                    "managementActionName": "str",
+                    "managementGroupName": "str",
+                    "payload": {
+                        "str": {}
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "assetResourceId": "str",
+                    "managementActionName": "str",
+                    "managementGroupName": "str",
+                    "status": "str",
+                    "error": {
+                        "code": "str",
+                        "details": [
+                            {
+                                "code": "str",
+                                "correlationId": "str",
+                                "info": "str",
+                                "message": "str"
+                            }
+                        ],
+                        "message": "str"
+                    },
+                    "response": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._execute_action_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                asset_name=asset_name,
+                body=body,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
             )
         elif polling is False:
             polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
@@ -10946,6 +19924,3772 @@ class NamespaceDevicesOperations:
         return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
 
+class NamespaceDiscoveredAssetsOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`namespace_discovered_assets` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_resource_group(
+        self, resource_group_name: str, namespace_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List NamespaceDiscoveredAsset resources by Namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_namespace_discovered_assets_list_by_resource_group_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self, resource_group_name: str, namespace_name: str, discovered_asset_name: str, **kwargs: Any
+    ) -> JSON:
+        """Get a NamespaceDiscoveredAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_asset_name: The name of the discovered asset. Required.
+        :type discovered_asset_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_namespace_discovered_assets_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            discovered_asset_name=discovered_asset_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_replace_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_asset_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_namespace_discovered_assets_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            discovered_asset_name=discovered_asset_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_asset_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a NamespaceDiscoveredAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_asset_name: The name of the discovered asset. Required.
+        :type discovered_asset_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_asset_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a NamespaceDiscoveredAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_asset_name: The name of the discovered asset. Required.
+        :type discovered_asset_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_asset_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a NamespaceDiscoveredAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_asset_name: The name of the discovered asset. Required.
+        :type discovered_asset_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                discovered_asset_name=discovered_asset_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _update_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_asset_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_namespace_discovered_assets_update_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            discovered_asset_name=discovered_asset_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_asset_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a NamespaceDiscoveredAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_asset_name: The name of the discovered asset. Required.
+        :type discovered_asset_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "version": 0
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_asset_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a NamespaceDiscoveredAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_asset_name: The name of the discovered asset. Required.
+        :type discovered_asset_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_asset_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a NamespaceDiscoveredAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_asset_name: The name of the discovered asset. Required.
+        :type discovered_asset_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "version": 0
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "deviceRef": {
+                            "deviceName": "str",
+                            "endpointName": "str"
+                        },
+                        "discoveryId": "str",
+                        "version": 0,
+                        "assetTypeRefs": [
+                            "str"
+                        ],
+                        "attributes": {
+                            "str": {}
+                        },
+                        "datasets": [
+                            {
+                                "name": "str",
+                                "dataPoints": [
+                                    {
+                                        "dataSource": "str",
+                                        "name": "str",
+                                        "dataPointConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "datasetConfiguration": "str",
+                                "destinations": [
+                                    dataset_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "defaultDatasetsConfiguration": "str",
+                        "defaultDatasetsDestinations": [
+                            dataset_destination
+                        ],
+                        "defaultEventsConfiguration": "str",
+                        "defaultEventsDestinations": [
+                            event_destination
+                        ],
+                        "defaultManagementGroupsConfiguration": "str",
+                        "defaultStreamsConfiguration": "str",
+                        "defaultStreamsDestinations": [
+                            stream_destination
+                        ],
+                        "description": "str",
+                        "displayName": "str",
+                        "documentationUri": "str",
+                        "eventGroups": [
+                            {
+                                "name": "str",
+                                "dataSource": "str",
+                                "defaultDestinations": [
+                                    event_destination
+                                ],
+                                "eventGroupConfiguration": "str",
+                                "events": [
+                                    {
+                                        "name": "str",
+                                        "dataSource": "str",
+                                        "destinations": [
+                                            event_destination
+                                        ],
+                                        "eventConfiguration": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "typeRef": "str"
+                            }
+                        ],
+                        "externalAssetId": "str",
+                        "hardwareRevision": "str",
+                        "managementGroups": [
+                            {
+                                "name": "str",
+                                "actions": [
+                                    {
+                                        "name": "str",
+                                        "targetUri": "str",
+                                        "actionConfiguration": "str",
+                                        "actionType": "str",
+                                        "lastUpdatedOn": "2020-02-20
+                                          00:00:00",
+                                        "timeoutInSeconds": 0,
+                                        "topic": "str",
+                                        "typeRef": "str"
+                                    }
+                                ],
+                                "dataSource": "str",
+                                "defaultTimeoutInSeconds": 100,
+                                "defaultTopic": "str",
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "managementGroupConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ],
+                        "manufacturer": "str",
+                        "manufacturerUri": "str",
+                        "model": "str",
+                        "productCode": "str",
+                        "provisioningState": "str",
+                        "serialNumber": "str",
+                        "softwareRevision": "str",
+                        "streams": [
+                            {
+                                "name": "str",
+                                "destinations": [
+                                    stream_destination
+                                ],
+                                "lastUpdatedOn": "2020-02-20 00:00:00",
+                                "streamConfiguration": "str",
+                                "typeRef": "str"
+                            }
+                        ]
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._update_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                discovered_asset_name=discovered_asset_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, discovered_asset_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_namespace_discovered_assets_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            discovered_asset_name=discovered_asset_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, namespace_name: str, discovered_asset_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a NamespaceDiscoveredAsset.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_asset_name: The name of the discovered asset. Required.
+        :type discovered_asset_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                discovered_asset_name=discovered_asset_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class NamespaceDiscoveredDevicesOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`namespace_discovered_devices` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_resource_group(
+        self, resource_group_name: str, namespace_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List NamespaceDiscoveredDevice resources by Namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_namespace_discovered_devices_list_by_resource_group_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self, resource_group_name: str, namespace_name: str, discovered_device_name: str, **kwargs: Any
+    ) -> JSON:
+        """Get a NamespaceDiscoveredDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_device_name: The name of the discovered device. Required.
+        :type discovered_device_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_namespace_discovered_devices_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            discovered_device_name=discovered_device_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_replace_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_device_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_namespace_discovered_devices_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            discovered_device_name=discovered_device_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_device_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a NamespaceDiscoveredDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_device_name: The name of the discovered device. Required.
+        :type discovered_device_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_device_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a NamespaceDiscoveredDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_device_name: The name of the discovered device. Required.
+        :type discovered_device_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_device_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a NamespaceDiscoveredDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_device_name: The name of the discovered device. Required.
+        :type discovered_device_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                discovered_device_name=discovered_device_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _update_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_device_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_namespace_discovered_devices_update_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            discovered_device_name=discovered_device_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_device_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a NamespaceDiscoveredDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_device_name: The name of the discovered device. Required.
+        :type discovered_device_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "attributes": {
+                            "str": {}
+                        },
+                        "discoveryId": "str",
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "additionalConfiguration": "str",
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "operatingSystemVersion": "str",
+                        "version": 0
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_device_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a NamespaceDiscoveredDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_device_name: The name of the discovered device. Required.
+        :type discovered_device_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        discovered_device_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a NamespaceDiscoveredDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_device_name: The name of the discovered device. Required.
+        :type discovered_device_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "properties": {
+                        "attributes": {
+                            "str": {}
+                        },
+                        "discoveryId": "str",
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "additionalConfiguration": "str",
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "operatingSystemVersion": "str",
+                        "version": 0
+                    },
+                    "tags": {
+                        "str": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "extendedLocation": {
+                        "name": "str",
+                        "type": "str"
+                    },
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "discoveryId": "str",
+                        "version": 0,
+                        "attributes": {
+                            "str": {}
+                        },
+                        "endpoints": {
+                            "inbound": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "additionalConfiguration": "str",
+                                    "lastUpdatedOn": "2020-02-20 00:00:00",
+                                    "supportedAuthenticationMethods": [
+                                        "str"
+                                    ],
+                                    "version": "str"
+                                }
+                            },
+                            "outbound": {
+                                "assigned": {
+                                    "str": {
+                                        "address": "str",
+                                        "endpointType": "str"
+                                    }
+                                }
+                            }
+                        },
+                        "externalDeviceId": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "operatingSystem": "str",
+                        "operatingSystemVersion": "str",
+                        "provisioningState": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._update_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                discovered_device_name=discovered_device_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, discovered_device_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_namespace_discovered_devices_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            discovered_device_name=discovered_device_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, namespace_name: str, discovered_device_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a NamespaceDiscoveredDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param discovered_device_name: The name of the discovered device. Required.
+        :type discovered_device_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                discovered_device_name=discovered_device_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
 class GroupsOperations:
     """
     .. warning::
@@ -14786,6 +27530,3368 @@ class JobsOperations:
                 job_name=job_name,
                 body=body,
                 content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class RegistryDevicesOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`registry_devices` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
+        """List RegistryDevice resources by Namespace.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_registry_devices_list_by_namespace_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any
+    ) -> JSON:
+        """Get a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_registry_devices_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _create_or_replace_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_registry_devices_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Create a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                registry_device_name=registry_device_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod,
+                AsyncARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs),
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _update_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(properties, (IOBase, bytes)):
+            _content = properties
+        else:
+            _json = properties
+
+        _request = build_registry_devices_update_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 202]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        properties: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "softwareRevision": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        properties: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def begin_update(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        properties: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> AsyncLROPoller[JSON]:
+        """Update a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: An instance of AsyncLROPoller that returns JSON object
+        :rtype: ~azure.core.polling.AsyncLROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                properties = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "softwareRevision": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "location": "str",
+                    "etag": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "enablementState": "str",
+                        "externalDeviceId": "str",
+                        "hardwareRevision": "str",
+                        "manufacturer": "str",
+                        "model": "str",
+                        "provisioningState": "str",
+                        "softwareRevision": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._update_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                registry_device_name=registry_device_name,
+                properties=properties,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_registry_devices_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                registry_device_name=registry_device_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class RegistryDeviceAttributesOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`registry_device_attributes` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_device(
+        self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List RegistryDeviceAttribute resources by RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": device_attribute_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_registry_device_attributes_list_by_device_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    registry_device_name=registry_device_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        attribute_name: str,
+        **kwargs: Any
+    ) -> JSON:
+        """Get a RegistryDeviceAttribute.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param attribute_name: The name of the device attribute. Required.
+        :type attribute_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": device_attribute_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_registry_device_attributes_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            attribute_name=attribute_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+
+class RegistryDeviceAuthenticationProfilesOperations:  # pylint: disable=name-too-long
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`registry_device_authentication_profiles` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_device(
+        self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List RegistryDeviceAuthenticationProfile resources by RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "authenticationType":
+
+                # JSON input template for discriminator value "CertificateAuthority":
+                authentication_profile_properties = {
+                    "authenticationType": "CertificateAuthority",
+                    "certificateAuthority": {
+                        "adrCertificatePolicyResourceId": "str"
+                    }
+                }
+
+                # JSON input template for discriminator value "SelfSignedX509Certificate":
+                authentication_profile_properties = {
+                    "authenticationType": "SelfSignedX509Certificate",
+                    "selfSignedThumbprints": {
+                        "primaryThumbprint": "str",
+                        "secondaryThumbprint": "str"
+                    }
+                }
+
+                # JSON input template for discriminator value "SymmetricKey":
+                authentication_profile_properties = {
+                    "authenticationType": "SymmetricKey",
+                    "symmetricKey": {
+                        "primaryKey": "str",
+                        "secondaryKey": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": authentication_profile_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_registry_device_authentication_profiles_list_by_device_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    registry_device_name=registry_device_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        authentication_profile_name: str,
+        **kwargs: Any
+    ) -> JSON:
+        """Get a RegistryDeviceAuthenticationProfile.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param authentication_profile_name: The name of the device authentication profile. Required.
+        :type authentication_profile_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "authenticationType":
+
+                # JSON input template for discriminator value "CertificateAuthority":
+                authentication_profile_properties = {
+                    "authenticationType": "CertificateAuthority",
+                    "certificateAuthority": {
+                        "adrCertificatePolicyResourceId": "str"
+                    }
+                }
+
+                # JSON input template for discriminator value "SelfSignedX509Certificate":
+                authentication_profile_properties = {
+                    "authenticationType": "SelfSignedX509Certificate",
+                    "selfSignedThumbprints": {
+                        "primaryThumbprint": "str",
+                        "secondaryThumbprint": "str"
+                    }
+                }
+
+                # JSON input template for discriminator value "SymmetricKey":
+                authentication_profile_properties = {
+                    "authenticationType": "SymmetricKey",
+                    "symmetricKey": {
+                        "primaryKey": "str",
+                        "secondaryKey": "str"
+                    }
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": authentication_profile_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_registry_device_authentication_profiles_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            authentication_profile_name=authentication_profile_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def get_keys(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        authentication_profile_name: str,
+        **kwargs: Any
+    ) -> JSON:
+        """Retrieve the plaintext symmetric keys of a device authentication profile. Only valid when the
+        profile's authentication type is SymmetricKey; profiles of any other type return 400 with the
+        InvalidAuthenticationType error code.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param authentication_profile_name: The name of the device authentication profile. Required.
+        :type authentication_profile_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "symmetricKey": {
+                        "primaryKey": "str",
+                        "secondaryKey": "str"
+                    }
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_registry_device_authentication_profiles_get_keys_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            authentication_profile_name=authentication_profile_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _revoke_certificates_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        authentication_profile_name: str,
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_registry_device_authentication_profiles_revoke_certificates_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            authentication_profile_name=authentication_profile_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_revoke_certificates(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        authentication_profile_name: str,
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Revoke certificates issued for the device authentication profile. Applies to Microsoft-managed
+        X.509 certificates: invalidates outstanding certificates via the PKI revocation list. The
+        authentication profile itself is preserved.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param authentication_profile_name: The name of the device authentication profile. Required.
+        :type authentication_profile_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._revoke_certificates_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                registry_device_name=registry_device_name,
+                authentication_profile_name=authentication_profile_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class RegistryDeviceCapabilitiesOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`registry_device_capabilities` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_device(
+        self, resource_group_name: str, namespace_name: str, registry_device_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List RegistryDeviceCapability resources by RegistryDevice.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "capabilityType":
+
+                # JSON input template for discriminator value "IoTHub":
+                device_capability_properties = {
+                    "authenticationProfileResourceId": "str",
+                    "capabilityType": "IoTHub",
+                    "enablementState": "str",
+                    "messagingEndpointName": "str",
+                    "provisioningState": "str"
+                }
+
+                # JSON input template for discriminator value "Update":
+                device_capability_properties = {
+                    "capabilityType": "Update",
+                    "enablementState": "str",
+                    "provisioningState": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": device_capability_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_registry_device_capabilities_list_by_device_request(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    registry_device_name=registry_device_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        capability_name: str,
+        **kwargs: Any
+    ) -> JSON:
+        """Get a RegistryDeviceCapability.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param capability_name: The name of the device capability. Required.
+        :type capability_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "capabilityType":
+
+                # JSON input template for discriminator value "IoTHub":
+                device_capability_properties = {
+                    "authenticationProfileResourceId": "str",
+                    "capabilityType": "IoTHub",
+                    "enablementState": "str",
+                    "messagingEndpointName": "str",
+                    "provisioningState": "str"
+                }
+
+                # JSON input template for discriminator value "Update":
+                device_capability_properties = {
+                    "capabilityType": "Update",
+                    "enablementState": "str",
+                    "provisioningState": "str"
+                }
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": device_capability_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_registry_device_capabilities_get_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            capability_name=capability_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+
+class SchemasOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`schemas` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_schema_registry(
+        self, resource_group_name: str, schema_registry_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List Schema resources by SchemaRegistry.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "format": "str",
+                        "schemaType": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "tags": {
+                            "str": "str"
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_schemas_list_by_schema_registry_request(
+                    resource_group_name=resource_group_name,
+                    schema_registry_name=schema_registry_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(self, resource_group_name: str, schema_registry_name: str, schema_name: str, **kwargs: Any) -> JSON:
+        """Get a Schema.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "format": "str",
+                        "schemaType": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "tags": {
+                            "str": "str"
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_schemas_get_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            schema_name=schema_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    @overload
+    async def create_or_replace(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        schema_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a Schema.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "format": "str",
+                        "schemaType": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "tags": {
+                            "str": "str"
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "format": "str",
+                        "schemaType": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "tags": {
+                            "str": "str"
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def create_or_replace(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        schema_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a Schema.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "format": "str",
+                        "schemaType": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "tags": {
+                            "str": "str"
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def create_or_replace(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        schema_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> JSON:
+        """Create a Schema.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "format": "str",
+                        "schemaType": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "tags": {
+                            "str": "str"
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "format": "str",
+                        "schemaType": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "provisioningState": "str",
+                        "tags": {
+                            "str": "str"
+                        },
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_schemas_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            schema_name=schema_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _delete_initial(
+        self, resource_group_name: str, schema_registry_name: str, schema_name: str, **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_schemas_delete_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            schema_name=schema_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self, resource_group_name: str, schema_registry_name: str, schema_name: str, **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a Schema.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                schema_registry_name=schema_registry_name,
+                schema_name=schema_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            await raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: AsyncPollingMethod = cast(
+                AsyncPollingMethod, AsyncARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(AsyncPollingMethod, AsyncNoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return AsyncLROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return AsyncLROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+
+class SchemaVersionsOperations:
+    """
+    .. warning::
+        **DO NOT** instantiate this class directly.
+
+        Instead, you should access the following operations through
+        :class:`~azext_iot.sdk.deviceregistry.aio.MicrosoftDeviceRegistryManagementService`'s
+        :attr:`schema_versions` attribute.
+    """
+
+    def __init__(self, *args, **kwargs) -> None:
+        input_args = list(args)
+        self._client: AsyncPipelineClient = input_args.pop(0) if input_args else kwargs.pop("client")
+        self._config: MicrosoftDeviceRegistryManagementServiceConfiguration = (
+            input_args.pop(0) if input_args else kwargs.pop("config")
+        )
+        self._serialize: Serializer = input_args.pop(0) if input_args else kwargs.pop("serializer")
+        self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
+
+    @distributed_trace
+    def list_by_schema(
+        self, resource_group_name: str, schema_registry_name: str, schema_name: str, **kwargs: Any
+    ) -> AsyncIterable[JSON]:
+        """List SchemaVersion resources by Schema.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :return: An iterator like instance of JSON object
+        :rtype: ~azure.core.async_paging.AsyncItemPaged[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "schemaContent": "str",
+                        "description": "str",
+                        "hash": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        def prepare_request(next_link=None):
+            if not next_link:
+
+                _request = build_schema_versions_list_by_schema_request(
+                    resource_group_name=resource_group_name,
+                    schema_registry_name=schema_registry_name,
+                    schema_name=schema_name,
+                    subscription_id=self._config.subscription_id,
+                    api_version=self._config.api_version,
+                    headers=_headers,
+                    params=_params,
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            else:
+                # make call to next link with the client's api-version
+                _parsed_next_link = urllib.parse.urlparse(next_link)
+                _next_request_params = case_insensitive_dict(
+                    {
+                        key: [urllib.parse.quote(v) for v in value]
+                        for key, value in urllib.parse.parse_qs(_parsed_next_link.query).items()
+                    }
+                )
+                _next_request_params["api-version"] = self._config.api_version
+                _request = HttpRequest(
+                    "GET", urllib.parse.urljoin(next_link, _parsed_next_link.path), params=_next_request_params
+                )
+                _request.url = self._client.format_url(_request.url)
+
+            return _request
+
+        async def extract_data(pipeline_response):
+            deserialized = pipeline_response.http_response.json()
+            list_of_elem = deserialized.get("value", [])
+            if cls:
+                list_of_elem = cls(list_of_elem)  # type: ignore
+            return deserialized.get("nextLink") or None, AsyncList(list_of_elem)
+
+        async def get_next(next_link=None):
+            _request = prepare_request(next_link)
+
+            _stream = False
+            pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+                _request, stream=_stream, **kwargs
+            )
+            response = pipeline_response.http_response
+
+            if response.status_code not in [200]:
+                map_error(status_code=response.status_code, response=response, error_map=error_map)
+                raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+            return pipeline_response
+
+        return AsyncItemPaged(get_next, extract_data)
+
+    @distributed_trace_async
+    async def get(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        schema_name: str,
+        schema_version_name: str,
+        **kwargs: Any
+    ) -> JSON:
+        """Get a SchemaVersion.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :param schema_version_name: Schema version name parameter. Required.
+        :type schema_version_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "schemaContent": "str",
+                        "description": "str",
+                        "hash": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_schema_versions_get_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            schema_name=schema_name,
+            schema_version_name=schema_version_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    @overload
+    async def create_or_replace(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        schema_name: str,
+        schema_version_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a SchemaVersion.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :param schema_version_name: Schema version name parameter. Required.
+        :type schema_version_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "schemaContent": "str",
+                        "description": "str",
+                        "hash": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "schemaContent": "str",
+                        "description": "str",
+                        "hash": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    async def create_or_replace(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        schema_name: str,
+        schema_version_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a SchemaVersion.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :param schema_version_name: Schema version name parameter. Required.
+        :type schema_version_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "schemaContent": "str",
+                        "description": "str",
+                        "hash": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace_async
+    async def create_or_replace(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        schema_name: str,
+        schema_version_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> JSON:
+        """Create a SchemaVersion.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :param schema_version_name: Schema version name parameter. Required.
+        :type schema_version_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "schemaContent": "str",
+                        "description": "str",
+                        "hash": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "schemaContent": "str",
+                        "description": "str",
+                        "hash": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_schema_versions_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            schema_name=schema_name,
+            schema_version_name=schema_version_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    async def _delete_initial(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        schema_name: str,
+        schema_version_name: str,
+        **kwargs: Any
+    ) -> AsyncIterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[AsyncIterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_schema_versions_delete_request(
+            resource_group_name=resource_group_name,
+            schema_registry_name=schema_registry_name,
+            schema_name=schema_name,
+            schema_version_name=schema_version_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = await self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                await response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(AsyncIterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(AsyncIterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace_async
+    async def begin_delete(
+        self,
+        resource_group_name: str,
+        schema_registry_name: str,
+        schema_name: str,
+        schema_version_name: str,
+        **kwargs: Any
+    ) -> AsyncLROPoller[None]:
+        """Delete a SchemaVersion.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param schema_registry_name: Schema registry name parameter. Required.
+        :type schema_registry_name: str
+        :param schema_name: Schema name parameter. Required.
+        :type schema_name: str
+        :param schema_version_name: Schema version name parameter. Required.
+        :type schema_version_name: str
+        :return: An instance of AsyncLROPoller that returns None
+        :rtype: ~azure.core.polling.AsyncLROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, AsyncPollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = await self._delete_initial(
+                resource_group_name=resource_group_name,
+                schema_registry_name=schema_registry_name,
+                schema_name=schema_name,
+                schema_version_name=schema_version_name,
                 cls=lambda x, y, z: x,
                 headers=_headers,
                 params=_params,

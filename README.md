@@ -9,7 +9,7 @@ The **Azure IoT extension for Azure CLI** aims to accelerate the development, ma
 
 - ❗ When upgrading your Azure CLI core version, for the best experience and to avoid breaking changes, we recommend updating your `azure-iot` extension to the [latest available](https://github.com/Azure/azure-iot-cli-extension/releases).
 
-- 🆕 **`0.33.0b6` Preview** updates `az iot adr ns` to the `2026-11-02-preview` Device Registry management API. It includes namespace/device CRUD, Hub/DPS/ADU update-instance links, CMS certificate authorities and policies, groups, `SoftwareUpdate`/`OnboardingUpdate` jobs, paged and cancellable job runs, namespace migration, and update-compliance reports. Unsupported registry-device, device-revoke, and link-remove commands are no longer exposed. See [HISTORY.rst](HISTORY.rst) for details. Install with `az extension add --name azure-iot --allow-preview`.
+- 🆕 **`0.33.0b6` Preview** updates `az iot adr ns` to the complete namespace-scoped `2026-11-02-preview` Device Registry management contract. It adds Registry Device CRUD and child Authentication Profile/Attribute/Capability commands, Namespace Asset CRUD and `execute-action`, Discovered Device and Discovered Asset CRUD, credential list/update, namespace identity and management-endpoint commands, Namespace Device extended locations, and Group identity support. Existing namespace, links, CMS, devices, groups, jobs, job runs, migration, and reporting commands remain supported. See [HISTORY.rst](HISTORY.rst) for details. Install with `az extension add --name azure-iot --allow-preview`.
 
 - Azure CLI `2.24.0` requires an `azure-iot` extension update to `0.10.11` or later for IoT Hub commands to work properly. However **we recommend** at least `azure-iot` `0.10.14`. Updating the extension can be done with `az extension update --name azure-iot`.
 
@@ -108,14 +108,20 @@ Group
     az iot adr ns : Manage Device Registry namespaces.
 
 Subgroups:
+    asset                   : Manage assets beneath a Device Registry namespace.
     ca                      : Manage certificate authorities for a Device Registry namespace.
     credential [Deprecated] : Manage Device Registry namespace credentials.
     device                  : Manage Device Registry namespace devices.
+    discovered-asset        : Manage discovered-asset resources beneath a namespace.
+    discovered-device       : Manage discovered-device resources beneath a namespace.
     group                   : Manage Device Registry namespace groups.
+    identity                : Manage identities assigned to a Device Registry namespace.
     job                     : Manage Device Registry namespace jobs.
     link                    : Manage links between a Device Registry namespace and downstream
                               resources.
+    management-endpoint     : Configure namespace management endpoints.
     policy     [Deprecated] : Manage Device Registry namespace policies.
+    registry-device         : Manage Registry Devices in a Device Registry namespace.
     report                  : Manage Device Registry update-compliance reports.
 
 Commands:

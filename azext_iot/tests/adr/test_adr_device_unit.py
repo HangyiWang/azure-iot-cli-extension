@@ -111,6 +111,54 @@ def test_device_create_inherits_parent_namespace_location(
     assert resource["location"] == "westus2"
 
 
+def test_device_create_supports_extended_location(
+    fixture_device_provider, mock_poller
+):
+    fixture_device_provider.client.namespace_devices.begin_create_or_replace.return_value = (
+        mock_poller({})
+    )
+
+    fixture_device_provider.create(
+        "device",
+        "namespace",
+        "rg",
+        location="eastus",
+        extended_location='{"name":"/customLocations/edge","type":"CustomLocation"}',
+    )
+
+    resource = fixture_device_provider.client.namespace_devices.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]
+    assert resource["extendedLocation"] == {
+        "name": "/customLocations/edge",
+        "type": "CustomLocation",
+    }
+
+
+@pytest.mark.parametrize(
+    "extended_location",
+    [
+        '{"name":"/customLocations/edge"}',
+        '{"name":"","type":"CustomLocation"}',
+        '{"name":"/customLocations/edge","type":"CustomLocation","extra":true}',
+    ],
+)
+def test_device_create_validates_extended_location(
+    fixture_device_provider, extended_location
+):
+    with pytest.raises(
+        (InvalidArgumentValueError, RequiredArgumentMissingError)
+    ):
+        fixture_device_provider.create(
+            "device",
+            "namespace",
+            "rg",
+            location="eastus",
+            extended_location=extended_location,
+        )
+    fixture_device_provider.client.namespace_devices.begin_create_or_replace.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "argument,value",
     [

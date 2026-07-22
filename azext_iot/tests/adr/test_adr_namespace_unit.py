@@ -11,6 +11,7 @@ from azure.cli.core.azclierror import (
     InvalidArgumentValueError,
     MutuallyExclusiveArgumentError,
     RequiredArgumentMissingError,
+    ResourceNotFoundError,
 )
 
 from azext_iot.adr.common import (
@@ -18,7 +19,10 @@ from azext_iot.adr.common import (
     DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     DEFAULT_NS_POLICY_NAME,
 )
-from azext_iot.adr.providers.namespace import _build_namespace_identity
+from azext_iot.adr.providers.namespace import (
+    _build_namespace_identity,
+    _managed_identity_type,
+)
 
 
 UAMI_ID = (
@@ -219,6 +223,23 @@ def test_namespace_identity_can_be_user_assigned_only():
     }
 
 
+@pytest.mark.parametrize(
+    "has_system_assigned,user_identity_ids,expected",
+    [
+        (True, set(), "SystemAssigned"),
+        (False, {UAMI_ID}, "UserAssigned"),
+        (False, set(), "None"),
+    ],
+)
+def test_managed_identity_type(
+    has_system_assigned, user_identity_ids, expected
+):
+    assert (
+        _managed_identity_type(has_system_assigned, user_identity_ids)
+        == expected
+    )
+
+
 def test_namespace_legacy_bootstrap_failures_are_nonfatal(
     fixture_namespace_provider,
     fixture_credential_provider,
@@ -290,6 +311,33 @@ def test_namespace_outbound_identity_is_mutually_exclusive(
             location="eastus",
             outbound_mi_system_assigned=True,
             outbound_mi_user_assigned=UAMI_ID,
+        )
+
+
+def test_namespace_rejects_invalid_user_assigned_identity(
+    fixture_namespace_provider,
+):
+    with pytest.raises(InvalidArgumentValueError, match="resource ID"):
+        fixture_namespace_provider.create(
+            "namespace",
+            "rg",
+            location="eastus",
+            outbound_mi_user_assigned="not-an-arm-id",
+        )
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.assert_not_called()
+
+
+def test_namespace_rejects_non_uami_resource_id(fixture_namespace_provider):
+    storage_id = (
+        "/subscriptions/sub/resourceGroups/rg/providers/"
+        "Microsoft.Storage/storageAccounts/account"
+    )
+    with pytest.raises(InvalidArgumentValueError, match="userAssignedIdentities"):
+        fixture_namespace_provider.create(
+            "namespace",
+            "rg",
+            location="eastus",
+            outbound_mi_user_assigned=storage_id,
         )
 
 
@@ -368,6 +416,34 @@ def test_namespace_update_outbound_uami_preserves_identity_assignments(
     }
 
 
+def test_namespace_update_outbound_uami_deduplicates_id_casing(
+    fixture_namespace_provider, mock_poller
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {
+            "type": "UserAssigned",
+            "userAssignedIdentities": {UAMI_ID: {}},
+        }
+    }
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = (
+        mock_poller({})
+    )
+
+    fixture_namespace_provider.update(
+        "namespace",
+        "rg",
+        outbound_mi_user_assigned=UAMI_ID.replace("identity", "IDENTITY"),
+    )
+
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body["identity"] == {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {UAMI_ID: {}},
+    }
+
+
 def test_namespace_update_rejects_empty_patch(fixture_namespace_provider):
     with pytest.raises(RequiredArgumentMissingError, match="Nothing to update"):
         fixture_namespace_provider.update("namespace", "rg")
@@ -384,6 +460,447 @@ def test_namespace_update_no_wait(fixture_namespace_provider, mock_poller):
 
     assert result is poller
     poller.result.assert_not_called()
+
+
+def test_namespace_create_accepts_direct_endpoint_configuration(
+    fixture_namespace_provider, mock_poller
+):
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace", "resourceGroup": "rg"})
+    )
+
+    fixture_namespace_provider.create(
+        "namespace",
+        "rg",
+        location="eastus",
+        management_endpoints='{"edge":{"endpointType":"Custom"}}',
+        messaging_endpoints={"hub": {"endpointType": "Microsoft.Devices/IotHubs"}},
+    )
+
+    resource = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]
+    assert resource["properties"] == {
+        "management": {
+            "endpoints": {"edge": {"endpointType": "Custom"}}
+        },
+        "messaging": {
+            "endpoints": {
+                "hub": {"endpointType": "Microsoft.Devices/IotHubs"}
+            }
+        },
+    }
+
+
+def test_namespace_update_accepts_direct_endpoint_configuration(
+    fixture_namespace_provider, mock_poller
+):
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {}
+    )
+
+    fixture_namespace_provider.update(
+        "namespace",
+        "rg",
+        provisioning_endpoints={},
+        updating_endpoints='{"adu":{"endpointType":"Microsoft.DeviceUpdate/updateInstances"}}',
+    )
+
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body == {
+        "properties": {
+            "provisioning": {"endpoints": {}},
+            "updating": {
+                "endpoints": {
+                    "adu": {
+                        "endpointType": "Microsoft.DeviceUpdate/updateInstances"
+                    }
+                }
+            },
+        }
+    }
+
+
+def test_namespace_update_can_clear_explicit_outbound_identity(
+    fixture_namespace_provider, mock_poller
+):
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {}
+    )
+
+    fixture_namespace_provider.update(
+        "namespace", "rg", outbound_mi_system_assigned=False
+    )
+
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body == {"properties": {"outboundIdentity": None}}
+
+
+def test_namespace_identity_show(fixture_namespace_provider):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {"type": "SystemAssigned"}
+    }
+
+    assert fixture_namespace_provider.identity_show("namespace", "rg") == {
+        "type": "SystemAssigned"
+    }
+
+
+def test_namespace_identity_assign_preserves_existing_assignments(
+    fixture_namespace_provider, mock_poller
+):
+    existing_id = UAMI_ID.replace("identity", "existing")
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {
+            "type": "SystemAssigned,UserAssigned",
+            "userAssignedIdentities": {existing_id: {}},
+        }
+    }
+    expected_identity = {
+        "type": "SystemAssigned,UserAssigned",
+        "userAssignedIdentities": {existing_id: {}, UAMI_ID: {}},
+    }
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = (
+        mock_poller({"identity": expected_identity})
+    )
+
+    result = fixture_namespace_provider.identity_assign(
+        "namespace", "rg", user_assigned_identities=[UAMI_ID]
+    )
+
+    assert result == expected_identity
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body == {"identity": expected_identity}
+
+
+def test_namespace_identity_assign_rejects_noop(fixture_namespace_provider):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {"type": "SystemAssigned"}
+    }
+
+    with pytest.raises(InvalidArgumentValueError, match="already assigned"):
+        fixture_namespace_provider.identity_assign(
+            "namespace", "rg", system_assigned=True
+        )
+    fixture_namespace_provider.client.namespaces.begin_update.assert_not_called()
+
+
+def test_namespace_identity_assignment_compares_ids_case_insensitively(
+    fixture_namespace_provider,
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {
+            "type": "UserAssigned",
+            "userAssignedIdentities": {UAMI_ID: {}},
+        }
+    }
+
+    with pytest.raises(InvalidArgumentValueError, match="already assigned"):
+        fixture_namespace_provider.identity_assign(
+            "namespace",
+            "rg",
+            user_assigned_identities=[UAMI_ID.replace("identity", "IDENTITY")],
+        )
+
+
+def test_namespace_identity_assign_requires_selection(fixture_namespace_provider):
+    with pytest.raises(RequiredArgumentMissingError, match="Specify"):
+        fixture_namespace_provider.identity_assign("namespace", "rg")
+
+
+def test_namespace_identity_assign_rejects_empty_id(fixture_namespace_provider):
+    with pytest.raises(InvalidArgumentValueError, match="must not be empty"):
+        fixture_namespace_provider.identity_assign(
+            "namespace", "rg", user_assigned_identities=[""]
+        )
+
+
+def test_namespace_identity_assign_system_only_no_wait(
+    fixture_namespace_provider, mock_poller
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {"type": "None"}
+    }
+    poller = mock_poller({})
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = poller
+
+    result = fixture_namespace_provider.identity_assign(
+        "namespace", "rg", system_assigned=True, no_wait=True
+    )
+
+    assert result is poller
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body == {"identity": {"type": "SystemAssigned"}}
+
+
+def test_namespace_identity_remove_uses_null_uami_patch(
+    fixture_namespace_provider, mock_poller
+):
+    keep_id = UAMI_ID.replace("identity", "keep")
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {
+            "type": "SystemAssigned,UserAssigned",
+            "userAssignedIdentities": {UAMI_ID: {}, keep_id: {}},
+        }
+    }
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = (
+        mock_poller(
+            {
+                "identity": {
+                    "type": "SystemAssigned,UserAssigned",
+                    "userAssignedIdentities": {keep_id: {}},
+                }
+            }
+        )
+    )
+
+    fixture_namespace_provider.identity_remove(
+        "namespace", "rg", user_assigned_identities=[UAMI_ID]
+    )
+
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body == {
+        "identity": {
+            "type": "SystemAssigned,UserAssigned",
+            "userAssignedIdentities": {keep_id: {}, UAMI_ID: None},
+        }
+    }
+
+
+def test_namespace_identity_removal_compares_ids_case_insensitively(
+    fixture_namespace_provider, mock_poller
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {
+            "type": "UserAssigned",
+            "userAssignedIdentities": {UAMI_ID: {}},
+        }
+    }
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = (
+        mock_poller({"identity": {"type": "None"}})
+    )
+
+    fixture_namespace_provider.identity_remove(
+        "namespace",
+        "rg",
+        user_assigned_identities=[UAMI_ID.replace("identity", "IDENTITY")],
+    )
+
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body == {
+        "identity": {
+            "type": "None",
+            "userAssignedIdentities": {UAMI_ID: None},
+        }
+    }
+
+
+def test_namespace_identity_remove_rejects_outbound_identity(
+    fixture_namespace_provider,
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {
+            "type": "SystemAssigned,UserAssigned",
+            "userAssignedIdentities": {UAMI_ID: {}},
+        },
+        "properties": {
+            "outboundIdentity": {
+                "type": "UserAssigned",
+                "userAssignedIdentity": UAMI_ID,
+            }
+        },
+    }
+
+    with pytest.raises(InvalidArgumentValueError, match="outbound"):
+        fixture_namespace_provider.identity_remove(
+            "namespace", "rg", user_assigned_identities=[UAMI_ID]
+        )
+
+
+def test_namespace_identity_remove_requires_selection(fixture_namespace_provider):
+    with pytest.raises(RequiredArgumentMissingError, match="Specify"):
+        fixture_namespace_provider.identity_remove("namespace", "rg")
+
+
+def test_namespace_identity_remove_rejects_empty_namespace(
+    fixture_namespace_provider,
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {"type": "None"}
+    }
+    with pytest.raises(InvalidArgumentValueError, match="no user-assigned"):
+        fixture_namespace_provider.identity_remove(
+            "namespace", "rg", user_assigned_identities=[]
+        )
+
+
+def test_namespace_identity_remove_rejects_unassigned_identity(
+    fixture_namespace_provider,
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {"type": "SystemAssigned"}
+    }
+    with pytest.raises(InvalidArgumentValueError, match="not assigned"):
+        fixture_namespace_provider.identity_remove(
+            "namespace", "rg", user_assigned_identities=[UAMI_ID]
+        )
+
+
+def test_namespace_identity_remove_rejects_missing_system_identity(
+    fixture_namespace_provider,
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {"type": "None"}
+    }
+    with pytest.raises(InvalidArgumentValueError, match="does not have"):
+        fixture_namespace_provider.identity_remove(
+            "namespace", "rg", system_assigned=True
+        )
+
+
+def test_namespace_identity_remove_rejects_system_outbound_identity(
+    fixture_namespace_provider,
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {"type": "SystemAssigned"},
+        "properties": {"outboundIdentity": {"type": "SystemAssigned"}},
+    }
+    with pytest.raises(InvalidArgumentValueError, match="outbound"):
+        fixture_namespace_provider.identity_remove(
+            "namespace", "rg", system_assigned=True
+        )
+
+
+def test_namespace_identity_remove_system_only_no_wait(
+    fixture_namespace_provider, mock_poller
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "identity": {"type": "SystemAssigned"}
+    }
+    poller = mock_poller({})
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = poller
+
+    result = fixture_namespace_provider.identity_remove(
+        "namespace", "rg", system_assigned=True, no_wait=True
+    )
+
+    assert result is poller
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body == {"identity": {"type": "None"}}
+
+
+def test_namespace_management_endpoint_set_show_and_list(
+    fixture_namespace_provider, mock_poller
+):
+    endpoint = {
+        "endpointType": "Microsoft.EventGrid/Namespaces",
+        "address": "example",
+        "scopeId": "scope",
+        "resourceId": (
+            "/subscriptions/sub/resourceGroups/rg/providers/"
+            "Microsoft.EventGrid/namespaces/example"
+        ),
+    }
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {}
+    )
+
+    fixture_namespace_provider.management_endpoint_set(
+        "edge",
+        "namespace",
+        "rg",
+        endpoint_type=endpoint["endpointType"],
+        address=endpoint["address"],
+        scope_id=endpoint["scopeId"],
+        resource_id=endpoint["resourceId"],
+    )
+
+    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
+        "properties"
+    ]
+    assert body == {
+        "properties": {"management": {"endpoints": {"edge": endpoint}}}
+    }
+
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "properties": {
+            "management": {
+                "endpoints": {
+                    "z-endpoint": {"endpointType": "Z"},
+                    "edge": endpoint,
+                }
+            }
+        }
+    }
+    assert fixture_namespace_provider.management_endpoint_show(
+        "edge", "namespace", "rg"
+    ) == {"name": "edge", **endpoint}
+    assert [
+        item["name"]
+        for item in fixture_namespace_provider.management_endpoint_list(
+            "namespace", "rg"
+        )
+    ] == ["edge", "z-endpoint"]
+
+
+def test_namespace_management_endpoint_validates_resource_id(
+    fixture_namespace_provider,
+):
+    with pytest.raises(InvalidArgumentValueError, match="valid ARM"):
+        fixture_namespace_provider.management_endpoint_set(
+            "edge",
+            "namespace",
+            "rg",
+            endpoint_type="Microsoft.EventGrid/Namespaces",
+            address="example",
+            scope_id="scope",
+            resource_id="not-an-arm-id",
+        )
+    fixture_namespace_provider.client.namespaces.begin_update.assert_not_called()
+
+
+def test_namespace_management_endpoint_rejects_empty_field(
+    fixture_namespace_provider,
+):
+    with pytest.raises(InvalidArgumentValueError, match="endpoint-type"):
+        fixture_namespace_provider.management_endpoint_set(
+            "edge",
+            "namespace",
+            "rg",
+            endpoint_type="",
+            address="example",
+            scope_id="scope",
+            resource_id=(
+                "/subscriptions/sub/resourceGroups/rg/providers/"
+                "Microsoft.EventGrid/namespaces/example"
+            ),
+        )
+
+
+def test_namespace_management_endpoint_show_not_found(
+    fixture_namespace_provider,
+):
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "properties": {"management": {"endpoints": {}}}
+    }
+    with pytest.raises(ResourceNotFoundError, match="was not found"):
+        fixture_namespace_provider.management_endpoint_show(
+            "missing", "namespace", "rg"
+        )
 
 
 def test_namespace_migrate_scope_and_resources(

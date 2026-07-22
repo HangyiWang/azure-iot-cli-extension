@@ -6,7 +6,7 @@
 
 from typing import TYPE_CHECKING, Dict, Optional
 
-from azure.cli.core.azclierror import ResourceNotFoundError
+from azure.cli.core.azclierror import RequiredArgumentMissingError, ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 from knack.log import get_logger
 
@@ -61,6 +61,36 @@ class CredentialProvider(ADRProvider):
                     )
                 )
             raise
+
+    def list(self, namespace_name: str, resource_group_name: str):
+        return list(
+            self.client.credentials.list_by_namespace(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+            )
+        )
+
+    def update(
+        self,
+        namespace_name: str,
+        resource_group_name: str,
+        tags: Optional[Dict[str, str]] = None,
+        **kwargs,
+    ):
+        if tags is None:
+            raise RequiredArgumentMissingError(
+                "Nothing to update. Provide --tags."
+            )
+        poller = self.client.credentials.begin_update(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            properties={"tags": tags},
+        )
+        return self._wait(
+            poller,
+            f"Updating credentials for namespace {namespace_name}...",
+            **kwargs,
+        )
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
         poller = self.client.credentials.begin_delete(

@@ -41,9 +41,11 @@ class TestADRGroupLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 created = self.cmd(
                     f"iot adr ns group create -n {group_name} "
                     f"--ns {namespace_name} -g {rg} "
-                    '--query-string "SELECT * FROM DEVICE"'
+                    '--query-string "SELECT * FROM DEVICE" '
+                    "--mi-system-assigned true"
                 ).get_output_in_json()
                 assert created["name"] == group_name
+                assert created["identity"]["type"] == "SystemAssigned"
 
                 shown = self.cmd(
                     f"iot adr ns group show -n {group_name} "
@@ -60,11 +62,12 @@ class TestADRGroupLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"iot adr ns group update -n {group_name} "
                     f"--ns {namespace_name} -g {rg} "
                     "--display-name 'Test group' --description 'integration test' "
-                    "--tags env=ci"
+                    "--tags env=ci --mi-system-assigned false"
                 ).get_output_in_json()
                 assert updated["properties"]["displayName"] == "Test group"
                 assert updated["properties"]["description"] == "integration test"
                 assert updated["tags"]["env"] == "ci"
+                assert updated["identity"]["type"] == "None"
 
             with timed_step("Step 3 ❯ Reject empty update"):
                 self.cmd(

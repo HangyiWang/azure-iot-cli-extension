@@ -25,6 +25,7 @@ from azext_iot.adr.common import (
     MessagingEndpointAvailability,
     NamespaceMigrateScope,
     PolicyCertificateKeyType,
+    RegistryDeviceEnablementState,
     ReportType,
 )
 
@@ -56,6 +57,29 @@ def load_adr_arguments(self, _):
             help="Customize the name of the namespace credential policy",
         )
 
+    for cmd in ["iot adr ns create", "iot adr ns update"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "management_endpoints",
+                options_list=["--management-endpoints"],
+                help="Management endpoint dictionary as inline JSON or a JSON file path.",
+            )
+            context.argument(
+                "messaging_endpoints",
+                options_list=["--messaging-endpoints"],
+                help="Messaging endpoint dictionary as inline JSON or a JSON file path.",
+            )
+            context.argument(
+                "provisioning_endpoints",
+                options_list=["--provisioning-endpoints"],
+                help="Provisioning endpoint dictionary as inline JSON or a JSON file path.",
+            )
+            context.argument(
+                "updating_endpoints",
+                options_list=["--updating-endpoints"],
+                help="Device Update endpoint dictionary as inline JSON or a JSON file path.",
+            )
+
     with self.argument_context("iot adr ns migrate") as context:
         context.argument(
             "scope",
@@ -77,6 +101,9 @@ def load_adr_arguments(self, _):
             options_list=["--namespace", "--ns"],
             help="Name of the Device Registry namespace.",
         )
+
+    with self.argument_context("iot adr ns credential update") as context:
+        context.argument("tags", arg_type=tags_type)
 
     # Policy naming arguments
     with self.argument_context("iot adr ns policy") as context:
@@ -319,6 +346,228 @@ def load_adr_arguments(self, _):
             "policy_resource_id",
             options_list=["--policy-resource-id"],
             help="Resource ID of the credential policy to associate with the device.",
+        )
+        context.argument(
+            "extended_location",
+            options_list=["--extended-location"],
+            help="Extended location as inline JSON or a JSON file path. The object must "
+                 "contain 'name' and 'type'.",
+        )
+
+    # Registry Device arguments
+    with self.argument_context("iot adr ns registry-device") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "registry_device_name",
+            options_list=["--device-name", "--dn", "--name", "-n"],
+            help="Name of the Registry Device.",
+        )
+
+    with self.argument_context("iot adr ns registry-device create") as context:
+        context.argument("location", arg_type=get_location_type(self.cli_ctx))
+        context.argument("tags", arg_type=tags_type)
+        context.argument(
+            "enablement_state",
+            options_list=["--enablement-state"],
+            arg_type=get_enum_type(RegistryDeviceEnablementState),
+            help="Whether the Registry Device is enabled or disabled.",
+        )
+        context.argument(
+            "external_device_id",
+            options_list=["--external-device-id", "--ext-id"],
+            help="Customer-provided device ID. This property is create-only.",
+        )
+        context.argument("manufacturer", options_list=["--manufacturer"])
+        context.argument("model", options_list=["--model"])
+        context.argument(
+            "hardware_revision",
+            options_list=["--hardware-revision"],
+        )
+        context.argument(
+            "software_revision",
+            options_list=["--software-revision"],
+        )
+
+    with self.argument_context("iot adr ns registry-device update") as context:
+        context.argument("tags", arg_type=tags_type)
+        context.argument(
+            "enablement_state",
+            options_list=["--enablement-state"],
+            arg_type=get_enum_type(RegistryDeviceEnablementState),
+            help="Whether the Registry Device is enabled or disabled.",
+        )
+        context.argument("manufacturer", options_list=["--manufacturer"])
+        context.argument("model", options_list=["--model"])
+        context.argument(
+            "hardware_revision",
+            options_list=["--hardware-revision"],
+        )
+        context.argument(
+            "software_revision",
+            options_list=["--software-revision"],
+        )
+
+    with self.argument_context(
+        "iot adr ns registry-device auth-profile"
+    ) as context:
+        context.argument(
+            "registry_device_name",
+            options_list=["--registry-device-name", "--rdn", "--device-name", "--dn"],
+            help="Name of the parent Registry Device.",
+        )
+        context.argument(
+            "authentication_profile_name",
+            options_list=["--auth-profile-name", "--apn", "--name", "-n"],
+            help="Name of the authentication profile.",
+        )
+
+    with self.argument_context(
+        "iot adr ns registry-device attribute"
+    ) as context:
+        context.argument(
+            "registry_device_name",
+            options_list=["--registry-device-name", "--rdn", "--device-name", "--dn"],
+            help="Name of the parent Registry Device.",
+        )
+        context.argument(
+            "attribute_name",
+            options_list=["--attribute-name", "--an", "--name", "-n"],
+            help="Name of the Registry Device attribute.",
+        )
+
+    with self.argument_context(
+        "iot adr ns registry-device capability"
+    ) as context:
+        context.argument(
+            "registry_device_name",
+            options_list=["--registry-device-name", "--rdn", "--device-name", "--dn"],
+            help="Name of the parent Registry Device.",
+        )
+        context.argument(
+            "capability_name",
+            options_list=["--capability-name", "--cn", "--name", "-n"],
+            help="Name of the Registry Device capability.",
+        )
+
+    # JSON-heavy namespace child resources
+    resource_arguments = (
+        ("iot adr ns asset", "asset_name", ["--asset-name", "--an", "--name", "-n"]),
+        (
+            "iot adr ns discovered-device",
+            "discovered_device_name",
+            ["--discovered-device-name", "--ddn", "--name", "-n"],
+        ),
+        (
+            "iot adr ns discovered-asset",
+            "discovered_asset_name",
+            ["--discovered-asset-name", "--dan", "--name", "-n"],
+        ),
+    )
+    for command_group, resource_name, options_list in resource_arguments:
+        with self.argument_context(command_group) as context:
+            context.argument(
+                "namespace_name",
+                options_list=["--namespace", "--ns"],
+                help="Name of the Device Registry namespace.",
+            )
+            context.argument(
+                resource_name,
+                options_list=options_list,
+                help="Name of the resource.",
+            )
+        with self.argument_context(f"{command_group} create") as context:
+            context.argument("location", arg_type=get_location_type(self.cli_ctx))
+            context.argument("tags", arg_type=tags_type)
+            context.argument(
+                "properties",
+                options_list=["--properties", "-p"],
+                help="Resource properties as inline JSON or a JSON file path.",
+            )
+            context.argument(
+                "extended_location",
+                options_list=["--extended-location"],
+                help="Extended location as inline JSON or a JSON file path. The object "
+                     "must contain 'name' and 'type'.",
+            )
+        with self.argument_context(f"{command_group} update") as context:
+            context.argument("tags", arg_type=tags_type)
+            context.argument(
+                "properties",
+                options_list=["--properties", "-p"],
+                help="Writable resource properties as inline JSON or a JSON file path.",
+            )
+
+    with self.argument_context("iot adr ns asset execute-action") as context:
+        context.argument(
+            "management_action_name",
+            options_list=["--action-name"],
+            help="Name of the management action to execute.",
+        )
+        context.argument(
+            "management_group_name",
+            options_list=["--management-group-name", "--mg"],
+            help="Name of the management group that contains the action.",
+        )
+        context.argument(
+            "payload",
+            options_list=["--payload"],
+            help="Optional action payload as inline JSON or a JSON file path.",
+        )
+
+    # Namespace managed identity
+    for cmd in ["iot adr ns identity assign", "iot adr ns identity remove"]:
+        with self.argument_context(cmd) as context:
+            context.argument(
+                "system_assigned",
+                options_list=["--system-assigned", "--system"],
+                arg_type=get_three_state_flag(),
+                help="Assign or remove the namespace system-assigned managed identity.",
+            )
+            context.argument(
+                "user_assigned_identities",
+                options_list=["--user-assigned-identity", "--user"],
+                nargs="*",
+                help="Space-separated user-assigned managed identity resource IDs. On "
+                     "remove, omit values to remove all user-assigned identities.",
+            )
+
+    # Namespace management endpoints
+    with self.argument_context("iot adr ns management-endpoint") as context:
+        context.argument(
+            "endpoint_name",
+            options_list=["--endpoint-name", "--en", "--name", "-n"],
+            help="Name of the management endpoint.",
+        )
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+
+    with self.argument_context("iot adr ns management-endpoint set") as context:
+        context.argument(
+            "endpoint_type",
+            options_list=["--endpoint-type"],
+            help="Management endpoint resource type.",
+        )
+        context.argument(
+            "address",
+            options_list=["--address"],
+            help="Management endpoint address.",
+        )
+        context.argument(
+            "scope_id",
+            options_list=["--scope-id"],
+            help="Management endpoint scope ID.",
+        )
+        context.argument(
+            "resource_id",
+            options_list=["--resource-id"],
+            help="Azure resource ID of the management endpoint.",
         )
 
     # Outbound managed identity arguments (namespace create + update)
@@ -579,6 +828,12 @@ def load_adr_arguments(self, _):
             options_list=["--description"],
             help="Human-readable description of the group.",
         )
+        context.argument(
+            "mi_system_assigned",
+            options_list=["--mi-system-assigned"],
+            arg_type=get_three_state_flag(),
+            help="Enable the group's system-assigned managed identity.",
+        )
 
     with self.argument_context("iot adr ns group update") as context:
         context.argument("tags", arg_type=tags_type)
@@ -591,6 +846,12 @@ def load_adr_arguments(self, _):
             "description",
             options_list=["--description"],
             help="Human-readable description of the group.",
+        )
+        context.argument(
+            "mi_system_assigned",
+            options_list=["--mi-system-assigned"],
+            arg_type=get_three_state_flag(),
+            help="Enable or remove the group's system-assigned managed identity.",
         )
 
     with self.argument_context("iot adr ns group list-members") as context:

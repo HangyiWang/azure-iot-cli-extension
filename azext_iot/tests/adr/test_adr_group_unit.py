@@ -27,6 +27,7 @@ def test_group_create_all_fields(fixture_group_provider, mock_poller):
         display_name="Production",
         description="Production devices",
         tags={"env": "prod"},
+        mi_system_assigned=True,
     )
 
     assert result == {"name": "group"}
@@ -43,6 +44,7 @@ def test_group_create_all_fields(fixture_group_provider, mock_poller):
                 "description": "Production devices",
             },
             "tags": {"env": "prod"},
+            "identity": {"type": "SystemAssigned"},
         },
     )
 
@@ -98,6 +100,7 @@ def test_group_update_all_mutable_fields(fixture_group_provider, mock_poller):
         display_name="New name",
         description="New description",
         tags={"env": "staging"},
+        mi_system_assigned=False,
     )
 
     fixture_group_provider.client.groups.begin_update.assert_called_once_with(
@@ -110,6 +113,7 @@ def test_group_update_all_mutable_fields(fixture_group_provider, mock_poller):
                 "description": "New description",
             },
             "tags": {"env": "staging"},
+            "identity": {"type": "None"},
         },
     )
 

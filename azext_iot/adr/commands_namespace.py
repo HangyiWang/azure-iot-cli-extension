@@ -4,7 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from knack.log import get_logger
 
@@ -25,6 +25,10 @@ def adr_namespace_create(
     certificate_validity_days: Optional[int] = None,
     outbound_mi_system_assigned: Optional[bool] = None,
     outbound_mi_user_assigned: Optional[str] = None,
+    management_endpoints: Any = None,
+    messaging_endpoints: Any = None,
+    provisioning_endpoints: Any = None,
+    updating_endpoints: Any = None,
     no_wait: bool = False,
 ):
     provider = NamespaceProvider(cmd)
@@ -38,6 +42,10 @@ def adr_namespace_create(
         certificate_validity_days=certificate_validity_days,
         outbound_mi_system_assigned=outbound_mi_system_assigned,
         outbound_mi_user_assigned=outbound_mi_user_assigned,
+        management_endpoints=management_endpoints,
+        messaging_endpoints=messaging_endpoints,
+        provisioning_endpoints=provisioning_endpoints,
+        updating_endpoints=updating_endpoints,
         no_wait=no_wait,
     )
 
@@ -86,6 +94,10 @@ def adr_namespace_update(
     tags: Optional[Dict[str, str]] = None,
     outbound_mi_system_assigned: Optional[bool] = None,
     outbound_mi_user_assigned: Optional[str] = None,
+    management_endpoints: Any = None,
+    messaging_endpoints: Any = None,
+    provisioning_endpoints: Any = None,
+    updating_endpoints: Any = None,
     no_wait: bool = False,
 ):
     provider = NamespaceProvider(cmd)
@@ -95,5 +107,103 @@ def adr_namespace_update(
         tags=tags,
         outbound_mi_system_assigned=outbound_mi_system_assigned,
         outbound_mi_user_assigned=outbound_mi_user_assigned,
+        management_endpoints=management_endpoints,
+        messaging_endpoints=messaging_endpoints,
+        provisioning_endpoints=provisioning_endpoints,
+        updating_endpoints=updating_endpoints,
         no_wait=no_wait,
+    )
+
+
+def adr_namespace_identity_show(
+    cmd, namespace_name: str, resource_group_name: str
+):
+    provider = NamespaceProvider(cmd)
+    return provider.identity_show(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+    )
+
+
+def adr_namespace_identity_assign(
+    cmd,
+    namespace_name: str,
+    resource_group_name: str,
+    system_assigned: bool = False,
+    user_assigned_identities: Optional[List[str]] = None,
+    no_wait: bool = False,
+):
+    provider = NamespaceProvider(cmd)
+    return provider.identity_assign(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        system_assigned=system_assigned,
+        user_assigned_identities=user_assigned_identities,
+        no_wait=no_wait,
+    )
+
+
+def adr_namespace_identity_remove(
+    cmd,
+    namespace_name: str,
+    resource_group_name: str,
+    system_assigned: bool = False,
+    user_assigned_identities: Optional[List[str]] = None,
+    no_wait: bool = False,
+):
+    provider = NamespaceProvider(cmd)
+    return provider.identity_remove(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        system_assigned=system_assigned,
+        user_assigned_identities=user_assigned_identities,
+        no_wait=no_wait,
+    )
+
+
+def adr_namespace_management_endpoint_set(
+    cmd,
+    endpoint_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+    endpoint_type: str,
+    address: str,
+    scope_id: str,
+    resource_id: str,
+    no_wait: bool = False,
+):
+    provider = NamespaceProvider(cmd)
+    return provider.management_endpoint_set(
+        endpoint_name=endpoint_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        endpoint_type=endpoint_type,
+        address=address,
+        scope_id=scope_id,
+        resource_id=resource_id,
+        no_wait=no_wait,
+    )
+
+
+def adr_namespace_management_endpoint_show(
+    cmd,
+    endpoint_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+):
+    provider = NamespaceProvider(cmd)
+    return provider.management_endpoint_show(
+        endpoint_name=endpoint_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+    )
+
+
+def adr_namespace_management_endpoint_list(
+    cmd, namespace_name: str, resource_group_name: str
+):
+    provider = NamespaceProvider(cmd)
+    return provider.management_endpoint_list(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
     )

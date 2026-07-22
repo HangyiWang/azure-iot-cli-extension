@@ -7,108 +7,58 @@ Release History
 
 **General updates**
 
-* Updated the Azure Device Registry management SDK and all ``az iot adr ns`` commands to ``2026-11-02-preview``.
-* Added safer long-running-operation handling: resource mutations poll ``provisioningState`` and POST actions poll the authenticated ``Location`` URL rather than the service's unsupported ``Azure-AsyncOperation`` host.
-* Added a sectioned ``scripts/smoke_tests/adr_11_02_full_e2e.sh`` runner that logs commands and API operations across the complete supported namespace surface.
+* Updated all ``az iot adr ns`` commands to the ``Microsoft.DeviceRegistry/2026-11-02-preview`` management API.
+* Regenerated the complete synchronous and asynchronous Device Registry SDK from the ``package-preview-2026-11-02`` specification tag. The generated clients expose all 25 operation groups and 118 operations in the source specification.
+* Added safer long-running-operation handling: resource mutations poll ``provisioningState`` and POST actions poll the authenticated ``Location`` URL instead of the service's unsupported ``Azure-AsyncOperation`` host.
+* Added consistent inline-JSON and JSON-file input, parent-location inheritance, no-op update rejection, and ``--no-wait`` behavior across namespace child resources.
 
 **Azure Device Registry updates**
 
-* **Namespaces and reporting**
+* **Registry Devices and child resources**
 
-  - Added ``az iot adr ns migrate`` for migrating selected ARM resources into a namespace.
-  - Added ``az iot adr ns report generate`` and ``az iot adr ns report latest`` for namespace and group update-compliance reports.
-  - Namespace and child-resource updates now reject empty PATCH requests, inherit child locations from the namespace, and consistently support ``--no-wait`` where the service operation is asynchronous.
+  - Added ``az iot adr ns registry-device create / show / list / update / delete``.
+  - Added ``registry-device auth-profile list / show / get-keys / revoke-certificates``. Plaintext key responses disable SDK HTTP logging; certificate revocation requires confirmation.
+  - Added read-only ``registry-device attribute list / show`` and ``registry-device capability list / show`` commands.
+  - Authentication Profiles remain service-materialized children; create, update, and delete operations are not exposed by this API.
 
-* **Namespace links**
+* **Namespace Assets and discovery resources**
 
-  - Added ADU update-instance links through ``az iot adr ns link adu add / show / list / update`` using the ``Microsoft.DeviceUpdate/updateInstances`` contract.
-  - Hub, DPS, and ADU inbound identity parameters now refer to identities attached to the linked resource. Hub provisioning fields remain create-only; link update rotates identity only.
-  - Hub, DPS, and ADU ``show``/``list`` return named endpoint objects.
-  - Removed unsupported ``link hub remove``, ``link dps remove``, and ``link adu remove`` commands.
+  - Added ``az iot adr ns asset create / show / list / update / delete / execute-action``.
+  - Added ``az iot adr ns discovered-device`` and ``az iot adr ns discovered-asset`` CRUD command groups.
+  - Complex asset and discovery properties are accepted losslessly through ``--properties`` as inline JSON or a JSON file.
+  - Create-only, updateable, required, extended-location, discovery-version, and device-reference fields are validated before requests are sent.
 
-* **Namespace devices**
+* **Namespace and credential parity**
 
-  - Extended ``device create`` with external device ID, enablement, attributes, messaging endpoints, discovered-device reference, policy, and tags.
-  - Extended ``device update`` with strict JSON object validation for attributes/endpoints and explicit no-op rejection.
-  - Removed ``device revoke`` because no backing operation exists in this API version.
+  - Added ``az iot adr ns credential list`` and tags-only ``credential update``.
+  - Added ``az iot adr ns identity show / assign / remove`` for complete system- and user-assigned namespace identity management.
+  - Added ``az iot adr ns management-endpoint set / show / list`` and direct namespace endpoint JSON configuration.
+  - Added Namespace Device extended-location input and Group system-assigned identity configuration.
+  - Added ``az iot adr ns migrate`` plus namespace and group update-compliance ``report generate / latest`` commands.
 
-* **Groups, jobs, and runs**
+* **Namespace links and devices**
 
-  - Replaced the unsupported ``group show-members`` preview with paged ``group list-members`` using ``pageSize``/``skipToken``; ``group count`` now uses ``Groups_CountMembers``.
-  - Group deletion now delegates cancellation/dependency behavior to the service instead of deleting referenced jobs client-side.
-  - Job creation now supports the ``SoftwareUpdate`` and ``OnboardingUpdate`` discriminators with ``Continuous`` scheduling and the correct ``target.resourceId`` shape.
-  - Added namespace-wide job-run listing, strict status filters, filtered/paged run results, and ``az iot adr ns job run cancel``.
+  - Added Hub, DPS, and ADU update-instance links with add, show, list, and identity-update behavior.
+  - Extended Namespace Device create/update with external IDs, enablement, attributes, messaging endpoints, discovery references, policy, tags, and strict JSON validation.
+  - Hub provisioning fields remain create-only; link update rotates identity only.
 
-* **Certificate management / CMS**
+* **Groups, jobs, runs, and CMS**
 
+  - Added paged ``group list-members``, member count, refresh, identity configuration, and service-managed delete behavior.
+  - Added ``SoftwareUpdate`` and ``OnboardingUpdate`` jobs, scheduling, namespace-wide job-run listing, filtered/paged results, and cancellation.
   - Certificate authority and CA-policy commands remain under ``az iot adr ns ca`` and ``az iot adr ns ca policy`` with parent-namespace location inheritance and consistent LRO behavior.
-  - Deprecated credential/policy commands remain available, but now validate ECC and 7–30 day certificate options before namespace creation and preserve create-time location/tags.
+  - Deprecated credential/policy commands remain available and validate ECC plus 7–30 day certificate options.
   - Removed the unsupported ``--cert-subject`` input; certificate subjects are service-generated.
 
-**Removed preview surface**
+**Quality and manual validation**
 
-* Removed ``az iot adr ns registry-device`` CRUD and its generated operation group from this release scope.
+* Added an SDK contract test that locks the API version, operation-group inventory, and provider method surface for synchronous and asynchronous clients.
+* Expanded integration-test coverage for every new parity command, with explicit infrastructure-dependent skips and secret-safe key validation.
 
-0.33.0b5 (Preview)
-+++++++++++++++
+**Intentionally unsupported**
 
-**General updates**
-
-* This is a preview release adding the **Azure Device Registry (ADR) "Ignite" surface** — device lifecycle, hub/DPS linking, groups, update jobs, certificate management (CMS), and adaptive devices — built against the new ``2026-11-01-preview`` Device Registry management API.
-* To install preview extensions, you will need to add the ``--allow-preview`` argument to ``az extension add/update`` commands.
-* New management SDK using ``2026-11-01-preview`` API version, covering namespaces (linking and certificate-management properties), namespace devices, certificate authorities and policies, adaptive devices, groups, jobs, and job runs.
-
-**Azure Device Registry updates**
-
-* **Namespace devices** (new) — manage individual devices under a namespace:
-
-  - ``az iot adr ns device create / show / list / update / delete`` for full CRUD over namespace-scoped devices.
-  - ``az iot adr ns device revoke`` is registered but currently raises a clear "not available yet" ``CLIError`` — the underlying Microsoft.DeviceRegistry revoke endpoint is not exposed in ``2026-11-01-preview``. The command will start working without a CLI change once the backend API ships.
-
-* **Namespace linking** (new) — link IoT Hubs and Device Provisioning Services to a namespace via the namespace PATCH surface (links live on the namespace, not on the linked Hub/DPS resources):
-
-  - ``az iot adr ns link hub add / update / remove / show / list`` for IoT Hub messaging endpoints. ``add`` requires that at least one DPS is already linked (DPS-first ordering enforced client-side).
-  - ``az iot adr ns link dps add / update / remove / show / list`` for DPS provisioning endpoints (one DPS per namespace).
-  - ``az iot adr ns link add`` to link a Hub and a DPS in a single PATCH round-trip.
-  - Inbound caller identity per linked endpoint is configured via ``--mi-system-assigned`` / ``--mi-user-assigned``.
-
-* **Namespace outbound managed identity** (new) — ``az iot adr ns create`` and ``az iot adr ns update`` gain ``--outbound-mi-system-assigned`` / ``--outbound-mi-user-assigned`` to control the outbound identity the namespace uses to call linked Hubs and DPS.
-
-* **2026-11-01-preview alignment** — namespace outbound UAMI assignment is supported; Hub inbound caller identity is optional; certificate authorities use the ``Root|ICA`` model with ``Internal|External`` issuers; and certificate-policy updates are tags-only.
-
-* **Groups** (new) — manage device groups inside a namespace:
-
-  - ``az iot adr ns group create / show / list / update / delete`` for CRUD. ``--group-type`` and ``--query-string`` are immutable after creation.
-  - ``az iot adr ns group refresh`` triggers an asynchronous refresh of group membership.
-  - ``az iot adr ns group show-members`` / ``az iot adr ns group count`` to inspect membership.
-  - ``az iot adr ns group wait`` for polling provisioning state.
-  - ``group delete`` cascade-deletes referencing jobs (sequentially) before deleting the group itself, and **hard-blocks** the entire operation when any referencing job has an in-flight run (``Scheduled``/``Queued``/``Active``) or a non-terminal ``provisioningState`` (``Accepted``/``Creating``/``Updating``/``Deleting``/``Provisioning``/``Running``). When blocked, the error lists each offending job so you can wait, cancel, or delete them explicitly before retrying.
-
-* **Jobs and job runs** (new) — manage Update deployments against a group:
-
-  - ``az iot adr ns job create / show / list / update / delete`` for CRUD. Only ``--type Update`` is supported in this preview; ``--type``, ``--target-group-name``, and the ADU update identity (``--update-id-provider``/``-name``/``-version``) are immutable after creation. ``--target-group-name`` must point to a group in the same namespace and resource group as the job (cross-namespace targets are not supported).
-  - ``az iot adr ns job update`` is synchronous and **tags-only**; passing no arguments is rejected with a clear ``Nothing to update`` error rather than silently clearing tags. Pass ``--tags ""`` to explicitly clear all tags.
-  - ``az iot adr ns job schedule`` to schedule (or re-schedule) a job, with optional ``--scheduled-time`` (ISO 8601 UTC) and ``--timeout`` (ISO 8601 duration).
-  - ``az iot adr ns job delete`` surfaces a best-effort warning listing any in-flight runs that the backend will cancel (cancellation reason ``CanceledByCustomer``).
-  - ``az iot adr ns job wait`` for polling job provisioning state.
-  - ``az iot adr ns job run show / list / results`` (read-only) for inspecting individual runs. ``results`` aggregates per-device statuses across all ``nextLink`` pages so ``--query`` filters can target the full result set, e.g. ``--query "[?status=='Failed']"``.
-
-* **Certificate management / CMS** (new) — manage cloud PKI-backed certificate authorities and issuance policies (requires certificate management enabled on the namespace):
-
-  - ``az iot adr ns ca create / show / list / update / delete`` to manage Root and intermediate certificate authorities. ICA creation specifies an ``Internal`` or ``External`` issuer; ``update`` is tags-only.
-  - ``az iot adr ns ca activate`` activates an externally issued ICA with a signed certificate chain; ``ca revoke`` revokes an internally issued ICA.
-  - ``az iot adr ns ca policy create / show / list / update / delete`` to manage leaf certificate issuance policies. ``--validity-days`` is create-only and updates are tags-only.
-  - All long-running ``ca`` / ``ca policy`` commands honor ``--no-wait``.
-
-* **Adaptive devices** (new) — manage adaptive devices under a namespace:
-
-  - ``az iot adr ns adaptive-device create / show / list / update / delete`` for CRUD over namespace-scoped adaptive devices (``--ext-id``, ``--manufacturer``, ``--model``, ``--hw-rev``, ``--sw-rev``, ``--tags``).
-  - ``delete`` honors ``--no-wait``; ``update`` rejects no-op calls with a clear error.
-
-**Deprecations**
-
-* ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups are deprecated and superseded by the CMS remodel under ``az iot adr ns ca`` (and ``az iot adr ns ca policy``). They remain registered during the transition and emit a redirect warning.
-* ``az iot adr ns policy revoke-issuer`` and ``az iot adr ns policy activate-byor`` are deprecated alongside the ``policy`` group; their backing endpoints were not regenerated in ``2026-11-01-preview``.
+* Authentication Profile create/update/delete and Attribute/Capability mutation are not available in the management API.
+* ``device revoke`` and link-remove commands remain unregistered because no supported backing operation exists.
 
 0.31.0b3 (Preview)
 ++++++++++++++++++++

@@ -35,6 +35,17 @@ class GroupType(Enum):
     device = "Device"
 
 
+class RegistryDeviceEnablementState(Enum):
+    enabled = "Enabled"
+    disabled = "Disabled"
+
+
+class RegistryDeviceAuthenticationType(Enum):
+    certificate_authority = "CertificateAuthority"
+    self_signed_x509_certificate = "SelfSignedX509Certificate"
+    symmetric_key = "SymmetricKey"
+
+
 class JobType(Enum):
     software_update = "SoftwareUpdate"
     onboarding_update = "OnboardingUpdate"

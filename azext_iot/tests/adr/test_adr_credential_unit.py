@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
+from azure.cli.core.azclierror import RequiredArgumentMissingError
 from azure.core.exceptions import HttpResponseError
 
 # ==================== Create ====================
@@ -125,6 +126,42 @@ def test_show_credential_reraises_non_404(fixture_credential_provider):
     assert exc_info.value.response.status_code == 500
 
 
+def test_list_credentials(fixture_credential_provider):
+    fixture_credential_provider.client.credentials.list_by_namespace.return_value = iter(
+        [{"name": "default"}]
+    )
+
+    assert fixture_credential_provider.list("test-namespace", "test-rg") == [
+        {"name": "default"}
+    ]
+    fixture_credential_provider.client.credentials.list_by_namespace.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+    )
+
+
+def test_update_credential_tags(fixture_credential_provider, mock_poller):
+    poller = mock_poller({"name": "default"})
+    fixture_credential_provider.client.credentials.begin_update.return_value = poller
+
+    result = fixture_credential_provider.update(
+        "test-namespace", "test-rg", tags={}, no_wait=True
+    )
+
+    assert result is poller
+    fixture_credential_provider.client.credentials.begin_update.assert_called_once_with(
+        resource_group_name="test-rg",
+        namespace_name="test-namespace",
+        properties={"tags": {}},
+    )
+
+
+def test_update_credential_rejects_empty_patch(fixture_credential_provider):
+    with pytest.raises(RequiredArgumentMissingError, match="Nothing to update"):
+        fixture_credential_provider.update("test-namespace", "test-rg")
+    fixture_credential_provider.client.credentials.begin_update.assert_not_called()
+
+
 # ==================== Delete ====================
 
 
@@ -208,13 +245,14 @@ def test_synchronize_credential_raises_real_error(fixture_credential_provider):
         )
 
 
-@pytest.mark.parametrize("operation", ["create", "delete", "synchronize"])
+@pytest.mark.parametrize("operation", ["create", "update", "delete", "synchronize"])
 def test_credential_writes_support_no_wait(
     fixture_credential_provider, mock_poller, operation
 ):
     poller = mock_poller(None)
     sdk_method = {
         "create": fixture_credential_provider.client.credentials.begin_create_or_update,
+        "update": fixture_credential_provider.client.credentials.begin_update,
         "delete": fixture_credential_provider.client.credentials.begin_delete,
         "synchronize": fixture_credential_provider.client.credentials.begin_synchronize,
     }[operation]
@@ -227,6 +265,8 @@ def test_credential_writes_support_no_wait(
     }
     if operation == "create":
         kwargs["location"] = "eastus"
+    elif operation == "update":
+        kwargs["tags"] = {"env": "test"}
 
     result = getattr(fixture_credential_provider, operation)(**kwargs)
 

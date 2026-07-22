@@ -21,6 +21,7 @@ def adr_group_create(
     display_name: Optional[str] = None,
     description: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
+    mi_system_assigned: Optional[bool] = None,
     no_wait: bool = False,
 ):
     provider = GroupProvider(cmd)
@@ -34,6 +35,7 @@ def adr_group_create(
         display_name=display_name,
         description=description,
         tags=tags,
+        mi_system_assigned=mi_system_assigned,
         no_wait=no_wait,
     )
 
@@ -46,6 +48,7 @@ def adr_group_update(
     display_name: Optional[str] = None,
     description: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
+    mi_system_assigned: Optional[bool] = None,
     no_wait: bool = False,
 ):
     provider = GroupProvider(cmd)
@@ -56,6 +59,7 @@ def adr_group_update(
         display_name=display_name,
         description=description,
         tags=tags,
+        mi_system_assigned=mi_system_assigned,
         no_wait=no_wait,
     )
 

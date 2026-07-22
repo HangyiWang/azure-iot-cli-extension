@@ -28,6 +28,7 @@ class GroupProvider(ADRProvider):
         display_name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
+        mi_system_assigned: Optional[bool] = None,
         **kwargs,
     ):
         location = self._resolve_location(namespace_name, resource_group_name, location)
@@ -40,6 +41,8 @@ class GroupProvider(ADRProvider):
         resource = {"location": location, "properties": properties}
         if tags is not None:
             resource["tags"] = tags
+        if mi_system_assigned:
+            resource["identity"] = {"type": "SystemAssigned"}
 
         poller = self.client.groups.begin_create_or_replace(
             resource_group_name=resource_group_name,
@@ -61,6 +64,7 @@ class GroupProvider(ADRProvider):
         display_name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
+        mi_system_assigned: Optional[bool] = None,
         **kwargs,
     ):
         inner_properties = {}
@@ -68,9 +72,10 @@ class GroupProvider(ADRProvider):
             inner_properties["displayName"] = display_name
         if description is not None:
             inner_properties["description"] = description
-        if not inner_properties and tags is None:
+        if not inner_properties and tags is None and mi_system_assigned is None:
             raise RequiredArgumentMissingError(
-                "Nothing to update. Provide --display-name, --description, or --tags."
+                "Nothing to update. Provide --display-name, --description, --tags, "
+                "or --mi-system-assigned."
             )
 
         body = {}
@@ -78,6 +83,10 @@ class GroupProvider(ADRProvider):
             body["properties"] = inner_properties
         if tags is not None:
             body["tags"] = tags
+        if mi_system_assigned is not None:
+            body["identity"] = {
+                "type": "SystemAssigned" if mi_system_assigned else "None"
+            }
 
         poller = self.client.groups.begin_update(
             resource_group_name=resource_group_name,

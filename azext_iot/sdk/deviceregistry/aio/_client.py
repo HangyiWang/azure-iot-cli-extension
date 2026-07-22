@@ -18,16 +18,31 @@ from azure.mgmt.core.policies import AsyncARMAutoResourceProviderRegistrationPol
 from .._serialization import Deserializer, Serializer
 from ._configuration import MicrosoftDeviceRegistryManagementServiceConfiguration
 from .operations import (
+    AssetEndpointProfilesOperations,
+    AssetsOperations,
     AsyncOperationStatusOperations,
+    BillingContainersOperations,
     CertificateAuthoritiesOperations,
     CertificatePoliciesOperations,
     CredentialsOperations,
     GroupsOperations,
     JobRunsOperations,
     JobsOperations,
+    NamespaceAssetsOperations,
     NamespaceDevicesOperations,
+    NamespaceDiscoveredAssetsOperations,
+    NamespaceDiscoveredDevicesOperations,
     NamespacesOperations,
+    OperationStatusOperations,
+    Operations,
     PoliciesOperations,
+    RegistryDeviceAttributesOperations,
+    RegistryDeviceAuthenticationProfilesOperations,
+    RegistryDeviceCapabilitiesOperations,
+    RegistryDevicesOperations,
+    SchemaRegistriesOperations,
+    SchemaVersionsOperations,
+    SchemasOperations,
 )
 
 if TYPE_CHECKING:
@@ -37,11 +52,30 @@ if TYPE_CHECKING:
 class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-instance-attributes
     """Microsoft.DeviceRegistry Resource Provider management API.
 
+    :ivar operations: Operations operations
+    :vartype operations: azext_iot.sdk.deviceregistry.aio.operations.Operations
+    :ivar asset_endpoint_profiles: AssetEndpointProfilesOperations operations
+    :vartype asset_endpoint_profiles:
+     azext_iot.sdk.deviceregistry.aio.operations.AssetEndpointProfilesOperations
+    :ivar assets: AssetsOperations operations
+    :vartype assets: azext_iot.sdk.deviceregistry.aio.operations.AssetsOperations
+    :ivar billing_containers: BillingContainersOperations operations
+    :vartype billing_containers:
+     azext_iot.sdk.deviceregistry.aio.operations.BillingContainersOperations
     :ivar async_operation_status: AsyncOperationStatusOperations operations
     :vartype async_operation_status:
      azext_iot.sdk.deviceregistry.aio.operations.AsyncOperationStatusOperations
+    :ivar operation_status: OperationStatusOperations operations
+    :vartype operation_status:
+     azext_iot.sdk.deviceregistry.aio.operations.OperationStatusOperations
     :ivar namespaces: NamespacesOperations operations
     :vartype namespaces: azext_iot.sdk.deviceregistry.aio.operations.NamespacesOperations
+    :ivar schema_registries: SchemaRegistriesOperations operations
+    :vartype schema_registries:
+     azext_iot.sdk.deviceregistry.aio.operations.SchemaRegistriesOperations
+    :ivar namespace_assets: NamespaceAssetsOperations operations
+    :vartype namespace_assets:
+     azext_iot.sdk.deviceregistry.aio.operations.NamespaceAssetsOperations
     :ivar certificate_authorities: CertificateAuthoritiesOperations operations
     :vartype certificate_authorities:
      azext_iot.sdk.deviceregistry.aio.operations.CertificateAuthoritiesOperations
@@ -55,12 +89,35 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
     :ivar namespace_devices: NamespaceDevicesOperations operations
     :vartype namespace_devices:
      azext_iot.sdk.deviceregistry.aio.operations.NamespaceDevicesOperations
+    :ivar namespace_discovered_assets: NamespaceDiscoveredAssetsOperations operations
+    :vartype namespace_discovered_assets:
+     azext_iot.sdk.deviceregistry.aio.operations.NamespaceDiscoveredAssetsOperations
+    :ivar namespace_discovered_devices: NamespaceDiscoveredDevicesOperations operations
+    :vartype namespace_discovered_devices:
+     azext_iot.sdk.deviceregistry.aio.operations.NamespaceDiscoveredDevicesOperations
     :ivar groups: GroupsOperations operations
     :vartype groups: azext_iot.sdk.deviceregistry.aio.operations.GroupsOperations
     :ivar job_runs: JobRunsOperations operations
     :vartype job_runs: azext_iot.sdk.deviceregistry.aio.operations.JobRunsOperations
     :ivar jobs: JobsOperations operations
     :vartype jobs: azext_iot.sdk.deviceregistry.aio.operations.JobsOperations
+    :ivar registry_devices: RegistryDevicesOperations operations
+    :vartype registry_devices:
+     azext_iot.sdk.deviceregistry.aio.operations.RegistryDevicesOperations
+    :ivar registry_device_attributes: RegistryDeviceAttributesOperations operations
+    :vartype registry_device_attributes:
+     azext_iot.sdk.deviceregistry.aio.operations.RegistryDeviceAttributesOperations
+    :ivar registry_device_authentication_profiles: RegistryDeviceAuthenticationProfilesOperations
+     operations
+    :vartype registry_device_authentication_profiles:
+     azext_iot.sdk.deviceregistry.aio.operations.RegistryDeviceAuthenticationProfilesOperations
+    :ivar registry_device_capabilities: RegistryDeviceCapabilitiesOperations operations
+    :vartype registry_device_capabilities:
+     azext_iot.sdk.deviceregistry.aio.operations.RegistryDeviceCapabilitiesOperations
+    :ivar schemas: SchemasOperations operations
+    :vartype schemas: azext_iot.sdk.deviceregistry.aio.operations.SchemasOperations
+    :ivar schema_versions: SchemaVersionsOperations operations
+    :vartype schema_versions: azext_iot.sdk.deviceregistry.aio.operations.SchemaVersionsOperations
     :param credential: Credential needed for the client to connect to Azure. Required.
     :type credential: ~azure.core.credentials_async.AsyncTokenCredential
     :param subscription_id: The ID of the target subscription. The value must be an UUID. Required.
@@ -107,10 +164,27 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
         self._serialize = Serializer()
         self._deserialize = Deserializer()
         self._serialize.client_side_validation = False
+        self.operations = Operations(self._client, self._config, self._serialize, self._deserialize)
+        self.asset_endpoint_profiles = AssetEndpointProfilesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.assets = AssetsOperations(self._client, self._config, self._serialize, self._deserialize)
+        self.billing_containers = BillingContainersOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
         self.async_operation_status = AsyncOperationStatusOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
+        self.operation_status = OperationStatusOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
         self.namespaces = NamespacesOperations(self._client, self._config, self._serialize, self._deserialize)
+        self.schema_registries = SchemaRegistriesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.namespace_assets = NamespaceAssetsOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
         self.certificate_authorities = CertificateAuthoritiesOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
@@ -122,9 +196,29 @@ class MicrosoftDeviceRegistryManagementService:  # pylint: disable=too-many-inst
         self.namespace_devices = NamespaceDevicesOperations(
             self._client, self._config, self._serialize, self._deserialize
         )
+        self.namespace_discovered_assets = NamespaceDiscoveredAssetsOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.namespace_discovered_devices = NamespaceDiscoveredDevicesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
         self.groups = GroupsOperations(self._client, self._config, self._serialize, self._deserialize)
         self.job_runs = JobRunsOperations(self._client, self._config, self._serialize, self._deserialize)
         self.jobs = JobsOperations(self._client, self._config, self._serialize, self._deserialize)
+        self.registry_devices = RegistryDevicesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.registry_device_attributes = RegistryDeviceAttributesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.registry_device_authentication_profiles = RegistryDeviceAuthenticationProfilesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.registry_device_capabilities = RegistryDeviceCapabilitiesOperations(
+            self._client, self._config, self._serialize, self._deserialize
+        )
+        self.schemas = SchemasOperations(self._client, self._config, self._serialize, self._deserialize)
+        self.schema_versions = SchemaVersionsOperations(self._client, self._config, self._serialize, self._deserialize)
 
     def send_request(
         self, request: HttpRequest, *, stream: bool = False, **kwargs: Any
