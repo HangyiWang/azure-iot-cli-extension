@@ -209,6 +209,16 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns ca wait"
+    ] = """
+  type: command
+  short-summary: Wait for a certificate authority to reach a desired state.
+  examples:
+    - name: Wait until a certificate authority is updated
+      text: az iot adr ns ca wait -n myCA --ns myNamespace -g myResourceGroup --updated
+  """
+
+    helps[
         "iot adr ns ca policy"
     ] = """
   type: group
@@ -265,6 +275,16 @@ def load_adr_help():
   examples:
     - name: Delete a certificate policy
       text: az iot adr ns ca policy delete -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns ca policy wait"
+    ] = """
+  type: command
+  short-summary: Wait for a certificate policy to reach a desired state.
+  examples:
+    - name: Wait until a certificate policy is updated
+      text: az iot adr ns ca policy wait -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup --updated
   """
 
     helps[
@@ -341,6 +361,16 @@ def load_adr_help():
   examples:
     - name: Delete a device
       text: az iot adr ns device delete -n myDevice --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns device wait"
+    ] = """
+  type: command
+  short-summary: Wait for a namespace device to reach a desired state.
+  examples:
+    - name: Wait until a device is created
+      text: az iot adr ns device wait -n myDevice --ns myNamespace -g myResourceGroup --created
   """
 
     helps[
@@ -439,6 +469,16 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns link hub wait"
+    ] = """
+  type: command
+  short-summary: Wait for an IoT Hub link namespace update to complete.
+  examples:
+    - name: Wait until the namespace update completes
+      text: az iot adr ns link hub wait --ns myNamespace -g myResourceGroup --updated
+  """
+
+    helps[
         "iot adr ns link dps"
     ] = """
   type: group
@@ -513,6 +553,16 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns link dps wait"
+    ] = """
+  type: command
+  short-summary: Wait for a DPS link namespace update to complete.
+  examples:
+    - name: Wait until the namespace update completes
+      text: az iot adr ns link dps wait --ns myNamespace -g myResourceGroup --updated
+  """
+
+    helps[
         "iot adr ns link adu"
     ] = """
   type: group
@@ -580,6 +630,16 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns link adu wait"
+    ] = """
+  type: command
+  short-summary: Wait for an ADU link namespace update to complete.
+  examples:
+    - name: Wait until the namespace update completes
+      text: az iot adr ns link adu wait --ns myNamespace -g myResourceGroup --updated
+  """
+
+    helps[
         "iot adr ns link add"
     ] = """
   type: command
@@ -606,6 +666,16 @@ def load_adr_help():
           --hub-name primary-hub --hub-id <hub-id> --hub-mi-system-assigned \\
           --hub-availability Available --hub-allocation-weight 1 \\
           --dps-name primary-dps --dps-id <dps-id> --dps-mi-system-assigned
+  """
+
+    helps[
+        "iot adr ns link wait"
+    ] = """
+  type: command
+  short-summary: Wait for a namespace link update to complete.
+  examples:
+    - name: Wait until the namespace update completes
+      text: az iot adr ns link wait --ns myNamespace -g myResourceGroup --updated
   """
 
     helps[
@@ -919,6 +989,16 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns job run wait"
+    ] = """
+  type: command
+  short-summary: Wait for a Device Registry job run to reach a desired state.
+  examples:
+    - name: Wait until a job run is canceled
+      text: az iot adr ns job run wait -n myRun --job-name myJob --ns myNamespace -g myResourceGroup --custom "properties.status=='Canceled'"
+  """
+
+    helps[
         "iot adr ns report"
     ] = """
   type: group
@@ -991,6 +1071,13 @@ def load_adr_help():
   examples:
     - name: Delete a Registry Device without prompting
       text: az iot adr ns registry-device delete -n myDevice --ns myNamespace -g myResourceGroup --yes
+  """,
+            "iot adr ns registry-device wait": """
+  type: command
+  short-summary: Wait for a Registry Device to reach a desired state.
+  examples:
+    - name: Wait until a Registry Device is created
+      text: az iot adr ns registry-device wait -n myDevice --ns myNamespace -g myResourceGroup --created
   """,
             "iot adr ns registry-device auth-profile": """
   type: group
@@ -1121,6 +1208,13 @@ def load_adr_help():
     - name: Execute an asset action
       text: az iot adr ns asset execute-action -n myAsset --ns myNamespace -g myResourceGroup --management-group-name maintenance --action-name reboot --payload '{"delaySeconds":5}'
   """,
+            "iot adr ns asset wait": """
+  type: command
+  short-summary: Wait for a namespace asset to reach a desired state.
+  examples:
+    - name: Wait until an asset is updated
+      text: az iot adr ns asset wait -n myAsset --ns myNamespace -g myResourceGroup --updated
+  """,
             "iot adr ns discovered-device": """
   type: group
   short-summary: Manage discovered-device resources beneath a namespace.
@@ -1163,6 +1257,13 @@ def load_adr_help():
   examples:
     - name: Delete a discovered device
       text: az iot adr ns discovered-device delete -n foundDevice --ns myNamespace -g myResourceGroup --yes
+  """,
+            "iot adr ns discovered-device wait": """
+  type: command
+  short-summary: Wait for a discovered-device resource to reach a desired state.
+  examples:
+    - name: Wait until a discovered device is created
+      text: az iot adr ns discovered-device wait -n foundDevice --ns myNamespace -g myResourceGroup --created
   """,
             "iot adr ns discovered-asset": """
   type: group
@@ -1207,6 +1308,13 @@ def load_adr_help():
     - name: Delete a discovered asset
       text: az iot adr ns discovered-asset delete -n foundAsset --ns myNamespace -g myResourceGroup --yes
   """,
+            "iot adr ns discovered-asset wait": """
+  type: command
+  short-summary: Wait for a discovered-asset resource to reach a desired state.
+  examples:
+    - name: Wait until a discovered asset is created
+      text: az iot adr ns discovered-asset wait -n foundAsset --ns myNamespace -g myResourceGroup --created
+  """,
             "iot adr ns identity": """
   type: group
   short-summary: Manage identities assigned to a Device Registry namespace.
@@ -1236,6 +1344,13 @@ def load_adr_help():
     - name: Remove all user-assigned identities
       text: az iot adr ns identity remove -n myNamespace -g myResourceGroup --user
   """,
+            "iot adr ns identity wait": """
+  type: command
+  short-summary: Wait for a namespace identity update to complete.
+  examples:
+    - name: Wait until the namespace update completes
+      text: az iot adr ns identity wait -n myNamespace -g myResourceGroup --updated
+  """,
             "iot adr ns management-endpoint": """
   type: group
   short-summary: Configure namespace management endpoints.
@@ -1263,6 +1378,13 @@ def load_adr_help():
   examples:
     - name: List management endpoints
       text: az iot adr ns management-endpoint list --ns myNamespace -g myResourceGroup
+  """,
+            "iot adr ns management-endpoint wait": """
+  type: command
+  short-summary: Wait for a namespace management-endpoint update to complete.
+  examples:
+    - name: Wait until the namespace update completes
+      text: az iot adr ns management-endpoint wait --ns myNamespace -g myResourceGroup --updated
   """,
         }
     )

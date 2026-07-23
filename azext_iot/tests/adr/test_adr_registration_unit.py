@@ -111,6 +111,7 @@ def test_2026_command_surface_is_registered():
         "iot adr ns registry-device list",
         "iot adr ns registry-device update",
         "iot adr ns registry-device delete",
+        "iot adr ns registry-device wait",
         "iot adr ns registry-device auth-profile list",
         "iot adr ns registry-device auth-profile show",
         "iot adr ns registry-device auth-profile get-keys",
@@ -125,28 +126,45 @@ def test_2026_command_surface_is_registered():
         "iot adr ns asset update",
         "iot adr ns asset delete",
         "iot adr ns asset execute-action",
+        "iot adr ns asset wait",
         "iot adr ns discovered-device create",
         "iot adr ns discovered-device show",
         "iot adr ns discovered-device list",
         "iot adr ns discovered-device update",
         "iot adr ns discovered-device delete",
+        "iot adr ns discovered-device wait",
         "iot adr ns discovered-asset create",
         "iot adr ns discovered-asset show",
         "iot adr ns discovered-asset list",
         "iot adr ns discovered-asset update",
         "iot adr ns discovered-asset delete",
+        "iot adr ns discovered-asset wait",
         "iot adr ns identity show",
         "iot adr ns identity assign",
         "iot adr ns identity remove",
+        "iot adr ns identity wait",
         "iot adr ns management-endpoint set",
         "iot adr ns management-endpoint show",
         "iot adr ns management-endpoint list",
+        "iot adr ns management-endpoint wait",
+        "iot adr ns ca wait",
+        "iot adr ns ca policy wait",
+        "iot adr ns device wait",
+        "iot adr ns job run wait",
+        "iot adr ns link wait",
+        "iot adr ns link adu wait",
+        "iot adr ns link dps wait",
+        "iot adr ns link hub wait",
     }
     assert expected_commands <= set(commands)
-    assert len(commands) == 94
+    assert len(commands) == 108
     assert commands[
         "iot adr ns registry-device auth-profile revoke-certificates"
     ][2] == {"confirmation": True, "supports_no_wait": True}
+    assert commands["iot adr ns link wait"][:2] == (
+        "wait",
+        "adr_namespace_show",
+    )
 
 
 def test_unsupported_command_surfaces_are_not_registered():
@@ -201,6 +219,17 @@ def test_load_adr_arguments():
     assert "external_device_id" not in arguments[
         "iot adr ns registry-device update"
     ]
+    for command in (
+        "iot adr ns registry-device create",
+        "iot adr ns registry-device update",
+    ):
+        for argument in (
+            "manufacturer",
+            "model",
+            "hardware_revision",
+            "software_revision",
+        ):
+            assert arguments[command][argument]["help"]
     assert {"properties", "extended_location"} <= set(
         arguments["iot adr ns asset create"]
     )
@@ -213,6 +242,7 @@ def test_load_adr_arguments():
     assert {"endpoint_type", "address", "scope_id", "resource_id"} <= set(
         arguments["iot adr ns management-endpoint set"]
     )
+    assert "--ns" in arguments["iot adr ns link"]["namespace_name"]["options_list"]
     assert "mi_system_assigned" in arguments["iot adr ns group create"]
     assert "mi_system_assigned" in arguments["iot adr ns group update"]
 

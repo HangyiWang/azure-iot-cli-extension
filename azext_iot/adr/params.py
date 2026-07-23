@@ -290,15 +290,25 @@ def load_adr_arguments(self, _):
             options_list=["--external-device-id", "--ext-id"],
             help="Customer-provided device ID. This property is create-only.",
         )
-        context.argument("manufacturer", options_list=["--manufacturer"])
-        context.argument("model", options_list=["--model"])
+        context.argument(
+            "manufacturer",
+            options_list=["--manufacturer"],
+            help="Manufacturer of the Registry Device.",
+        )
+        context.argument(
+            "model",
+            options_list=["--model"],
+            help="Model of the Registry Device.",
+        )
         context.argument(
             "hardware_revision",
             options_list=["--hardware-revision"],
+            help="Hardware revision of the Registry Device.",
         )
         context.argument(
             "software_revision",
             options_list=["--software-revision"],
+            help="Software revision of the Registry Device.",
         )
 
     with self.argument_context("iot adr ns registry-device update") as context:
@@ -309,15 +319,25 @@ def load_adr_arguments(self, _):
             arg_type=get_enum_type(RegistryDeviceEnablementState),
             help="Whether the Registry Device is enabled or disabled.",
         )
-        context.argument("manufacturer", options_list=["--manufacturer"])
-        context.argument("model", options_list=["--model"])
+        context.argument(
+            "manufacturer",
+            options_list=["--manufacturer"],
+            help="Manufacturer of the Registry Device.",
+        )
+        context.argument(
+            "model",
+            options_list=["--model"],
+            help="Model of the Registry Device.",
+        )
         context.argument(
             "hardware_revision",
             options_list=["--hardware-revision"],
+            help="Hardware revision of the Registry Device.",
         )
         context.argument(
             "software_revision",
             options_list=["--software-revision"],
+            help="Software revision of the Registry Device.",
         )
 
     with self.argument_context(
@@ -497,6 +517,13 @@ def load_adr_arguments(self, _):
                 help="User-assigned managed identity resource ID to assign to the namespace and use "
                      "for outbound calls.",
             )
+
+    with self.argument_context("iot adr ns link") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace that owns the link.",
+        )
 
     # Link hub arguments
     with self.argument_context("iot adr ns link hub") as context:
