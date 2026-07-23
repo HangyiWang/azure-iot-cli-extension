@@ -7,8 +7,6 @@
 from enum import Enum
 from typing import Optional
 
-from azure.cli.core.azclierror import InvalidArgumentValueError
-
 
 class IdentityType(Enum):
     system_assigned = "SystemAssigned"
@@ -65,10 +63,6 @@ class NamespaceMigrateScope(Enum):
     resources = "Resources"
 
 
-class PolicyCertificateKeyType(Enum):
-    ecc = "ECC"
-
-
 class CertificateAuthorityType(Enum):
     root = "Root"
     ica = "ICA"
@@ -89,23 +83,7 @@ DPS_ENDPOINT_TYPE = "Microsoft.Devices/provisioningServices"
 ADU_ENDPOINT_TYPE = "Microsoft.DeviceUpdate/updateInstances"
 
 
-DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS = 30
-DEFAULT_NS_CREDENTIAL_NAME = "default"
-DEFAULT_NS_POLICY_NAME = "default"
-DEFAULT_NS_POLICY_CERT_KEY_TYPE = PolicyCertificateKeyType.ecc.value
 DEFAULT_NS_CA_KEY_TYPE = CertificateAuthorityKeyType.ecc.value
-
-
-def validate_policy_certificate_options(
-    key_type: Optional[str],
-    validity_days: Optional[int],
-) -> None:
-    if key_type is not None and key_type != DEFAULT_NS_POLICY_CERT_KEY_TYPE:
-        raise InvalidArgumentValueError("--cert-key-type must be ECC.")
-    if validity_days is not None and not 7 <= validity_days <= 30:
-        raise InvalidArgumentValueError(
-            "--cert-validity-days must be between 7 and 30."
-        )
 
 
 def build_mi_body(
@@ -133,17 +111,6 @@ def build_mi_body(
         return {"type": sami_type}
     return None
 
-
-# Error message templates
-CREDENTIAL_NOT_FOUND_MSG = (
-    "No credential found for namespace '{namespace_name}' in resource group '{resource_group_name}'. "
-    "Use 'az iot adr ns credential create --ns {namespace_name} -g {resource_group_name}' to create one."
-)
-POLICY_PARENT_RESOURCE_NOT_FOUND_MSG = (
-    "No credential exists on namespace '{namespace_name}' in resource group '{resource_group_name}'. "
-    "Please create a credential using 'az iot adr ns credential create --ns {namespace_name} -g {resource_group_name}' "
-    "to manage credential policies."
-)
 
 CA_PARENT_RESOURCE_NOT_FOUND_MSG = (
     "No certificate authority '{certificate_authority_name}' exists on namespace '{namespace_name}' "

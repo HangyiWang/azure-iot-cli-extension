@@ -8,7 +8,7 @@
 ADR device lifecycle integration tests.
 
 Exercises the full `iot adr ns device` command surface (create / show / list /
-update / delete) directly against a minimal namespace + default policy.
+update / delete) directly against a minimal namespace.
 No external SDK or DPS provisioning is required -- devices are created via the
 CLI itself.
 
@@ -17,7 +17,6 @@ Run via ``tox -e ADR-int``.
 
 import pytest
 
-from azext_iot.adr.common import DEFAULT_NS_POLICY_NAME
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._helpers import ADRHubInfraHelper
 from azext_iot.tests.adr._log import LogKind, _log, timed_step
@@ -43,10 +42,7 @@ _UPDATE_ENDPOINT_ADDRESS = (
 class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     """End-to-end device lifecycle exercised purely through the CLI.
 
-    No DPS, hub, or preview SDK required -- a single ADR namespace with the
-    default credential policy is enough to cover create / show / list /
-    update (all option groups) / delete and the corresponding
-    negative paths.
+    No DPS, hub, or preview SDK is required.
     """
 
     def test_adr_device_lifecycle(self):
@@ -58,21 +54,15 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         minimal_device_id = generate_device_id()
 
         try:
-            # --- Setup: namespace + default policy ---
-            with timed_step("Setup ❯ Create namespace (with default policy)"):
+            # --- Setup: namespace ---
+            with timed_step("Setup ❯ Create namespace"):
                 ns_cmd = (
                     f"iot adr ns create -n {namespace_name} -g {rg} "
-                    f"--location {TEST_LOCATION} --policy-name {DEFAULT_NS_POLICY_NAME}"
+                    f"--location {TEST_LOCATION}"
                 )
                 _log(LogKind.CMD, "az %s", ns_cmd)
                 self.cmd(ns_cmd).get_output_in_json()
                 _log(LogKind.RESULT, "ok")
-
-                subscription_id = self.cmd("account show").get_output_in_json()["id"]
-                policy_resource_id = self.build_policy_resource_id(
-                    subscription_id, rg, namespace_name, DEFAULT_NS_POLICY_NAME,
-                )
-                _log(LogKind.RESULT, "policy_resource_id=%s", policy_resource_id)
 
             def device_cmd(action):
                 """Run ``iot adr ns device <action>`` against the test namespace."""
@@ -94,7 +84,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"--endpoints '{{\"outbound\":{{\"assigned\":{{\"{_ENDPOINT_NAME}\":"
                     f"{{\"address\":\"{_CREATE_ENDPOINT_ADDRESS}\","
                     f"\"endpointType\":\"{_ENDPOINT_TYPE}\"}}}}}}}}' "
-                    f"--policy-resource-id {policy_resource_id} --tags env=int owner=adr-tests"
+                    "--tags env=int owner=adr-tests"
                 ).get_output_in_json()
                 assert created["name"] == device_id
                 cp = props(created)
@@ -112,7 +102,6 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     "address": _CREATE_ENDPOINT_ADDRESS,
                     "endpointType": _ENDPOINT_TYPE,
                 }
-                assert (cp.get("policy") or {}).get("resourceId") == policy_resource_id
                 assert created.get("tags", {}).get("env") == "int"
                 assert created.get("tags", {}).get("owner") == "adr-tests"
                 _log(LogKind.OK, "Device '%s' created with all options", device_id)
@@ -187,30 +176,15 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     "endpointType": _ENDPOINT_TYPE,
                 }
 
-            # --- Step 9: Update --policy-resource-id clear + reassign ---
-            with timed_step("Step 9 ❯ Update --policy-resource-id clear & reassign"):
-                updated = device_cmd(
-                    f"update -n {device_id} --policy-resource-id ''"
-                ).get_output_in_json()
-                pol = props(updated).get("policy")
-                assert not pol or not pol.get("resourceId")
-                _log(LogKind.OK, "policy cleared on device '%s'", device_id)
-
-                updated = device_cmd(
-                    f"update -n {device_id} --policy-resource-id {policy_resource_id}"
-                ).get_output_in_json()
-                assert (props(updated).get("policy") or {}).get("resourceId") == policy_resource_id
-                _log(LogKind.OK, "policy reassigned on device '%s'", device_id)
-
-            with timed_step("Step 10 ❯ Reject empty update"):
+            with timed_step("Step 9 ❯ Reject empty update"):
                 self.cmd(
                     f"iot adr ns device update -n {device_id} "
                     f"--ns {namespace_name} -g {rg}",
                     expect_failure=True,
                 )
 
-            # --- Step 11: Minimal create (no optional flags) round-trip ---
-            with timed_step("Step 11 ❯ Create device with no optional flags"):
+            # --- Step 10: Minimal create (no optional flags) round-trip ---
+            with timed_step("Step 10 ❯ Create device with no optional flags"):
                 minimal = device_cmd(f"create -n {minimal_device_id}").get_output_in_json()
                 assert minimal["name"] == minimal_device_id
                 _log(LogKind.OK, "Minimal device '%s' created", minimal_device_id)
@@ -218,8 +192,8 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 listed_names = [d["name"] for d in device_cmd("list").get_output_in_json()]
                 assert minimal_device_id in listed_names and device_id in listed_names
 
-            # --- Step 12: Delete first device & confirm gone ---
-            with timed_step("Step 12 ❯ Delete device and verify gone"):
+            # --- Step 11: Delete first device & confirm gone ---
+            with timed_step("Step 11 ❯ Delete device and verify gone"):
                 device_cmd(f"delete -n {device_id} -y")
                 _log(LogKind.OK, "Delete returned for device '%s'", device_id)
 
@@ -259,10 +233,10 @@ class TestADRDeviceEdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         namespace_name = generate_adr_namespace_name()
 
         try:
-            _log(LogKind.STEP, "Setup ❯ Create namespace with credential+policy")
+            _log(LogKind.STEP, "Setup ❯ Create namespace")
             ns_cmd = (
                 f"iot adr ns create -n {namespace_name} -g {rg} "
-                f"--location {TEST_LOCATION} --policy-name {DEFAULT_NS_POLICY_NAME}"
+                f"--location {TEST_LOCATION}"
             )
             _log(LogKind.CMD, "az %s", ns_cmd)
             self.cmd(ns_cmd)

@@ -24,7 +24,6 @@ from azext_iot.adr.common import (
     JobType,
     MessagingEndpointAvailability,
     NamespaceMigrateScope,
-    PolicyCertificateKeyType,
     RegistryDeviceEnablementState,
     ReportType,
 )
@@ -50,13 +49,6 @@ def load_adr_arguments(self, _):
             arg_type=get_location_type(self.cli_ctx),
             validator=get_default_location_from_resource_group,
         )
-        context.argument(
-            "policy_name",
-            arg_group="Policy",
-            options_list=["--policy-name", "--pn"],
-            help="Customize the name of the namespace credential policy",
-        )
-
     for cmd in ["iot adr ns create", "iot adr ns update"]:
         with self.argument_context(cmd) as context:
             context.argument(
@@ -92,79 +84,6 @@ def load_adr_arguments(self, _):
             options_list=["--resource-ids"],
             nargs="+",
             help="One or more resource IDs to migrate into the namespace.",
-        )
-
-    # Credentials naming arguments
-    with self.argument_context("iot adr ns credential") as context:
-        context.argument(
-            "namespace_name",
-            options_list=["--namespace", "--ns"],
-            help="Name of the Device Registry namespace.",
-        )
-
-    with self.argument_context("iot adr ns credential update") as context:
-        context.argument("tags", arg_type=tags_type)
-
-    # Policy naming arguments
-    with self.argument_context("iot adr ns policy") as context:
-        context.argument(
-            "namespace_name",
-            options_list=["--namespace", "--ns"],
-            help="Name of the Device Registry namespace.",
-        )
-        # `-n` follows the standard naming convention; `--pn` mirrors `adr ns create`.
-        context.argument(
-            "policy_name", options_list=["--policy-name", "--pn", "--name", "-n"], help="Name of the policy."
-        )
-
-    # Policy certificate key type is create-only.
-    for cmd in ["iot adr ns policy create", "iot adr ns create"]:
-        with self.argument_context(cmd) as context:
-            context.argument(
-                "certificate_key_type",
-                options_list=["--cert-key-type"],
-                arg_type=get_enum_type(PolicyCertificateKeyType),
-                arg_group="Policy Certificate",
-                help="Policy certificate authority key type.",
-            )
-
-    # Certificate validity can be set on create or update
-    for cmd in ["iot adr ns policy create", "iot adr ns policy update", "iot adr ns create"]:
-        with self.argument_context(cmd) as context:
-            context.argument(
-                "certificate_validity_days",
-                options_list=["--cert-validity-days"],
-                type=int,
-                arg_group="Policy Certificate",
-                help="Policy certificate validity period in days.",
-            )
-
-    # BYOR (Bring Your Own Root) arguments for policy create
-    with self.argument_context("iot adr ns policy create") as context:
-        context.argument(
-            "location",
-            arg_type=get_location_type(self.cli_ctx),
-        )
-        context.argument(
-            "enable_byor",
-            options_list=["--enable-byor"],
-            arg_type=get_three_state_flag(),
-            arg_group="Bring Your Own Root",
-            help="Enable Bring Your Own Root (BYOR) mode for the policy. "
-                 "When enabled, you must sign the service-generated CSR with your own CA "
-                 "and activate using 'az iot adr ns policy activate-byor'. "
-                 "This cannot be changed after policy creation.",
-        )
-
-    # BYOR activation arguments
-    with self.argument_context("iot adr ns policy activate-byor") as context:
-        context.argument(
-            "certificate_chain_file",
-            options_list=["--certificate-chain-file", "--ccf"],
-            help="Path to a PEM file containing the signed certificate chain. "
-                 "The file must contain the signed certificate (matching the CSR from policy show), "
-                 "followed by any intermediate CAs, and optionally the root CA. "
-                 "Certificates must be ordered from leaf to root.",
         )
 
     # Certificate Authority arguments
@@ -283,11 +202,6 @@ def load_adr_arguments(self, _):
             options_list=["--endpoints"],
             help="Device messaging endpoints JSON with optional 'inbound' and 'outbound' properties.",
         )
-        context.argument(
-            "policy_resource_id",
-            options_list=["--policy-resource-id"],
-            help="Resource ID of the credential policy to associate with the device.",
-        )
 
     # Device create arguments
     with self.argument_context("iot adr ns device create") as context:
@@ -341,11 +255,6 @@ def load_adr_arguments(self, _):
             "discovered_device_ref",
             options_list=["--discovered-device-ref", "--ddr"],
             help="Reference to the discovered device this namespace device was provisioned from.",
-        )
-        context.argument(
-            "policy_resource_id",
-            options_list=["--policy-resource-id"],
-            help="Resource ID of the credential policy to associate with the device.",
         )
         context.argument(
             "extended_location",

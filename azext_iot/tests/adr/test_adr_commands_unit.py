@@ -14,14 +14,12 @@ import pytest
 from azext_iot.adr import (
     commands_certificate_authority,
     commands_certificate_policy,
-    commands_credential,
     commands_device,
     commands_group,
     commands_job,
     commands_job_run,
     commands_link,
     commands_namespace,
-    commands_policy,
     commands_report,
 )
 
@@ -39,54 +37,6 @@ def _patch_provider(mocker, module, attr):
     provider = Mock()
     mocker.patch.object(module, attr, return_value=provider)
     return provider
-
-
-class TestCredentialCommands:
-    @pytest.mark.parametrize("operation", ["create", "update", "delete", "synchronize"])
-    def test_writes_forward_no_wait(self, mocker, cmd, operation):
-        provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
-        function = getattr(commands_credential, f"adr_credential_{operation}")
-        kwargs = {
-            "cmd": cmd,
-            "namespace_name": NS,
-            "resource_group_name": RG,
-            "no_wait": True,
-        }
-        if operation == "create":
-            kwargs["tags"] = {"a": "b"}
-        elif operation == "update":
-            kwargs["tags"] = {"a": "b"}
-
-        function(**kwargs)
-
-        expected = {
-            "namespace_name": NS,
-            "resource_group_name": RG,
-            "no_wait": True,
-        }
-        if operation == "create":
-            expected["tags"] = {"a": "b"}
-        elif operation == "update":
-            expected["tags"] = {"a": "b"}
-        getattr(provider, operation).assert_called_once_with(**expected)
-
-    def test_show(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
-        commands_credential.adr_credential_show(
-            cmd, namespace_name=NS, resource_group_name=RG
-        )
-        provider.show.assert_called_once_with(
-            namespace_name=NS, resource_group_name=RG
-        )
-
-    def test_list(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_credential, "CredentialProvider")
-        commands_credential.adr_credential_list(
-            cmd, namespace_name=NS, resource_group_name=RG
-        )
-        provider.list.assert_called_once_with(
-            namespace_name=NS, resource_group_name=RG
-        )
 
 
 class TestDeviceCommands:
@@ -109,7 +59,6 @@ class TestDeviceCommands:
             attributes='{"site":"A"}',
             endpoints=ENDPOINTS,
             discovered_device_ref="discovered-1",
-            policy_resource_id="/policies/default",
             extended_location={"name": "/custom/location", "type": "CustomLocation"},
             no_wait=True,
         )
@@ -129,7 +78,6 @@ class TestDeviceCommands:
             attributes='{"site":"A"}',
             endpoints=ENDPOINTS,
             discovered_device_ref="discovered-1",
-            policy_resource_id="/policies/default",
             extended_location={"name": "/custom/location", "type": "CustomLocation"},
             no_wait=True,
         )
@@ -147,7 +95,6 @@ class TestDeviceCommands:
             operating_system_version="1.0",
             attributes="{}",
             endpoints=ENDPOINTS,
-            policy_resource_id="pid",
             no_wait=True,
         )
 
@@ -160,7 +107,6 @@ class TestDeviceCommands:
             operating_system_version="1.0",
             attributes="{}",
             endpoints=ENDPOINTS,
-            policy_resource_id="pid",
             no_wait=True,
         )
 
@@ -183,9 +129,6 @@ class TestNamespaceCommands:
             resource_group_name=RG,
             location="westus",
             tags={"a": "b"},
-            policy_name="pol",
-            certificate_key_type="ECC",
-            certificate_validity_days=30,
             outbound_mi_system_assigned=True,
             management_endpoints={"edge": {}},
             no_wait=True,
@@ -195,9 +138,6 @@ class TestNamespaceCommands:
             resource_group_name=RG,
             location="westus",
             tags={"a": "b"},
-            policy_name="pol",
-            certificate_key_type="ECC",
-            certificate_validity_days=30,
             outbound_mi_system_assigned=True,
             outbound_mi_user_assigned=None,
             management_endpoints={"edge": {}},
@@ -334,93 +274,6 @@ class TestNamespaceCommands:
         provider.management_endpoint_list.assert_called_once_with(
             namespace_name=NS,
             resource_group_name=RG,
-        )
-
-
-class TestPolicyCommands:
-    def test_create_surface_has_no_certificate_subject(self):
-        parameters = inspect.signature(commands_policy.adr_policy_create).parameters
-        assert "certificate_subject" not in parameters
-
-    def test_create_forwards_location_tags_and_no_wait(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
-        commands_policy.adr_policy_create(
-            cmd,
-            policy_name="pol",
-            namespace_name=NS,
-            resource_group_name=RG,
-            location="westus",
-            tags={"a": "b"},
-            certificate_key_type="ECC",
-            certificate_validity_days=30,
-            enable_byor=True,
-            no_wait=True,
-        )
-        provider.create.assert_called_once_with(
-            policy_name="pol",
-            namespace_name=NS,
-            resource_group_name=RG,
-            location="westus",
-            tags={"a": "b"},
-            certificate_key_type="ECC",
-            certificate_validity_days=30,
-            enable_byor=True,
-            no_wait=True,
-        )
-
-    def test_update_forwards_no_wait(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
-        commands_policy.adr_policy_update(
-            cmd,
-            policy_name="pol",
-            namespace_name=NS,
-            resource_group_name=RG,
-            tags={"a": "b"},
-            certificate_validity_days=30,
-            no_wait=True,
-        )
-        provider.update.assert_called_once_with(
-            policy_name="pol",
-            namespace_name=NS,
-            resource_group_name=RG,
-            tags={"a": "b"},
-            certificate_validity_days=30,
-            no_wait=True,
-        )
-
-    def test_activate_byor(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
-        mocker.patch("azext_iot.common.utility.read_file_content", return_value="chain")
-        commands_policy.adr_policy_activate_byor(
-            cmd,
-            policy_name="pol",
-            namespace_name=NS,
-            resource_group_name=RG,
-            certificate_chain_file="chain.pem",
-            no_wait=True,
-        )
-        provider.activate_byor.assert_called_once_with(
-            policy_name="pol",
-            namespace_name=NS,
-            resource_group_name=RG,
-            certificate_chain="chain",
-            no_wait=True,
-        )
-
-    def test_revoke_issuer_forwards_no_wait(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_policy, "PolicyProvider")
-        commands_policy.adr_policy_revoke_issuer(
-            cmd,
-            policy_name="pol",
-            namespace_name=NS,
-            resource_group_name=RG,
-            no_wait=True,
-        )
-        provider.revoke_issuer.assert_called_once_with(
-            policy_name="pol",
-            namespace_name=NS,
-            resource_group_name=RG,
-            no_wait=True,
         )
 
 
@@ -772,38 +625,6 @@ _SIMPLE_COMMAND_CASES = [
         "delete",
         {"namespace_name": NS, "resource_group_name": RG},
         id="namespace-delete",
-    ),
-    pytest.param(
-        commands_policy,
-        "PolicyProvider",
-        "adr_policy_show",
-        "show",
-        {
-            "policy_name": "policy",
-            "namespace_name": NS,
-            "resource_group_name": RG,
-        },
-        id="policy-show",
-    ),
-    pytest.param(
-        commands_policy,
-        "PolicyProvider",
-        "adr_policy_list",
-        "list",
-        {"namespace_name": NS, "resource_group_name": RG},
-        id="policy-list",
-    ),
-    pytest.param(
-        commands_policy,
-        "PolicyProvider",
-        "adr_policy_delete",
-        "delete",
-        {
-            "policy_name": "policy",
-            "namespace_name": NS,
-            "resource_group_name": RG,
-        },
-        id="policy-delete",
     ),
     pytest.param(
         commands_group,

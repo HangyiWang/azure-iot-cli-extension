@@ -135,8 +135,6 @@ def test_2026_command_surface_is_registered():
         "iot adr ns discovered-asset list",
         "iot adr ns discovered-asset update",
         "iot adr ns discovered-asset delete",
-        "iot adr ns credential list",
-        "iot adr ns credential update",
         "iot adr ns identity show",
         "iot adr ns identity assign",
         "iot adr ns identity remove",
@@ -145,6 +143,7 @@ def test_2026_command_surface_is_registered():
         "iot adr ns management-endpoint list",
     }
     assert expected_commands <= set(commands)
+    assert len(commands) == 94
     assert commands[
         "iot adr ns registry-device auth-profile revoke-certificates"
     ][2] == {"confirmation": True, "supports_no_wait": True}
@@ -153,6 +152,10 @@ def test_2026_command_surface_is_registered():
 def test_unsupported_command_surfaces_are_not_registered():
     commands = _registered_commands()
 
+    assert not any(
+        command.startswith(("iot adr ns credential", "iot adr ns policy"))
+        for command in commands
+    )
     for child in ("auth-profile", "attribute", "capability"):
         assert f"iot adr ns registry-device {child} create" not in commands
         assert f"iot adr ns registry-device {child} update" not in commands
@@ -160,22 +163,6 @@ def test_unsupported_command_surfaces_are_not_registered():
     assert "iot adr ns device revoke" not in commands
     for endpoint in ("hub", "dps", "adu"):
         assert f"iot adr ns link {endpoint} remove" not in commands
-
-
-def test_credential_and_policy_writes_support_no_wait():
-    commands = _registered_commands()
-    for command in (
-        "iot adr ns credential create",
-        "iot adr ns credential update",
-        "iot adr ns credential delete",
-        "iot adr ns credential sync",
-        "iot adr ns policy create",
-        "iot adr ns policy update",
-        "iot adr ns policy delete",
-        "iot adr ns policy revoke-issuer",
-        "iot adr ns policy activate-byor",
-    ):
-        assert commands[command][2]["supports_no_wait"] is True
 
 
 def test_load_adr_arguments():
@@ -229,8 +216,15 @@ def test_load_adr_arguments():
     assert "mi_system_assigned" in arguments["iot adr ns group create"]
     assert "mi_system_assigned" in arguments["iot adr ns group update"]
 
-    assert "location" in arguments["iot adr ns policy create"]
-    assert "certificate_subject" not in arguments["iot adr ns policy create"]
+    assert not any(
+        command.startswith(("iot adr ns credential", "iot adr ns policy"))
+        for command in arguments
+    )
+    assert {
+        "policy_name",
+        "certificate_key_type",
+        "certificate_validity_days",
+    }.isdisjoint(arguments["iot adr ns create"])
     assert {
         "availability",
         "allocation_weight",
@@ -259,7 +253,6 @@ def test_help_surface_matches_2026_commands_and_adu_type():
         "iot adr ns asset execute-action",
         "iot adr ns discovered-device create",
         "iot adr ns discovered-asset update",
-        "iot adr ns credential update",
         "iot adr ns identity assign",
         "iot adr ns management-endpoint set",
     ):
@@ -269,6 +262,10 @@ def test_help_surface_matches_2026_commands_and_adu_type():
     assert "linkedAccounts" not in helps["iot adr ns link adu"]
 
     assert "iot adr ns device revoke" not in helps
+    assert not any(
+        command.startswith(("iot adr ns credential", "iot adr ns policy"))
+        for command in helps
+    )
     for endpoint in ("hub", "dps", "adu"):
         assert f"iot adr ns link {endpoint} remove" not in helps
 

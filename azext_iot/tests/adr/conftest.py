@@ -13,12 +13,10 @@ import pytest
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.adr.providers.certificate_authority import CertificateAuthorityProvider
 from azext_iot.adr.providers.certificate_policy import CertificatePolicyProvider
-from azext_iot.adr.providers.credential import CredentialProvider
 from azext_iot.adr.providers.device import DeviceProvider
 from azext_iot.adr.providers.group import GroupProvider
 from azext_iot.adr.providers.link import LinkProvider
 from azext_iot.adr.providers.namespace import NamespaceProvider
-from azext_iot.adr.providers.policy import PolicyProvider
 from azext_iot.adr.providers.report import ReportProvider
 from azext_iot.adr.providers.job import JobProvider
 from azext_iot.adr.providers.job_run import JobRunProvider
@@ -29,12 +27,6 @@ from azext_iot.tests.settings import DynamoSettings
 REQUIRED_TEST_ENV_VARS = ["azext_iot_testrg"]
 settings = DynamoSettings(req_env_set=REQUIRED_TEST_ENV_VARS)
 TEST_RG = settings.env.azext_iot_testrg
-
-# Test constants for integration tests
-CUSTOM_POLICY_NAME = "custompolicy"
-CUSTOM_CERT_VALIDITY_DAYS = 25
-CUSTOM_CERT_UPDATE_VALIDITY_DAYS = 20
-CUSTOM_CERT_KEY_TYPE = "ECC"
 
 # ADR ships against a canary api-version (Microsoft.DeviceRegistry/2026-11-02-preview)
 # that is currently only deployed to centraluseuap. Override via the
@@ -108,34 +100,12 @@ def fixture_adr_provider(fixture_cmd):
 
 
 @pytest.fixture()
-def fixture_credential_provider(fixture_cmd):
-    """Credential provider fixture for testing."""
-    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
-        mock_factory.return_value = mock_client
-        provider = CredentialProvider(fixture_cmd)
-        provider.client = mock_client
-        return provider
-
-
-@pytest.fixture()
 def fixture_namespace_provider(fixture_cmd):
     """Namespace provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
         mock_client = Mock()
         mock_factory.return_value = mock_client
         provider = NamespaceProvider(fixture_cmd)
-        provider.client = mock_client
-        return provider
-
-
-@pytest.fixture()
-def fixture_policy_provider(fixture_cmd):
-    """Policy provider fixture for testing."""
-    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
-        mock_factory.return_value = mock_client
-        provider = PolicyProvider(fixture_cmd)
         provider.client = mock_client
         return provider
 

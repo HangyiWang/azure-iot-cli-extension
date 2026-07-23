@@ -28,9 +28,8 @@ Release History
   - Complex asset and discovery properties are accepted losslessly through ``--properties`` as inline JSON or a JSON file.
   - Create-only, updateable, required, extended-location, discovery-version, and device-reference fields are validated before requests are sent.
 
-* **Namespace and credential parity**
+* **Namespace parity**
 
-  - Added ``az iot adr ns credential list`` and tags-only ``credential update``.
   - Added ``az iot adr ns identity show / assign / remove`` for complete system- and user-assigned namespace identity management.
   - Added ``az iot adr ns management-endpoint set / show / list`` and direct namespace endpoint JSON configuration.
   - Added Namespace Device extended-location input and Group system-assigned identity configuration.
@@ -39,7 +38,7 @@ Release History
 * **Namespace links and devices**
 
   - Added Hub, DPS, and ADU update-instance links with add, show, list, and identity-update behavior.
-  - Extended Namespace Device create/update with external IDs, enablement, attributes, messaging endpoints, discovery references, policy, tags, and strict JSON validation.
+  - Extended Namespace Device create/update with external IDs, enablement, attributes, messaging endpoints, discovery references, tags, and strict JSON validation.
   - Hub provisioning fields remain create-only; link update rotates identity only.
 
 * **Groups, jobs, runs, and CMS**
@@ -47,7 +46,6 @@ Release History
   - Added paged ``group list-members``, member count, refresh, identity configuration, and service-managed delete behavior.
   - Added ``SoftwareUpdate`` and ``OnboardingUpdate`` jobs, scheduling, namespace-wide job-run listing, filtered/paged results, and cancellation.
   - Certificate authority and CA-policy commands remain under ``az iot adr ns ca`` and ``az iot adr ns ca policy`` with parent-namespace location inheritance and consistent LRO behavior.
-  - Deprecated credential/policy commands remain available and validate ECC plus 7–30 day certificate options.
   - Removed the unsupported ``--cert-subject`` input; certificate subjects are service-generated.
 
 **Quality and manual validation**
@@ -59,6 +57,7 @@ Release History
 
 * Authentication Profile create/update/delete and Attribute/Capability mutation are not available in the management API.
 * ``device revoke`` and link-remove commands remain unregistered because no supported backing operation exists.
+* Removed the legacy ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups.
 
 0.31.0b3 (Preview)
 ++++++++++++++++++++
@@ -171,11 +170,9 @@ Release History
 
 **Azure Device Registry updates**
 
-* New command group `az iot adr ns` to manage Azure Device Registry namespaces, policies and credentials
+* New command group `az iot adr ns` to manage Azure Device Registry namespaces.
 
   - `az iot adr ns` to manage Device Registry namespaces.
-  - `az iot adr ns credential` to manage namespace credentials.
-  - `az iot adr ns policy` to manage namespace policies.
 
 * New management SDK using `2025-11-01-preview` API version.
 

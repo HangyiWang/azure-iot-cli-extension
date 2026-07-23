@@ -16,8 +16,8 @@ Covers the ``iot adr ns job`` surface end-to-end:
 * Same-namespace lock on ``--target-group-name`` (no cross-namespace targets)
 
 Jobs require a target Group in the same namespace; they do **not** require
-any Hub/DPS infrastructure. We keep the namespace lightweight (no credential,
-no policy, no linked Hub) since job CRUD does not exercise the credential or
+any Hub/DPS infrastructure. We keep the namespace lightweight (no certificate
+infrastructure or linked Hub) since job CRUD does not exercise
 linking surfaces.
 """
 

@@ -25,7 +25,6 @@ def adr_device_create(
     attributes: Optional[str] = None,
     endpoints: Optional[str] = None,
     discovered_device_ref: Optional[str] = None,
-    policy_resource_id: Optional[str] = None,
     extended_location: Any = None,
     no_wait: bool = False,
 ):
@@ -45,7 +44,6 @@ def adr_device_create(
         attributes=attributes,
         endpoints=endpoints,
         discovered_device_ref=discovered_device_ref,
-        policy_resource_id=policy_resource_id,
         extended_location=extended_location,
         no_wait=no_wait,
     )
@@ -94,7 +92,6 @@ def adr_device_update(
     operating_system_version: Optional[str] = None,
     attributes: Optional[str] = None,
     endpoints: Optional[str] = None,
-    policy_resource_id: Optional[str] = None,
     no_wait: bool = False,
 ):
     provider = DeviceProvider(cmd)
@@ -107,6 +104,5 @@ def adr_device_update(
         operating_system_version=operating_system_version,
         attributes=attributes,
         endpoints=endpoints,
-        policy_resource_id=policy_resource_id,
         no_wait=no_wait,
     )

@@ -127,7 +127,7 @@ def timed_step(label: str, *args):
 
     Usage::
 
-        with timed_step("Step 3 ❯ Sync credentials"):
+        with timed_step("Step 3 > Refresh group"):
             cmd(...)
     """
     _log(LogKind.STEP, label, *args)

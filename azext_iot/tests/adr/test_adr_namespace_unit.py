@@ -4,7 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 from azure.cli.core.azclierror import (
@@ -14,11 +14,6 @@ from azure.cli.core.azclierror import (
     ResourceNotFoundError,
 )
 
-from azext_iot.adr.common import (
-    DEFAULT_NS_POLICY_CERT_KEY_TYPE,
-    DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
-    DEFAULT_NS_POLICY_NAME,
-)
 from azext_iot.adr.providers.namespace import (
     _build_namespace_identity,
     _managed_identity_type,
@@ -70,127 +65,7 @@ def test_namespace_create_resolves_resource_group_location(
     )
 
 
-@pytest.mark.parametrize(
-    "legacy_args",
-    [
-        {"policy_name": "custom"},
-        {"certificate_key_type": "ECC"},
-        {"certificate_validity_days": 14},
-    ],
-)
-def test_namespace_create_bootstraps_legacy_ecc_policy(
-    fixture_namespace_provider,
-    fixture_credential_provider,
-    fixture_policy_provider,
-    mock_poller,
-    legacy_args,
-):
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
-        mock_poller({"name": "namespace", "resourceGroup": "rg"})
-    )
-    fixture_credential_provider.create = Mock(return_value={})
-    fixture_policy_provider.create = Mock(return_value={})
-    with patch(
-        "azext_iot.adr.providers.namespace.CredentialProvider",
-        return_value=fixture_credential_provider,
-    ), patch(
-        "azext_iot.adr.providers.namespace.PolicyProvider",
-        return_value=fixture_policy_provider,
-    ):
-        fixture_namespace_provider.create(
-            "namespace", "rg", location="eastus", **legacy_args
-        )
-
-    fixture_credential_provider.create.assert_called_once_with(
-        namespace_name="namespace",
-        resource_group_name="rg",
-        location="eastus",
-    )
-    fixture_policy_provider.create.assert_called_once_with(
-        policy_name=legacy_args.get("policy_name") or DEFAULT_NS_POLICY_NAME,
-        namespace_name="namespace",
-        resource_group_name="rg",
-        location="eastus",
-        certificate_key_type=legacy_args.get("certificate_key_type")
-        or DEFAULT_NS_POLICY_CERT_KEY_TYPE,
-        certificate_validity_days=legacy_args.get("certificate_validity_days")
-        or DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
-    )
-    assert DEFAULT_NS_POLICY_CERT_KEY_TYPE == "ECC"
-
-
-def test_namespace_create_without_legacy_options_skips_bootstrap(
-    fixture_namespace_provider, fixture_credential_provider, fixture_policy_provider, mock_poller
-):
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
-        mock_poller({"name": "namespace", "resourceGroup": "rg"})
-    )
-    fixture_credential_provider.create = Mock(return_value={})
-    fixture_policy_provider.create = Mock(return_value={})
-    with patch(
-        "azext_iot.adr.providers.namespace.CredentialProvider",
-        return_value=fixture_credential_provider,
-    ), patch(
-        "azext_iot.adr.providers.namespace.PolicyProvider",
-        return_value=fixture_policy_provider,
-    ):
-        fixture_namespace_provider.create("namespace", "rg", location="eastus")
-
-    fixture_credential_provider.create.assert_not_called()
-    fixture_policy_provider.create.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "legacy_args",
-    [
-        {"certificate_validity_days": 0},
-        {"certificate_validity_days": 31},
-        {"certificate_key_type": "RSA"},
-    ],
-)
-def test_namespace_rejects_invalid_legacy_policy_before_create(
-    fixture_namespace_provider, legacy_args
-):
-    with pytest.raises(InvalidArgumentValueError):
-        fixture_namespace_provider.create(
-            "namespace",
-            "rg",
-            location="eastus",
-            **legacy_args,
-        )
-
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.assert_not_called()
-
-
-def test_namespace_create_no_wait_skips_legacy_bootstrap(
-    fixture_namespace_provider, fixture_credential_provider, fixture_policy_provider, mock_poller
-):
-    poller = mock_poller({"name": "namespace"})
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = poller
-    fixture_credential_provider.create = Mock(return_value={})
-    fixture_policy_provider.create = Mock(return_value={})
-    with patch(
-        "azext_iot.adr.providers.namespace.CredentialProvider",
-        return_value=fixture_credential_provider,
-    ), patch(
-        "azext_iot.adr.providers.namespace.PolicyProvider",
-        return_value=fixture_policy_provider,
-    ):
-        result = fixture_namespace_provider.create(
-            "namespace",
-            "rg",
-            location="eastus",
-            policy_name="default",
-            no_wait=True,
-        )
-
-    assert result is poller
-    poller.result.assert_not_called()
-    fixture_credential_provider.create.assert_not_called()
-    fixture_policy_provider.create.assert_not_called()
-
-
-def test_namespace_create_no_wait_without_legacy_handles_whitespace_uami(
+def test_namespace_create_no_wait_handles_whitespace_uami(
     fixture_namespace_provider, mock_poller
 ):
     poller = mock_poller({"name": "namespace"})
@@ -238,42 +113,6 @@ def test_managed_identity_type(
         _managed_identity_type(has_system_assigned, user_identity_ids)
         == expected
     )
-
-
-def test_namespace_legacy_bootstrap_failures_are_nonfatal(
-    fixture_namespace_provider,
-    fixture_credential_provider,
-    fixture_policy_provider,
-    mock_poller,
-):
-    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
-        mock_poller({"name": "namespace"})
-    )
-    fixture_credential_provider.create = Mock(
-        side_effect=RuntimeError("credential unavailable")
-    )
-    fixture_policy_provider.create = Mock(
-        side_effect=RuntimeError("policy unavailable")
-    )
-
-    with patch(
-        "azext_iot.adr.providers.namespace.CredentialProvider",
-        return_value=fixture_credential_provider,
-    ), patch(
-        "azext_iot.adr.providers.namespace.PolicyProvider",
-        return_value=fixture_policy_provider,
-    ), patch("azext_iot.adr.providers.namespace.logger.warning") as warning:
-        result = fixture_namespace_provider.create(
-            "namespace",
-            "rg",
-            location="eastus",
-            policy_name="default",
-        )
-
-    assert result == {"name": "namespace", "resourceGroup": "rg"}
-    messages = " ".join(call.args[0] for call in warning.call_args_list)
-    assert "default credential creation failed" in messages
-    assert "default policy creation failed" in messages
 
 
 def test_namespace_create_outbound_uami(fixture_namespace_provider, mock_poller):

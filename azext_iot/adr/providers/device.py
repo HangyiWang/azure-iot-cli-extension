@@ -52,7 +52,6 @@ class DeviceProvider(ADRProvider):
         attributes: Optional[str] = None,
         endpoints: Optional[str] = None,
         discovered_device_ref: Optional[str] = None,
-        policy_resource_id: Optional[str] = None,
         extended_location: Any = None,
         **kwargs,
     ):
@@ -78,8 +77,6 @@ class DeviceProvider(ADRProvider):
             inner_props["endpoints"] = _parse_endpoints(endpoints)
         if discovered_device_ref is not None:
             inner_props["discoveredDeviceRef"] = discovered_device_ref
-        if policy_resource_id is not None:
-            inner_props["policy"] = {"resourceId": policy_resource_id}
 
         resource = {"location": location}
         if extended_location is not None:
@@ -141,7 +138,6 @@ class DeviceProvider(ADRProvider):
         operating_system_version: Optional[str] = None,
         attributes: Optional[str] = None,
         endpoints: Optional[str] = None,
-        policy_resource_id: Optional[str] = None,
         **kwargs,
     ):
         """Update a device in the namespace."""
@@ -155,15 +151,11 @@ class DeviceProvider(ADRProvider):
             inner_props["attributes"] = _parse_json_object(attributes, "--attributes")
         if endpoints is not None:
             inner_props["endpoints"] = _parse_endpoints(endpoints)
-        if policy_resource_id is not None:
-            inner_props["policy"] = (
-                None if policy_resource_id == "" else {"resourceId": policy_resource_id}
-            )
 
         if not inner_props and tags is None:
             raise RequiredArgumentMissingError(
                 "Nothing to update. Provide --enabled, --os-version, --attributes, "
-                "--endpoints, --policy-resource-id, or --tags."
+                "--endpoints, or --tags."
             )
 
         properties = {}

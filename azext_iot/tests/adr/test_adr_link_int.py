@@ -142,7 +142,6 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 namespace_name=namespace_name,
                 hub_name=primary_hub,
                 identity_name=identity_name,
-                use_default_policy=True,
             )
             identity_resource_id = infra["identity_resource_id"]
 

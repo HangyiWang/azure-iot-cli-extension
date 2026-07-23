@@ -16,17 +16,11 @@ from knack.log import get_logger
 from msrestazure.tools import is_valid_resource_id, parse_resource_id
 
 from azext_iot.adr.common import (
-    DEFAULT_NS_POLICY_NAME,
-    DEFAULT_NS_POLICY_CERT_KEY_TYPE,
-    DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS,
     IdentityType,
     ManagedServiceIdentityType,
     build_mi_body,
-    validate_policy_certificate_options,
 )
 from azext_iot.adr.providers.base import ADRProvider, console
-from azext_iot.adr.providers.credential import CredentialProvider
-from azext_iot.adr.providers.policy import PolicyProvider
 from azext_iot.adr.providers._resource import parse_json_object
 
 logger = get_logger(__name__)
@@ -179,9 +173,6 @@ class NamespaceProvider(ADRProvider):
         resource_group_name: str,
         location: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
-        policy_name: Optional[str] = None,
-        certificate_key_type: Optional[str] = None,
-        certificate_validity_days: Optional[int] = None,
         outbound_mi_system_assigned: Optional[bool] = None,
         outbound_mi_user_assigned: Optional[str] = None,
         management_endpoints: Any = None,
@@ -190,30 +181,6 @@ class NamespaceProvider(ADRProvider):
         updating_endpoints: Any = None,
         **kwargs,
     ):
-        validate_policy_certificate_options(
-            certificate_key_type, certificate_validity_days
-        )
-        # Legacy credential/policy bootstrap (DEPRECATED): triggered only by explicit legacy policy
-        # args. Certificate authorities and policies are managed via `iot adr ns ca`.
-        should_create_credential_policy = any([
-            policy_name,
-            certificate_key_type,
-            certificate_validity_days,
-        ])
-
-        if should_create_credential_policy:
-            logger.warning(
-                "Creating a default credential and credential policy is deprecated and will be "
-                "removed in a future release. Use 'az iot adr ns ca' to manage certificate "
-                "authorities and policies instead."
-            )
-
-            # Set defaults for certificate parameters if not provided
-            if certificate_key_type is None:
-                certificate_key_type = DEFAULT_NS_POLICY_CERT_KEY_TYPE
-            if certificate_validity_days is None:
-                certificate_validity_days = DEFAULT_NS_POLICY_CERT_VALIDITY_DAYS
-
         if not location:
             location = self._ensure_location(self.cmd.cli_ctx, resource_group_name, location)
 
@@ -250,11 +217,6 @@ class NamespaceProvider(ADRProvider):
         )
         no_wait = kwargs.pop("no_wait", False)
         if no_wait:
-            if should_create_credential_policy:
-                logger.warning(
-                    "--no-wait skips default credential and policy creation; create them "
-                    "manually once the namespace finishes provisioning."
-                )
             return poller
         with console.status(f"Creating namespace {namespace_name}..."):
             namespace_result = self._await_terminal(poller, **kwargs)
@@ -263,37 +225,6 @@ class NamespaceProvider(ADRProvider):
         # (namespace_result can be None if the provisioningState poll times out.)
         if namespace_result and not namespace_result.get("resourceGroup"):
             namespace_result["resourceGroup"] = resource_group_name
-
-        if should_create_credential_policy:
-            try:
-                credential_provider = CredentialProvider(self.cmd)
-                credential_provider.create(
-                    namespace_name=namespace_name, resource_group_name=resource_group_name, location=location, **kwargs
-                )
-            except Exception as e:  # noqa: BLE001 - namespace itself is created; default cred is best-effort
-                logger.warning(
-                    "Namespace '%s' was created, but default credential creation failed: %s. "
-                    "Retry with 'az iot adr ns credential create --ns %s -g %s'.",
-                    namespace_name, e, namespace_name, resource_group_name,
-                )
-
-            try:
-                policy_provider = PolicyProvider(self.cmd)
-                policy_provider.create(
-                    policy_name=policy_name or DEFAULT_NS_POLICY_NAME,
-                    namespace_name=namespace_name,
-                    resource_group_name=resource_group_name,
-                    location=location,
-                    certificate_key_type=certificate_key_type,
-                    certificate_validity_days=certificate_validity_days,
-                    **kwargs,
-                )
-            except Exception as e:  # noqa: BLE001 - namespace itself is created; default policy is best-effort
-                logger.warning(
-                    "Namespace '%s' was created, but default policy creation failed: %s. "
-                    "Retry with 'az iot adr ns policy create -n %s --ns %s -g %s'.",
-                    namespace_name, e, policy_name or DEFAULT_NS_POLICY_NAME, namespace_name, resource_group_name,
-                )
 
         return namespace_result
 
@@ -309,8 +240,7 @@ class NamespaceProvider(ADRProvider):
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
         logger.warning(
-            "All child resources (credentials, policies, devices, groups, and jobs) under "
-            "namespace '%s' will be deleted.",
+            "All child resources under namespace '%s' will be deleted.",
             namespace_name,
         )
         poller = self.client.namespaces.begin_delete(

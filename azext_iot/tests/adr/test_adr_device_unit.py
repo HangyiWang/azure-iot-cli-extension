@@ -66,7 +66,6 @@ def test_device_create_all_2026_fields(fixture_device_provider, mock_poller):
         attributes='{"site":"west"}',
         endpoints=ENDPOINTS,
         discovered_device_ref="discovered-1",
-        policy_resource_id="/policies/default",
     )
 
     resource = fixture_device_provider.client.namespace_devices.begin_create_or_replace.call_args.kwargs[
@@ -85,7 +84,6 @@ def test_device_create_all_2026_fields(fixture_device_provider, mock_poller):
             "attributes": {"site": "west"},
             "endpoints": ENDPOINTS,
             "discoveredDeviceRef": "discovered-1",
-            "policy": {"resourceId": "/policies/default"},
         },
     }
 
@@ -256,7 +254,6 @@ def test_device_update_all_mutable_fields(fixture_device_provider, mock_poller):
         operating_system_version="6.0",
         attributes={"site": "east"},
         endpoints=ENDPOINTS,
-        policy_resource_id="/policies/new",
     )
 
     properties = fixture_device_provider.client.namespace_devices.begin_update.call_args.kwargs[
@@ -268,7 +265,6 @@ def test_device_update_all_mutable_fields(fixture_device_provider, mock_poller):
             "operatingSystemVersion": "6.0",
             "attributes": {"site": "east"},
             "endpoints": ENDPOINTS,
-            "policy": {"resourceId": "/policies/new"},
         },
         "tags": {"env": "prod"},
     }
@@ -280,10 +276,6 @@ def test_device_update_all_mutable_fields(fixture_device_provider, mock_poller):
         ({"tags": {}}, {"tags": {}}),
         ({"attributes": "{}"}, {"properties": {"attributes": {}}}),
         ({"endpoints": "{}"}, {"properties": {"endpoints": {}}}),
-        (
-            {"policy_resource_id": ""},
-            {"properties": {"policy": None}},
-        ),
         (
             {"operating_system_version": ""},
             {"properties": {"operatingSystemVersion": ""}},

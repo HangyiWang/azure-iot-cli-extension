@@ -65,14 +65,6 @@ PROVIDER_METHODS = {
         "get_latest_report",
         "begin_migrate",
     },
-    "credentials": {
-        "list_by_namespace",
-        "get",
-        "begin_create_or_update",
-        "begin_update",
-        "begin_delete",
-        "begin_synchronize",
-    },
     "namespace_devices": {
         "list_by_resource_group",
         "get",
