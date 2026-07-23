@@ -554,7 +554,7 @@ def test_adu_add_rejects_duplicate_name(fixture_link_provider):
         adu={"adu-endpoint": _endpoint(ADU_ENDPOINT_TYPE, ADU_ID)}
     )
 
-    with pytest.raises(ArgumentUsageError, match="already exists"):
+    with pytest.raises(ArgumentUsageError, match="du link update"):
         fixture_link_provider.adu_add(
             "adu-endpoint",
             "namespace",

@@ -13,12 +13,13 @@ from azure.cli.core.azclierror import (
     ResourceNotFoundError,
 )
 from knack.log import get_logger
-from msrestazure.tools import is_valid_resource_id, parse_resource_id
+from msrestazure.tools import is_valid_resource_id
 
 from azext_iot.adr.common import (
     IdentityType,
     ManagedServiceIdentityType,
     build_mi_body,
+    validate_uami_resource_id,
 )
 from azext_iot.adr.providers.base import ADRProvider, console
 from azext_iot.adr.providers._resource import parse_json_object
@@ -31,26 +32,6 @@ _OUTBOUND_MI_MUTEX_MSG = (
     "system-assigned identity, --outbound-mi-user-assigned <uami-resource-id> uses a user-assigned "
     "managed identity (the two options are mutually exclusive)."
 )
-
-
-def _validate_uami_resource_id(resource_id: str) -> str:
-    if not is_valid_resource_id(resource_id):
-        raise InvalidArgumentValueError(
-            f"'{resource_id}' is not a valid user-assigned managed identity "
-            "resource ID."
-        )
-    parsed = parse_resource_id(resource_id)
-    if (
-        (parsed.get("namespace") or "").lower()
-        != "microsoft.managedidentity"
-        or (parsed.get("type") or "").lower() != "userassignedidentities"
-        or "child_name_1" in parsed
-    ):
-        raise InvalidArgumentValueError(
-            f"'{resource_id}' is not a Microsoft.ManagedIdentity/"
-            "userAssignedIdentities resource ID."
-        )
-    return resource_id
 
 
 def _normalize_resource_id(resource_id: str) -> str:
@@ -70,7 +51,7 @@ def _resolve_outbound_identity(
     if outbound_mi_system_assigned and outbound_mi_user_assigned:
         raise MutuallyExclusiveArgumentError(_OUTBOUND_MI_MUTEX_MSG)
     if outbound_mi_user_assigned:
-        _validate_uami_resource_id(outbound_mi_user_assigned)
+        validate_uami_resource_id(outbound_mi_user_assigned)
     return build_mi_body(
         outbound_mi_system_assigned,
         outbound_mi_user_assigned,
@@ -158,7 +139,7 @@ def _clean_identity_ids(identity_ids: Optional[List[str]]) -> Optional[List[str]
         )
     unique_ids = {}
     for identity_id in cleaned:
-        _validate_uami_resource_id(identity_id)
+        validate_uami_resource_id(identity_id)
         unique_ids.setdefault(_normalize_resource_id(identity_id), identity_id)
     return list(unique_ids.values())
 

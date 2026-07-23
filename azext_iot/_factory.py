@@ -23,6 +23,7 @@ from azure.core.pipeline.policies import HttpLoggingPolicy, UserAgentPolicy
 from azure.identity import AzureCliCredential
 
 AZURE_CLI_CREDENTIAL = AzureCliCredential()
+_ADR_CANARY_ARM_ENDPOINT = "https://centraluseuap.management.azure.com"
 
 logger = get_logger(__name__)
 
@@ -32,6 +33,7 @@ __all__ = [
     "iot_hub_service_factory",
     "iot_service_provisioning_factory",
     "adr_service_factory",
+    "adr_du_service_factory",
 ]
 
 
@@ -137,7 +139,25 @@ def adr_service_factory(cli_ctx, *_):
     return MicrosoftDeviceRegistryManagementService(
         credential=AZURE_CLI_CREDENTIAL,
         subscription_id=subscription_id,
-        endpoint="https://centraluseuap.management.azure.com",
+        endpoint=_ADR_CANARY_ARM_ENDPOINT,
+        credential_scopes=_get_credential_scopes(cli_ctx),
+        user_agent_policy=UserAgentPolicy(user_agent=USER_AGENT),
+        http_logging_policy=_get_default_logging_policy(),
+    )
+
+
+def adr_du_service_factory(cli_ctx, *_):
+    """Create the Device Update UpdateInstance management client."""
+    from azure.cli.core.commands.client_factory import get_subscription_id
+
+    from azext_iot.sdk.deviceupdate.duregistry import (
+        DeviceRegistryLinkedDeviceUpdatingServiceUnderMicrosoftDeviceUpdate as DeviceUpdateRegistryClient,
+    )
+
+    return DeviceUpdateRegistryClient(
+        credential=AZURE_CLI_CREDENTIAL,
+        subscription_id=get_subscription_id(cli_ctx),
+        endpoint=_ADR_CANARY_ARM_ENDPOINT,
         credential_scopes=_get_credential_scopes(cli_ctx),
         user_agent_policy=UserAgentPolicy(user_agent=USER_AGENT),
         http_logging_policy=_get_default_logging_policy(),

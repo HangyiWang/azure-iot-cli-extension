@@ -155,9 +155,21 @@ def test_2026_command_surface_is_registered():
         "iot adr ns link adu wait",
         "iot adr ns link dps wait",
         "iot adr ns link hub wait",
+        "iot adr ns du instance check-name",
+        "iot adr ns du instance create",
+        "iot adr ns du instance show",
+        "iot adr ns du instance list",
+        "iot adr ns du instance update",
+        "iot adr ns du instance delete",
+        "iot adr ns du instance wait",
+        "iot adr ns du link add",
+        "iot adr ns du link update",
+        "iot adr ns du link show",
+        "iot adr ns du link list",
+        "iot adr ns du link wait",
     }
     assert expected_commands <= set(commands)
-    assert len(commands) == 108
+    assert len(commands) == 120
     assert commands[
         "iot adr ns registry-device auth-profile revoke-certificates"
     ][2] == {"confirmation": True, "supports_no_wait": True}
@@ -181,6 +193,14 @@ def test_unsupported_command_surfaces_are_not_registered():
     assert "iot adr ns device revoke" not in commands
     for endpoint in ("hub", "dps", "adu"):
         assert f"iot adr ns link {endpoint} remove" not in commands
+    assert "iot adr ns du link delete" not in commands
+    for operation in (
+        "link-preflight",
+        "link-initiate",
+        "link-notify",
+        "link-update",
+    ):
+        assert f"iot adr ns du instance {operation}" not in commands
 
 
 def test_load_adr_arguments():
@@ -245,6 +265,20 @@ def test_load_adr_arguments():
     assert "--ns" in arguments["iot adr ns link"]["namespace_name"]["options_list"]
     assert "mi_system_assigned" in arguments["iot adr ns group create"]
     assert "mi_system_assigned" in arguments["iot adr ns group update"]
+    assert {
+        "mi_system_assigned",
+        "mi_user_assigned",
+        "location",
+        "tags",
+    } <= set(arguments["iot adr ns du instance create"])
+    assert {
+        "mi_system_assigned",
+        "mi_user_assigned",
+        "tags",
+    } <= set(arguments["iot adr ns du instance update"])
+    assert "--du-id" in arguments["iot adr ns du link add"][
+        "adu_resource_id"
+    ]["options_list"]
 
     assert not any(
         command.startswith(("iot adr ns credential", "iot adr ns policy"))
@@ -285,6 +319,9 @@ def test_help_surface_matches_2026_commands_and_adu_type():
         "iot adr ns discovered-asset update",
         "iot adr ns identity assign",
         "iot adr ns management-endpoint set",
+        "iot adr ns du instance create",
+        "iot adr ns du instance check-name",
+        "iot adr ns du link add",
     ):
         assert command in helps
 
@@ -298,6 +335,7 @@ def test_help_surface_matches_2026_commands_and_adu_type():
     )
     for endpoint in ("hub", "dps", "adu"):
         assert f"iot adr ns link {endpoint} remove" not in helps
+    assert "iot adr ns du link delete" not in helps
 
 
 def test_every_registered_adr_command_has_help():

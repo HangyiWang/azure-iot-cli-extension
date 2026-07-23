@@ -23,6 +23,24 @@ from azext_iot.sdk.deviceregistry.aio.operations import (
     _operations as async_operations,
 )
 from azext_iot.sdk.deviceregistry.operations import _operations as sync_operations
+from azext_iot.sdk.deviceupdate.duregistry import (
+    DeviceRegistryLinkedDeviceUpdatingServiceUnderMicrosoftDeviceUpdate,
+)
+from azext_iot.sdk.deviceupdate.duregistry._configuration import (
+    DeviceRegistryLinkedDeviceUpdatingServiceUnderMicrosoftDeviceUpdateConfiguration,
+)
+from azext_iot.sdk.deviceupdate.duregistry.aio import (
+    DeviceRegistryLinkedDeviceUpdatingServiceUnderMicrosoftDeviceUpdate as AsyncDeviceUpdateClient,
+)
+from azext_iot.sdk.deviceupdate.duregistry.aio._configuration import (
+    DeviceRegistryLinkedDeviceUpdatingServiceUnderMicrosoftDeviceUpdateConfiguration as AsyncDeviceUpdateConfiguration,
+)
+from azext_iot.sdk.deviceupdate.duregistry.aio.operations import (
+    _operations as async_du_operations,
+)
+from azext_iot.sdk.deviceupdate.duregistry.operations import (
+    _operations as sync_du_operations,
+)
 
 
 EXPECTED_OPERATION_COUNTS = {
@@ -143,6 +161,18 @@ def test_generated_clients_default_to_2026_11_02_preview():
         == "2026-11-02-preview"
     )
     assert (
+        DeviceRegistryLinkedDeviceUpdatingServiceUnderMicrosoftDeviceUpdateConfiguration(
+            Mock(), "00000000-0000-0000-0000-000000000000"
+        ).api_version
+        == "2026-11-02-preview"
+    )
+    assert (
+        AsyncDeviceUpdateConfiguration(
+            Mock(), "00000000-0000-0000-0000-000000000000"
+        ).api_version
+        == "2026-11-02-preview"
+    )
+    assert (
         AsyncConfiguration(
             Mock(), "00000000-0000-0000-0000-000000000000"
         ).api_version
@@ -167,3 +197,27 @@ def test_every_handwritten_provider_operation_exists():
 
     assert not hasattr(client, "adaptive_devices")
     assert not hasattr(async_client, "adaptive_devices")
+
+
+def test_device_update_sdk_operation_inventory_and_provider_contract():
+    expected = {"Operations": 1, "UpdateInstancesOperations": 11}
+    assert _operation_inventory(sync_du_operations) == expected
+    assert _operation_inventory(async_du_operations) == expected
+
+    methods = {
+        "check_name_availability",
+        "list_by_subscription",
+        "list_by_resource_group",
+        "get",
+        "begin_create",
+        "begin_update",
+        "begin_delete",
+    }
+    client = DeviceRegistryLinkedDeviceUpdatingServiceUnderMicrosoftDeviceUpdate(
+        Mock(), "00000000-0000-0000-0000-000000000000"
+    )
+    async_client = AsyncDeviceUpdateClient(
+        Mock(), "00000000-0000-0000-0000-000000000000"
+    )
+    assert methods <= set(dir(client.update_instances))
+    assert methods <= set(dir(async_client.update_instances))

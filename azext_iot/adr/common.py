@@ -5,7 +5,10 @@
 # --------------------------------------------------------------------------------------------
 
 from enum import Enum
-from typing import Optional
+from typing import Optional, Sequence
+
+from azure.cli.core.azclierror import InvalidArgumentValueError
+from msrestazure.tools import is_valid_resource_id, parse_resource_id
 
 
 class IdentityType(Enum):
@@ -14,6 +17,7 @@ class IdentityType(Enum):
 
 
 class ManagedServiceIdentityType(Enum):
+    none = "None"
     system_assigned = "SystemAssigned"
     user_assigned = "UserAssigned"
     system_assigned_user_assigned = "SystemAssigned,UserAssigned"
@@ -84,6 +88,56 @@ ADU_ENDPOINT_TYPE = "Microsoft.DeviceUpdate/updateInstances"
 
 
 DEFAULT_NS_CA_KEY_TYPE = CertificateAuthorityKeyType.ecc.value
+
+
+def validate_uami_resource_id(resource_id: str) -> str:
+    """Validate and return a user-assigned managed identity ARM ID."""
+    if not is_valid_resource_id(resource_id):
+        raise InvalidArgumentValueError(
+            f"'{resource_id}' is not a valid user-assigned managed identity "
+            "resource ID."
+        )
+    parsed = parse_resource_id(resource_id)
+    if (
+        (parsed.get("namespace") or "").lower()
+        != "microsoft.managedidentity"
+        or (parsed.get("type") or "").lower() != "userassignedidentities"
+        or "child_name_1" in parsed
+    ):
+        raise InvalidArgumentValueError(
+            f"'{resource_id}' is not a Microsoft.ManagedIdentity/"
+            "userAssignedIdentities resource ID."
+        )
+    return resource_id
+
+
+def build_managed_service_identity(
+    system_assigned: Optional[bool],
+    user_assigned_identities: Optional[Sequence[str]],
+) -> Optional[dict]:
+    """Build the complete desired ARM managed identity state."""
+    identities = {}
+    for resource_id in user_assigned_identities or []:
+        validated_id = validate_uami_resource_id(resource_id)
+        identities.setdefault(validated_id.rstrip("/").casefold(), validated_id)
+
+    if system_assigned is None and not identities:
+        return None
+    if system_assigned and identities:
+        identity_type = ManagedServiceIdentityType.system_assigned_user_assigned.value
+    elif system_assigned:
+        identity_type = ManagedServiceIdentityType.system_assigned.value
+    elif identities:
+        identity_type = ManagedServiceIdentityType.user_assigned.value
+    else:
+        identity_type = ManagedServiceIdentityType.none.value
+
+    identity = {"type": identity_type}
+    if identities:
+        identity["userAssignedIdentities"] = {
+            resource_id: {} for resource_id in identities.values()
+        }
+    return identity
 
 
 def build_mi_body(

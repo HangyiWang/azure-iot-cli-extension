@@ -580,7 +580,8 @@ class LinkProvider(ADRProvider):
         if endpoint_name in _get_updating_endpoints(existing):
             raise ArgumentUsageError(
                 f"Device update endpoint '{endpoint_name}' already exists on namespace "
-                f"'{namespace_name}'. Use 'az iot adr ns link adu update' to modify it."
+                f"'{namespace_name}'. Use 'az iot adr ns du link update' "
+                "(or 'az iot adr ns link adu update') to modify it."
             )
 
         endpoint_body = _build_adu_endpoint_body(

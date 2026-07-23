@@ -640,6 +640,170 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns du"
+    ] = """
+  type: group
+  short-summary: Manage Device Update resources linked to a Device Registry namespace.
+  long-summary: |
+    Manages Microsoft.DeviceUpdate/updateInstances resources and namespace-side
+    links. Device Update data-plane operations are not part of this command group.
+  """
+
+    helps[
+        "iot adr ns du instance"
+    ] = """
+  type: group
+  short-summary: Manage Device Update instances used by Device Registry namespaces.
+  long-summary: |
+    Update instances are top-level Microsoft.DeviceUpdate resources. They are
+    grouped here for Device Registry discoverability but are not namespace children.
+  """
+
+    helps[
+        "iot adr ns du instance check-name"
+    ] = """
+  type: command
+  short-summary: Check whether a Device Update instance name is available.
+  examples:
+    - name: Check a name
+      text: az iot adr ns du instance check-name -n myUpdateInstance
+  """
+
+    helps[
+        "iot adr ns du instance create"
+    ] = """
+  type: command
+  short-summary: Create a Device Update instance.
+  long-summary: |
+    Creates a Microsoft.DeviceUpdate/updateInstances resource. Managed identity
+    arguments describe the complete desired identity state and can be combined.
+  examples:
+    - name: Create an instance with a system-assigned identity
+      text: az iot adr ns du instance create -n myUpdateInstance -g myResourceGroup --location eastus2 --mi-system-assigned
+    - name: Create an instance with system- and user-assigned identities
+      text: |
+        az iot adr ns du instance create -n myUpdateInstance -g myResourceGroup \\
+          --mi-system-assigned --mi-user-assigned /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity>
+  """
+
+    helps[
+        "iot adr ns du instance show"
+    ] = """
+  type: command
+  short-summary: Show a Device Update instance.
+  examples:
+    - name: Show an instance
+      text: az iot adr ns du instance show -n myUpdateInstance -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns du instance list"
+    ] = """
+  type: command
+  short-summary: List Device Update instances.
+  examples:
+    - name: List instances in a resource group
+      text: az iot adr ns du instance list -g myResourceGroup
+    - name: List instances in the subscription
+      text: az iot adr ns du instance list
+  """
+
+    helps[
+        "iot adr ns du instance update"
+    ] = """
+  type: command
+  short-summary: Update a Device Update instance's tags or managed identity.
+  examples:
+    - name: Update tags
+      text: az iot adr ns du instance update -n myUpdateInstance -g myResourceGroup --tags environment=test
+    - name: Set the identity to system-assigned
+      text: az iot adr ns du instance update -n myUpdateInstance -g myResourceGroup --mi-system-assigned
+  """
+
+    helps[
+        "iot adr ns du instance delete"
+    ] = """
+  type: command
+  short-summary: Delete a Device Update instance.
+  examples:
+    - name: Delete without prompting
+      text: az iot adr ns du instance delete -n myUpdateInstance -g myResourceGroup --yes
+  """
+
+    helps[
+        "iot adr ns du instance wait"
+    ] = """
+  type: command
+  short-summary: Wait for a Device Update instance condition.
+  examples:
+    - name: Wait until provisioning succeeds
+      text: az iot adr ns du instance wait -n myUpdateInstance -g myResourceGroup --custom "properties.provisioningState=='Succeeded'"
+  """
+
+    helps[
+        "iot adr ns du link"
+    ] = """
+  type: group
+  short-summary: Manage Device Update links on a Device Registry namespace.
+  long-summary: |
+    Updates the namespace's properties.updating.endpoints collection. Internal
+    UpdateInstance link actions are coordinated by the Device Registry service.
+  """
+
+    helps[
+        "iot adr ns du link add"
+    ] = """
+  type: command
+  short-summary: Link a Device Update instance to a Device Registry namespace.
+  examples:
+    - name: Link using the instance system-assigned identity
+      text: |
+        az iot adr ns du link add -n primary --ns myNamespace -g myResourceGroup \\
+          --du-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/updateInstances/<instance> \\
+          --mi-system-assigned
+  """
+
+    helps[
+        "iot adr ns du link update"
+    ] = """
+  type: command
+  short-summary: Update a namespace Device Update link's inbound identity.
+  examples:
+    - name: Rotate to the system-assigned identity
+      text: az iot adr ns du link update -n primary --ns myNamespace -g myResourceGroup --mi-system-assigned
+  """
+
+    helps[
+        "iot adr ns du link show"
+    ] = """
+  type: command
+  short-summary: Show a namespace Device Update link.
+  examples:
+    - name: Show a link
+      text: az iot adr ns du link show -n primary --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns du link list"
+    ] = """
+  type: command
+  short-summary: List namespace Device Update links.
+  examples:
+    - name: List links
+      text: az iot adr ns du link list --ns myNamespace -g myResourceGroup
+  """
+
+    helps[
+        "iot adr ns du link wait"
+    ] = """
+  type: command
+  short-summary: Wait for a Device Update link namespace update to complete.
+  examples:
+    - name: Wait until the namespace update completes
+      text: az iot adr ns du link wait --ns myNamespace -g myResourceGroup --updated
+  """
+
+    helps[
         "iot adr ns link add"
     ] = """
   type: command
