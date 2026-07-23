@@ -2,13 +2,14 @@
 
 Release History
 ===============
-0.33.0b6 (Preview)
+0.33.0b7 (Preview)
 ++++++++++++++++++++
 
 **General updates**
 
 * Updated all ``az iot adr ns`` commands to the ``Microsoft.DeviceRegistry/2026-11-02-preview`` management API.
 * Regenerated the complete synchronous and asynchronous Device Registry SDK from the ``package-preview-2026-11-02`` specification tag. The generated clients expose all 25 operation groups and 118 operations in the source specification.
+* Generated a dedicated synchronous and asynchronous Device Update control-plane SDK from the ``package-2026-11-02-preview`` DuDeviceRegistry specification tag without replacing the existing ``az iot du`` SDK.
 * Added safer long-running-operation handling: resource mutations poll ``provisioningState`` and POST actions poll the authenticated ``Location`` URL instead of the service's unsupported ``Azure-AsyncOperation`` host.
 * Added consistent inline-JSON and JSON-file input, parent-location inheritance, no-op update rejection, and ``--no-wait`` behavior across namespace child resources.
 
@@ -20,6 +21,13 @@ Release History
   - Added ``registry-device auth-profile list / show / get-keys / revoke-certificates``. Plaintext key responses disable SDK HTTP logging; certificate revocation requires confirmation.
   - Added read-only ``registry-device attribute list / show`` and ``registry-device capability list / show`` commands.
   - Authentication Profiles remain service-materialized children; create, update, and delete operations are not exposed by this API.
+
+* **Device Update instances and namespace links**
+
+  - Added ``az iot adr ns du instance check-name / create / show / list / update / delete / wait`` for ``Microsoft.DeviceUpdate/updateInstances`` resources.
+  - Update Instance create and update support tags plus complete system- and user-assigned managed identity configuration. List supports resource-group and subscription scopes.
+  - Added ``az iot adr ns du link add / show / list / update / wait`` for namespace updating endpoints. The existing ``az iot adr ns link adu`` commands remain aliases for compatibility.
+  - Device Update data-plane commands and the service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions are intentionally not exposed.
 
 * **Namespace Assets and discovery resources**
 
@@ -51,12 +59,14 @@ Release History
 **Quality and manual validation**
 
 * Added an SDK contract test that locks the API version, operation-group inventory, and provider method surface for synchronous and asynchronous clients.
-* Expanded integration-test coverage for every new parity command, with explicit infrastructure-dependent skips and secret-safe key validation.
+* Expanded integration-test coverage across namespace resources, Update Instances, links, CMS, groups, jobs, job runs, reports, and validation failures, with explicit infrastructure-dependent skips and secret-safe key validation.
+* Added focused unit tests with complete branch coverage for the handwritten Device Update command and provider modules.
 
 **Intentionally unsupported**
 
 * Authentication Profile create/update/delete and Attribute/Capability mutation are not available in the management API.
 * ``device revoke`` and link-remove commands remain unregistered because no supported backing operation exists.
+* Device Update data-plane operations and direct customer invocation of UpdateInstance internal link actions are not registered.
 * Removed the legacy ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups.
 
 0.31.0b3 (Preview)

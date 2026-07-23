@@ -655,6 +655,10 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     expected_identity_type="UserAssigned",
                     command_group="iot adr ns du link",
                 )
+                self.cmd(
+                    f"iot adr ns du link wait --ns {namespace_name} "
+                    f"-g {rg} --updated"
+                )
                 _log(LogKind.OK, "ADU link '%s' created (UAMI)", adu_endpoint)
 
             with timed_step("Step 2 > du link show / list (single entry)"):
