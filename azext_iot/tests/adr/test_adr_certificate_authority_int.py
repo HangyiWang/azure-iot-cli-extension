@@ -37,6 +37,7 @@ class TestADRCertificateAuthorityLifecycle(CaptureOutputLiveScenarioTest):
         namespace_name = generate_adr_namespace_name()
         ca_name = "rootca"
         policy_name = "leafpolicy"
+        boundary_policy_name = "boundarypolicy"
 
         try:
             # --- Setup: namespace ---
@@ -63,6 +64,7 @@ class TestADRCertificateAuthorityLifecycle(CaptureOutputLiveScenarioTest):
                 created = ca_cmd(f"create -n {ca_name} --type Root").get_output_in_json()
                 assert created["name"] == ca_name
                 assert props(created).get("certificateAuthorityType") == "Root"
+                ca_cmd(f"wait -n {ca_name} --created")
                 _log(LogKind.OK, "Root CA '%s' created", ca_name)
 
             # --- Step 2: Show round-trips the CA ---
@@ -90,6 +92,11 @@ class TestADRCertificateAuthorityLifecycle(CaptureOutputLiveScenarioTest):
                 pol = self.cmd(pol_cmd).get_output_in_json()
                 assert pol["name"] == policy_name
                 assert props(pol)["certificate"]["validityPeriodInDays"] == 30
+                self.cmd(
+                    f"iot adr ns ca policy wait -n {policy_name} "
+                    f"--ca-name {ca_name} --ns {namespace_name} -g {rg} "
+                    "--created"
+                )
                 _log(LogKind.OK, "Policy '%s' created with 30-day validity", policy_name)
 
             def policy_cmd(action):
@@ -123,8 +130,20 @@ class TestADRCertificateAuthorityLifecycle(CaptureOutputLiveScenarioTest):
                 _log(LogKind.CMD, "az %s  (expect failure)", bad)
                 self.cmd(bad, expect_failure=True)
 
-            # --- Step 9: Delete policy then CA ---
-            with timed_step("Step 9 ❯ Delete policy and certificate authority"):
+            with timed_step("Step 9 ❯ Create one-day validity boundary policy"):
+                boundary = policy_cmd(
+                    f"create -n {boundary_policy_name} --validity-days 1"
+                ).get_output_in_json()
+                assert props(boundary)["certificate"][
+                    "validityPeriodInDays"
+                ] == 1
+                policy_cmd(
+                    f"wait -n {boundary_policy_name} --created"
+                )
+                policy_cmd(f"delete -n {boundary_policy_name} -y")
+
+            # --- Step 10: Delete policy then CA ---
+            with timed_step("Step 10 ❯ Delete policy and certificate authority"):
                 policy_cmd(f"delete -n {policy_name} -y")
                 ca_cmd(f"delete -n {ca_name} -y")
                 remaining = [c["name"] for c in ca_cmd("list").get_output_in_json()]

@@ -46,6 +46,10 @@ class TestADRGroupLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 ).get_output_in_json()
                 assert created["name"] == group_name
                 assert created["identity"]["type"] == "SystemAssigned"
+                self.cmd(
+                    f"iot adr ns group wait -n {group_name} "
+                    f"--ns {namespace_name} -g {rg} --created"
+                )
 
                 shown = self.cmd(
                     f"iot adr ns group show -n {group_name} "
@@ -83,7 +87,7 @@ class TestADRGroupLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 members = self.cmd(
                     f"iot adr ns group list-members -n {group_name} "
-                    f"--ns {namespace_name} -g {rg} --page-size 10"
+                    f"--ns {namespace_name} -g {rg} --page-size 1"
                 ).get_output_in_json()
                 assert isinstance(members, list)
 
@@ -91,7 +95,11 @@ class TestADRGroupLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"iot adr ns group count -n {group_name} "
                     f"--ns {namespace_name} -g {rg}"
                 ).get_output_in_json()
-                assert int(count or 0) >= 0
+                assert int(count or 0) == len(members)
+                self.cmd(
+                    f"iot adr ns group refresh -n {group_name} "
+                    f"--ns {namespace_name} -g {rg}"
+                )
 
             with timed_step("Step 5 ❯ Delete group directly"):
                 self.cmd(
@@ -103,6 +111,12 @@ class TestADRGroupLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"--ns {namespace_name} -g {rg}",
                     expect_failure=True,
                 )
+                for action in ("refresh", "list-members", "count"):
+                    self.cmd(
+                        f"iot adr ns group {action} -n {group_name} "
+                        f"--ns {namespace_name} -g {rg}",
+                        expect_failure=True,
+                    )
                 _log(LogKind.OK, "Group lifecycle passed")
         finally:
             self.cleanup_namespace(namespace_name, rg)

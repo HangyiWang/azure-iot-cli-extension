@@ -104,6 +104,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 }
                 assert created.get("tags", {}).get("env") == "int"
                 assert created.get("tags", {}).get("owner") == "adr-tests"
+                device_cmd(f"wait -n {device_id} --created")
                 _log(LogKind.OK, "Device '%s' created with all options", device_id)
 
             # --- Step 2: Show round-trips the resource ---
@@ -175,6 +176,17 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     "address": _UPDATE_ENDPOINT_ADDRESS,
                     "endpointType": _ENDPOINT_TYPE,
                 }
+                removed_endpoint = device_cmd(
+                    f"update -n {device_id} "
+                    "--endpoints '{\"outbound\":{\"assigned\":{}}}'"
+                ).get_output_in_json()
+                assert (
+                    props(removed_endpoint)
+                    .get("endpoints", {})
+                    .get("outbound", {})
+                    .get("assigned")
+                    in ({}, None)
+                )
 
             with timed_step("Step 9 ❯ Reject empty update"):
                 self.cmd(
@@ -203,6 +215,7 @@ class TestADRDeviceLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s  (expect failure)", bad_show)
                 self.cmd(bad_show, expect_failure=True)
+                device_cmd(f"delete -n {device_id} -y")
                 _log(LogKind.OK, "Device '%s' no longer resolvable after delete", device_id)
 
                 remaining = [d["name"] for d in device_cmd("list").get_output_in_json()]
@@ -259,6 +272,12 @@ class TestADRDeviceEdgeCases(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             _log(LogKind.CMD, "az %s  (expect failure)", show_cmd)
             self.cmd(show_cmd, expect_failure=True)
             _log(LogKind.OK, "Show nonexistent device correctly returned failure")
+
+            self.cmd(
+                f"iot adr ns device create -n invalid-json "
+                f"--ns {namespace_name} -g {rg} --attributes not-json",
+                expect_failure=True,
+            )
 
         finally:
             _log(LogKind.STEP, "Cleanup ❯ Delete Namespace")

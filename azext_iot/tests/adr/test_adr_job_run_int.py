@@ -169,6 +169,11 @@ class TestADRJobRunSurface(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         job_name = _PREPROVISIONED_RUN["azext_iot_adr_job_run_job"]
         run_name = _PREPROVISIONED_RUN["azext_iot_adr_job_run_name"]
 
+        self.cmd(
+            f"iot adr ns job run wait --ns {namespace_name} -g {rg} "
+            f"--jn {job_name} --rn {run_name} "
+            "--custom \"properties.status != null\""
+        )
         shown = self.cmd(
             f"iot adr ns job run show --ns {namespace_name} -g {rg} "
             f"--jn {job_name} --rn {run_name}"

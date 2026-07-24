@@ -40,7 +40,10 @@ from typing import Optional
 import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
-from azext_iot.tests.adr._helpers import ADRHubInfraHelper
+from azext_iot.tests.adr._helpers import (
+    ADRHubInfraHelper,
+    wait_for_condition,
+)
 from azext_iot.tests.adr._log import LogKind, _log, timed_step
 from azext_iot.tests.adr.conftest import (
     TEST_RG,
@@ -66,36 +69,43 @@ def _wait_for_linking_succeeded(
     expected_identity_type: Optional[str] = None,
 ) -> dict:
     """Poll a namespace endpoint until its contract linking state succeeds."""
-    shown = {}
-    linking_state = None
-    identity_type = None
-    for attempt in range(_LINKING_POLL_ATTEMPTS):
-        shown = test_case.cmd(
+    def fetch():
+        return test_case.cmd(
             f"iot adr ns link {link_kind} show --ns {namespace_name} "
             f"-g {resource_group_name} -n {endpoint_name}"
         ).get_output_in_json()
+
+    def observation(shown):
         properties = shown.get("properties") or shown
-        linking_state = properties.get("linkingState") or shown.get("linkingState")
+        linking_state = properties.get("linkingState") or shown.get(
+            "linkingState"
+        )
         identity = (
             properties.get("inboundCallerIdentity")
             or shown.get("inboundCallerIdentity")
             or {}
         )
-        identity_type = identity.get("type")
-        if linking_state == "Succeeded" and (
+        return linking_state, identity.get("type")
+
+    def succeeded(shown):
+        linking_state, identity_type = observation(shown)
+        return linking_state == "Succeeded" and (
             expected_identity_type is None
             or identity_type == expected_identity_type
-        ):
-            assert linking_state == "Succeeded"
-            return shown
-        if attempt < _LINKING_POLL_ATTEMPTS - 1:
-            time.sleep(_LINKING_POLL_INTERVAL_SECONDS)
+        )
 
-    pytest.fail(
-        f"{link_kind} endpoint '{endpoint_name}' did not reach linkingState "
-        f"'Succeeded' with identity {expected_identity_type!r}; "
-        f"last state={linking_state!r}, last identity={identity_type!r}, "
-        f"response={shown}"
+    return wait_for_condition(
+        fetch,
+        succeeded,
+        description=f"{link_kind} endpoint '{endpoint_name}' linking",
+        is_terminal_failure=lambda shown: observation(shown)[0] == "Failed",
+        timeout=None,
+        interval=_LINKING_POLL_INTERVAL_SECONDS,
+        max_attempts=_LINKING_POLL_ATTEMPTS,
+        describe=lambda shown: (
+            f"linkingState={observation(shown)[0]!r}, "
+            f"identityType={observation(shown)[1]!r}"
+        ),
     )
 
 
@@ -198,6 +208,10 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     dps_endpoint,
                     expected_identity_type="UserAssigned",
                 )
+                self.cmd(
+                    f"iot adr ns link dps wait --ns {namespace_name} "
+                    f"-g {rg} --updated"
+                )
                 _log(LogKind.OK, "DPS link '%s' created", dps_endpoint)
 
             with timed_step("Step 2 ❯ link dps show (+ brownfield Hubs) / list"):
@@ -280,6 +294,10 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     rg,
                     secondary_endpoint,
                     expected_identity_type="UserAssigned",
+                )
+                self.cmd(
+                    f"iot adr ns link hub wait --ns {namespace_name} "
+                    f"-g {rg} --updated"
                 )
                 _log(LogKind.OK, "Hub link '%s' created (UAMI)", secondary_endpoint)
 
@@ -516,6 +534,10 @@ class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.CMD, "az %s", bundled_cmd)
                 self.cmd(bundled_cmd)
+                self.cmd(
+                    f"iot adr ns link wait --ns {namespace_name} "
+                    f"-g {rg} --updated"
+                )
                 _wait_for_linking_succeeded(
                     self,
                     "hub",
@@ -588,7 +610,9 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
+        denied_namespace_name = generate_adr_namespace_name()
         adu_endpoint = "adu-primary"
+        denied_endpoint = "adu-no-role"
 
         def _names_in(listed):
             assert isinstance(listed, list)
@@ -623,7 +647,66 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                         "The supplied update instance UAMI has no principalId."
                     )
 
-            with timed_step("Setup 2/2 ❯ Create ADR namespace"):
+            with timed_step("Setup 2/3 ❯ Verify link authorization failures"):
+                self.cmd(
+                    f"iot adr ns create -n {denied_namespace_name} -g {rg} "
+                    f"--location {TEST_LOCATION}"
+                )
+                try:
+                    self.cmd(
+                        f"iot adr ns link adu add "
+                        f"--ns {denied_namespace_name} -g {rg} "
+                        f"-n adu-no-identity --adu-id {adu_id}",
+                        expect_failure=True,
+                    )
+                    denied_command = (
+                        f"iot adr ns link adu add "
+                        f"--ns {denied_namespace_name} -g {rg} "
+                        f"-n {denied_endpoint} --adu-id {adu_id} "
+                        "--mi-system-assigned"
+                    )
+                    try:
+                        self.cmd(denied_command)
+                    except Exception as error:  # noqa: BLE001
+                        message = str(error).casefold()
+                        assert any(
+                            token in message
+                            for token in (
+                                "authorization",
+                                "forbidden",
+                                "permission",
+                                "role",
+                                "403",
+                            )
+                        ), f"Unexpected link authorization error: {error}"
+                    else:
+                        def denied_state():
+                            response = self.cmd(
+                                f"iot adr ns link adu show "
+                                f"--ns {denied_namespace_name} -g {rg} "
+                                f"-n {denied_endpoint}"
+                            ).get_output_in_json()
+                            return response.get("linkingState")
+
+                        wait_for_condition(
+                            denied_state,
+                            lambda state: state == "Failed",
+                            description="unauthorized ADU link failure",
+                            is_terminal_failure=lambda state: (
+                                state == "Succeeded"
+                            ),
+                            timeout=None,
+                            interval=_LINKING_POLL_INTERVAL_SECONDS,
+                            max_attempts=_LINKING_POLL_ATTEMPTS,
+                            describe=lambda state: f"linkingState={state!r}",
+                        )
+                finally:
+                    self.cmd(
+                        f"iot adr ns delete -n {denied_namespace_name} "
+                        f"-g {rg} -y"
+                    )
+
+            with timed_step("Setup 3/3 ❯ Create authorized ADR namespace"):
                 ns = self.cmd(
                     f"iot adr ns create -n {namespace_name} -g {rg} --location {TEST_LOCATION}"
                 ).get_output_in_json()
@@ -656,6 +739,7 @@ class TestADRLinkADU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"iot adr ns link adu wait --ns {namespace_name} "
                     f"-g {rg} --updated"
                 )
+                self.cmd(add_cmd, expect_failure=True)
                 _log(LogKind.OK, "ADU link '%s' created (UAMI)", adu_endpoint)
 
             with timed_step("Step 2 > link adu show / list (single entry)"):

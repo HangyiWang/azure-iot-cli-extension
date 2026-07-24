@@ -9,7 +9,7 @@
 import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
-from azext_iot.tests.adr._log import LogKind, _log
+from azext_iot.tests.adr._helpers import CleanupLedger
 from azext_iot.tests.adr.conftest import (
     TEST_LOCATION,
     TEST_RG,
@@ -21,17 +21,34 @@ from azext_iot.tests.adr.conftest import (
 class TestADRNamespaceCrud(CaptureOutputLiveScenarioTest):
     def test_namespace_crud_lifecycle(self):
         namespace_name = generate_adr_namespace_name()
-        namespace_created = False
 
-        try:
-            created = self.cmd(
+        with CleanupLedger() as cleanup:
+            self.cmd(
                 f"iot adr ns create -n {namespace_name} -g {TEST_RG} "
-                f"--location {TEST_LOCATION}"
+                f"--location {TEST_LOCATION} --no-wait"
+            )
+            cleanup.register(
+                "namespace",
+                lambda: self.cmd(
+                    f"iot adr ns delete -n {namespace_name} "
+                    f"-g {TEST_RG} --yes"
+                ),
+            )
+            self.cmd(
+                f"iot adr ns wait -n {namespace_name} -g {TEST_RG} --created"
+            )
+            created = self.cmd(
+                f"iot adr ns show -n {namespace_name} -g {TEST_RG}"
             ).get_output_in_json()
-            namespace_created = True
             assert created["name"] == namespace_name
             assert created["location"] == TEST_LOCATION
             assert created["properties"]["provisioningState"] == "Succeeded"
+            self.cmd(
+                f"iot adr ns wait -n {namespace_name} -g {TEST_RG} "
+                "--custom \"name=='condition-that-never-matches'\" "
+                "--interval 1 --timeout 1",
+                expect_failure=True,
+            )
 
             shown = self.cmd(
                 f"iot adr ns show -n {namespace_name} -g {TEST_RG}"
@@ -61,19 +78,14 @@ class TestADRNamespaceCrud(CaptureOutputLiveScenarioTest):
             )
 
             self.cmd(
-                f"iot adr ns delete -n {namespace_name} -g {TEST_RG} --yes"
+                f"iot adr ns delete -n {namespace_name} -g {TEST_RG} "
+                "--yes --no-wait"
             )
-            namespace_created = False
+            self.cmd(
+                f"iot adr ns wait -n {namespace_name} -g {TEST_RG} --deleted"
+            )
+            cleanup.dismiss("namespace")
             self.cmd(
                 f"iot adr ns show -n {namespace_name} -g {TEST_RG}",
                 expect_failure=True,
             )
-        finally:
-            if namespace_created:
-                try:
-                    self.cmd(
-                        f"iot adr ns delete -n {namespace_name} "
-                        f"-g {TEST_RG} --yes"
-                    )
-                except Exception as error:  # noqa: BLE001
-                    _log(LogKind.WARN, "Cleanup failed: %s", error)

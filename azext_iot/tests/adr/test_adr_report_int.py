@@ -12,13 +12,14 @@ backend is deployed.
 """
 
 import os
-import time
 
 import pytest
-from azure.core.exceptions import ResourceNotFoundError
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
-from azext_iot.tests.adr._helpers import ADRHubInfraHelper
+from azext_iot.tests.adr._helpers import (
+    ADRHubInfraHelper,
+    wait_for_condition,
+)
 from azext_iot.tests.adr.conftest import (
     TEST_LOCATION,
     TEST_RG,
@@ -57,6 +58,11 @@ class TestADRReports(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             )
 
             self.cmd(
+                f"iot adr ns report latest --ns {namespace_name} -g {rg} "
+                "--report-type NamespaceUpdateComplianceReport",
+                expect_failure=True,
+            )
+            self.cmd(
                 f"iot adr ns report generate --ns {namespace_name} -g {rg} "
                 "--report-type NamespaceUpdateComplianceReport"
             )
@@ -77,6 +83,33 @@ class TestADRReports(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             )
             assert group_report["reportType"] == "GroupBestUpdatesComplianceReport"
             assert group_report["reportTarget"] == group_name
+
+            self.cmd(
+                f"iot adr ns report generate --ns {namespace_name} -g {rg} "
+                "--report-type GroupInstallableUpdatesReport "
+                f"--group-name {group_name}"
+            )
+            installable_report = self._get_latest_report(
+                namespace_name,
+                "GroupInstallableUpdatesReport",
+                group_name=group_name,
+            )
+            assert installable_report["reportType"] == (
+                "GroupInstallableUpdatesReport"
+            )
+            assert installable_report["reportTarget"] == group_name
+
+            self.cmd(
+                f"iot adr ns report generate --ns {namespace_name} -g {rg} "
+                "--report-type NamespaceUpdateComplianceReport "
+                f"--group-name {group_name}",
+                expect_failure=True,
+            )
+            self.cmd(
+                f"iot adr ns report generate --ns {namespace_name} -g {rg} "
+                "--report-type GroupBestUpdatesComplianceReport",
+                expect_failure=True,
+            )
         finally:
             self.cleanup_namespace(namespace_name, rg)
 
@@ -88,22 +121,27 @@ class TestADRReports(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
         if group_name:
             command += f" --group-name {group_name}"
 
-        last_error = None
-        for attempt in range(_REPORT_POLL_ATTEMPTS):
-            try:
-                return self.cmd(command).get_output_in_json()
-            except (AssertionError, ResourceNotFoundError) as error:
-                message = str(error).lower().replace(" ", "")
-                if not any(
-                    token in message
-                    for token in ("404", "notfound", "reportnotready", "inprogress")
-                ):
-                    raise
-                last_error = error
-                if attempt < _REPORT_POLL_ATTEMPTS - 1:
-                    time.sleep(_REPORT_POLL_INTERVAL_SECONDS)
+        def report_not_ready(error):
+            message = str(error).lower().replace(" ", "")
+            return any(
+                token in message
+                for token in (
+                    "404",
+                    "notfound",
+                    "reportnotready",
+                    "inprogress",
+                )
+            )
 
-        pytest.fail(
-            f"Report {report_type} was not published within the polling window: "
-            f"{last_error}"
+        return wait_for_condition(
+            lambda: self.cmd(command).get_output_in_json(),
+            lambda _: True,
+            description=f"{report_type} publication",
+            timeout=None,
+            interval=_REPORT_POLL_INTERVAL_SECONDS,
+            max_attempts=_REPORT_POLL_ATTEMPTS,
+            describe=lambda report: (
+                f"reportType={(report or {}).get('reportType')!r}"
+            ),
+            is_retryable_error=report_not_ready,
         )

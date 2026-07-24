@@ -5,6 +5,7 @@
 # --------------------------------------------------------------------------------------------
 
 import os
+import subprocess
 from typing import Optional
 from unittest.mock import Mock, patch
 
@@ -21,17 +22,186 @@ from azext_iot.adr.providers.report import ReportProvider
 from azext_iot.adr.providers.job import JobProvider
 from azext_iot.adr.providers.job_run import JobRunProvider
 from azext_iot.tests.generators import generate_generic_id
-from azext_iot.tests.settings import DynamoSettings
 
-# Integration test constants
-REQUIRED_TEST_ENV_VARS = ["azext_iot_testrg"]
-settings = DynamoSettings(req_env_set=REQUIRED_TEST_ENV_VARS)
-TEST_RG = settings.env.azext_iot_testrg
-
-# ADR ships against a canary api-version (Microsoft.DeviceRegistry/2026-11-02-preview)
-# that is currently only deployed to centraluseuap. Override via the
-# `azext_iot_adr_location` env var (the CI pipeline pins this for ADR jobs).
+# ADR integration defaults mirror scripts/smoke_tests/adr_11_02_full_e2e.sh.
+TEST_SUBSCRIPTION = os.getenv(
+    "azext_iot_adr_subscription",
+    "efb15086-3322-405d-a9d0-c35715a9b722",
+)
+TEST_RG = os.getenv(
+    "azext_iot_adr_resource_group",
+    "adr-vnect-scale-rg-0",
+)
 TEST_LOCATION = os.getenv("azext_iot_adr_location", "centraluseuap")
+TEST_API_VERSION = os.getenv(
+    "azext_iot_adr_api_version",
+    "2026-11-02-preview",
+)
+TEST_ARM_RESOURCE = os.getenv(
+    "azext_iot_adr_arm_resource",
+    "https://management.azure.com",
+)
+TEST_ARM_ENDPOINT = os.getenv(
+    "azext_iot_adr_arm_endpoint",
+    f"https://{TEST_LOCATION}.management.azure.com",
+)
+PREFLIGHT_TIMEOUT_SECONDS = 60
+OPTIONAL_FIXTURE_ENV_VARS = (
+    "azext_iot_adr_update_instance_id",
+    "azext_iot_adr_migrate_resource_id",
+    "azext_iot_adr_custom_location_id",
+    "azext_iot_adr_run_resource_parity_int",
+    "azext_iot_adr_reports_enabled",
+    "azext_iot_adr_management_endpoint_type",
+    "azext_iot_adr_management_endpoint_address",
+    "azext_iot_adr_management_endpoint_scope_id",
+    "azext_iot_adr_management_endpoint_resource_id",
+    "azext_iot_adr_revoke_certificates",
+    "azext_iot_adr_ca_auth_profile_name",
+    "azext_iot_adr_job_run_resource_group",
+    "azext_iot_adr_job_run_namespace",
+    "azext_iot_adr_job_run_job",
+    "azext_iot_adr_job_run_name",
+    "azext_iot_adr_uami_resource_id",
+    "azext_iot_adr_asset_action_name",
+    "azext_iot_adr_asset_management_group",
+    "azext_iot_adr_asset_action_namespace",
+    "azext_iot_adr_asset_action_asset_name",
+)
+
+
+def _run_preflight_command(command):
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=PREFLIGHT_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise pytest.UsageError(
+            f"ADR integration preflight could not run {' '.join(command)}: "
+            f"{error}"
+        ) from error
+    if result.returncode:
+        detail = (result.stderr or result.stdout).strip()
+        raise pytest.UsageError(
+            f"ADR integration preflight failed: {' '.join(command)}"
+            f"\n{detail}"
+        )
+    return result.stdout.strip()
+
+
+def run_adr_integration_preflight(config):
+    """Run mandatory checks and report optional ADR fixture availability."""
+    if os.getenv("AZURE_TEST_RUN_LIVE", "").lower() not in {
+        "1",
+        "true",
+        "yes",
+    }:
+        raise pytest.UsageError(
+            "ADR integration tests require AZURE_TEST_RUN_LIVE=True."
+        )
+
+    _run_preflight_command(
+        ["az", "account", "set", "--subscription", TEST_SUBSCRIPTION]
+    )
+    subscription_id = _run_preflight_command(
+        ["az", "account", "show", "--query", "id", "-o", "tsv"]
+    )
+    if not subscription_id:
+        raise pytest.UsageError(
+            "ADR integration preflight returned an empty subscription ID."
+        )
+    if subscription_id.casefold() != TEST_SUBSCRIPTION.casefold():
+        raise pytest.UsageError(
+            "ADR integration preflight selected subscription "
+            f"{subscription_id}, expected {TEST_SUBSCRIPTION}."
+        )
+    _run_preflight_command(
+        ["az", "group", "show", "--name", TEST_RG, "--output", "none"]
+    )
+    _run_preflight_command(
+        ["az", "iot", "adr", "ns", "--help"]
+    )
+    for provider_namespace in (
+        "Microsoft.DeviceRegistry",
+        "Microsoft.DeviceUpdate",
+    ):
+        provider_state = _run_preflight_command(
+            [
+                "az",
+                "provider",
+                "show",
+                "--namespace",
+                provider_namespace,
+                "--query",
+                "registrationState",
+                "-o",
+                "tsv",
+            ]
+        )
+        if provider_state not in {"Registered", "Registering"}:
+            raise pytest.UsageError(
+                f"{provider_namespace} must be registered before running ADR "
+                "integration tests; current state: "
+                f"{provider_state or 'unknown'}."
+            )
+    _run_preflight_command(
+        [
+            "az",
+            "rest",
+            "--method",
+            "get",
+            "--resource",
+            TEST_ARM_RESOURCE,
+            "--url",
+            (
+                f"{TEST_ARM_ENDPOINT}/subscriptions/{TEST_SUBSCRIPTION}"
+                f"/resourceGroups/{TEST_RG}/providers/"
+                f"Microsoft.DeviceRegistry/namespaces"
+                f"?api-version={TEST_API_VERSION}"
+            ),
+            "--output",
+            "none",
+        ]
+    )
+
+    configured = sorted(
+        variable
+        for variable in OPTIONAL_FIXTURE_ENV_VARS
+        if os.getenv(variable)
+    )
+    missing = sorted(set(OPTIONAL_FIXTURE_ENV_VARS) - set(configured))
+    reporter = config.pluginmanager.get_plugin("terminalreporter")
+    if reporter:
+        reporter.write_line(
+            "ADR preflight: "
+            f"subscription={subscription_id[:8]}..., "
+            f"resource_group={TEST_RG}, location={TEST_LOCATION}, "
+            f"endpoint={TEST_ARM_ENDPOINT}, api={TEST_API_VERSION}"
+        )
+        reporter.write_line(
+            "ADR optional fixtures configured: "
+            + (", ".join(configured) if configured else "none")
+        )
+        reporter.write_line(
+            "ADR optional fixtures missing: "
+            + (", ".join(missing) if missing else "none")
+        )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def adr_integration_preflight(request):
+    """Validate mandatory live-test infrastructure once per ADR integration run."""
+    integration_items = [
+        item for item in request.session.items if "_int.py" in item.nodeid
+    ]
+    if not integration_items:
+        return
+
+    run_adr_integration_preflight(request.config)
 
 
 def pytest_runtest_logreport(report):

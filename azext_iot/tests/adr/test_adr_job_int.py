@@ -156,7 +156,8 @@ class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             with timed_step("Step 7 ❯ job schedule with --scheduled-time and --timeout"):
                 # Schedule for ~1 hour from now to keep it well-formed
                 future = (
-                    datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+                    datetime.datetime.now(datetime.timezone.utc)
+                    + datetime.timedelta(hours=1)
                 ).strftime("%Y-%m-%dT%H:%M:%SZ")
                 self.cmd(
                     f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "

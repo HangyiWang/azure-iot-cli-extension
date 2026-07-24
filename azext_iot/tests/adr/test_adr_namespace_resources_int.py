@@ -130,6 +130,10 @@ class TestADRNamespaceResourceLifecycle(CaptureOutputLiveScenarioTest):
                 f"--properties {_json_argument({'discoveryId': 'scan-1', 'version': 1})} "
                 "--no-wait"
             )
+            self.cmd(
+                f"iot adr ns discovered-device wait -n {discovered_device_name} "
+                f"--ns {namespace_name} -g {TEST_RG} --created"
+            )
             discovered_device = wait_for_resource_succeeded(
                 self, discovered_device_show
             )
@@ -148,6 +152,22 @@ class TestADRNamespaceResourceLifecycle(CaptureOutputLiveScenarioTest):
                 f"--properties {_json_argument({'discoveryId': 'scan-2', 'version': 2})}"
             ).get_output_in_json()
             assert updated_device["properties"]["version"] == 2
+            cleared_device = self.cmd(
+                f"iot adr ns discovered-device update "
+                f"-n {discovered_device_name} --ns {namespace_name} "
+                f"-g {TEST_RG} "
+                f"--properties "
+                f"{_json_argument({'attributes': {}, 'version': 3})}"
+            ).get_output_in_json()
+            assert cleared_device["properties"]["attributes"] == {}
+            assert cleared_device["properties"]["version"] == 3
+            self.cmd(
+                f"iot adr ns discovered-device update "
+                f"-n {discovered_device_name} --ns {namespace_name} "
+                f"-g {TEST_RG} "
+                f"--properties {_json_argument({'version': -1})}",
+                expect_failure=True,
+            )
             self.cmd(
                 f"iot adr ns discovered-device update -n {discovered_device_name} "
                 f"--ns {namespace_name} -g {TEST_RG}",
@@ -171,6 +191,10 @@ class TestADRNamespaceResourceLifecycle(CaptureOutputLiveScenarioTest):
                 f"--properties {_json_argument(discovered_asset_properties)} "
                 "--no-wait"
             )
+            self.cmd(
+                f"iot adr ns discovered-asset wait -n {discovered_asset_name} "
+                f"--ns {namespace_name} -g {TEST_RG} --created"
+            )
             discovered_asset = wait_for_resource_succeeded(
                 self, discovered_asset_show
             )
@@ -188,6 +212,27 @@ class TestADRNamespaceResourceLifecycle(CaptureOutputLiveScenarioTest):
                 f"--properties {_json_argument({'displayName': 'updated', 'version': 2})}"
             ).get_output_in_json()
             assert updated_discovered_asset["properties"]["displayName"] == "updated"
+            cleared_discovered_asset = self.cmd(
+                f"iot adr ns discovered-asset update "
+                f"-n {discovered_asset_name} --ns {namespace_name} "
+                f"-g {TEST_RG} "
+                f"--properties "
+                f"{_json_argument({'displayName': '', 'version': 3})}"
+            ).get_output_in_json()
+            assert cleared_discovered_asset["properties"].get(
+                "displayName"
+            ) in (
+                "",
+                None,
+            )
+            self.cmd(
+                f"iot adr ns discovered-asset create -n invalid-reference "
+                f"--ns {namespace_name} -g {TEST_RG} "
+                f"--extended-location {_json_argument(extended_location)} "
+                f"--properties "
+                f"{_json_argument({'discoveryId': 'invalid', 'version': 1})}",
+                expect_failure=True,
+            )
             self.cmd(
                 f"iot adr ns discovered-asset update -n {discovered_asset_name} "
                 f"--ns {namespace_name} -g {TEST_RG}",
@@ -208,6 +253,10 @@ class TestADRNamespaceResourceLifecycle(CaptureOutputLiveScenarioTest):
                 f"--ns {namespace_name} -g {TEST_RG} "
                 f"--extended-location {_json_argument(extended_location)} "
                 f"--properties {_json_argument(asset_properties)} --no-wait"
+            )
+            self.cmd(
+                f"iot adr ns asset wait -n {asset_name} "
+                f"--ns {namespace_name} -g {TEST_RG} --created"
             )
             asset = wait_for_resource_succeeded(self, asset_show)
             assert asset["name"] == asset_name
@@ -235,6 +284,13 @@ class TestADRNamespaceResourceLifecycle(CaptureOutputLiveScenarioTest):
                 f"--properties {_json_argument({'enabled': False})}"
             ).get_output_in_json()
             assert disabled_asset["properties"]["enabled"] is False
+            cleared_asset = self.cmd(
+                f"iot adr ns asset update -n {asset_name} "
+                f"--ns {namespace_name} -g {TEST_RG} "
+                f"--properties "
+                f"{_json_argument({'displayName': '', 'enabled': False})}"
+            ).get_output_in_json()
+            assert cleared_asset["properties"].get("displayName") in ("", None)
 
             self.cmd(
                 f"iot adr ns asset delete -n {asset_name} "
@@ -266,6 +322,30 @@ class TestADRNamespaceResourceLifecycle(CaptureOutputLiveScenarioTest):
                 )
             except Exception as error:  # noqa: BLE001 - cleanup is best-effort
                 _log(LogKind.WARN, "Cleanup failed: %s", error)
+
+
+@pytest.mark.usefixtures("set_cwd")
+class TestADRNamespaceAssetActionValidation(CaptureOutputLiveScenarioTest):
+    def test_asset_action_rejects_missing_names_and_malformed_payload(self):
+        base_command = (
+            "iot adr ns asset execute-action -n missing-asset "
+            f"--ns missing-namespace -g {TEST_RG}"
+        )
+        self.cmd(
+            f"{base_command} --action-name '' "
+            "--management-group-name group",
+            expect_failure=True,
+        )
+        self.cmd(
+            f"{base_command} --action-name action "
+            "--management-group-name ''",
+            expect_failure=True,
+        )
+        self.cmd(
+            f"{base_command} --action-name action "
+            "--management-group-name group --payload not-json",
+            expect_failure=True,
+        )
 
 
 @pytest.mark.skipif(

@@ -8,7 +8,7 @@
 
 import re
 import time
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional, TypeVar
 
 from azext_iot.tests.adr._log import (  # noqa: F401 - re-exported for back-compat
     LogKind,
@@ -22,6 +22,9 @@ from azext_iot.tests.adr.conftest import RoleAssignmentHelper, TEST_LOCATION
 ROLE_PROPAGATION_DELAY = 30
 RESOURCE_POLL_INTERVAL = 10
 RESOURCE_MAX_POLLS = 30
+RESOURCE_POLL_TIMEOUT = RESOURCE_POLL_INTERVAL * RESOURCE_MAX_POLLS
+MATERIALIZATION_POLL_INTERVAL = 10
+MATERIALIZATION_POLL_TIMEOUT = 120
 RESOURCE_RETRYABLE_STATUS_CODES = {
     404,
     408,
@@ -39,6 +42,47 @@ RESOURCE_RETRYABLE_ERROR = re.compile(
     r"\b(408|409|429|500|502|503|504)\b",
     re.IGNORECASE,
 )
+T = TypeVar("T")
+
+
+class CleanupLedger:
+    """Run registered cleanup callbacks in reverse dependency order."""
+
+    def __init__(self):
+        self._actions = []
+
+    def __enter__(self):
+        return self
+
+    def register(self, label: str, cleanup: Callable[[], None]) -> None:
+        self._actions.append((label, cleanup))
+
+    def dismiss(self, label: str) -> None:
+        self._actions = [
+            action for action in self._actions if action[0] != label
+        ]
+
+    def cleanup(self) -> list:
+        failures = []
+        while self._actions:
+            label, cleanup = self._actions.pop()
+            try:
+                cleanup()
+            except Exception as error:  # noqa: BLE001 - report all cleanup errors
+                failures.append((label, error))
+                _log(LogKind.WARN, "Cleanup failed for %s: %s", label, error)
+            else:
+                _log(LogKind.RESULT, "Cleanup completed for %s", label)
+        return failures
+
+    def __exit__(self, exception_type, _exception, _traceback):
+        failures = self.cleanup()
+        if failures and exception_type is None:
+            detail = ", ".join(
+                f"{label}: {error}" for label, error in failures
+            )
+            raise AssertionError(f"ADR cleanup failed: {detail}")
+        return False
 
 
 def is_retryable_resource_error(error: Exception) -> bool:
@@ -53,6 +97,75 @@ def is_retryable_resource_error(error: Exception) -> bool:
     )
 
 
+def wait_for_condition(
+    fetch: Callable[[], T],
+    is_success: Callable[[T], bool],
+    *,
+    description: str,
+    is_terminal_failure: Optional[Callable[[T], bool]] = None,
+    timeout: Optional[float] = RESOURCE_POLL_TIMEOUT,
+    interval: float = RESOURCE_POLL_INTERVAL,
+    max_attempts: Optional[int] = None,
+    describe: Optional[Callable[[T], str]] = None,
+    is_retryable_error: Callable[[Exception], bool] = is_retryable_resource_error,
+    clock: Optional[Callable[[], float]] = None,
+    sleeper: Optional[Callable[[float], None]] = None,
+) -> T:
+    """Poll a bounded condition and report its final sanitized observation."""
+    clock = clock or time.monotonic
+    sleeper = sleeper or time.sleep
+    deadline = None if timeout is None else clock() + timeout
+    attempts = 0
+    last_value = None
+    last_error = None
+
+    while True:
+        attempts += 1
+        try:
+            value = fetch()
+        except Exception as error:  # noqa: BLE001 - retryability is explicit
+            if not is_retryable_error(error):
+                raise
+            last_error = error
+        else:
+            last_value = value
+            last_error = None
+            if is_success(value):
+                return value
+            if is_terminal_failure and is_terminal_failure(value):
+                detail = describe(value) if describe else type(value).__name__
+                raise AssertionError(
+                    f"{description} reached a terminal failure after "
+                    f"{attempts} attempt(s) ({detail})."
+                )
+
+        attempts_exhausted = (
+            max_attempts is not None and attempts >= max_attempts
+        )
+        time_exhausted = deadline is not None and clock() >= deadline
+        if attempts_exhausted or time_exhausted:
+            if last_error is not None:
+                detail = f"last error: {last_error}"
+            elif last_value is not None:
+                observation = (
+                    describe(last_value)
+                    if describe
+                    else type(last_value).__name__
+                )
+                detail = f"last observation: {observation}"
+            else:
+                detail = "no observation"
+            raise AssertionError(
+                f"Timed out waiting for {description} after {attempts} "
+                f"attempt(s) ({detail})."
+            )
+
+        sleep_for = interval
+        if deadline is not None:
+            sleep_for = min(interval, max(0, deadline - clock()))
+        sleeper(sleep_for)
+
+
 def wait_for_resource_succeeded(
     test,
     show_command: str,
@@ -61,36 +174,41 @@ def wait_for_resource_succeeded(
     poll_interval: int = RESOURCE_POLL_INTERVAL,
 ) -> dict:
     """Poll an ADR resource until provisioning succeeds or fails."""
-    last_state = None
-    last_error = None
-    for _ in range(max_polls):
-        try:
-            resource = test.cmd(show_command).get_output_in_json()
-        except Exception as error:  # noqa: BLE001 - an initial 404 is expected
-            if not is_retryable_resource_error(error):
-                raise
-            last_error = error
-        else:
-            last_error = None
-            last_state = (resource.get("properties") or {}).get(
-                "provisioningState"
-            )
-            if last_state == "Succeeded":
-                return resource
-            if last_state in {"Failed", "Canceled", "Cancelled"}:
-                raise AssertionError(
-                    f"Resource provisioning reached terminal state '{last_state}'."
-                )
-        time.sleep(poll_interval)
+    def fetch():
+        return test.cmd(show_command).get_output_in_json()
 
-    detail = (
-        f"last state: {last_state}"
-        if last_error is None
-        else f"last error: {last_error}"
+    def state(resource):
+        return (resource.get("properties") or {}).get("provisioningState")
+
+    return wait_for_condition(
+        fetch,
+        lambda resource: state(resource) == "Succeeded",
+        description="resource provisioningState 'Succeeded'",
+        is_terminal_failure=lambda resource: state(resource)
+        in {"Failed", "Canceled", "Cancelled"},
+        timeout=None,
+        interval=poll_interval,
+        max_attempts=max_polls,
+        describe=lambda resource: f"provisioningState={state(resource)!r}",
     )
-    raise AssertionError(
-        "Resource did not reach provisioningState 'Succeeded' "
-        f"after {max_polls} polls ({detail})."
+
+
+def wait_for_materialized_resources(
+    test,
+    list_command: str,
+    *,
+    description: str,
+    timeout: float = MATERIALIZATION_POLL_TIMEOUT,
+    interval: float = MATERIALIZATION_POLL_INTERVAL,
+) -> list:
+    """Wait for a backend-materialized child collection to become non-empty."""
+    return wait_for_condition(
+        lambda: test.cmd(list_command).get_output_in_json(),
+        bool,
+        description=description,
+        timeout=timeout,
+        interval=interval,
+        describe=lambda resources: f"materialized count={len(resources or [])}",
     )
 
 

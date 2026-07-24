@@ -6,12 +6,16 @@
 
 """Registry Device lifecycle and backend-materialized child integration coverage."""
 
+import json
 import os
 
 import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
-from azext_iot.tests.adr._helpers import wait_for_resource_succeeded
+from azext_iot.tests.adr._helpers import (
+    wait_for_materialized_resources,
+    wait_for_resource_succeeded,
+)
 from azext_iot.tests.adr._log import LogKind, _log
 from azext_iot.tests.adr.conftest import (
     TEST_LOCATION,
@@ -55,6 +59,10 @@ def _create_registry_device(
     )
     if no_wait:
         test.cmd(f"{create_command} --no-wait")
+        test.cmd(
+            f"iot adr ns registry-device wait -n {device_name} "
+            f"--ns {namespace_name} -g {TEST_RG} --created"
+        )
         return wait_for_resource_succeeded(test, show_command)
     return test.cmd(create_command).get_output_in_json()
 
@@ -142,15 +150,25 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 self, namespace_name, device_name, no_wait=False
             )
 
-            profiles = self.cmd(
+            profile_list_command = (
                 "iot adr ns registry-device auth-profile list "
                 f"--registry-device-name {device_name} --ns {namespace_name} "
                 f"-g {TEST_RG}"
-            ).get_output_in_json()
-            if not profiles:
+            )
+            try:
+                profiles = wait_for_materialized_resources(
+                    self,
+                    profile_list_command,
+                    description=(
+                        f"authentication profiles for Registry Device "
+                        f"'{device_name}'"
+                    ),
+                    timeout=60,
+                )
+            except AssertionError as error:
                 pytest.skip(
                     "Backend did not materialize Registry Device "
-                    "Authentication Profiles."
+                    f"Authentication Profiles within 60 seconds: {error}"
                 )
 
             auth_profiles = {}
@@ -164,6 +182,13 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                     f"-n {profile_name} --registry-device-name {device_name} "
                     f"--ns {namespace_name} -g {TEST_RG}"
                 ).get_output_in_json()
+                serialized_profile = json.dumps(profile).casefold()
+                for secret_field in (
+                    '"primarykey"',
+                    '"secondarykey"',
+                    '"privatekey"',
+                ):
+                    assert secret_field not in serialized_profile
                 auth_profiles[profile_name] = (
                     (profile.get("properties") or {}).get("authenticationType")
                 )
@@ -263,13 +288,21 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
             _create_registry_device(
                 self, namespace_name, device_name, no_wait=False
             )
-            resources = self.cmd(
+            child_list_command = (
                 f"{list_command} --registry-device-name {device_name} "
                 f"--ns {namespace_name} -g {TEST_RG}"
-            ).get_output_in_json()
-            if not resources:
+            )
+            try:
+                resources = wait_for_materialized_resources(
+                    self,
+                    child_list_command,
+                    description=f"resources for '{list_command}'",
+                    timeout=60,
+                )
+            except AssertionError as error:
                 pytest.skip(
-                    f"Backend did not materialize resources for '{list_command}'."
+                    f"Backend did not materialize resources for "
+                    f"'{list_command}' within 60 seconds: {error}"
                 )
 
             resource_name = os.getenv(fixture_environment) or resources[0]["name"]
