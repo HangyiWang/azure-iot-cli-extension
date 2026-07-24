@@ -613,53 +613,43 @@ def load_adr_arguments(self, _):
             help="Azure resource ID of the Device Provisioning Service to link to this namespace.",
         )
 
-    # Device Update link arguments (new surface and legacy alias)
-    du_link_groups = (
-        ("iot adr ns link adu", ["--adu-resource-id", "--adu-id"]),
-        (
-            "iot adr ns du link",
-            ["--du-resource-id", "--du-id", "--adu-id"],
-        ),
-    )
-    for command_group, resource_id_options in du_link_groups:
-        with self.argument_context(command_group) as context:
+    # Device Update link arguments
+    with self.argument_context("iot adr ns link adu") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace that owns the link.",
+        )
+        context.argument(
+            "endpoint_name",
+            options_list=["--endpoint-name", "--en", "--name", "-n"],
+            help="Logical name of the Device Update endpoint entry.",
+        )
+
+    for action in ("add", "update"):
+        with self.argument_context(f"iot adr ns link adu {action}") as context:
             context.argument(
-                "namespace_name",
-                options_list=["--namespace", "--ns"],
-                help="Name of the Device Registry namespace that owns the link.",
+                "mi_system_assigned",
+                arg_group="Inbound Caller Identity",
+                options_list=["--mi-system-assigned", "--mi-sa"],
+                arg_type=get_three_state_flag(),
+                help="Use the linked Device Update instance's system-assigned "
+                     "identity. The instance must have that identity enabled.",
             )
             context.argument(
-                "endpoint_name",
-                options_list=["--endpoint-name", "--en", "--name", "-n"],
-                help="Logical name of the Device Update endpoint entry.",
+                "mi_user_assigned",
+                arg_group="Inbound Caller Identity",
+                options_list=["--mi-user-assigned", "--mi-ua"],
+                help="Resource ID of a user-assigned identity attached to the "
+                     "linked Device Update instance.",
             )
 
-        for action in ("add", "update"):
-            with self.argument_context(
-                f"{command_group} {action}"
-            ) as context:
-                context.argument(
-                    "mi_system_assigned",
-                    arg_group="Inbound Caller Identity",
-                    options_list=["--mi-system-assigned", "--mi-sa"],
-                    arg_type=get_three_state_flag(),
-                    help="Use the linked Device Update instance's system-assigned "
-                         "identity. The instance must have that identity enabled.",
-                )
-                context.argument(
-                    "mi_user_assigned",
-                    arg_group="Inbound Caller Identity",
-                    options_list=["--mi-user-assigned", "--mi-ua"],
-                    help="Resource ID of a user-assigned identity attached to the "
-                         "linked Device Update instance.",
-                )
-
-        with self.argument_context(f"{command_group} add") as context:
-            context.argument(
-                "adu_resource_id",
-                options_list=resource_id_options,
-                help="Azure resource ID of the Device Update instance to link.",
-            )
+    with self.argument_context("iot adr ns link adu add") as context:
+        context.argument(
+            "adu_resource_id",
+            options_list=["--adu-resource-id", "--adu-id"],
+            help="Azure resource ID of the Device Update instance to link.",
+        )
 
     # Device Update commands
     with self.argument_context("iot adr ns du instance") as context:

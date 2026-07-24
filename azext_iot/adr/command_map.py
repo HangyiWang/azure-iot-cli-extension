@@ -276,17 +276,6 @@ def load_adr_commands(self, _):
         )
         cmd_group.wait_command("wait", "adr_du_instance_show")
 
-    with self.command_group(
-        "iot adr ns du link", command_type=adr_link_ops
-    ) as cmd_group:
-        cmd_group.command("add", "adr_link_adu_add", supports_no_wait=True)
-        cmd_group.command("update", "adr_link_adu_update", supports_no_wait=True)
-        cmd_group.show_command("show", "adr_link_adu_show")
-        cmd_group.command("list", "adr_link_adu_list")
-        cmd_group.wait_command(
-            "wait", "adr_namespace_show", getter_type=adr_namespace_ops
-        )
-
     # Group commands
     with self.command_group("iot adr ns group", command_type=adr_group_ops) as cmd_group:
         cmd_group.command("create", "adr_group_create", supports_no_wait=True)

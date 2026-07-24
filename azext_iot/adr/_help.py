@@ -643,10 +643,11 @@ def load_adr_help():
         "iot adr ns du"
     ] = """
   type: group
-  short-summary: Manage Device Update resources linked to a Device Registry namespace.
+  short-summary: Manage Device Update instances used by Device Registry namespaces.
   long-summary: |
-    Manages Microsoft.DeviceUpdate/updateInstances resources and namespace-side
-    links. Device Update data-plane operations are not part of this command group.
+    Manages Microsoft.DeviceUpdate/updateInstances resources. Namespace links
+    remain under 'az iot adr ns link adu'. Device Update data-plane operations
+    are not part of this command group.
   """
 
     helps[
@@ -738,69 +739,6 @@ def load_adr_help():
   examples:
     - name: Wait until provisioning succeeds
       text: az iot adr ns du instance wait -n myUpdateInstance -g myResourceGroup --custom "properties.provisioningState=='Succeeded'"
-  """
-
-    helps[
-        "iot adr ns du link"
-    ] = """
-  type: group
-  short-summary: Manage Device Update links on a Device Registry namespace.
-  long-summary: |
-    Updates the namespace's properties.updating.endpoints collection. Internal
-    UpdateInstance link actions are coordinated by the Device Registry service.
-  """
-
-    helps[
-        "iot adr ns du link add"
-    ] = """
-  type: command
-  short-summary: Link a Device Update instance to a Device Registry namespace.
-  examples:
-    - name: Link using the instance system-assigned identity
-      text: |
-        az iot adr ns du link add -n primary --ns myNamespace -g myResourceGroup \\
-          --du-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/updateInstances/<instance> \\
-          --mi-system-assigned
-  """
-
-    helps[
-        "iot adr ns du link update"
-    ] = """
-  type: command
-  short-summary: Update a namespace Device Update link's inbound identity.
-  examples:
-    - name: Rotate to the system-assigned identity
-      text: az iot adr ns du link update -n primary --ns myNamespace -g myResourceGroup --mi-system-assigned
-  """
-
-    helps[
-        "iot adr ns du link show"
-    ] = """
-  type: command
-  short-summary: Show a namespace Device Update link.
-  examples:
-    - name: Show a link
-      text: az iot adr ns du link show -n primary --ns myNamespace -g myResourceGroup
-  """
-
-    helps[
-        "iot adr ns du link list"
-    ] = """
-  type: command
-  short-summary: List namespace Device Update links.
-  examples:
-    - name: List links
-      text: az iot adr ns du link list --ns myNamespace -g myResourceGroup
-  """
-
-    helps[
-        "iot adr ns du link wait"
-    ] = """
-  type: command
-  short-summary: Wait for a Device Update link namespace update to complete.
-  examples:
-    - name: Wait until the namespace update completes
-      text: az iot adr ns du link wait --ns myNamespace -g myResourceGroup --updated
   """
 
     helps[
