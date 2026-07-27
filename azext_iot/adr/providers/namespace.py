@@ -10,10 +10,8 @@ from azure.cli.core.azclierror import (
     InvalidArgumentValueError,
     MutuallyExclusiveArgumentError,
     RequiredArgumentMissingError,
-    ResourceNotFoundError,
 )
 from knack.log import get_logger
-from msrestazure.tools import is_valid_resource_id
 
 from azext_iot.adr.common import (
     IdentityType,
@@ -21,8 +19,7 @@ from azext_iot.adr.common import (
     build_mi_body,
     validate_uami_resource_id,
 )
-from azext_iot.adr.providers.base import ADRProvider, console
-from azext_iot.adr.providers._resource import parse_json_object
+from azext_iot.adr.providers.base import ADRProvider, console, parse_json_object
 
 logger = get_logger(__name__)
 
@@ -95,14 +92,12 @@ def _build_namespace_identity(
 
 
 def _build_endpoint_properties(
-    management_endpoints: Any = None,
     messaging_endpoints: Any = None,
     provisioning_endpoints: Any = None,
     updating_endpoints: Any = None,
 ) -> dict:
     properties = {}
     endpoint_inputs = (
-        ("management", "--management-endpoints", management_endpoints),
         ("messaging", "--messaging-endpoints", messaging_endpoints),
         ("provisioning", "--provisioning-endpoints", provisioning_endpoints),
         ("updating", "--updating-endpoints", updating_endpoints),
@@ -156,7 +151,6 @@ class NamespaceProvider(ADRProvider):
         tags: Optional[Dict[str, str]] = None,
         outbound_mi_system_assigned: Optional[bool] = None,
         outbound_mi_user_assigned: Optional[str] = None,
-        management_endpoints: Any = None,
         messaging_endpoints: Any = None,
         provisioning_endpoints: Any = None,
         updating_endpoints: Any = None,
@@ -175,7 +169,6 @@ class NamespaceProvider(ADRProvider):
         )
 
         properties = _build_endpoint_properties(
-            management_endpoints=management_endpoints,
             messaging_endpoints=messaging_endpoints,
             provisioning_endpoints=provisioning_endpoints,
             updating_endpoints=updating_endpoints,
@@ -236,7 +229,6 @@ class NamespaceProvider(ADRProvider):
         tags: Optional[Dict[str, str]] = None,
         outbound_mi_system_assigned: Optional[bool] = None,
         outbound_mi_user_assigned: Optional[str] = None,
-        management_endpoints: Any = None,
         messaging_endpoints: Any = None,
         provisioning_endpoints: Any = None,
         updating_endpoints: Any = None,
@@ -248,7 +240,6 @@ class NamespaceProvider(ADRProvider):
             body["tags"] = tags
 
         properties = _build_endpoint_properties(
-            management_endpoints=management_endpoints,
             messaging_endpoints=messaging_endpoints,
             provisioning_endpoints=provisioning_endpoints,
             updating_endpoints=updating_endpoints,
@@ -453,116 +444,3 @@ class NamespaceProvider(ADRProvider):
         if no_wait:
             return result
         return (result or {}).get("identity")
-
-    def management_endpoint_set(
-        self,
-        endpoint_name: str,
-        namespace_name: str,
-        resource_group_name: str,
-        endpoint_type: str,
-        address: str,
-        scope_id: str,
-        resource_id: str,
-        **kwargs,
-    ):
-        endpoint_fields = {
-            "--name": endpoint_name,
-            "--endpoint-type": endpoint_type,
-            "--address": address,
-            "--scope-id": scope_id,
-            "--resource-id": resource_id,
-        }
-        for argument_name, value in endpoint_fields.items():
-            if not isinstance(value, str) or not value.strip():
-                raise InvalidArgumentValueError(
-                    f"{argument_name} must be a non-empty string."
-                )
-        if not is_valid_resource_id(resource_id):
-            raise InvalidArgumentValueError(
-                "--resource-id must be a valid ARM resource ID."
-            )
-        endpoint = {
-            "endpointType": endpoint_type,
-            "address": address,
-            "scopeId": scope_id,
-            "resourceId": resource_id,
-        }
-        poller = self.client.namespaces.begin_update(
-            resource_group_name=resource_group_name,
-            namespace_name=namespace_name,
-            properties={
-                "properties": {
-                    "management": {"endpoints": {endpoint_name: endpoint}}
-                }
-            },
-        )
-        return self._wait(
-            poller,
-            f"Setting management endpoint '{endpoint_name}' on namespace "
-            f"{namespace_name}...",
-            **kwargs,
-        )
-
-    def management_endpoint_show(
-        self,
-        endpoint_name: str,
-        namespace_name: str,
-        resource_group_name: str,
-    ):
-        endpoints = self._management_endpoints(
-            namespace_name, resource_group_name
-        )
-        if endpoint_name not in endpoints:
-            raise ResourceNotFoundError(
-                f"Management endpoint '{endpoint_name}' was not found on "
-                f"namespace '{namespace_name}'."
-            )
-        return {"name": endpoint_name, **(endpoints[endpoint_name] or {})}
-
-    def management_endpoint_list(
-        self, namespace_name: str, resource_group_name: str
-    ):
-        endpoints = self._management_endpoints(
-            namespace_name, resource_group_name
-        )
-        return [
-            {"name": name, **(endpoint or {})}
-            for name, endpoint in sorted(endpoints.items())
-        ]
-
-    def _management_endpoints(
-        self, namespace_name: str, resource_group_name: str
-    ) -> dict:
-        namespace = self.show(namespace_name, resource_group_name)
-        return (
-            (((namespace or {}).get("properties") or {}).get("management") or {})
-            .get("endpoints")
-            or {}
-        )
-
-    def migrate(
-        self,
-        namespace_name: str,
-        resource_group_name: str,
-        resource_ids: List[str],
-        scope: str,
-        **kwargs,
-    ):
-        resource_ids = [
-            resource_id.strip()
-            for resource_id in resource_ids
-            if isinstance(resource_id, str) and resource_id.strip()
-        ]
-        if not resource_ids:
-            raise RequiredArgumentMissingError("Provide at least one resource ID to migrate.")
-
-        poller = self.client.namespaces.begin_migrate(
-            resource_group_name=resource_group_name,
-            namespace_name=namespace_name,
-            body={"scope": scope, "resourceIds": resource_ids},
-        )
-        return self._wait(
-            poller,
-            f"Migrating {len(resource_ids)} resource(s) into namespace {namespace_name}...",
-            **kwargs,
-        )

@@ -88,11 +88,6 @@ def _registered_commands():
 def test_2026_command_surface_is_registered():
     commands = _registered_commands()
 
-    assert commands["iot adr ns migrate"] == (
-        "command",
-        "adr_namespace_migrate",
-        {"supports_no_wait": True},
-    )
     assert commands["iot adr ns group list-members"][1] == "adr_group_list_members"
     assert commands["iot adr ns job run cancel"] == (
         "command",
@@ -120,36 +115,12 @@ def test_2026_command_surface_is_registered():
         "iot adr ns registry-device attribute show",
         "iot adr ns registry-device capability list",
         "iot adr ns registry-device capability show",
-        "iot adr ns asset create",
-        "iot adr ns asset show",
-        "iot adr ns asset list",
-        "iot adr ns asset update",
-        "iot adr ns asset delete",
-        "iot adr ns asset execute-action",
-        "iot adr ns asset wait",
-        "iot adr ns discovered-device create",
-        "iot adr ns discovered-device show",
-        "iot adr ns discovered-device list",
-        "iot adr ns discovered-device update",
-        "iot adr ns discovered-device delete",
-        "iot adr ns discovered-device wait",
-        "iot adr ns discovered-asset create",
-        "iot adr ns discovered-asset show",
-        "iot adr ns discovered-asset list",
-        "iot adr ns discovered-asset update",
-        "iot adr ns discovered-asset delete",
-        "iot adr ns discovered-asset wait",
         "iot adr ns identity show",
         "iot adr ns identity assign",
         "iot adr ns identity remove",
         "iot adr ns identity wait",
-        "iot adr ns management-endpoint set",
-        "iot adr ns management-endpoint show",
-        "iot adr ns management-endpoint list",
-        "iot adr ns management-endpoint wait",
         "iot adr ns ca wait",
         "iot adr ns ca policy wait",
-        "iot adr ns device wait",
         "iot adr ns job run wait",
         "iot adr ns link wait",
         "iot adr ns link du wait",
@@ -164,7 +135,7 @@ def test_2026_command_surface_is_registered():
         "iot adr ns du instance wait",
     }
     assert expected_commands <= set(commands)
-    assert len(commands) == 115
+    assert len(commands) == 85
     assert commands[
         "iot adr ns registry-device auth-profile revoke-certificates"
     ][2] == {"confirmation": True, "supports_no_wait": True}
@@ -185,7 +156,18 @@ def test_unsupported_command_surfaces_are_not_registered():
         assert f"iot adr ns registry-device {child} create" not in commands
         assert f"iot adr ns registry-device {child} update" not in commands
         assert f"iot adr ns registry-device {child} delete" not in commands
-    assert "iot adr ns device revoke" not in commands
+    assert not any(
+        command.startswith(
+            (
+                "iot adr ns asset",
+                "iot adr ns device",
+                "iot adr ns discovered-",
+                "iot adr ns management-endpoint",
+                "iot adr ns migrate",
+            )
+        )
+        for command in commands
+    )
     for endpoint in ("hub", "dps", "du"):
         assert f"iot adr ns link {endpoint} remove" not in commands
     assert not any(
@@ -205,7 +187,6 @@ def test_load_adr_arguments():
     load_adr_arguments(loader, None)
     arguments = loader.records
 
-    assert {"scope", "resource_ids"} <= set(arguments["iot adr ns migrate"])
     assert {"page_size", "skip_token"} <= set(
         arguments["iot adr ns group list-members"]
     )
@@ -214,15 +195,6 @@ def test_load_adr_arguments():
     assert {"report_type", "group_name"} <= set(arguments["iot adr ns report"])
 
     assert {
-        "external_device_id",
-        "enabled",
-        "attributes",
-        "endpoints",
-    } <= set(arguments["iot adr ns device create"])
-    assert "endpoints" in arguments["iot adr ns device update"]
-    assert "extended_location" in arguments["iot adr ns device create"]
-    assert {
-        "management_endpoints",
         "messaging_endpoints",
         "provisioning_endpoints",
         "updating_endpoints",
@@ -247,17 +219,8 @@ def test_load_adr_arguments():
             "software_revision",
         ):
             assert arguments[command][argument]["help"]
-    assert {"properties", "extended_location"} <= set(
-        arguments["iot adr ns asset create"]
-    )
-    assert {"management_action_name", "management_group_name", "payload"} <= set(
-        arguments["iot adr ns asset execute-action"]
-    )
     assert {"system_assigned", "user_assigned_identities"} <= set(
         arguments["iot adr ns identity assign"]
-    )
-    assert {"endpoint_type", "address", "scope_id", "resource_id"} <= set(
-        arguments["iot adr ns management-endpoint set"]
     )
     assert "--ns" in arguments["iot adr ns link"]["namespace_name"]["options_list"]
     assert "mi_system_assigned" in arguments["iot adr ns group create"]
@@ -294,7 +257,18 @@ def test_load_adr_arguments():
         "allocation_weight",
     }.isdisjoint(arguments["iot adr ns link hub update"])
 
-    assert "iot adr ns device revoke" not in arguments
+    assert not any(
+        command.startswith(
+            (
+                "iot adr ns asset",
+                "iot adr ns device",
+                "iot adr ns discovered-",
+                "iot adr ns management-endpoint",
+                "iot adr ns migrate",
+            )
+        )
+        for command in arguments
+    )
     assert not any(
         command.startswith("iot adr ns link") and command.endswith(" remove")
         for command in arguments
@@ -305,7 +279,6 @@ def test_help_surface_matches_2026_commands_and_du_type():
     load_adr_help()
 
     for command in (
-        "iot adr ns migrate",
         "iot adr ns group list-members",
         "iot adr ns job run cancel",
         "iot adr ns report generate",
@@ -314,11 +287,7 @@ def test_help_surface_matches_2026_commands_and_du_type():
         "iot adr ns registry-device auth-profile get-keys",
         "iot adr ns registry-device attribute list",
         "iot adr ns registry-device capability show",
-        "iot adr ns asset execute-action",
-        "iot adr ns discovered-device create",
-        "iot adr ns discovered-asset update",
         "iot adr ns identity assign",
-        "iot adr ns management-endpoint set",
         "iot adr ns du instance create",
         "iot adr ns du instance check-name",
     ):
@@ -327,9 +296,18 @@ def test_help_surface_matches_2026_commands_and_du_type():
     assert "Microsoft.DeviceUpdate/updateInstances" in helps["iot adr ns link du"]
     assert "linkedAccounts" not in helps["iot adr ns link du"]
 
-    assert "iot adr ns device revoke" not in helps
     assert not any(
-        command.startswith(("iot adr ns credential", "iot adr ns policy"))
+        command.startswith(
+            (
+                "iot adr ns credential",
+                "iot adr ns policy",
+                "iot adr ns asset",
+                "iot adr ns device",
+                "iot adr ns discovered-",
+                "iot adr ns management-endpoint",
+                "iot adr ns migrate",
+            )
+        )
         for command in helps
     )
     for endpoint in ("hub", "dps", "du"):

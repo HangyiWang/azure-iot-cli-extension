@@ -14,7 +14,6 @@ import pytest
 from azext_iot.adr import (
     commands_certificate_authority,
     commands_certificate_policy,
-    commands_device,
     commands_group,
     commands_job,
     commands_job_run,
@@ -39,87 +38,6 @@ def _patch_provider(mocker, module, attr):
     return provider
 
 
-class TestDeviceCommands:
-    def test_create_forwards_2026_fields(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_device, "DeviceProvider")
-
-        commands_device.adr_device_create(
-            cmd,
-            device_name="dev",
-            namespace_name=NS,
-            resource_group_name=RG,
-            location="westus",
-            tags={"a": "b"},
-            manufacturer="Contoso",
-            model="X1",
-            operating_system="Linux",
-            operating_system_version="1.0",
-            external_device_id="external-1",
-            enabled=False,
-            attributes='{"site":"A"}',
-            endpoints=ENDPOINTS,
-            discovered_device_ref="discovered-1",
-            extended_location={"name": "/custom/location", "type": "CustomLocation"},
-            no_wait=True,
-        )
-
-        provider.create.assert_called_once_with(
-            device_name="dev",
-            namespace_name=NS,
-            resource_group_name=RG,
-            location="westus",
-            tags={"a": "b"},
-            manufacturer="Contoso",
-            model="X1",
-            operating_system="Linux",
-            operating_system_version="1.0",
-            external_device_id="external-1",
-            enabled=False,
-            attributes='{"site":"A"}',
-            endpoints=ENDPOINTS,
-            discovered_device_ref="discovered-1",
-            extended_location={"name": "/custom/location", "type": "CustomLocation"},
-            no_wait=True,
-        )
-
-    def test_update_forwards_endpoints(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_device, "DeviceProvider")
-
-        commands_device.adr_device_update(
-            cmd,
-            device_name="dev",
-            namespace_name=NS,
-            resource_group_name=RG,
-            enabled=True,
-            tags={"a": "b"},
-            operating_system_version="1.0",
-            attributes="{}",
-            endpoints=ENDPOINTS,
-            no_wait=True,
-        )
-
-        provider.update.assert_called_once_with(
-            device_name="dev",
-            namespace_name=NS,
-            resource_group_name=RG,
-            enabled=True,
-            tags={"a": "b"},
-            operating_system_version="1.0",
-            attributes="{}",
-            endpoints=ENDPOINTS,
-            no_wait=True,
-        )
-
-    @pytest.mark.parametrize("operation", ["show", "list"])
-    def test_reads(self, mocker, cmd, operation):
-        provider = _patch_provider(mocker, commands_device, "DeviceProvider")
-        kwargs = {"namespace_name": NS, "resource_group_name": RG}
-        if operation == "show":
-            kwargs["device_name"] = "dev"
-        getattr(commands_device, f"adr_device_{operation}")(cmd, **kwargs)
-        getattr(provider, operation).assert_called_once_with(**kwargs)
-
-
 class TestNamespaceCommands:
     def test_create(self, mocker, cmd):
         provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
@@ -130,7 +48,6 @@ class TestNamespaceCommands:
             location="westus",
             tags={"a": "b"},
             outbound_mi_system_assigned=True,
-            management_endpoints={"edge": {}},
             no_wait=True,
         )
         provider.create.assert_called_once_with(
@@ -140,28 +57,9 @@ class TestNamespaceCommands:
             tags={"a": "b"},
             outbound_mi_system_assigned=True,
             outbound_mi_user_assigned=None,
-            management_endpoints={"edge": {}},
             messaging_endpoints=None,
             provisioning_endpoints=None,
             updating_endpoints=None,
-            no_wait=True,
-        )
-
-    def test_migrate(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
-        commands_namespace.adr_namespace_migrate(
-            cmd,
-            namespace_name=NS,
-            resource_group_name=RG,
-            resource_ids=["/resources/one", "/resources/two"],
-            scope="Resources",
-            no_wait=True,
-        )
-        provider.migrate.assert_called_once_with(
-            namespace_name=NS,
-            resource_group_name=RG,
-            resource_ids=["/resources/one", "/resources/two"],
-            scope="Resources",
             no_wait=True,
         )
 
@@ -172,7 +70,6 @@ class TestNamespaceCommands:
             namespace_name=NS,
             resource_group_name=RG,
             tags={"a": "b"},
-            management_endpoints={},
             no_wait=True,
         )
         provider.update.assert_called_once_with(
@@ -181,7 +78,6 @@ class TestNamespaceCommands:
             tags={"a": "b"},
             outbound_mi_system_assigned=None,
             outbound_mi_user_assigned=None,
-            management_endpoints={},
             messaging_endpoints=None,
             provisioning_endpoints=None,
             updating_endpoints=None,
@@ -230,50 +126,6 @@ class TestNamespaceCommands:
             namespace_name=NS,
             resource_group_name=RG,
             **kwargs,
-        )
-
-    def test_management_endpoint_set(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
-        commands_namespace.adr_namespace_management_endpoint_set(
-            cmd,
-            endpoint_name="edge",
-            namespace_name=NS,
-            resource_group_name=RG,
-            endpoint_type="custom",
-            address="example",
-            scope_id="scope",
-            resource_id="/resource",
-            no_wait=True,
-        )
-        provider.management_endpoint_set.assert_called_once_with(
-            endpoint_name="edge",
-            namespace_name=NS,
-            resource_group_name=RG,
-            endpoint_type="custom",
-            address="example",
-            scope_id="scope",
-            resource_id="/resource",
-            no_wait=True,
-        )
-        commands_namespace.adr_namespace_management_endpoint_show(
-            cmd,
-            endpoint_name="edge",
-            namespace_name=NS,
-            resource_group_name=RG,
-        )
-        provider.management_endpoint_show.assert_called_once_with(
-            endpoint_name="edge",
-            namespace_name=NS,
-            resource_group_name=RG,
-        )
-        commands_namespace.adr_namespace_management_endpoint_list(
-            cmd,
-            namespace_name=NS,
-            resource_group_name=RG,
-        )
-        provider.management_endpoint_list.assert_called_once_with(
-            namespace_name=NS,
-            resource_group_name=RG,
         )
 
 
@@ -590,18 +442,6 @@ def test_certificate_policy_command_still_delegates(mocker, cmd):
 
 
 _SIMPLE_COMMAND_CASES = [
-    pytest.param(
-        commands_device,
-        "DeviceProvider",
-        "adr_device_delete",
-        "delete",
-        {
-            "device_name": "device",
-            "namespace_name": NS,
-            "resource_group_name": RG,
-        },
-        id="device-delete",
-    ),
     pytest.param(
         commands_namespace,
         "NamespaceProvider",

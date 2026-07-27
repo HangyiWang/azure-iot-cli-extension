@@ -11,7 +11,6 @@ from azure.cli.core.azclierror import (
     InvalidArgumentValueError,
     MutuallyExclusiveArgumentError,
     RequiredArgumentMissingError,
-    ResourceNotFoundError,
 )
 
 from azext_iot.adr.providers.namespace import (
@@ -312,7 +311,7 @@ def test_namespace_create_accepts_direct_endpoint_configuration(
         "namespace",
         "rg",
         location="eastus",
-        management_endpoints='{"edge":{"endpointType":"Custom"}}',
+        provisioning_endpoints='{"dps":{"endpointType":"Microsoft.Devices/ProvisioningServices"}}',
         messaging_endpoints={"hub": {"endpointType": "Microsoft.Devices/IotHubs"}},
     )
 
@@ -320,8 +319,10 @@ def test_namespace_create_accepts_direct_endpoint_configuration(
         "resource"
     ]
     assert resource["properties"] == {
-        "management": {
-            "endpoints": {"edge": {"endpointType": "Custom"}}
+        "provisioning": {
+            "endpoints": {
+                "dps": {"endpointType": "Microsoft.Devices/ProvisioningServices"}
+            }
         },
         "messaging": {
             "endpoints": {
@@ -640,158 +641,6 @@ def test_namespace_identity_remove_system_only_no_wait(
         "properties"
     ]
     assert body == {"identity": {"type": "None"}}
-
-
-def test_namespace_management_endpoint_set_show_and_list(
-    fixture_namespace_provider, mock_poller
-):
-    endpoint = {
-        "endpointType": "Microsoft.EventGrid/Namespaces",
-        "address": "example",
-        "scopeId": "scope",
-        "resourceId": (
-            "/subscriptions/sub/resourceGroups/rg/providers/"
-            "Microsoft.EventGrid/namespaces/example"
-        ),
-    }
-    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
-        {}
-    )
-
-    fixture_namespace_provider.management_endpoint_set(
-        "edge",
-        "namespace",
-        "rg",
-        endpoint_type=endpoint["endpointType"],
-        address=endpoint["address"],
-        scope_id=endpoint["scopeId"],
-        resource_id=endpoint["resourceId"],
-    )
-
-    body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
-        "properties"
-    ]
-    assert body == {
-        "properties": {"management": {"endpoints": {"edge": endpoint}}}
-    }
-
-    fixture_namespace_provider.client.namespaces.get.return_value = {
-        "properties": {
-            "management": {
-                "endpoints": {
-                    "z-endpoint": {"endpointType": "Z"},
-                    "edge": endpoint,
-                }
-            }
-        }
-    }
-    assert fixture_namespace_provider.management_endpoint_show(
-        "edge", "namespace", "rg"
-    ) == {"name": "edge", **endpoint}
-    assert [
-        item["name"]
-        for item in fixture_namespace_provider.management_endpoint_list(
-            "namespace", "rg"
-        )
-    ] == ["edge", "z-endpoint"]
-
-
-def test_namespace_management_endpoint_validates_resource_id(
-    fixture_namespace_provider,
-):
-    with pytest.raises(InvalidArgumentValueError, match="valid ARM"):
-        fixture_namespace_provider.management_endpoint_set(
-            "edge",
-            "namespace",
-            "rg",
-            endpoint_type="Microsoft.EventGrid/Namespaces",
-            address="example",
-            scope_id="scope",
-            resource_id="not-an-arm-id",
-        )
-    fixture_namespace_provider.client.namespaces.begin_update.assert_not_called()
-
-
-def test_namespace_management_endpoint_rejects_empty_field(
-    fixture_namespace_provider,
-):
-    with pytest.raises(InvalidArgumentValueError, match="endpoint-type"):
-        fixture_namespace_provider.management_endpoint_set(
-            "edge",
-            "namespace",
-            "rg",
-            endpoint_type="",
-            address="example",
-            scope_id="scope",
-            resource_id=(
-                "/subscriptions/sub/resourceGroups/rg/providers/"
-                "Microsoft.EventGrid/namespaces/example"
-            ),
-        )
-
-
-def test_namespace_management_endpoint_show_not_found(
-    fixture_namespace_provider,
-):
-    fixture_namespace_provider.client.namespaces.get.return_value = {
-        "properties": {"management": {"endpoints": {}}}
-    }
-    with pytest.raises(ResourceNotFoundError, match="was not found"):
-        fixture_namespace_provider.management_endpoint_show(
-            "missing", "namespace", "rg"
-        )
-
-
-def test_namespace_migrate_scope_and_resources(
-    fixture_namespace_provider, mock_poller
-):
-    fixture_namespace_provider.client.namespaces.begin_migrate.return_value = (
-        mock_poller({"status": "Succeeded"})
-    )
-
-    result = fixture_namespace_provider.migrate(
-        "namespace",
-        "rg",
-        resource_ids=[" /resources/one ", "", " /resources/two"],
-        scope="Resources",
-    )
-
-    assert result == {"status": "Succeeded"}
-    fixture_namespace_provider.client.namespaces.begin_migrate.assert_called_once_with(
-        resource_group_name="rg",
-        namespace_name="namespace",
-        body={
-            "scope": "Resources",
-            "resourceIds": ["/resources/one", "/resources/two"],
-        },
-    )
-
-
-@pytest.mark.parametrize("resource_ids", [[], ["", "   "]])
-def test_namespace_migrate_requires_resources(
-    fixture_namespace_provider, resource_ids
-):
-    with pytest.raises(RequiredArgumentMissingError, match="at least one"):
-        fixture_namespace_provider.migrate(
-            "namespace", "rg", resource_ids=resource_ids, scope="Resources"
-        )
-    fixture_namespace_provider.client.namespaces.begin_migrate.assert_not_called()
-
-
-def test_namespace_migrate_no_wait(fixture_namespace_provider, mock_poller):
-    poller = mock_poller(None)
-    fixture_namespace_provider.client.namespaces.begin_migrate.return_value = poller
-
-    result = fixture_namespace_provider.migrate(
-        "namespace",
-        "rg",
-        resource_ids=["/resources/one"],
-        scope="Resources",
-        no_wait=True,
-    )
-
-    assert result is poller
-    poller.result.assert_not_called()
 
 
 def test_namespace_delete_no_wait(fixture_namespace_provider, mock_poller):

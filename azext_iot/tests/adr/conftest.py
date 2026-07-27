@@ -14,7 +14,6 @@ import pytest
 from azext_iot.adr.providers.base import ADRProvider
 from azext_iot.adr.providers.certificate_authority import CertificateAuthorityProvider
 from azext_iot.adr.providers.certificate_policy import CertificatePolicyProvider
-from azext_iot.adr.providers.device import DeviceProvider
 from azext_iot.adr.providers.group import GroupProvider
 from azext_iot.adr.providers.link import LinkProvider
 from azext_iot.adr.providers.namespace import NamespaceProvider
@@ -48,14 +47,8 @@ TEST_ARM_ENDPOINT = os.getenv(
 PREFLIGHT_TIMEOUT_SECONDS = 60
 OPTIONAL_FIXTURE_ENV_VARS = (
     "azext_iot_adr_update_instance_id",
-    "azext_iot_adr_migrate_resource_id",
-    "azext_iot_adr_custom_location_id",
     "azext_iot_adr_run_resource_parity_int",
     "azext_iot_adr_reports_enabled",
-    "azext_iot_adr_management_endpoint_type",
-    "azext_iot_adr_management_endpoint_address",
-    "azext_iot_adr_management_endpoint_scope_id",
-    "azext_iot_adr_management_endpoint_resource_id",
     "azext_iot_adr_revoke_certificates",
     "azext_iot_adr_ca_auth_profile_name",
     "azext_iot_adr_job_run_resource_group",
@@ -63,10 +56,6 @@ OPTIONAL_FIXTURE_ENV_VARS = (
     "azext_iot_adr_job_run_job",
     "azext_iot_adr_job_run_name",
     "azext_iot_adr_uami_resource_id",
-    "azext_iot_adr_asset_action_name",
-    "azext_iot_adr_asset_management_group",
-    "azext_iot_adr_asset_action_namespace",
-    "azext_iot_adr_asset_action_asset_name",
 )
 
 
@@ -298,17 +287,6 @@ def fixture_ca_policy_provider(fixture_cmd):
         mock_client = Mock()
         mock_factory.return_value = mock_client
         provider = CertificatePolicyProvider(fixture_cmd)
-        provider.client = mock_client
-        return provider
-
-
-@pytest.fixture()
-def fixture_device_provider(fixture_cmd):
-    """Device provider fixture for testing."""
-    with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
-        mock_factory.return_value = mock_client
-        provider = DeviceProvider(fixture_cmd)
         provider.client = mock_client
         return provider
 

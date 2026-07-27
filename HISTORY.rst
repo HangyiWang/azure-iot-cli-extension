@@ -12,6 +12,7 @@ Release History
 * Generated a dedicated synchronous and asynchronous Device Update control-plane SDK from the ``package-2026-11-02-preview`` DuDeviceRegistry specification tag without replacing the existing ``az iot du`` SDK.
 * Added safer long-running-operation handling: resource mutations poll ``provisioningState`` and POST actions poll the authenticated ``Location`` URL instead of the service's unsupported ``Azure-AsyncOperation`` host.
 * Added consistent inline-JSON and JSON-file input, parent-location inheritance, no-op update rejection, and ``--no-wait`` behavior across namespace child resources.
+* Scoped ``az iot adr ns`` to cloud-only resources by removing every command that requires an Azure IoT Operations custom location.
 
 **Azure Device Registry updates**
 
@@ -29,24 +30,16 @@ Release History
   - Namespace updating endpoints remain under ``az iot adr ns link du add / show / list / update / wait``, consistent with the existing Hub and DPS link groups.
   - Device Update data-plane commands and the service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions are intentionally not exposed.
 
-* **Namespace Assets and discovery resources**
-
-  - Added ``az iot adr ns asset create / show / list / update / delete / execute-action``.
-  - Added ``az iot adr ns discovered-device`` and ``az iot adr ns discovered-asset`` CRUD command groups.
-  - Complex asset and discovery properties are accepted losslessly through ``--properties`` as inline JSON or a JSON file.
-  - Create-only, updateable, required, extended-location, discovery-version, and device-reference fields are validated before requests are sent.
-
 * **Namespace parity**
 
   - Added ``az iot adr ns identity show / assign / remove`` for complete system- and user-assigned namespace identity management.
-  - Added ``az iot adr ns management-endpoint set / show / list`` and direct namespace endpoint JSON configuration.
-  - Added Namespace Device extended-location input and Group system-assigned identity configuration.
-  - Added ``az iot adr ns migrate`` plus namespace and group update-compliance ``report generate / latest`` commands.
+  - Added direct namespace messaging, provisioning, and updating endpoint JSON configuration on ``ns create`` and ``ns update``.
+  - Added Group system-assigned identity configuration.
+  - Added namespace and group update-compliance ``report generate / latest`` commands.
 
-* **Namespace links and devices**
+* **Namespace links**
 
   - Added Hub, DPS, and ADU update-instance links with add, show, list, and identity-update behavior.
-  - Extended Namespace Device create/update with external IDs, enablement, attributes, messaging endpoints, discovery references, tags, and strict JSON validation.
   - Hub provisioning fields remain create-only; link update rotates identity only.
 
 * **Groups, jobs, runs, and CMS**
@@ -59,13 +52,20 @@ Release History
 **Quality and manual validation**
 
 * Added an SDK contract test that locks the API version, operation-group inventory, and provider method surface for synchronous and asynchronous clients.
-* Expanded integration-test coverage across namespace resources, Update Instances, links, CMS, groups, jobs, job runs, reports, and validation failures, with explicit infrastructure-dependent skips and secret-safe key validation.
+* Expanded integration-test coverage across Registry Devices, Update Instances, links, CMS, groups, jobs, job runs, reports, and validation failures, with explicit infrastructure-dependent skips and secret-safe key validation.
 * Added focused unit tests with complete branch coverage for the handwritten Device Update command and provider modules.
 
 **Intentionally unsupported**
 
+* ``az iot adr ns`` is a cloud-only command surface and never requires an Arc-enabled Kubernetes cluster or an Azure IoT Operations instance.
+
+  - The ``az iot adr ns asset``, ``discovered-asset``, and ``discovered-device`` groups are not registered. These resources require an ``extendedLocation`` pointing at an AIO custom location; use ``az iot ops ns asset`` and ``az iot ops ns discovered-*`` from the ``azure-iot-ops`` extension instead.
+  - The ``az iot adr ns device`` group is not registered. ``Microsoft.DeviceRegistry/namespaces/devices`` is an edge/connector resource owned by ``az iot ops ns device``. Use ``az iot adr ns registry-device`` for cloud-managed devices.
+  - The ``az iot adr ns management-endpoint`` group and the ``--management-endpoints`` argument are not registered. ``properties.management.endpoints`` is keyed by AIO custom-location resource ID and is written by ``az iot ops mgmt-actions enable``.
+  - ``az iot adr ns migrate`` is not registered. It migrates legacy AIO assets and asset endpoint profiles, which ``az iot ops migrate-assets`` handles with the required AIO context.
+
 * Authentication Profile create/update/delete and Attribute/Capability mutation are not available in the management API.
-* ``device revoke`` and link-remove commands remain unregistered because no supported backing operation exists.
+* Link-remove commands remain unregistered because no supported backing operation exists.
 * Device Update data-plane operations and direct customer invocation of UpdateInstance internal link actions are not registered.
 * Removed the legacy ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups.
 

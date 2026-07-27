@@ -63,10 +63,6 @@ class ReportType(Enum):
     group_installable_updates = "GroupInstallableUpdatesReport"
 
 
-class NamespaceMigrateScope(Enum):
-    resources = "Resources"
-
-
 class CertificateAuthorityType(Enum):
     root = "Root"
     ica = "ICA"

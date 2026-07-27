@@ -4,9 +4,15 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-from typing import Optional
+from typing import Any, Dict, FrozenSet, Optional
 
-from azure.cli.core.azclierror import AzureResponseError, ResourceNotFoundError
+from azure.cli.core.azclierror import (
+    AzureResponseError,
+    CLIInternalError,
+    InvalidArgumentValueError,
+    RequiredArgumentMissingError,
+    ResourceNotFoundError,
+)
 from azure.core.exceptions import HttpResponseError
 from azure.core.rest import HttpRequest
 from knack.log import get_logger
@@ -14,15 +20,54 @@ from rich.console import Console
 
 from azext_iot._factory import adr_service_factory
 from azext_iot.constants import LRO_POLL_RETRIES, LRO_POLL_WAIT_SEC
-from azext_iot.common.utility import wait_for_terminal_state
+from azext_iot.common.utility import process_json_arg, wait_for_terminal_state
 
-__all__ = ["ADRProvider", "console"]
+__all__ = ["ADRProvider", "console", "parse_json_object"]
 
 logger = get_logger(__name__)
 
 # Shared Rich console for all ADR providers. Declared once here (instead of a
 # module-level `Console()` in every provider) so spinners/print styling stay consistent.
 console = Console()
+
+
+def parse_json_object(
+    value: Any,
+    argument_name: str,
+    *,
+    allowed_keys: Optional[FrozenSet[str]] = None,
+    required_keys: FrozenSet[str] = frozenset(),
+) -> Dict[str, Any]:
+    """Parse an inline JSON object or JSON file and validate its top-level keys."""
+    if isinstance(value, str):
+        try:
+            value = process_json_arg(value, argument_name)
+        except CLIInternalError as error:
+            raise InvalidArgumentValueError(
+                f"{argument_name} must be a valid JSON object or a path to a JSON file."
+            ) from error
+    if not isinstance(value, dict):
+        raise InvalidArgumentValueError(
+            f"{argument_name} must be a JSON object or a path to a JSON file."
+        )
+
+    if allowed_keys is not None:
+        unsupported = set(value) - allowed_keys
+        if unsupported:
+            names = ", ".join(sorted(unsupported))
+            raise InvalidArgumentValueError(
+                f"{argument_name} contains unsupported properties: {names}."
+            )
+
+    missing = sorted(
+        key for key in required_keys if key not in value or value[key] is None
+    )
+    if missing:
+        names = ", ".join(missing)
+        raise RequiredArgumentMissingError(
+            f"{argument_name} must contain the following properties: {names}."
+        )
+    return value
 
 
 # ---------------------------------------------------------------------------

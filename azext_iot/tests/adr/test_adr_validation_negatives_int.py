@@ -71,21 +71,14 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 f"iot adr ns update -n {ns} -g {rg}",
                 expect_failure=True,
             )
-        with timed_step("device update ❯ nothing-to-update rejected"):
+        with timed_step("registry-device update ❯ nothing-to-update rejected"):
             self.cmd(
-                f"iot adr ns device update -n mydev --ns {ns} -g {rg}",
+                f"iot adr ns registry-device update -n mydev --ns {ns} -g {rg}",
                 expect_failure=True,
             )
         with timed_step("group update ❯ nothing-to-update rejected"):
             self.cmd(
                 f"iot adr ns group update -n mygroup --ns {ns} -g {rg}",
-                expect_failure=True,
-            )
-
-        with timed_step("namespace migrate ❯ resource IDs required"):
-            self.cmd(
-                f"iot adr ns migrate -n {ns} -g {rg} --scope Resources "
-                "--resource-ids ''",
                 expect_failure=True,
             )
 

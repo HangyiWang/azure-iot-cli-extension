@@ -23,28 +23,8 @@ adr_ca_policy_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
-adr_device_ops = CliCommandType(
-    operations_tmpl="azext_iot.adr.commands_device#{}",
-    client_factory=adr_service_factory,
-)
-
 adr_registry_device_ops = CliCommandType(
     operations_tmpl="azext_iot.adr.commands_registry_device#{}",
-    client_factory=adr_service_factory,
-)
-
-adr_asset_ops = CliCommandType(
-    operations_tmpl="azext_iot.adr.commands_asset#{}",
-    client_factory=adr_service_factory,
-)
-
-adr_discovered_device_ops = CliCommandType(
-    operations_tmpl="azext_iot.adr.commands_discovered_device#{}",
-    client_factory=adr_service_factory,
-)
-
-adr_discovered_asset_ops = CliCommandType(
-    operations_tmpl="azext_iot.adr.commands_discovered_asset#{}",
     client_factory=adr_service_factory,
 )
 
@@ -87,7 +67,6 @@ def load_adr_commands(self, _):
         cmd_group.command("list", "adr_namespace_list")
         cmd_group.command("delete", "adr_namespace_delete", confirmation=True, supports_no_wait=True)
         cmd_group.command("update", "adr_namespace_update", supports_no_wait=True)
-        cmd_group.command("migrate", "adr_namespace_migrate", supports_no_wait=True)
         cmd_group.wait_command("wait", "adr_namespace_show")
 
     # Certificate Authority commands
@@ -109,15 +88,6 @@ def load_adr_commands(self, _):
         cmd_group.command("update", "adr_ca_policy_update", supports_no_wait=True)
         cmd_group.command("delete", "adr_ca_policy_delete", confirmation=True, supports_no_wait=True)
         cmd_group.wait_command("wait", "adr_ca_policy_show")
-
-    # Device commands
-    with self.command_group("iot adr ns device", command_type=adr_device_ops) as cmd_group:
-        cmd_group.command("create", "adr_device_create", supports_no_wait=True)
-        cmd_group.show_command("show", "adr_device_show")
-        cmd_group.command("list", "adr_device_list")
-        cmd_group.command("update", "adr_device_update", supports_no_wait=True)
-        cmd_group.command("delete", "adr_device_delete", confirmation=True, supports_no_wait=True)
-        cmd_group.wait_command("wait", "adr_device_show")
 
     # Registry Device commands
     with self.command_group(
@@ -163,63 +133,12 @@ def load_adr_commands(self, _):
         cmd_group.command("list", "adr_registry_device_capability_list")
         cmd_group.show_command("show", "adr_registry_device_capability_show")
 
-    # Namespace Asset commands
-    with self.command_group("iot adr ns asset", command_type=adr_asset_ops) as cmd_group:
-        cmd_group.command("create", "adr_asset_create", supports_no_wait=True)
-        cmd_group.show_command("show", "adr_asset_show")
-        cmd_group.command("list", "adr_asset_list")
-        cmd_group.command("update", "adr_asset_update", supports_no_wait=True)
-        cmd_group.command("delete", "adr_asset_delete", confirmation=True, supports_no_wait=True)
-        cmd_group.command("execute-action", "adr_asset_execute_action", supports_no_wait=True)
-        cmd_group.wait_command("wait", "adr_asset_show")
-
-    # Discovery resource commands
-    with self.command_group(
-        "iot adr ns discovered-device", command_type=adr_discovered_device_ops
-    ) as cmd_group:
-        cmd_group.command("create", "adr_discovered_device_create", supports_no_wait=True)
-        cmd_group.show_command("show", "adr_discovered_device_show")
-        cmd_group.command("list", "adr_discovered_device_list")
-        cmd_group.command("update", "adr_discovered_device_update", supports_no_wait=True)
-        cmd_group.command(
-            "delete",
-            "adr_discovered_device_delete",
-            confirmation=True,
-            supports_no_wait=True,
-        )
-        cmd_group.wait_command("wait", "adr_discovered_device_show")
-
-    with self.command_group(
-        "iot adr ns discovered-asset", command_type=adr_discovered_asset_ops
-    ) as cmd_group:
-        cmd_group.command("create", "adr_discovered_asset_create", supports_no_wait=True)
-        cmd_group.show_command("show", "adr_discovered_asset_show")
-        cmd_group.command("list", "adr_discovered_asset_list")
-        cmd_group.command("update", "adr_discovered_asset_update", supports_no_wait=True)
-        cmd_group.command(
-            "delete",
-            "adr_discovered_asset_delete",
-            confirmation=True,
-            supports_no_wait=True,
-        )
-        cmd_group.wait_command("wait", "adr_discovered_asset_show")
-
     with self.command_group(
         "iot adr ns identity", command_type=adr_namespace_ops
     ) as cmd_group:
         cmd_group.show_command("show", "adr_namespace_identity_show")
         cmd_group.command("assign", "adr_namespace_identity_assign", supports_no_wait=True)
         cmd_group.command("remove", "adr_namespace_identity_remove", supports_no_wait=True)
-        cmd_group.wait_command("wait", "adr_namespace_show")
-
-    with self.command_group(
-        "iot adr ns management-endpoint", command_type=adr_namespace_ops
-    ) as cmd_group:
-        cmd_group.command(
-            "set", "adr_namespace_management_endpoint_set", supports_no_wait=True
-        )
-        cmd_group.show_command("show", "adr_namespace_management_endpoint_show")
-        cmd_group.command("list", "adr_namespace_management_endpoint_list")
         cmd_group.wait_command("wait", "adr_namespace_show")
 
     # Link commands (mutate namespace.properties.messaging.endpoints / provisioning.endpoints)

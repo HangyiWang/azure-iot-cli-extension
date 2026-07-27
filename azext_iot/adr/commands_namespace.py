@@ -8,7 +8,6 @@ from typing import Any, Dict, List, Optional
 
 from knack.log import get_logger
 
-from azext_iot.adr.common import NamespaceMigrateScope
 from azext_iot.adr.providers.namespace import NamespaceProvider
 
 logger = get_logger(__name__)
@@ -22,7 +21,6 @@ def adr_namespace_create(
     tags: Optional[Dict[str, str]] = None,
     outbound_mi_system_assigned: Optional[bool] = None,
     outbound_mi_user_assigned: Optional[str] = None,
-    management_endpoints: Any = None,
     messaging_endpoints: Any = None,
     provisioning_endpoints: Any = None,
     updating_endpoints: Any = None,
@@ -36,28 +34,9 @@ def adr_namespace_create(
         tags=tags,
         outbound_mi_system_assigned=outbound_mi_system_assigned,
         outbound_mi_user_assigned=outbound_mi_user_assigned,
-        management_endpoints=management_endpoints,
         messaging_endpoints=messaging_endpoints,
         provisioning_endpoints=provisioning_endpoints,
         updating_endpoints=updating_endpoints,
-        no_wait=no_wait,
-    )
-
-
-def adr_namespace_migrate(
-    cmd,
-    namespace_name: str,
-    resource_group_name: str,
-    resource_ids: List[str],
-    scope: str = NamespaceMigrateScope.resources.value,
-    no_wait: bool = False,
-):
-    provider = NamespaceProvider(cmd)
-    return provider.migrate(
-        namespace_name=namespace_name,
-        resource_group_name=resource_group_name,
-        resource_ids=resource_ids,
-        scope=scope,
         no_wait=no_wait,
     )
 
@@ -88,7 +67,6 @@ def adr_namespace_update(
     tags: Optional[Dict[str, str]] = None,
     outbound_mi_system_assigned: Optional[bool] = None,
     outbound_mi_user_assigned: Optional[str] = None,
-    management_endpoints: Any = None,
     messaging_endpoints: Any = None,
     provisioning_endpoints: Any = None,
     updating_endpoints: Any = None,
@@ -101,7 +79,6 @@ def adr_namespace_update(
         tags=tags,
         outbound_mi_system_assigned=outbound_mi_system_assigned,
         outbound_mi_user_assigned=outbound_mi_user_assigned,
-        management_endpoints=management_endpoints,
         messaging_endpoints=messaging_endpoints,
         provisioning_endpoints=provisioning_endpoints,
         updating_endpoints=updating_endpoints,
@@ -152,52 +129,4 @@ def adr_namespace_identity_remove(
         system_assigned=system_assigned,
         user_assigned_identities=user_assigned_identities,
         no_wait=no_wait,
-    )
-
-
-def adr_namespace_management_endpoint_set(
-    cmd,
-    endpoint_name: str,
-    namespace_name: str,
-    resource_group_name: str,
-    endpoint_type: str,
-    address: str,
-    scope_id: str,
-    resource_id: str,
-    no_wait: bool = False,
-):
-    provider = NamespaceProvider(cmd)
-    return provider.management_endpoint_set(
-        endpoint_name=endpoint_name,
-        namespace_name=namespace_name,
-        resource_group_name=resource_group_name,
-        endpoint_type=endpoint_type,
-        address=address,
-        scope_id=scope_id,
-        resource_id=resource_id,
-        no_wait=no_wait,
-    )
-
-
-def adr_namespace_management_endpoint_show(
-    cmd,
-    endpoint_name: str,
-    namespace_name: str,
-    resource_group_name: str,
-):
-    provider = NamespaceProvider(cmd)
-    return provider.management_endpoint_show(
-        endpoint_name=endpoint_name,
-        namespace_name=namespace_name,
-        resource_group_name=resource_group_name,
-    )
-
-
-def adr_namespace_management_endpoint_list(
-    cmd, namespace_name: str, resource_group_name: str
-):
-    provider = NamespaceProvider(cmd)
-    return provider.management_endpoint_list(
-        namespace_name=namespace_name,
-        resource_group_name=resource_group_name,
     )
