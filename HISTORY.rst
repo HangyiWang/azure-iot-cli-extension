@@ -26,7 +26,7 @@ Release History
 
   - Added ``az iot adr ns du instance check-name / create / show / list / update / delete / wait`` for ``Microsoft.DeviceUpdate/updateInstances`` resources.
   - Update Instance create and update support tags plus complete system- and user-assigned managed identity configuration. List supports resource-group and subscription scopes.
-  - Namespace updating endpoints remain under ``az iot adr ns link adu add / show / list / update / wait``, consistent with the existing Hub and DPS link groups.
+  - Namespace updating endpoints remain under ``az iot adr ns link du add / show / list / update / wait``, consistent with the existing Hub and DPS link groups.
   - Device Update data-plane commands and the service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions are intentionally not exposed.
 
 * **Namespace Assets and discovery resources**

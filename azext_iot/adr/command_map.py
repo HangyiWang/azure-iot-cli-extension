@@ -247,11 +247,11 @@ def load_adr_commands(self, _):
             "wait", "adr_namespace_show", getter_type=adr_namespace_ops
         )
 
-    with self.command_group("iot adr ns link adu", command_type=adr_link_ops) as cmd_group:
-        cmd_group.command("add", "adr_link_adu_add", supports_no_wait=True)
-        cmd_group.command("update", "adr_link_adu_update", supports_no_wait=True)
-        cmd_group.show_command("show", "adr_link_adu_show")
-        cmd_group.command("list", "adr_link_adu_list")
+    with self.command_group("iot adr ns link du", command_type=adr_link_ops) as cmd_group:
+        cmd_group.command("add", "adr_link_du_add", supports_no_wait=True)
+        cmd_group.command("update", "adr_link_du_update", supports_no_wait=True)
+        cmd_group.show_command("show", "adr_link_du_show")
+        cmd_group.command("list", "adr_link_du_list")
         cmd_group.wait_command(
             "wait", "adr_namespace_show", getter_type=adr_namespace_ops
         )

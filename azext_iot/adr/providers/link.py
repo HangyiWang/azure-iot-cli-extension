@@ -91,17 +91,17 @@ def _parse_dps_resource_id(dps_resource_id: str) -> dict:
     }
 
 
-def _parse_adu_resource_id(adu_resource_id: str) -> dict:
+def _parse_du_resource_id(du_resource_id: str) -> dict:
     """Parse an ADU update-instance ARM resource ID into its components.
 
     Expected shape:
         /subscriptions/<sub>/resourceGroups/<rg>/providers/
             Microsoft.DeviceUpdate/updateInstances/<name>
     """
-    raw = (adu_resource_id or "").strip()
+    raw = (du_resource_id or "").strip()
     if not raw:
         raise InvalidArgumentValueError(
-            "--adu-id is required and must be a Microsoft.DeviceUpdate/updateInstances ARM resource ID."
+            "--du-id is required and must be a Microsoft.DeviceUpdate/updateInstances ARM resource ID."
         )
     # Friendly hint: a bare name (no slashes) is the most common mistake here.
     if "/" not in raw:
@@ -110,7 +110,7 @@ def _parse_adu_resource_id(adu_resource_id: str) -> dict:
         )
     if not is_valid_resource_id(raw):
         raise InvalidArgumentValueError(
-            f"'{adu_resource_id}' is not a valid ARM resource ID."
+            f"'{du_resource_id}' is not a valid ARM resource ID."
         )
     parsed = parse_resource_id(raw)
     # Reject child resources and any non-updateInstances resource type.
@@ -120,7 +120,7 @@ def _parse_adu_resource_id(adu_resource_id: str) -> dict:
         or "child_name_1" in parsed
     ):
         raise InvalidArgumentValueError(
-            f"'{adu_resource_id}' is not a Microsoft.DeviceUpdate/updateInstances resource ID. "
+            f"'{du_resource_id}' is not a Microsoft.DeviceUpdate/updateInstances resource ID. "
             "Pass the full ARM resource ID of the Device Update instance."
         )
     return {
@@ -219,15 +219,15 @@ def _build_dps_endpoint_body(
     }
 
 
-def _build_adu_endpoint_body(
-    adu_resource_id: str,
+def _build_du_endpoint_body(
+    du_resource_id: str,
     mi_system_assigned: bool,
     mi_user_assigned: Optional[str],
 ) -> dict:
     """Build a full ADU updating-endpoint body for a namespace PATCH."""
     return {
         "endpointType": ADU_ENDPOINT_TYPE,
-        "resourceId": adu_resource_id,
+        "resourceId": du_resource_id,
         "inboundCallerIdentity": _build_inbound_identity(mi_system_assigned, mi_user_assigned),
     }
 
@@ -563,28 +563,28 @@ class LinkProvider(ADRProvider):
             **kwargs,
         )
 
-    def adu_add(
+    def du_add(
         self,
         endpoint_name: str,
         namespace_name: str,
         resource_group_name: str,
-        adu_resource_id: str,
+        du_resource_id: str,
         mi_system_assigned: bool = False,
         mi_user_assigned: Optional[str] = None,
         **kwargs,
     ):
         """Add an Azure Device Update (ADU) updating endpoint to a namespace."""
-        _parse_adu_resource_id(adu_resource_id)  # validate ARM ID shape up front
+        _parse_du_resource_id(du_resource_id)  # validate ARM ID shape up front
 
         existing = self._get_namespace(namespace_name, resource_group_name)
         if endpoint_name in _get_updating_endpoints(existing):
             raise ArgumentUsageError(
                 f"Device update endpoint '{endpoint_name}' already exists on namespace "
-                f"'{namespace_name}'. Use 'az iot adr ns link adu update' to modify it."
+                f"'{namespace_name}'. Use 'az iot adr ns link du update' to modify it."
             )
 
-        endpoint_body = _build_adu_endpoint_body(
-            adu_resource_id, mi_system_assigned, mi_user_assigned
+        endpoint_body = _build_du_endpoint_body(
+            du_resource_id, mi_system_assigned, mi_user_assigned
         )
         return self._patch_updating_endpoints(
             namespace_name=namespace_name,
@@ -593,7 +593,7 @@ class LinkProvider(ADRProvider):
             **kwargs,
         )
 
-    def adu_update(
+    def du_update(
         self,
         endpoint_name: str,
         namespace_name: str,
@@ -634,7 +634,7 @@ class LinkProvider(ADRProvider):
             **kwargs,
         )
 
-    def adu_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
+    def du_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
         """Project a single ADU updating endpoint from the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_updating_endpoints(ns)
@@ -644,7 +644,7 @@ class LinkProvider(ADRProvider):
             )
         return {"name": endpoint_name, **(endpoints[endpoint_name] or {})}
 
-    def adu_list(self, namespace_name: str, resource_group_name: str):
+    def du_list(self, namespace_name: str, resource_group_name: str):
         """List all ADU updating endpoints on the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_updating_endpoints(ns)

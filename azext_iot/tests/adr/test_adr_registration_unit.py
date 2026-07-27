@@ -152,7 +152,7 @@ def test_2026_command_surface_is_registered():
         "iot adr ns device wait",
         "iot adr ns job run wait",
         "iot adr ns link wait",
-        "iot adr ns link adu wait",
+        "iot adr ns link du wait",
         "iot adr ns link dps wait",
         "iot adr ns link hub wait",
         "iot adr ns du instance check-name",
@@ -186,7 +186,7 @@ def test_unsupported_command_surfaces_are_not_registered():
         assert f"iot adr ns registry-device {child} update" not in commands
         assert f"iot adr ns registry-device {child} delete" not in commands
     assert "iot adr ns device revoke" not in commands
-    for endpoint in ("hub", "dps", "adu"):
+    for endpoint in ("hub", "dps", "du"):
         assert f"iot adr ns link {endpoint} remove" not in commands
     assert not any(
         command.startswith("iot adr ns du link") for command in commands
@@ -273,8 +273,8 @@ def test_load_adr_arguments():
         "mi_user_assigned",
         "tags",
     } <= set(arguments["iot adr ns du instance update"])
-    assert "--adu-id" in arguments["iot adr ns link adu add"][
-        "adu_resource_id"
+    assert "--du-id" in arguments["iot adr ns link du add"][
+        "du_resource_id"
     ]["options_list"]
     assert not any(
         command.startswith("iot adr ns du link") for command in arguments
@@ -301,7 +301,7 @@ def test_load_adr_arguments():
     )
 
 
-def test_help_surface_matches_2026_commands_and_adu_type():
+def test_help_surface_matches_2026_commands_and_du_type():
     load_adr_help()
 
     for command in (
@@ -324,15 +324,15 @@ def test_help_surface_matches_2026_commands_and_adu_type():
     ):
         assert command in helps
 
-    assert "Microsoft.DeviceUpdate/updateInstances" in helps["iot adr ns link adu"]
-    assert "linkedAccounts" not in helps["iot adr ns link adu"]
+    assert "Microsoft.DeviceUpdate/updateInstances" in helps["iot adr ns link du"]
+    assert "linkedAccounts" not in helps["iot adr ns link du"]
 
     assert "iot adr ns device revoke" not in helps
     assert not any(
         command.startswith(("iot adr ns credential", "iot adr ns policy"))
         for command in helps
     )
-    for endpoint in ("hub", "dps", "adu"):
+    for endpoint in ("hub", "dps", "du"):
         assert f"iot adr ns link {endpoint} remove" not in helps
     assert not any(command.startswith("iot adr ns du link") for command in helps)
 

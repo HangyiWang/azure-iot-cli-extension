@@ -852,7 +852,7 @@ _SIMPLE_COMMAND_CASES.extend(
 for _kind, _resource_argument in (
     ("hub", "hub_resource_id"),
     ("dps", "dps_resource_id"),
-    ("adu", "adu_resource_id"),
+    ("du", "du_resource_id"),
 ):
     _SIMPLE_COMMAND_CASES.extend(
         [

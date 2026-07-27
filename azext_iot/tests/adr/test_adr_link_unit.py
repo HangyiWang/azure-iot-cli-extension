@@ -23,7 +23,7 @@ from azext_iot.adr.common import (
 from azext_iot.adr.providers.link import (
     LinkProvider,
     _endpoint_update_body,
-    _parse_adu_resource_id,
+    _parse_du_resource_id,
     _parse_dps_resource_id,
 )
 
@@ -36,9 +36,9 @@ DPS_ID = (
     "/subscriptions/sub/resourceGroups/rg/providers/"
     "Microsoft.Devices/provisioningServices/dps"
 )
-ADU_ID = (
+DU_ID = (
     "/subscriptions/sub/resourceGroups/rg/providers/"
-    "Microsoft.DeviceUpdate/updateInstances/adu"
+    "Microsoft.DeviceUpdate/updateInstances/du"
 )
 UAMI_ID = (
     "/subscriptions/sub/resourceGroups/rg/providers/"
@@ -46,12 +46,12 @@ UAMI_ID = (
 )
 
 
-def _namespace(*, hubs=None, dps=None, adu=None):
+def _namespace(*, hubs=None, dps=None, du=None):
     return {
         "properties": {
             "messaging": {"endpoints": hubs or {}},
             "provisioning": {"endpoints": dps or {}},
-            "updating": {"endpoints": adu or {}},
+            "updating": {"endpoints": du or {}},
         }
     }
 
@@ -76,12 +76,12 @@ def test_identity_body_treats_whitespace_uami_as_unset():
     )
 
 
-def test_adu_contract_uses_update_instances():
+def test_du_contract_uses_update_instances():
     assert ADU_ENDPOINT_TYPE == "Microsoft.DeviceUpdate/updateInstances"
-    assert _parse_adu_resource_id(ADU_ID) == {
+    assert _parse_du_resource_id(DU_ID) == {
         "subscription_id": "sub",
         "resource_group_name": "rg",
-        "name": "adu",
+        "name": "du",
     }
 
 
@@ -89,22 +89,22 @@ def test_adu_contract_uses_update_instances():
     "resource_id",
     [
         "",
-        "adu",
+        "du",
         "/not/an/arm/id",
         (
             "/subscriptions/sub/resourceGroups/rg/providers/"
-            "Microsoft.DeviceUpdate/linkedAccounts/adu"
+            "Microsoft.DeviceUpdate/linkedAccounts/du"
         ),
         (
             "/subscriptions/sub/resourceGroups/rg/providers/"
-            "Microsoft.DeviceUpdate/updateInstances/adu/children/child"
+            "Microsoft.DeviceUpdate/updateInstances/du/children/child"
         ),
         HUB_ID,
     ],
 )
-def test_adu_parser_rejects_non_update_instance_ids(resource_id):
+def test_du_parser_rejects_non_update_instance_ids(resource_id):
     with pytest.raises(InvalidArgumentValueError):
-        _parse_adu_resource_id(resource_id)
+        _parse_du_resource_id(resource_id)
 
 
 @pytest.mark.parametrize(
@@ -439,7 +439,7 @@ def test_dps_show_without_resource_id_still_returns_named_object(
     "kind,section,endpoint_type,resource_id",
     [
         ("dps", "dps", DPS_ENDPOINT_TYPE, DPS_ID),
-        ("adu", "adu", ADU_ENDPOINT_TYPE, ADU_ID),
+        ("du", "du", ADU_ENDPOINT_TYPE, DU_ID),
     ],
 )
 @pytest.mark.parametrize(
@@ -454,7 +454,7 @@ def test_dps_show_without_resource_id_still_returns_named_object(
         (False, {"mi_system_assigned": True}, ResourceNotFoundError),
     ],
 )
-def test_dps_and_adu_update_validation(
+def test_dps_and_du_update_validation(
     fixture_link_provider,
     kind,
     section,
@@ -478,8 +478,8 @@ def test_dps_and_adu_update_validation(
     fixture_link_provider.client.namespaces.begin_update.assert_not_called()
 
 
-@pytest.mark.parametrize("kind,resource_id", [("dps", DPS_ID), ("adu", ADU_ID)])
-def test_dps_and_adu_add_reject_mutually_exclusive_identity(
+@pytest.mark.parametrize("kind,resource_id", [("dps", DPS_ID), ("du", DU_ID)])
+def test_dps_and_du_add_reject_mutually_exclusive_identity(
     fixture_link_provider, kind, resource_id
 ):
     fixture_link_provider.client.namespaces.get.return_value = _namespace()
@@ -514,7 +514,7 @@ def test_dps_show_enrichment_failure_is_non_fatal(
     assert result["brownfieldHubs"] == []
 
 
-def test_adu_add_uses_update_instance_endpoint(
+def test_du_add_uses_update_instance_endpoint(
     fixture_link_provider, mock_poller
 ):
     fixture_link_provider.client.namespaces.get.return_value = _namespace()
@@ -522,65 +522,65 @@ def test_adu_add_uses_update_instance_endpoint(
         {}
     )
 
-    fixture_link_provider.adu_add(
-        "adu-endpoint",
+    fixture_link_provider.du_add(
+        "du-endpoint",
         "namespace",
         "rg",
-        ADU_ID,
+        DU_ID,
         mi_system_assigned=True,
     )
 
     endpoint = fixture_link_provider.client.namespaces.begin_update.call_args.kwargs[
         "properties"
-    ]["properties"]["updating"]["endpoints"]["adu-endpoint"]
+    ]["properties"]["updating"]["endpoints"]["du-endpoint"]
     assert endpoint == {
         "endpointType": "Microsoft.DeviceUpdate/updateInstances",
-        "resourceId": ADU_ID,
+        "resourceId": DU_ID,
         "inboundCallerIdentity": {"type": "SystemAssigned"},
     }
 
 
-def test_adu_add_requires_identity(fixture_link_provider):
+def test_du_add_requires_identity(fixture_link_provider):
     fixture_link_provider.client.namespaces.get.return_value = _namespace()
 
     with pytest.raises(RequiredArgumentMissingError, match="identity is required"):
-        fixture_link_provider.adu_add(
-            "adu-endpoint", "namespace", "rg", ADU_ID
+        fixture_link_provider.du_add(
+            "du-endpoint", "namespace", "rg", DU_ID
         )
 
 
-def test_adu_add_rejects_duplicate_name(fixture_link_provider):
+def test_du_add_rejects_duplicate_name(fixture_link_provider):
     fixture_link_provider.client.namespaces.get.return_value = _namespace(
-        adu={"adu-endpoint": _endpoint(ADU_ENDPOINT_TYPE, ADU_ID)}
+        du={"du-endpoint": _endpoint(ADU_ENDPOINT_TYPE, DU_ID)}
     )
 
-    with pytest.raises(ArgumentUsageError, match="link adu update"):
-        fixture_link_provider.adu_add(
-            "adu-endpoint",
+    with pytest.raises(ArgumentUsageError, match="link du update"):
+        fixture_link_provider.du_add(
+            "du-endpoint",
             "namespace",
             "rg",
-            ADU_ID,
+            DU_ID,
             mi_system_assigned=True,
         )
 
 
-def test_adu_update_show_and_list_named_objects(
+def test_du_update_show_and_list_named_objects(
     fixture_link_provider, mock_poller
 ):
     endpoint = _endpoint(
         ADU_ENDPOINT_TYPE,
-        ADU_ID,
+        DU_ID,
         inboundCallerIdentity={"type": "SystemAssigned"},
-        serviceAddress="https://adu.example",
+        serviceAddress="https://du.example",
     )
     fixture_link_provider.client.namespaces.get.return_value = _namespace(
-        adu={"primary": endpoint}
+        du={"primary": endpoint}
     )
     fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(
         {}
     )
 
-    fixture_link_provider.adu_update(
+    fixture_link_provider.du_update(
         "primary", "namespace", "rg", mi_user_assigned=UAMI_ID
     )
 
@@ -589,21 +589,21 @@ def test_adu_update_show_and_list_named_objects(
     ]["properties"]["updating"]["endpoints"]["primary"]
     assert updated == {
         "endpointType": ADU_ENDPOINT_TYPE,
-        "resourceId": ADU_ID,
+        "resourceId": DU_ID,
         "inboundCallerIdentity": {
             "type": "UserAssigned",
             "userAssignedIdentity": UAMI_ID,
         },
     }
-    assert fixture_link_provider.adu_show(
+    assert fixture_link_provider.du_show(
         "primary", "namespace", "rg"
     ) == {"name": "primary", **endpoint}
-    assert fixture_link_provider.adu_list("namespace", "rg") == [
+    assert fixture_link_provider.du_list("namespace", "rg") == [
         {"name": "primary", **endpoint}
     ]
 
 
-@pytest.mark.parametrize("kind", ["hub", "dps", "adu"])
+@pytest.mark.parametrize("kind", ["hub", "dps", "du"])
 def test_show_missing_endpoint_raises(
     fixture_link_provider, kind
 ):
@@ -679,5 +679,5 @@ def test_link_mutation_supports_no_wait(fixture_link_provider, mock_poller):
 
 
 def test_remove_provider_methods_are_absent():
-    for method in ("hub_remove", "dps_remove", "adu_remove"):
+    for method in ("hub_remove", "dps_remove", "du_remove"):
         assert not hasattr(LinkProvider, method)

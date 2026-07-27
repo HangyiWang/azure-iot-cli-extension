@@ -563,7 +563,7 @@ def load_adr_help():
   """
 
     helps[
-        "iot adr ns link adu"
+        "iot adr ns link du"
     ] = """
   type: group
   short-summary: Manage Azure Device Update (ADU) links (updating endpoints) on a Device Registry namespace.
@@ -575,7 +575,7 @@ def load_adr_help():
   """
 
     helps[
-        "iot adr ns link adu add"
+        "iot adr ns link du add"
     ] = """
   type: command
   short-summary: Link an Azure Device Update instance to a Device Registry namespace.
@@ -586,18 +586,18 @@ def load_adr_help():
   examples:
     - name: Link an ADU instance using its system-assigned identity for inbound calls
       text: |
-        az iot adr ns link adu add -n my-adu --ns myNamespace -g myResourceGroup \\
-          --adu-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/updateInstances/<instance> \\
+        az iot adr ns link du add -n my-du --ns myNamespace -g myResourceGroup \\
+          --du-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/updateInstances/<instance> \\
           --mi-system-assigned
     - name: Link an ADU account with a user-assigned identity
       text: |
-        az iot adr ns link adu add -n my-adu --ns myNamespace -g myResourceGroup \\
-          --adu-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/updateInstances/<instance> \\
+        az iot adr ns link du add -n my-du --ns myNamespace -g myResourceGroup \\
+          --du-id /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceUpdate/updateInstances/<instance> \\
           --mi-user-assigned /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<id>
   """
 
     helps[
-        "iot adr ns link adu update"
+        "iot adr ns link du update"
     ] = """
   type: command
   short-summary: Update an existing ADU updating endpoint on a Device Registry namespace.
@@ -606,37 +606,37 @@ def load_adr_help():
     in place.
   examples:
     - name: Rotate to a system-assigned identity on an existing ADU link
-      text: az iot adr ns link adu update -n my-adu --ns myNamespace -g myResourceGroup --mi-system-assigned
+      text: az iot adr ns link du update -n my-du --ns myNamespace -g myResourceGroup --mi-system-assigned
   """
 
     helps[
-        "iot adr ns link adu show"
+        "iot adr ns link du show"
     ] = """
   type: command
   short-summary: Show a single ADU updating endpoint on a Device Registry namespace.
   examples:
     - name: Show an ADU link by endpoint name
-      text: az iot adr ns link adu show -n my-adu --ns myNamespace -g myResourceGroup
+      text: az iot adr ns link du show -n my-du --ns myNamespace -g myResourceGroup
   """
 
     helps[
-        "iot adr ns link adu list"
+        "iot adr ns link du list"
     ] = """
   type: command
   short-summary: List ADU updating endpoints on a Device Registry namespace.
   examples:
     - name: List all ADU links on a namespace
-      text: az iot adr ns link adu list --ns myNamespace -g myResourceGroup
+      text: az iot adr ns link du list --ns myNamespace -g myResourceGroup
   """
 
     helps[
-        "iot adr ns link adu wait"
+        "iot adr ns link du wait"
     ] = """
   type: command
   short-summary: Wait for an ADU link namespace update to complete.
   examples:
     - name: Wait until the namespace update completes
-      text: az iot adr ns link adu wait --ns myNamespace -g myResourceGroup --updated
+      text: az iot adr ns link du wait --ns myNamespace -g myResourceGroup --updated
   """
 
     helps[
@@ -646,7 +646,7 @@ def load_adr_help():
   short-summary: Manage Device Update instances used by Device Registry namespaces.
   long-summary: |
     Manages Microsoft.DeviceUpdate/updateInstances resources. Namespace links
-    remain under 'az iot adr ns link adu'. Device Update data-plane operations
+    remain under 'az iot adr ns link du'. Device Update data-plane operations
     are not part of this command group.
   """
 

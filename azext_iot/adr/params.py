@@ -614,7 +614,7 @@ def load_adr_arguments(self, _):
         )
 
     # Device Update link arguments
-    with self.argument_context("iot adr ns link adu") as context:
+    with self.argument_context("iot adr ns link du") as context:
         context.argument(
             "namespace_name",
             options_list=["--namespace", "--ns"],
@@ -627,7 +627,7 @@ def load_adr_arguments(self, _):
         )
 
     for action in ("add", "update"):
-        with self.argument_context(f"iot adr ns link adu {action}") as context:
+        with self.argument_context(f"iot adr ns link du {action}") as context:
             context.argument(
                 "mi_system_assigned",
                 arg_group="Inbound Caller Identity",
@@ -644,10 +644,10 @@ def load_adr_arguments(self, _):
                      "linked Device Update instance.",
             )
 
-    with self.argument_context("iot adr ns link adu add") as context:
+    with self.argument_context("iot adr ns link du add") as context:
         context.argument(
-            "adu_resource_id",
-            options_list=["--adu-resource-id", "--adu-id"],
+            "du_resource_id",
+            options_list=["--du-resource-id", "--du-id"],
             help="Azure resource ID of the Device Update instance to link.",
         )
 
