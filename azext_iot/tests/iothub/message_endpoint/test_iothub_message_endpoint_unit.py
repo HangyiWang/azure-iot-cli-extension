@@ -10,6 +10,7 @@ from collections import defaultdict
 import azext_iot.iothub.commands_message_endpoint as subject
 from azure.cli.core.azclierror import (
     MutuallyExclusiveArgumentError,
+    RequiredArgumentMissingError,
     ResourceNotFoundError
 )
 from azext_iot.iothub.common import BYTES_PER_MEGABYTE, AuthenticationType
@@ -58,6 +59,7 @@ def fixture_update_endpoint_ops(mocker):
                     "serviceBusTopics": [create_mock_endpoint()],
                     "storageContainers": [create_mock_endpoint()],
                     "cosmosDBSqlContainers": [create_mock_endpoint()],
+                    "eventStreams": [defaultdict(lambda: None, name=endpoint_name, authenticationType="identityBased")],
                 },
                 "routes": [],
                 "enrichments": [],
@@ -1076,3 +1078,224 @@ class TestMessageEndpointUpdate:
                 assert endpoint["endpointUri"] == "get_cosmos_db_account_endpoint"
         else:
             assert endpoint["authenticationType"] == "keyBased"
+
+
+class TestFabricEventStreamCreate:
+    uami_id = "/subscriptions/0000/resourceGroups/rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/uami1"
+
+    @pytest.mark.parametrize(
+        "identity",
+        [
+            "[system]",
+            uami_id,
+        ]
+    )
+    def test_create_fabric_eventstream_happy_path(self, fixture_cmd, fixture_update_endpoint_ops, identity):
+        es_endpoint_name = "es-" + generate_names()
+        result = subject.message_endpoint_create_fabric_eventstream(
+            cmd=fixture_cmd,
+            hub_name=hub_name,
+            endpoint_name=es_endpoint_name,
+            endpoint_uri="sb://test-ns.servicebus.windows.net",
+            entity_path="es-entity",
+            identity=identity,
+            workspace_id="ws-id-1",
+            eventstream_id="es-id-1",
+            source_id="src-id-1",
+            resource_group_name=hub_rg,
+        )
+        assert result == generic_response
+
+    def test_create_fabric_eventstream_minimum_args(self, fixture_cmd, fixture_update_endpoint_ops):
+        result = subject.message_endpoint_create_fabric_eventstream(
+            cmd=fixture_cmd,
+            hub_name=hub_name,
+            endpoint_name="es-" + generate_names(),
+            endpoint_uri="sb://test-ns.servicebus.windows.net",
+            entity_path="es-entity",
+            identity="[system]",
+            workspace_id="ws-id-1",
+            eventstream_id="es-id-1",
+            source_id="src-id-1",
+        )
+        assert result == generic_response
+
+    def test_create_fabric_eventstream_missing_workspace_id_errors(self, fixture_cmd, fixture_update_endpoint_ops):
+        with pytest.raises(RequiredArgumentMissingError):
+            subject.message_endpoint_create_fabric_eventstream(
+                cmd=fixture_cmd,
+                hub_name=hub_name,
+                endpoint_name="es-" + generate_names(),
+                endpoint_uri="sb://test-ns.servicebus.windows.net",
+                entity_path="es-entity",
+                identity="[system]",
+                workspace_id=None,
+                eventstream_id="es-id-1",
+                source_id="src-id-1",
+            )
+
+    def test_create_fabric_eventstream_missing_eventstream_id_errors(self, fixture_cmd, fixture_update_endpoint_ops):
+        with pytest.raises(RequiredArgumentMissingError):
+            subject.message_endpoint_create_fabric_eventstream(
+                cmd=fixture_cmd,
+                hub_name=hub_name,
+                endpoint_name="es-" + generate_names(),
+                endpoint_uri="sb://test-ns.servicebus.windows.net",
+                entity_path="es-entity",
+                identity="[system]",
+                workspace_id="ws-id-1",
+                eventstream_id=None,
+                source_id="src-id-1",
+            )
+
+    def test_create_fabric_eventstream_missing_source_id_errors(self, fixture_cmd, fixture_update_endpoint_ops):
+        with pytest.raises(RequiredArgumentMissingError):
+            subject.message_endpoint_create_fabric_eventstream(
+                cmd=fixture_cmd,
+                hub_name=hub_name,
+                endpoint_name="es-" + generate_names(),
+                endpoint_uri="sb://test-ns.servicebus.windows.net",
+                entity_path="es-entity",
+                identity="[system]",
+                workspace_id="ws-id-1",
+                eventstream_id="es-id-1",
+                source_id=None,
+            )
+
+    def test_create_fabric_eventstream_missing_identity_errors(self, fixture_cmd, fixture_update_endpoint_ops):
+        with pytest.raises(RequiredArgumentMissingError):
+            subject.message_endpoint_create_fabric_eventstream(
+                cmd=fixture_cmd,
+                hub_name=hub_name,
+                endpoint_name="es-" + generate_names(),
+                endpoint_uri="sb://test-ns.servicebus.windows.net",
+                entity_path="es-entity",
+                identity=None,
+                workspace_id="ws-id-1",
+                eventstream_id="es-id-1",
+                source_id="src-id-1",
+            )
+
+    def test_create_fabric_eventstream_missing_endpoint_uri_errors(self, fixture_cmd, fixture_update_endpoint_ops):
+        with pytest.raises(RequiredArgumentMissingError):
+            subject.message_endpoint_create_fabric_eventstream(
+                cmd=fixture_cmd,
+                hub_name=hub_name,
+                endpoint_name="es-" + generate_names(),
+                endpoint_uri=None,
+                entity_path="es-entity",
+                identity="[system]",
+                workspace_id="ws-id-1",
+                eventstream_id="es-id-1",
+                source_id="src-id-1",
+            )
+
+    def test_create_fabric_eventstream_missing_entity_path_errors(self, fixture_cmd, fixture_update_endpoint_ops):
+        with pytest.raises(RequiredArgumentMissingError):
+            subject.message_endpoint_create_fabric_eventstream(
+                cmd=fixture_cmd,
+                hub_name=hub_name,
+                endpoint_name="es-" + generate_names(),
+                endpoint_uri="sb://test-ns.servicebus.windows.net",
+                entity_path=None,
+                identity="[system]",
+                workspace_id="ws-id-1",
+                eventstream_id="es-id-1",
+                source_id="src-id-1",
+            )
+
+    def test_create_fabric_eventstream_works_on_hub_without_eventstreams_key(
+        self, fixture_cmd, fixture_update_endpoint_backwards_comp_ops
+    ):
+        result = subject.message_endpoint_create_fabric_eventstream(
+            cmd=fixture_cmd,
+            hub_name=hub_name,
+            endpoint_name="es-" + generate_names(),
+            endpoint_uri="sb://test-ns.servicebus.windows.net",
+            entity_path="es-entity",
+            identity="[system]",
+            workspace_id="ws-id-1",
+            eventstream_id="es-id-1",
+            source_id="src-id-1",
+        )
+        assert result == generic_response
+
+
+class TestFabricEventStreamUpdate:
+    def test_update_fabric_eventstream_happy_path(self, fixture_cmd, fixture_update_endpoint_ops):
+        result = subject.message_endpoint_update_fabric_eventstream(
+            cmd=fixture_cmd,
+            hub_name=hub_name,
+            endpoint_name=endpoint_name,
+            endpoint_uri="sb://new-ns.servicebus.windows.net",
+            entity_path="new-entity",
+            identity="[system]",
+            workspace_id="updated-ws-id",
+            eventstream_id="updated-es-id",
+            source_id="updated-src-id",
+            resource_group_name=hub_rg,
+        )
+        assert result == generic_response
+
+    def test_update_fabric_eventstream_identity_only(self, fixture_cmd, fixture_update_endpoint_ops):
+        # Should be allowed to swap from SAMI to UAMI without touching URI/entity-path.
+        uami = TestFabricEventStreamCreate.uami_id
+        result = subject.message_endpoint_update_fabric_eventstream(
+            cmd=fixture_cmd,
+            hub_name=hub_name,
+            endpoint_name=endpoint_name,
+            identity=uami,
+        )
+        assert result == generic_response
+
+    def test_create_fabric_eventstream_provider_requires_fabric_ids(self, fixture_cmd, fixture_update_endpoint_ops):
+        from azext_iot.iothub.providers.message_endpoint import MessageEndpoint
+        from azext_iot.iothub.common import EndpointType
+        provider = MessageEndpoint(cmd=fixture_cmd, hub_name=hub_name, rg=hub_rg)
+        for missing in ("workspace_id", "eventstream_id", "source_id"):
+            kwargs = {
+                "endpoint_name": "es-" + generate_names(),
+                "endpoint_type": EndpointType.FabricEventStream.value,
+                "endpoint_uri": "sb://test-ns.servicebus.windows.net",
+                "entity_path": "entity",
+                "identity": "[system]",
+                "workspace_id": "ws-id",
+                "eventstream_id": "es-id",
+                "source_id": "src-id",
+            }
+            kwargs[missing] = None
+            with pytest.raises(RequiredArgumentMissingError):
+                provider.create(**kwargs)
+
+    def test_update_fabric_eventstream_nonexistent_errors(self, fixture_cmd, fixture_update_endpoint_ops):
+        with pytest.raises(ResourceNotFoundError):
+            subject.message_endpoint_update_fabric_eventstream(
+                cmd=fixture_cmd,
+                hub_name=hub_name,
+                endpoint_name="nonexistent-" + generate_names(),
+                endpoint_uri="sb://test-ns.servicebus.windows.net",
+                entity_path="entity",
+                identity="[system]",
+            )
+
+
+class TestFabricEventStreamShowListDelete:
+    def test_list_includes_fabric_eventstream(self, fixture_cmd, fixture_update_endpoint_ops):
+        # Default list (no type filter) returns the endpoints dict, which now includes eventStreams.
+        result = subject.message_endpoint_list(
+            cmd=fixture_cmd,
+            hub_name=hub_name,
+            resource_group_name=hub_rg,
+        )
+        assert "eventStreams" in result
+        assert len(result["eventStreams"]) >= 1
+
+    def test_list_by_type_fabric_eventstream(self, fixture_cmd, fixture_update_endpoint_ops):
+        from azext_iot.iothub.common import EndpointType
+        result = subject.message_endpoint_list(
+            cmd=fixture_cmd,
+            hub_name=hub_name,
+            endpoint_type=EndpointType.FabricEventStream.value,
+            resource_group_name=hub_rg,
+        )
+        assert isinstance(result, list)

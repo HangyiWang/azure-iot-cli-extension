@@ -5,6 +5,7 @@
 # --------------------------------------------------------------------------------------------
 
 from typing import Optional
+from uuid import uuid4
 import pytest
 from azure.cli.core.azclierror import BadRequestError
 from azext_iot.common.utility import ensure_iothub_sdk_min_version
@@ -1181,6 +1182,228 @@ def test_iot_cosmos_endpoint_lifecycle(provisioned_cosmosdb_with_identity_module
     assert endpoint_list == []
 
 
+def test_iot_fabric_eventstream_endpoint_lifecycle(provisioned_event_hub_with_identity_module):
+    iot_hub_objs, event_hub_obj = provisioned_event_hub_with_identity_module
+    iot_hub_obj = iot_hub_objs[0]["hub"]
+
+    iot_hub = iot_hub_obj["name"]
+    iot_rg = iot_hub_obj["resourcegroup"]
+    user_id = list(iot_hub_obj["identity"]["userAssignedIdentities"].keys())[0]
+    eventhub_instance = event_hub_obj["eventhub"]["name"]
+    endpoint_uri = "sb:" + event_hub_obj["namespace"]["serviceBusEndpoint"].split(":")[1]
+    endpoint_names = generate_ep_names(2)
+    workspace_id = str(uuid4())
+    eventstream_id = str(uuid4())
+    source_id = str(uuid4())
+    # Ensure there are no endpoints
+    cli.invoke(
+        "iot hub message-endpoint delete -n {} -g {} -y -f".format(
+            iot_hub, iot_rg
+        )
+    )
+
+    # Use hub identity
+    cli.invoke(
+        "iot hub message-endpoint create fabric-eventstream -n {} -g {} --en {} --endpoint-uri {} "
+        "--entity-path {} --identity [system] --workspace-id {} --eventstream-id {} --source-id {}".format(
+            iot_hub,
+            iot_rg,
+            endpoint_names[0],
+            endpoint_uri,
+            eventhub_instance,
+            workspace_id,
+            eventstream_id,
+            source_id
+        )
+    )
+
+    expected_sys_endpoint = build_expected_endpoint(
+        endpoint_names[0],
+        entity_path=eventhub_instance,
+        authentication_type=AuthenticationType.IdentityBased.value,
+        endpoint_uri=endpoint_uri,
+        workspace_id=workspace_id,
+        eventstream_id=eventstream_id,
+        source_id=source_id
+    )
+
+    endpoint_output = cli.invoke(
+        "iot hub message-endpoint show -n {} -g {} --en {}".format(
+            iot_hub, iot_rg, endpoint_names[0]
+        )
+    ).as_json()
+
+    assert_endpoint_properties(endpoint_output, expected_sys_endpoint)
+
+    # Use user identity
+    cli.invoke(
+        "iot hub message-endpoint create fabric-eventstream -n {} -g {} --en {} --endpoint-uri {} "
+        "--entity-path {} --identity {} --workspace-id {} --eventstream-id {} --source-id {}".format(
+            iot_hub,
+            iot_rg,
+            endpoint_names[1],
+            endpoint_uri,
+            eventhub_instance,
+            user_id,
+            workspace_id,
+            eventstream_id,
+            source_id
+        )
+    )
+
+    expected_user_endpoint = build_expected_endpoint(
+        endpoint_names[1],
+        entity_path=eventhub_instance,
+        authentication_type=AuthenticationType.IdentityBased.value,
+        endpoint_uri=endpoint_uri,
+        identity=user_id,
+        workspace_id=workspace_id,
+        eventstream_id=eventstream_id,
+        source_id=source_id
+    )
+
+    endpoint_output = cli.invoke(
+        "iot hub message-endpoint show -n {} -g {} --en {}".format(
+            iot_hub, iot_rg, endpoint_names[1]
+        )
+    ).as_json()
+
+    assert_endpoint_properties(endpoint_output, expected_user_endpoint)
+
+    # List
+    endpoint_list = cli.invoke(
+        "iot hub message-endpoint list -n {} -g {}".format(
+            iot_hub, iot_rg
+        )
+    ).as_json()
+
+    fabric_list = cli.invoke(
+        "iot hub message-endpoint list -n {} -g {} -t {}".format(
+            iot_hub, iot_rg, "fabric-eventstream"
+        )
+    ).as_json()
+
+    assert len(fabric_list) == 2
+    assert endpoint_list["eventStreams"] == fabric_list
+
+    # Update - System -> User identity, other properties preserved
+    cli.invoke(
+        "iot hub message-endpoint update fabric-eventstream -n {} -g {} --en {} --identity {}".format(
+            iot_hub, iot_rg, endpoint_names[0], user_id
+        )
+    )
+
+    expected_user_endpoint = build_expected_endpoint(
+        endpoint_names[0],
+        entity_path=eventhub_instance,
+        authentication_type=AuthenticationType.IdentityBased.value,
+        endpoint_uri=endpoint_uri,
+        identity=user_id,
+        workspace_id=workspace_id,
+        eventstream_id=eventstream_id,
+        source_id=source_id
+    )
+
+    endpoint_output = cli.invoke(
+        "iot hub message-endpoint show -n {} -g {} --en {}".format(
+            iot_hub, iot_rg, endpoint_names[0]
+        )
+    ).as_json()
+
+    assert_endpoint_properties(endpoint_output, expected_user_endpoint)
+
+    # Update - User -> System identity
+    cli.invoke(
+        "iot hub message-endpoint update fabric-eventstream -n {} -g {} --en {} --identity [system]".format(
+            iot_hub, iot_rg, endpoint_names[0]
+        )
+    )
+
+    expected_sys_endpoint = build_expected_endpoint(
+        endpoint_names[0],
+        entity_path=eventhub_instance,
+        authentication_type=AuthenticationType.IdentityBased.value,
+        endpoint_uri=endpoint_uri,
+        workspace_id=workspace_id,
+        eventstream_id=eventstream_id,
+        source_id=source_id
+    )
+
+    endpoint_output = cli.invoke(
+        "iot hub message-endpoint show -n {} -g {} --en {}".format(
+            iot_hub, iot_rg, endpoint_names[0]
+        )
+    ).as_json()
+
+    assert_endpoint_properties(endpoint_output, expected_sys_endpoint)
+    assert endpoint_output.get("identity") is None
+
+    # Update - re-target the Fabric identifiers, identity is preserved
+    new_workspace_id = str(uuid4())
+    new_eventstream_id = str(uuid4())
+    new_source_id = str(uuid4())
+    cli.invoke(
+        "iot hub message-endpoint update fabric-eventstream -n {} -g {} --en {} --workspace-id {} "
+        "--eventstream-id {} --source-id {}".format(
+            iot_hub,
+            iot_rg,
+            endpoint_names[1],
+            new_workspace_id,
+            new_eventstream_id,
+            new_source_id
+        )
+    )
+
+    expected_retarget_endpoint = build_expected_endpoint(
+        endpoint_names[1],
+        entity_path=eventhub_instance,
+        authentication_type=AuthenticationType.IdentityBased.value,
+        endpoint_uri=endpoint_uri,
+        identity=user_id,
+        workspace_id=new_workspace_id,
+        eventstream_id=new_eventstream_id,
+        source_id=new_source_id
+    )
+
+    endpoint_output = cli.invoke(
+        "iot hub message-endpoint show -n {} -g {} --en {}".format(
+            iot_hub, iot_rg, endpoint_names[1]
+        )
+    ).as_json()
+
+    assert_endpoint_properties(endpoint_output, expected_retarget_endpoint)
+
+    # Delete one fabric-eventstream endpoint
+    cli.invoke(
+        "iot hub message-endpoint delete -n {} -g {} --en {} -y".format(
+            iot_hub, iot_rg, endpoint_names[0]
+        )
+    )
+
+    fabric_list = cli.invoke(
+        "iot hub message-endpoint list -n {} -g {} -t {}".format(
+            iot_hub, iot_rg, "fabric-eventstream"
+        )
+    ).as_json()
+
+    assert len(fabric_list) == 1
+
+    # Delete all fabric-eventstream endpoints
+    cli.invoke(
+        "iot hub message-endpoint delete -n {} -g {} -t {} -y".format(
+            iot_hub, iot_rg, "fabric-eventstream"
+        )
+    )
+
+    fabric_list = cli.invoke(
+        "iot hub message-endpoint list -n {} -g {} -t {}".format(
+            iot_hub, iot_rg, "fabric-eventstream"
+        )
+    ).as_json()
+
+    assert fabric_list == []
+
+
 def test_iot_endpoint_force_delete(provisioned_service_bus_with_identity_module):
     # this test covers two endpoint types
     iot_hub_objs, servicebus_obj = provisioned_service_bus_with_identity_module
@@ -1425,8 +1648,8 @@ def test_iot_endpoint_force_delete(provisioned_service_bus_with_identity_module)
 
 def build_expected_endpoint(
     name: str,
-    resource_group: str,
-    subscription_id: str,
+    resource_group: Optional[str] = None,
+    subscription_id: Optional[str] = None,
     authentication_type: str = AuthenticationType.KeyBased.value,
     endpoint_uri: Optional[str] = None,
     identity: Optional[str] = None,
@@ -1441,14 +1664,20 @@ def build_expected_endpoint(
     partition_key_name: Optional[str] = None,
     partition_key_template: Optional[str] = None,
     primary_key: Optional[str] = None,
-    secondary_key: Optional[str] = None
+    secondary_key: Optional[str] = None,
+    workspace_id: Optional[str] = None,
+    eventstream_id: Optional[str] = None,
+    source_id: Optional[str] = None
 ):
     expected = {
         "name": name,
-        "resourceGroup": resource_group,
-        "subscriptionId": subscription_id,
         "authenticationType": authentication_type
     }
+    # fabric-eventstream endpoints don't carry resourceGroup/subscriptionId; all other types do
+    if resource_group:
+        expected["resourceGroup"] = resource_group
+    if subscription_id:
+        expected["subscriptionId"] = subscription_id
 
     if endpoint_uri:
         expected["endpointUri"] = endpoint_uri
@@ -1479,6 +1708,12 @@ def build_expected_endpoint(
         expected["primaryKey"] = primary_key
     if secondary_key:
         expected["secondaryKey"] = secondary_key
+    if workspace_id:
+        expected["workspaceId"] = workspace_id
+    if eventstream_id:
+        expected["eventStreamId"] = eventstream_id
+    if source_id:
+        expected["sourceId"] = source_id
 
     return expected
 
@@ -1486,8 +1721,13 @@ def build_expected_endpoint(
 def assert_endpoint_properties(result: dict, expected: dict):
     # Props that will always be populated
     assert result["name"] == expected["name"]
-    assert result["resourceGroup"] == expected["resourceGroup"]
-    assert result["subscriptionId"] == expected["subscriptionId"]
+    # resourceGroup and subscriptionId are not populated for fabric-eventstream endpoints
+    if "resourceGroup" in expected:
+        assert result["resourceGroup"] == expected["resourceGroup"]
+        assert result["subscriptionId"] == expected["subscriptionId"]
+    else:
+        assert "resourceGroup" not in result
+        assert "subscriptionId" not in result
     # assert result["id"] # TODO @vilit should cosmos db endpoint return this as None
     assert result["authenticationType"] == expected["authenticationType"]
 
@@ -1549,3 +1789,11 @@ def assert_endpoint_properties(result: dict, expected: dict):
         assert result["primaryKey"]
     if "secondaryKey" in expected:
         assert result["secondaryKey"]
+
+    # Fabric Event Stream only
+    if "workspaceId" in expected:
+        assert result["workspaceId"] == expected["workspaceId"]
+    if "eventStreamId" in expected:
+        assert result["eventStreamId"] == expected["eventStreamId"]
+    if "sourceId" in expected:
+        assert result["sourceId"] == expected["sourceId"]

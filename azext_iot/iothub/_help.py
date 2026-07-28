@@ -781,6 +781,59 @@ def load_iothub_help():
           - name: Get all the endpoints of type "EventHub" from an IoT Hub.
             text: >
               az iot hub message-endpoint list -n {iothub_name} --endpoint-type eventhub
+          - name: Get all the endpoints of type "Fabric Eventstream" from an IoT Hub.
+            text: >
+              az iot hub message-endpoint list -n {iothub_name} --endpoint-type fabric-eventstream
+    """
+
+    helps[
+        "iot hub message-endpoint create fabric-eventstream"
+    ] = """
+        type: command
+        short-summary: Add a Microsoft Fabric Eventstream endpoint for an IoT Hub.
+        long-summary: |
+          The Fabric Custom Endpoint source (workspace, Eventstream item, and source) must be
+          created separately in Microsoft Fabric — via the Fabric portal or the `fab` CLI — before
+          running this command. Then take the source's connection details (sb:// endpoint URI,
+          entity path, and the workspace / eventstream / source GUIDs) and register them here.
+
+          This endpoint type supports identity-based authentication only. The hub must have a
+          managed identity assigned (system-assigned or user-assigned).
+
+        examples:
+          - name: Create a Fabric Eventstream endpoint using the hub's system-assigned identity.
+            text: >
+              az iot hub message-endpoint create fabric-eventstream -n {iothub_name}
+              --en {endpoint_name} --endpoint-uri {endpoint_uri} --entity-path {entity_path}
+              --identity [system] --workspace-id {workspace_id} --eventstream-id {eventstream_id}
+              --source-id {source_id}
+          - name: Create a Fabric Eventstream endpoint using a user-assigned identity.
+            text: >
+              az iot hub message-endpoint create fabric-eventstream -n {iothub_name}
+              --en {endpoint_name} --endpoint-uri {endpoint_uri} --entity-path {entity_path}
+              --identity {user_identity_resource_id} --workspace-id {workspace_id}
+              --eventstream-id {eventstream_id} --source-id {source_id}
+    """
+
+    helps[
+        "iot hub message-endpoint update fabric-eventstream"
+    ] = """
+        type: command
+        short-summary: Update a Microsoft Fabric Eventstream endpoint for an IoT Hub.
+        long-summary: |
+          This endpoint type supports identity-based authentication only. To change the
+          underlying Fabric Custom Endpoint source, update --endpoint-uri and --entity-path
+          together with values from the new source.
+        examples:
+          - name: Update a Fabric Eventstream endpoint to a different user-assigned identity.
+            text: >
+              az iot hub message-endpoint update fabric-eventstream -n {iothub_name}
+              --en {endpoint_name} --identity {user_identity_resource_id}
+          - name: Update a Fabric Eventstream endpoint's Fabric metadata (display values).
+            text: >
+              az iot hub message-endpoint update fabric-eventstream -n {iothub_name}
+              --en {endpoint_name} --workspace-id {workspace_id} --eventstream-id {eventstream_id}
+              --source-id {source_id}
     """
 
     helps[
