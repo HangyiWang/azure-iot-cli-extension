@@ -19,41 +19,45 @@ Release History
 * **Registry Devices and child resources**
 
   - Added ``az iot adr ns registry-device create / show / list / update / delete``.
-  - Added ``registry-device auth-profile list / show / get-keys / revoke-certificates``. Plaintext key responses disable SDK HTTP logging; certificate revocation requires confirmation.
-  - Added read-only ``registry-device attribute list / show`` and ``registry-device capability list / show`` commands.
-  - Authentication Profiles remain service-materialized children; create, update, and delete operations are not exposed by this API.
+  - Added ``registry-device auth list / show / show-keys / revoke-certs``. Plaintext key responses disable SDK HTTP logging; certificate revocation requires confirmation.
+  - Added ``registry-device attribute create / list / show / delete`` and read-only ``registry-device capability list / show`` commands. Attribute create is a synchronous full replace with ``--reported-by`` (``User`` or ``Microsoft.DeviceUpdate``), ``--schema``, and an open ``--properties`` JSON bag.
+  - ``registry-device attribute show`` accepts ``software-update`` as an alias for the Azure Device Update attribute, whose canonical resource name is ``update``. The literal name is always resolved first, so a customer-authored attribute of the same name still wins, and the alias is scoped to ``show`` only. Responses always report the canonical ``name`` and ``id``.
+  - Authentication Profiles and Capabilities remain service-materialized children; create, update, and delete operations are not exposed by this API.
 
-* **Software Update instances and namespace links**
+* **Software Updates (Update Instances and namespace links)**
 
   - Added ``az iot adr ns su instance check-name / create / show / list / update / delete / wait`` for ``Microsoft.DeviceUpdate/updateInstances`` resources.
   - Update Instance create and update support tags plus complete system- and user-assigned managed identity configuration. List supports resource-group and subscription scopes.
   - Namespace updating endpoints remain under ``az iot adr ns link su add / show / list / update / wait``, consistent with the existing Hub and DPS link groups.
-  - Software Update data-plane commands and the service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions are intentionally not exposed.
+  - Software Updates data-plane commands and the service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions are intentionally not exposed.
 
 * **Namespace parity**
 
   - Added ``az iot adr ns identity show / assign / remove`` for complete system- and user-assigned namespace identity management.
   - Added direct namespace messaging, provisioning, and updating endpoint JSON configuration on ``ns create`` and ``ns update``.
-  - Added Group system-assigned identity configuration.
   - Added namespace and group update-compliance ``report generate / latest`` commands.
 
 * **Namespace links**
 
-  - Added Hub, DPS, and ASU update-instance links with add, show, list, and identity-update behavior.
+  - Added Hub, DPS, and Update Instance links with add, show, list, and identity-update behavior.
   - Hub provisioning fields remain create-only; link update rotates identity only.
 
 * **Groups, jobs, runs, and CMS**
 
-  - Added paged ``group list-members``, member count, refresh, identity configuration, and service-managed delete behavior.
-  - Added ``SoftwareUpdate`` and ``OnboardingUpdate`` jobs, scheduling, namespace-wide job-run listing, filtered/paged results, and cancellation.
+  - Added paged ``group list-members``, member count, refresh, and service-managed delete behavior. ``group create`` and ``group update`` are synchronous, ``--group-type`` accepts only ``RegistryDevice``, and the create-only query filter is sent as ``properties.queryFilter``.
+  - Added ``SoftwareUpdate`` and ``OnboardingUpdate`` jobs with a ``displayName``, namespace-wide job-run listing, filtered/ordered/paged results, and cancellation. Job definitions now carry a flattened ``definition.updateResourceId``.
+  - Re-pointed ``az iot adr ns job schedule`` at ``JobRuns_CreateOrReplace``. ``Jobs_Schedule`` has no backing operation in ``2026-11-02-preview``: a job defines what to roll out and to whom, while each run carries when it executes, and ``scheduledTime`` is a run's only writable field. ``job schedule`` therefore creates a run, gained an optional ``--run-name`` that defaults to a UTC-timestamped name, and dropped ``--timeout``, which has no field on either resource. A single job can be scheduled repeatedly.
+  - Added ``az iot adr ns job run delete`` and ``az iot adr ns job run summary``.
   - Certificate authority and CA-policy commands remain under ``az iot adr ns ca`` and ``az iot adr ns ca policy`` with parent-namespace location inheritance and consistent LRO behavior.
   - Removed the unsupported ``--cert-subject`` input; certificate subjects are service-generated.
+  - Renamed the intermediate CA issuer type from ``Internal`` to ``Microsoft`` and replaced ``--issuer-ca-uuid`` with ``--issuer-ca-name``, which is composed into ``issuer.certificateAuthorityResourceId``.
+  - ``az iot adr ns ca revoke`` now calls ``CertificateAuthorities_RevokeAndRotate``.
 
 **Quality and manual validation**
 
-* Added an SDK contract test that locks the API version, operation-group inventory, and provider method surface for synchronous and asynchronous clients.
+* Replaced the SDK contract test with strictly-specced unit fixtures. Every mocked Device Registry operation group is now an ``create_autospec`` of the real generated operations class, so an SDK method rename or signature change fails a unit test instead of surfacing only in a live integration run.
 * Expanded integration-test coverage across Registry Devices, Update Instances, links, CMS, groups, jobs, job runs, reports, and validation failures, with explicit infrastructure-dependent skips and secret-safe key validation.
-* Added focused unit tests with complete branch coverage for the handwritten Software Update command and provider modules.
+* Added focused unit tests with complete branch coverage for the handwritten Software Updates command and provider modules.
 
 **Intentionally unsupported**
 
@@ -64,9 +68,11 @@ Release History
   - The ``az iot adr ns management-endpoint`` group and the ``--management-endpoints`` argument are not registered. ``properties.management.endpoints`` is keyed by AIO custom-location resource ID and is written by ``az iot ops mgmt-actions enable``.
   - ``az iot adr ns migrate`` is not registered. It migrates legacy AIO assets and asset endpoint profiles, which ``az iot ops migrate-assets`` handles with the required AIO context.
 
-* Authentication Profile create/update/delete and Attribute/Capability mutation are not available in the management API.
+* Authentication Profile create/update/delete and Capability mutation are not available in the management API. Attributes reported by ``Microsoft.DeviceUpdate`` are service-materialized and should be treated as read-only.
+* Group system-assigned identity configuration was removed. ``Microsoft.DeviceRegistry/namespaces/groups`` is a plain tracked resource in ``2026-11-02-preview`` with no identity envelope.
+* ``az iot adr ns job schedule`` was removed; ``Jobs_Schedule`` no longer exists in the API.
 * Link-remove commands remain unregistered because no supported backing operation exists.
-* Software Update data-plane operations and direct customer invocation of UpdateInstance internal link actions are not registered.
+* Software Updates data-plane operations and direct customer invocation of Update Instance internal link actions are not registered.
 * Removed the legacy ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups.
 
 0.31.0b3 (Preview)

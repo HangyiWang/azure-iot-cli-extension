@@ -5,7 +5,7 @@
 # --------------------------------------------------------------------------------------------
 
 import pytest
-from azure.cli.core.azclierror import ArgumentUsageError, InvalidArgumentValueError
+from azure.cli.core.azclierror import ArgumentUsageError
 
 
 _SUBSCRIPTION_ID = "00000000-0000-0000-0000-000000000000"
@@ -63,13 +63,9 @@ def test_software_update_job_payload(fixture_job_provider, mock_poller):
                 "target": {"resourceId": target_id},
                 "definition": {
                     "schedulingType": "Continuous",
-                    "update": {
-                        "updateId": {
-                            "provider": "Contoso",
-                            "name": "firmware",
-                            "version": "1.2.3",
-                        }
-                    },
+                    "updateResourceId": (
+                        "updates/providers/Contoso/names/firmware/versions/1.2.3"
+                    ),
                 },
             },
             "tags": {"env": "prod"},
@@ -251,78 +247,23 @@ def test_job_delete_no_wait(fixture_job_provider, mock_poller):
     poller.result.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "scheduled_time",
-    [
-        "2026-11-02T08:00:00Z",
-        "2026-11-02T08:00:00+00:00",
-        "2026-11-02T08:00:00-07:00",
-    ],
-)
-def test_job_schedule_accepts_timezone_aware_time(
-    fixture_job_provider, mock_poller, scheduled_time
-):
-    fixture_job_provider.client.jobs.begin_schedule.return_value = mock_poller(
-        {"name": "run"}
-    )
+def test_job_create_forwards_display_name(fixture_job_provider, mock_poller):
+    """JobProperties.displayName is writable at create in 2026-11-02-preview."""
+    fixture_job_provider.client.jobs.begin_create_or_replace.return_value = mock_poller({})
 
-    fixture_job_provider.schedule(
-        "job",
-        "namespace",
-        "rg",
-        scheduled_time=scheduled_time,
-        timeout="PT2H",
-    )
+    _create_job(fixture_job_provider, display_name="Production rollout")
 
-    fixture_job_provider.client.jobs.begin_schedule.assert_called_once_with(
-        resource_group_name="rg",
-        namespace_name="namespace",
-        job_name="job",
-        body={"scheduledTime": scheduled_time, "timeout": "PT2H"},
-    )
+    body = fixture_job_provider.client.jobs.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]
+    assert body["properties"]["displayName"] == "Production rollout"
 
 
-def test_job_schedule_allows_empty_body(fixture_job_provider, mock_poller):
-    fixture_job_provider.client.jobs.begin_schedule.return_value = mock_poller({})
+def test_job_provider_has_no_schedule_operation(fixture_job_provider):
+    """Jobs_Schedule was removed in 2026-11-02-preview.
 
-    fixture_job_provider.schedule("job", "namespace", "rg")
-
-    assert (
-        fixture_job_provider.client.jobs.begin_schedule.call_args.kwargs["body"]
-        == {}
-    )
-
-
-@pytest.mark.parametrize(
-    "scheduled_time",
-    ["2026-11-02T08:00:00", "not-a-time", "2026-11-02"],
-)
-def test_job_schedule_rejects_non_absolute_time(
-    fixture_job_provider, scheduled_time
-):
-    with pytest.raises(InvalidArgumentValueError, match="ISO 8601 UTC datetime"):
-        fixture_job_provider.schedule(
-            "job", "namespace", "rg", scheduled_time=scheduled_time
-        )
-    fixture_job_provider.client.jobs.begin_schedule.assert_not_called()
-
-
-@pytest.mark.parametrize("timeout", ["not-a-duration", "2 hours", ""])
-def test_job_schedule_rejects_invalid_timeout(fixture_job_provider, timeout):
-    with pytest.raises(InvalidArgumentValueError, match="ISO 8601 duration"):
-        fixture_job_provider.schedule(
-            "job", "namespace", "rg", timeout=timeout
-        )
-    fixture_job_provider.client.jobs.begin_schedule.assert_not_called()
-
-
-def test_job_schedule_no_wait(fixture_job_provider, mock_poller):
-    poller = mock_poller(None)
-    fixture_job_provider.client.jobs.begin_schedule.return_value = poller
-
-    result = fixture_job_provider.schedule(
-        "job", "namespace", "rg", no_wait=True
-    )
-
-    assert result is poller
-    poller.result.assert_not_called()
+    Scheduling now happens through ``JobRuns_CreateOrReplace``
+    (``az iot adr ns job run create --scheduled-time``).
+    """
+    assert not hasattr(fixture_job_provider, "schedule")
+    assert not hasattr(fixture_job_provider.client.jobs, "begin_schedule")

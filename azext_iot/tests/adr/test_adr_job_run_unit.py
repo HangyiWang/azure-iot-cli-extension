@@ -4,6 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
+import re
 from unittest.mock import Mock
 
 import pytest
@@ -312,3 +313,179 @@ def test_job_run_cancel_no_wait(fixture_job_run_provider, mock_poller):
 
     assert result is poller
     poller.result.assert_not_called()
+
+
+# ==================== Create / Delete / Summary (2026-11-02-preview) ====================
+
+
+def test_job_run_create_with_scheduled_time(fixture_job_run_provider, mock_poller):
+    """scheduledTime is the only writable field on JobRunProperties."""
+    fixture_job_run_provider.client.job_runs.begin_create_or_replace.return_value = (
+        mock_poller({"name": "run"})
+    )
+
+    result = fixture_job_run_provider.create(
+        job_name="job",
+        namespace_name="namespace",
+        resource_group_name="rg",
+        run_name="run",
+        scheduled_time="2026-11-02T08:00:00Z",
+    )
+
+    assert result == {"name": "run"}
+    fixture_job_run_provider.client.job_runs.begin_create_or_replace.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+        run_name="run",
+        resource={"properties": {"scheduledTime": "2026-11-02T08:00:00Z"}},
+    )
+
+
+def test_job_run_create_generates_run_name(fixture_job_run_provider, mock_poller):
+    """runName is a required path segment, so omitting it generates one."""
+    fixture_job_run_provider.client.job_runs.begin_create_or_replace.return_value = (
+        mock_poller({})
+    )
+
+    fixture_job_run_provider.create(
+        job_name="job", namespace_name="namespace", resource_group_name="rg"
+    )
+
+    kwargs = fixture_job_run_provider.client.job_runs.begin_create_or_replace.call_args.kwargs
+    assert re.fullmatch(r"run-\d{14}", kwargs["run_name"])
+    assert kwargs["resource"] == {"properties": {}}
+
+
+@pytest.mark.parametrize(
+    "scheduled_time",
+    ["2026-11-02T08:00:00", "not-a-time", "2026-11-02"],
+)
+def test_job_run_create_rejects_non_absolute_time(
+    fixture_job_run_provider, scheduled_time
+):
+    with pytest.raises(InvalidArgumentValueError, match="ISO 8601 UTC datetime"):
+        fixture_job_run_provider.create(
+            job_name="job",
+            namespace_name="namespace",
+            resource_group_name="rg",
+            scheduled_time=scheduled_time,
+        )
+    fixture_job_run_provider.client.job_runs.begin_create_or_replace.assert_not_called()
+
+
+def test_job_run_create_no_wait(fixture_job_run_provider, mock_poller):
+    poller = mock_poller({})
+    fixture_job_run_provider.client.job_runs.begin_create_or_replace.return_value = poller
+
+    result = fixture_job_run_provider.create(
+        job_name="job",
+        namespace_name="namespace",
+        resource_group_name="rg",
+        no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_job_run_delete(fixture_job_run_provider, mock_poller):
+    fixture_job_run_provider.client.job_runs.begin_delete.return_value = mock_poller(None)
+
+    fixture_job_run_provider.delete(
+        job_name="job",
+        run_name="run",
+        namespace_name="namespace",
+        resource_group_name="rg",
+    )
+
+    fixture_job_run_provider.client.job_runs.begin_delete.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+        run_name="run",
+    )
+
+
+def test_job_run_delete_no_wait(fixture_job_run_provider, mock_poller):
+    poller = mock_poller(None)
+    fixture_job_run_provider.client.job_runs.begin_delete.return_value = poller
+
+    result = fixture_job_run_provider.delete(
+        job_name="job",
+        run_name="run",
+        namespace_name="namespace",
+        resource_group_name="rg",
+        no_wait=True,
+    )
+
+    assert result is poller
+    poller.result.assert_not_called()
+
+
+def test_job_run_summary(fixture_job_run_provider):
+    expected = {
+        "total": 10,
+        "succeeded": 7,
+        "failed": 1,
+        "inProgress": 1,
+        "pending": 1,
+        "canceled": 0,
+        "notApplied": 0,
+    }
+    fixture_job_run_provider.client.job_runs.get_summary.return_value = expected
+
+    assert (
+        fixture_job_run_provider.summary(
+            job_name="job",
+            run_name="run",
+            namespace_name="namespace",
+            resource_group_name="rg",
+        )
+        is expected
+    )
+    fixture_job_run_provider.client.job_runs.get_summary.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        job_name="job",
+        run_name="run",
+    )
+
+
+def test_job_run_results_forwards_order_by(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_results.return_value = {
+        "value": [{"deviceId": "one"}]
+    }
+
+    results = list(
+        fixture_job_run_provider.results(
+            job_name="job",
+            run_name="run",
+            namespace_name="namespace",
+            resource_group_name="rg",
+            status_filter="status eq 'Failed'",
+            order_by="status desc",
+        )
+    )
+
+    assert results == [{"deviceId": "one"}]
+    assert fixture_job_run_provider.client.job_runs.list_results.call_args.kwargs[
+        "body"
+    ] == {"filter": "status eq 'Failed'", "orderBy": "status desc"}
+
+
+@pytest.mark.parametrize(
+    "order_by", ["bogus asc", "status sideways", "status asc extra", "'status' asc"]
+)
+def test_job_run_results_rejects_invalid_order_by(fixture_job_run_provider, order_by):
+    with pytest.raises(InvalidArgumentValueError, match="order by expression"):
+        list(
+            fixture_job_run_provider.results(
+                job_name="job",
+                run_name="run",
+                namespace_name="namespace",
+                resource_group_name="rg",
+                order_by=order_by,
+            )
+        )
+    fixture_job_run_provider.client.job_runs.list_results.assert_not_called()

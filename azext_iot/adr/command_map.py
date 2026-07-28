@@ -106,15 +106,15 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_registry_device_show")
 
     with self.command_group(
-        "iot adr ns registry-device auth-profile",
+        "iot adr ns registry-device auth",
         command_type=adr_registry_device_ops,
     ) as cmd_group:
-        cmd_group.command("list", "adr_registry_device_auth_profile_list")
-        cmd_group.show_command("show", "adr_registry_device_auth_profile_show")
-        cmd_group.command("get-keys", "adr_registry_device_auth_profile_get_keys")
+        cmd_group.command("list", "adr_registry_device_auth_list")
+        cmd_group.show_command("show", "adr_registry_device_auth_show")
+        cmd_group.command("show-keys", "adr_registry_device_auth_show_keys")
         cmd_group.command(
-            "revoke-certificates",
-            "adr_registry_device_auth_profile_revoke_certificates",
+            "revoke-certs",
+            "adr_registry_device_auth_revoke_certs",
             confirmation=True,
             supports_no_wait=True,
         )
@@ -123,8 +123,14 @@ def load_adr_commands(self, _):
         "iot adr ns registry-device attribute",
         command_type=adr_registry_device_ops,
     ) as cmd_group:
+        cmd_group.command("create", "adr_registry_device_attribute_create")
         cmd_group.command("list", "adr_registry_device_attribute_list")
         cmd_group.show_command("show", "adr_registry_device_attribute_show")
+        cmd_group.command(
+            "delete",
+            "adr_registry_device_attribute_delete",
+            confirmation=True,
+        )
 
     with self.command_group(
         "iot adr ns registry-device capability",
@@ -197,8 +203,8 @@ def load_adr_commands(self, _):
 
     # Group commands
     with self.command_group("iot adr ns group", command_type=adr_group_ops) as cmd_group:
-        cmd_group.command("create", "adr_group_create", supports_no_wait=True)
-        cmd_group.command("update", "adr_group_update", supports_no_wait=True)
+        cmd_group.command("create", "adr_group_create")
+        cmd_group.command("update", "adr_group_update")
         cmd_group.show_command("show", "adr_group_show")
         cmd_group.command("list", "adr_group_list")
         cmd_group.command("delete", "adr_group_delete", confirmation=True, supports_no_wait=True)
@@ -217,11 +223,15 @@ def load_adr_commands(self, _):
         cmd_group.command("schedule", "adr_job_schedule", supports_no_wait=True)
         cmd_group.wait_command("wait", "adr_job_show")
 
-    # Job run commands (read-only)
+    # Job run commands
     with self.command_group("iot adr ns job run", command_type=adr_job_run_ops) as cmd_group:
         cmd_group.show_command("show", "adr_job_run_show")
         cmd_group.command("list", "adr_job_run_list")
         cmd_group.command("results", "adr_job_run_results")
+        cmd_group.command("summary", "adr_job_run_summary")
+        cmd_group.command(
+            "delete", "adr_job_run_delete", confirmation=True, supports_no_wait=True
+        )
         cmd_group.command(
             "cancel", "adr_job_run_cancel", confirmation=True, supports_no_wait=True
         )

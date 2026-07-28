@@ -62,7 +62,7 @@ class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 self.cmd(
                     f"iot adr ns group create -n {group_name} --ns {namespace_name} -g {rg} "
-                    f"--query-string \"SELECT * FROM DEVICE\""
+                    f'--query-string "*"'
                 )
                 _log(LogKind.OK, "Group '%s' created", group_name)
 
@@ -88,11 +88,11 @@ class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 definition = props.get("definition") or {}
                 assert definition.get("schedulingType") == "Continuous"
-                update = definition.get("update") or {}
-                update_id = update.get("updateId") or {}
-                assert update_id.get("provider") == "Contoso"
-                assert update_id.get("name") == "gateway-firmware"
-                assert update_id.get("version") == "1.2.3"
+                # 2026-11-02-preview flattens updateId into a relative
+                # data-plane resource path.
+                assert definition.get("updateResourceId") == (
+                    "updates/providers/Contoso/names/gateway-firmware/versions/1.2.3"
+                )
                 _log(
                     LogKind.OK,
                     "job created; target=%s update=Contoso/gateway-firmware/1.2.3",
@@ -148,25 +148,37 @@ class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 _log(LogKind.OK, "tags cleared with --tags ''")
 
             with timed_step("Step 6 ❯ job schedule (no args = immediate)"):
-                self.cmd(
-                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg}"
-                )
-                _log(LogKind.OK, "schedule (immediate) returned")
+                run = self.cmd(
+                    f"iot adr ns job schedule -n {job_name} "
+                    f"--ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                # --run-name is optional; the CLI generates a UTC-timestamped name.
+                assert run["name"].startswith("run-")
+                _log(LogKind.OK, "job schedule (immediate) returned %s", run["name"])
 
-            with timed_step("Step 7 ❯ job schedule with --scheduled-time and --timeout"):
+            with timed_step("Step 7 ❯ job schedule with --scheduled-time"):
                 # Schedule for ~1 hour from now to keep it well-formed
                 future = (
                     datetime.datetime.now(datetime.timezone.utc)
                     + datetime.timedelta(hours=1)
                 ).strftime("%Y-%m-%dT%H:%M:%SZ")
+                scheduled_run = f"{job_name}-scheduled"
                 self.cmd(
-                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
-                    f"--scheduled-time {future} --timeout PT2H"
+                    f"iot adr ns job schedule -n {job_name} "
+                    f"--ns {namespace_name} -g {rg} "
+                    f"--run-name {scheduled_run} --scheduled-time {future}"
                 )
-                _log(
-                    LogKind.OK,
-                    "schedule (--scheduled-time=%s, --timeout=PT2H) returned",
-                    future,
+                _log(LogKind.OK, "job schedule (--scheduled-time=%s) returned", future)
+
+                summary = self.cmd(
+                    f"iot adr ns job run summary -n {scheduled_run} --job-name {job_name} "
+                    f"--ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                assert "total" in summary
+
+                self.cmd(
+                    f"iot adr ns job run delete -n {scheduled_run} --job-name {job_name} "
+                    f"--ns {namespace_name} -g {rg} -y"
                 )
 
             with timed_step("Step 8 ❯ job wait --created"):
@@ -218,7 +230,8 @@ class TestADRJobLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             assert properties["definition"]["schedulingType"] == "Continuous"
 
             self.cmd(
-                f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg}"
+                f"iot adr ns job schedule -n {job_name} "
+                f"--ns {namespace_name} -g {rg}"
             )
             self.cmd(
                 f"iot adr ns job delete -n {job_name} --ns {namespace_name} -g {rg} -y"
@@ -250,7 +263,7 @@ class TestADRJobValidation(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 self.cmd(
                     f"iot adr ns group create -n {group_name} --ns {namespace_name} -g {rg} "
-                    f"--query-string \"SELECT * FROM DEVICE\""
+                    f'--query-string "*"'
                 )
 
             with timed_step("Neg 1 ❯ job create missing --target-group-name"):
@@ -296,17 +309,19 @@ class TestADRJobValidation(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "non-tag update field rejected")
 
-            with timed_step("Neg 5 ❯ job schedule with invalid ISO 8601 timeout"):
+            with timed_step("Neg 5 ❯ job run create is not a command"):
+                # Scheduling is exposed as `job schedule`, not `job run create`.
                 self.cmd(
-                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
-                    f"--timeout 'not-a-duration'",
+                    f"iot adr ns job run create --job-name {job_name} "
+                    f"--ns {namespace_name} -g {rg}",
                     expect_failure=True,
                 )
-                _log(LogKind.OK, "invalid timeout rejected")
+                _log(LogKind.OK, "job run create rejected as unknown command")
 
             with timed_step("Neg 6 ❯ job schedule with invalid ISO 8601 scheduled-time"):
                 self.cmd(
-                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"iot adr ns job schedule -n {job_name} "
+                    f"--ns {namespace_name} -g {rg} "
                     f"--scheduled-time 'tomorrow at noon'",
                     expect_failure=True,
                 )
@@ -314,7 +329,8 @@ class TestADRJobValidation(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
             with timed_step("Neg 7 ❯ timezone-naive scheduled time rejected"):
                 self.cmd(
-                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg} "
+                    f"iot adr ns job schedule -n {job_name} "
+                    f"--ns {namespace_name} -g {rg} "
                     f"--scheduled-time 2026-11-02T12:00:00",
                     expect_failure=True,
                 )

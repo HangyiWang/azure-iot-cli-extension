@@ -18,16 +18,16 @@ from azure.cli.core.azclierror import (
 
 
 @pytest.mark.parametrize(
-    "ca_type, issuer_type, issuer_uuid, key_type, location",
+    "ca_type, issuer_type, issuer_ca_name, key_type, location",
     [
         ("Root", None, None, "ECC", None),
-        ("ICA", "Internal", "11111111-1111-1111-1111-111111111111", None, "westus"),
+        ("ICA", "Microsoft", "myRootCA", None, "westus"),
         ("ICA", "External", None, "ECC", "eastus"),
     ],
-    ids=["root-default-keytype", "internal-ica", "external-ica"],
+    ids=["root-default-keytype", "microsoft-ica", "external-ica"],
 )
 def test_create_ca(
-    fixture_ca_provider, mock_poller, ca_type, issuer_type, issuer_uuid, key_type, location
+    fixture_ca_provider, mock_poller, ca_type, issuer_type, issuer_ca_name, key_type, location
 ):
     """CA creation builds the expected resource body and resolves location."""
     sentinel = Mock()
@@ -42,7 +42,7 @@ def test_create_ca(
         resource_group_name="rg",
         certificate_authority_type=ca_type,
         issuer_type=issuer_type,
-        issuer_certificate_authority_uuid=issuer_uuid,
+        issuer_certificate_authority_name=issuer_ca_name,
         key_type=key_type,
         location=location,
     )
@@ -54,11 +54,15 @@ def test_create_ca(
     assert resource["properties"]["keyType"] == (key_type or "ECC")
     if issuer_type:
         assert resource["properties"]["issuer"]["issuerType"] == issuer_type
-        if issuer_uuid:
-            assert (
-                resource["properties"]["issuer"]["issuerCertificateAuthorityUuid"]
-                == issuer_uuid
+        if issuer_ca_name:
+            assert resource["properties"]["issuer"][
+                "certificateAuthorityResourceId"
+            ].endswith(
+                f"/providers/Microsoft.DeviceRegistry/namespaces/ns"
+                f"/certificateAuthorities/{issuer_ca_name}"
             )
+        else:
+            assert "certificateAuthorityResourceId" not in resource["properties"]["issuer"]
     else:
         assert "issuer" not in resource["properties"]
     assert resource["location"] == (location or "eastus")
@@ -115,14 +119,14 @@ def test_create_ica_requires_issuer_type(fixture_ca_provider):
         )
 
 
-def test_create_internal_ica_requires_issuer_uuid(fixture_ca_provider):
-    with pytest.raises(RequiredArgumentMissingError, match="issuer-ca-uuid"):
+def test_create_microsoft_ica_requires_issuer_ca_name(fixture_ca_provider):
+    with pytest.raises(RequiredArgumentMissingError, match="issuer-ca-name"):
         fixture_ca_provider.create(
             certificate_authority_name="ca",
             namespace_name="ns",
             resource_group_name="rg",
             certificate_authority_type="ICA",
-            issuer_type="Internal",
+            issuer_type="Microsoft",
             location="eastus",
         )
 
@@ -140,15 +144,10 @@ def test_create_root_rejects_issuer(fixture_ca_provider):
 
 
 @pytest.mark.parametrize(
-    "ca_type,issuer_type,issuer_uuid,match",
+    "ca_type,issuer_type,issuer_ca_name,match",
     [
-        (
-            "ICA",
-            "External",
-            "11111111-1111-1111-1111-111111111111",
-            "cannot be used",
-        ),
-        ("ICA", "Unknown", None, "either Internal or External"),
+        ("ICA", "External", "myRootCA", "cannot be used"),
+        ("ICA", "Unknown", None, "either Microsoft or External"),
         ("Unknown", None, None, "either Root or ICA"),
     ],
 )
@@ -156,7 +155,7 @@ def test_create_ca_rejects_invalid_issuer_combinations(
     fixture_ca_provider,
     ca_type,
     issuer_type,
-    issuer_uuid,
+    issuer_ca_name,
     match,
 ):
     with pytest.raises(ArgumentUsageError, match=match):
@@ -166,7 +165,7 @@ def test_create_ca_rejects_invalid_issuer_combinations(
             resource_group_name="rg",
             certificate_authority_type=ca_type,
             issuer_type=issuer_type,
-            issuer_certificate_authority_uuid=issuer_uuid,
+            issuer_certificate_authority_name=issuer_ca_name,
             location="eastus",
         )
 
@@ -271,22 +270,22 @@ def test_activate_ca(fixture_ca_provider, mock_poller):
 
 
 def test_revoke_ca(fixture_ca_provider, mock_poller):
-    """Revoke triggers begin_revoke LRO and returns the result."""
+    """Revoke triggers the begin_revoke_and_rotate LRO and returns the result."""
     sentinel = Mock()
     fixture_ca_provider.client.certificate_authorities.get.return_value = {
         "properties": {
             "certificateAuthorityType": "ICA",
-            "issuer": {"issuerType": "Internal"},
+            "issuer": {"issuerType": "Microsoft"},
         }
     }
-    fixture_ca_provider.client.certificate_authorities.begin_revoke.return_value = mock_poller(sentinel)
+    fixture_ca_provider.client.certificate_authorities.begin_revoke_and_rotate.return_value = mock_poller(sentinel)
 
     result = fixture_ca_provider.revoke(
         certificate_authority_name="ca", namespace_name="ns", resource_group_name="rg",
     )
 
     assert result == sentinel
-    fixture_ca_provider.client.certificate_authorities.begin_revoke.assert_called_once_with(
+    fixture_ca_provider.client.certificate_authorities.begin_revoke_and_rotate.assert_called_once_with(
         resource_group_name="rg", namespace_name="ns", certificate_authority_name="ca",
     )
 
@@ -317,13 +316,13 @@ def test_revoke_rejects_external_ica(fixture_ca_provider):
         }
     }
 
-    with pytest.raises(ArgumentUsageError, match="issuerType 'Internal'"):
+    with pytest.raises(ArgumentUsageError, match="issuerType 'Microsoft'"):
         fixture_ca_provider.revoke(
             certificate_authority_name="ca",
             namespace_name="ns",
             resource_group_name="rg",
         )
-    fixture_ca_provider.client.certificate_authorities.begin_revoke.assert_not_called()
+    fixture_ca_provider.client.certificate_authorities.begin_revoke_and_rotate.assert_not_called()
 
 
 # ==================== --no-wait + guards ====================

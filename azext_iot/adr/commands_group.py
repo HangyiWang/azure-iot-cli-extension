@@ -16,13 +16,11 @@ def adr_group_create(
     namespace_name: str,
     resource_group_name: str,
     query_string: str,
-    group_type: str = GroupType.device.value,
+    group_type: str = GroupType.registry_device.value,
     location: Optional[str] = None,
     display_name: Optional[str] = None,
     description: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
-    mi_system_assigned: Optional[bool] = None,
-    no_wait: bool = False,
 ):
     provider = GroupProvider(cmd)
     return provider.create(
@@ -35,8 +33,6 @@ def adr_group_create(
         display_name=display_name,
         description=description,
         tags=tags,
-        mi_system_assigned=mi_system_assigned,
-        no_wait=no_wait,
     )
 
 
@@ -48,8 +44,6 @@ def adr_group_update(
     display_name: Optional[str] = None,
     description: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
-    mi_system_assigned: Optional[bool] = None,
-    no_wait: bool = False,
 ):
     provider = GroupProvider(cmd)
     return provider.update(
@@ -59,8 +53,6 @@ def adr_group_update(
         display_name=display_name,
         description=description,
         tags=tags,
-        mi_system_assigned=mi_system_assigned,
-        no_wait=no_wait,
     )
 
 

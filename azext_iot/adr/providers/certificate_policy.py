@@ -51,7 +51,7 @@ class CertificatePolicyProvider(ADRProvider):
 
         no_wait = kwargs.pop("no_wait", False)
         try:
-            poller = self.client.certificate_policies.begin_create_or_update(
+            poller = self.client.certificate_policies.begin_create_or_replace(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 certificate_authority_name=certificate_authority_name,

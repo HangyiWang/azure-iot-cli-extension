@@ -7,13 +7,17 @@
 from typing import Dict, Optional
 
 from azure.cli.core.azclierror import ArgumentUsageError, RequiredArgumentMissingError
+from azure.cli.core.commands.client_factory import get_subscription_id
 
 from azext_iot.adr.common import (
     DEFAULT_NS_CA_KEY_TYPE,
     CertificateAuthorityIssuerType,
     CertificateAuthorityType,
+    compose_namespace_child_arm_id,
 )
 from azext_iot.adr.providers.base import ADRProvider
+
+_CA_CHILD_TYPE = "certificateAuthorities"
 
 
 class CertificateAuthorityProvider(ADRProvider):
@@ -27,7 +31,7 @@ class CertificateAuthorityProvider(ADRProvider):
         resource_group_name: str,
         certificate_authority_type: str,
         issuer_type: Optional[str] = None,
-        issuer_certificate_authority_uuid: Optional[str] = None,
+        issuer_certificate_authority_name: Optional[str] = None,
         key_type: Optional[str] = None,
         location: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
@@ -40,28 +44,34 @@ class CertificateAuthorityProvider(ADRProvider):
             "keyType": key_type or DEFAULT_NS_CA_KEY_TYPE,
         }
         if certificate_authority_type == CertificateAuthorityType.root.value:
-            if issuer_type or issuer_certificate_authority_uuid:
+            if issuer_type or issuer_certificate_authority_name:
                 raise ArgumentUsageError(
-                    "--issuer-type and --issuer-ca-uuid are only valid when --type ICA."
+                    "--issuer-type and --issuer-ca-name are only valid when --type ICA."
                 )
         elif certificate_authority_type == CertificateAuthorityType.ica.value:
             if not issuer_type:
                 raise RequiredArgumentMissingError("--issuer-type is required when --type ICA.")
             issuer = {"issuerType": issuer_type}
-            if issuer_type == CertificateAuthorityIssuerType.internal.value:
-                if not issuer_certificate_authority_uuid:
+            if issuer_type == CertificateAuthorityIssuerType.microsoft.value:
+                if not issuer_certificate_authority_name:
                     raise RequiredArgumentMissingError(
-                        "--issuer-ca-uuid is required when --issuer-type Internal."
+                        "--issuer-ca-name is required when --issuer-type Microsoft."
                     )
-                issuer["issuerCertificateAuthorityUuid"] = issuer_certificate_authority_uuid
+                issuer["certificateAuthorityResourceId"] = compose_namespace_child_arm_id(
+                    subscription_id=get_subscription_id(self.cmd.cli_ctx),
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                    child_type=_CA_CHILD_TYPE,
+                    child_name=issuer_certificate_authority_name,
+                )
             elif issuer_type == CertificateAuthorityIssuerType.external.value:
-                if issuer_certificate_authority_uuid:
+                if issuer_certificate_authority_name:
                     raise ArgumentUsageError(
-                        "--issuer-ca-uuid cannot be used when --issuer-type External."
+                        "--issuer-ca-name cannot be used when --issuer-type External."
                     )
             else:
                 raise ArgumentUsageError(
-                    "--issuer-type must be either Internal or External."
+                    "--issuer-type must be either Microsoft or External."
                 )
             properties["issuer"] = issuer
         else:
@@ -182,10 +192,10 @@ class CertificateAuthorityProvider(ADRProvider):
             certificate_authority_name=certificate_authority_name,
             namespace_name=namespace_name,
             resource_group_name=resource_group_name,
-            expected_issuer_type=CertificateAuthorityIssuerType.internal.value,
+            expected_issuer_type=CertificateAuthorityIssuerType.microsoft.value,
             action="revoke",
         )
-        poller = self.client.certificate_authorities.begin_revoke(
+        poller = self.client.certificate_authorities.begin_revoke_and_rotate(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             certificate_authority_name=certificate_authority_name,

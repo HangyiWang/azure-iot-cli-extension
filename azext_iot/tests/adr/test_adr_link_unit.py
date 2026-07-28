@@ -15,7 +15,7 @@ from azure.cli.core.azclierror import (
 )
 
 from azext_iot.adr.common import (
-    ASU_ENDPOINT_TYPE,
+    SU_ENDPOINT_TYPE,
     DPS_ENDPOINT_TYPE,
     IOT_HUB_ENDPOINT_TYPE,
     build_mi_body,
@@ -77,7 +77,7 @@ def test_identity_body_treats_whitespace_uami_as_unset():
 
 
 def test_su_contract_uses_update_instances():
-    assert ASU_ENDPOINT_TYPE == "Microsoft.DeviceUpdate/updateInstances"
+    assert SU_ENDPOINT_TYPE == "Microsoft.DeviceUpdate/updateInstances"
     assert _parse_su_resource_id(SU_ID) == {
         "subscription_id": "sub",
         "resource_group_name": "rg",
@@ -439,7 +439,7 @@ def test_dps_show_without_resource_id_still_returns_named_object(
     "kind,section,endpoint_type,resource_id",
     [
         ("dps", "dps", DPS_ENDPOINT_TYPE, DPS_ID),
-        ("su", "su", ASU_ENDPOINT_TYPE, SU_ID),
+        ("su", "su", SU_ENDPOINT_TYPE, SU_ID),
     ],
 )
 @pytest.mark.parametrize(
@@ -551,7 +551,7 @@ def test_su_add_requires_identity(fixture_link_provider):
 
 def test_su_add_rejects_duplicate_name(fixture_link_provider):
     fixture_link_provider.client.namespaces.get.return_value = _namespace(
-        su={"su-endpoint": _endpoint(ASU_ENDPOINT_TYPE, SU_ID)}
+        su={"su-endpoint": _endpoint(SU_ENDPOINT_TYPE, SU_ID)}
     )
 
     with pytest.raises(ArgumentUsageError, match="link su update"):
@@ -568,7 +568,7 @@ def test_su_update_show_and_list_named_objects(
     fixture_link_provider, mock_poller
 ):
     endpoint = _endpoint(
-        ASU_ENDPOINT_TYPE,
+        SU_ENDPOINT_TYPE,
         SU_ID,
         inboundCallerIdentity={"type": "SystemAssigned"},
         serviceAddress="https://su.example",
@@ -588,7 +588,7 @@ def test_su_update_show_and_list_named_objects(
         "properties"
     ]["properties"]["updating"]["endpoints"]["primary"]
     assert updated == {
-        "endpointType": ASU_ENDPOINT_TYPE,
+        "endpointType": SU_ENDPOINT_TYPE,
         "resourceId": SU_ID,
         "inboundCallerIdentity": {
             "type": "UserAssigned",

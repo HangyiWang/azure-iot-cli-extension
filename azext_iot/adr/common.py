@@ -7,6 +7,7 @@
 from enum import Enum
 from typing import Optional, Sequence
 
+import isodate
 from azure.cli.core.azclierror import InvalidArgumentValueError
 from msrestazure.tools import is_valid_resource_id, parse_resource_id
 
@@ -31,10 +32,10 @@ class MessagingEndpointAvailability(Enum):
 class GroupType(Enum):
     """Type of a Device Registry group.
 
-    Only ``Device`` is currently defined; the enum is kept forward-compatible
+    Only ``RegistryDevice`` is currently defined; the enum is kept forward-compatible
     so future group types can be added without churn.
     """
-    device = "Device"
+    registry_device = "RegistryDevice"
 
 
 class RegistryDeviceEnablementState(Enum):
@@ -46,6 +47,34 @@ class RegistryDeviceAuthenticationType(Enum):
     certificate_authority = "CertificateAuthority"
     self_signed_x509_certificate = "SelfSignedX509Certificate"
     symmetric_key = "SymmetricKey"
+
+
+class DeviceAttributeReportedType(Enum):
+    """Cloud service that reports a Registry Device attribute.
+
+    `Microsoft.DeviceUpdate` attributes are service-materialized; customers
+    author `User` attributes.
+    """
+
+    adu = "Microsoft.DeviceUpdate"
+    user = "User"
+
+
+# Azure Device Update materializes its device attribute under this reserved ARM
+# resource name. The name is service-owned: it is the URL path segment and is
+# echoed back in the resource's `name` and `id`, so the CLI cannot rename it.
+ADU_ATTRIBUTE_NAME = "update"
+
+
+def is_adu_attribute_alias(attribute_name: str) -> bool:
+    """Return True for the friendlier `software-update` spellings of `update`.
+
+    `az iot adr ns registry-device attribute show` accepts these as an alias.
+    Matching is case-insensitive and ignores `-` and `_`, so `software-update`,
+    `software_update` and `softwareUpdate` all qualify.
+    """
+    normalized = attribute_name.replace("-", "").replace("_", "").lower()
+    return normalized == "softwareupdate"
 
 
 class JobType(Enum):
@@ -73,14 +102,14 @@ class CertificateAuthorityKeyType(Enum):
 
 
 class CertificateAuthorityIssuerType(Enum):
-    internal = "Internal"
+    microsoft = "Microsoft"
     external = "External"
 
 
 # Endpoint type discriminators on Namespace messaging / provisioning / updating endpoints
 IOT_HUB_ENDPOINT_TYPE = "Microsoft.Devices/IotHubs"
 DPS_ENDPOINT_TYPE = "Microsoft.Devices/provisioningServices"
-ASU_ENDPOINT_TYPE = "Microsoft.DeviceUpdate/updateInstances"
+SU_ENDPOINT_TYPE = "Microsoft.DeviceUpdate/updateInstances"
 
 
 DEFAULT_NS_CA_KEY_TYPE = CertificateAuthorityKeyType.ecc.value
@@ -168,3 +197,43 @@ CA_PARENT_RESOURCE_NOT_FOUND_MSG = (
     "Please create one using 'az iot adr ns ca create --name {certificate_authority_name} "
     "--ns {namespace_name} -g {resource_group_name}' to manage certificate policies."
 )
+
+
+def compose_namespace_child_arm_id(
+    subscription_id: str,
+    resource_group_name: str,
+    namespace_name: str,
+    child_type: str,
+    child_name: str,
+) -> str:
+    """Compose the ARM resource ID for a Device Registry namespace child resource.
+
+    ``child_type`` is the resource type segment as it appears in the ARM path,
+    e.g. ``groups`` or ``certificateAuthorities``.
+    """
+    return (
+        f"/subscriptions/{subscription_id}"
+        f"/resourceGroups/{resource_group_name}"
+        f"/providers/Microsoft.DeviceRegistry"
+        f"/namespaces/{namespace_name}"
+        f"/{child_type}/{child_name}"
+    )
+
+
+INVALID_SCHEDULED_TIME_MSG = (
+    "--scheduled-time must be a valid ISO 8601 UTC datetime (e.g. '2025-12-01T08:00:00Z'). "
+    "Provided value: '{value}'."
+)
+
+
+def validate_iso8601_datetime(value: str) -> None:
+    """Validate that *value* is an absolute ISO 8601 datetime string.
+
+    The service requires an absolute time, so a timezone offset is mandatory.
+    """
+    try:
+        parsed = isodate.parse_datetime(value)
+        if parsed.utcoffset() is None:
+            raise ValueError("timezone offset is required")
+    except Exception:  # noqa: BLE001 - any parse error is invalid input
+        raise InvalidArgumentValueError(INVALID_SCHEDULED_TIME_MSG.format(value=value))

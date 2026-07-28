@@ -131,31 +131,34 @@ class TestNamespaceCommands:
 
 class TestGroupCommands:
     @pytest.mark.parametrize("operation", ["create", "update"])
-    def test_identity_configuration(self, mocker, cmd, operation):
+    def test_forwards_mutable_fields(self, mocker, cmd, operation):
+        """Group create/update are synchronous and carry no identity in 2026-11-02-preview."""
         provider = _patch_provider(mocker, commands_group, "GroupProvider")
         kwargs = {
             "group_name": "group",
             "namespace_name": NS,
             "resource_group_name": RG,
-            "mi_system_assigned": True,
+            "display_name": "Display",
+            "description": "Description",
+            "tags": {"a": "b"},
         }
         if operation == "create":
-            kwargs["query_string"] = "SELECT * FROM DEVICE"
+            kwargs["query_string"] = "*"
 
         getattr(commands_group, f"adr_group_{operation}")(cmd, **kwargs)
 
         expected = dict(kwargs)
-        expected.update(
-            {
-                "display_name": None,
-                "description": None,
-                "tags": None,
-                "no_wait": False,
-            }
-        )
         if operation == "create":
-            expected.update({"group_type": "Device", "location": None})
+            expected.update({"group_type": "RegistryDevice", "location": None})
         getattr(provider, operation).assert_called_once_with(**expected)
+
+    @pytest.mark.parametrize("operation", ["create", "update"])
+    def test_rejects_identity_and_no_wait(self, cmd, operation):
+        """--mi-system-assigned and --no-wait were dropped for groups."""
+        command = getattr(commands_group, f"adr_group_{operation}")
+        signature = inspect.signature(command)
+        assert "mi_system_assigned" not in signature.parameters
+        assert "no_wait" not in signature.parameters
 
     def test_list_members(self, mocker, cmd):
         provider = _patch_provider(mocker, commands_group, "GroupProvider")
@@ -215,6 +218,7 @@ class TestJobCommands:
             target_group_name="group",
             job_type="SoftwareUpdate",
             description="description",
+            display_name="Display",
             location="westus",
             tags={"a": "b"},
             no_wait=True,
@@ -229,29 +233,78 @@ class TestJobCommands:
             target_group_name="group",
             job_type="SoftwareUpdate",
             description="description",
+            display_name="Display",
             location="westus",
             tags={"a": "b"},
             no_wait=True,
         )
 
-    def test_schedule(self, mocker, cmd):
-        provider = _patch_provider(mocker, commands_job, "JobProvider")
+    def test_schedule_forwards_scheduled_time(self, mocker, cmd):
+        """`job schedule` lives on the job group but drives JobRuns_CreateOrReplace."""
+        provider = _patch_provider(mocker, commands_job, "JobRunProvider")
         commands_job.adr_job_schedule(
             cmd,
             job_name="job",
             namespace_name=NS,
             resource_group_name=RG,
+            run_name="run",
             scheduled_time="2026-11-02T12:00:00+00:00",
-            timeout="PT1H",
             no_wait=True,
         )
-        provider.schedule.assert_called_once_with(
+        provider.create.assert_called_once_with(
             job_name="job",
             namespace_name=NS,
             resource_group_name=RG,
+            run_name="run",
             scheduled_time="2026-11-02T12:00:00+00:00",
-            timeout="PT1H",
             no_wait=True,
+        )
+
+    def test_schedule_run_name_is_optional(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_job, "JobRunProvider")
+        commands_job.adr_job_schedule(
+            cmd, job_name="job", namespace_name=NS, resource_group_name=RG
+        )
+        assert provider.create.call_args.kwargs["run_name"] is None
+
+    def test_job_run_create_command_does_not_exist(self):
+        """Scheduling is exposed as `job schedule`, not `job run create`."""
+        assert not hasattr(commands_job_run, "adr_job_run_create")
+
+
+class TestJobRunLifecycleCommands:
+    def test_delete(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_job_run, "JobRunProvider")
+        commands_job_run.adr_job_run_delete(
+            cmd,
+            job_name="job",
+            run_name="run",
+            namespace_name=NS,
+            resource_group_name=RG,
+            no_wait=True,
+        )
+        provider.delete.assert_called_once_with(
+            job_name="job",
+            run_name="run",
+            namespace_name=NS,
+            resource_group_name=RG,
+            no_wait=True,
+        )
+
+    def test_summary(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_job_run, "JobRunProvider")
+        commands_job_run.adr_job_run_summary(
+            cmd,
+            job_name="job",
+            run_name="run",
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+        provider.summary.assert_called_once_with(
+            job_name="job",
+            run_name="run",
+            namespace_name=NS,
+            resource_group_name=RG,
         )
 
 
@@ -289,6 +342,7 @@ class TestJobRunCommands:
             namespace_name=NS,
             resource_group_name=RG,
             status_filter="status eq 'Failed'",
+            order_by=None,
         )
 
     def test_cancel(self, mocker, cmd):

@@ -19,7 +19,7 @@ from azext_iot._factory import iot_service_provisioning_factory
 from azext_iot.adr.common import (
     DPS_ENDPOINT_TYPE,
     IOT_HUB_ENDPOINT_TYPE,
-    ASU_ENDPOINT_TYPE,
+    SU_ENDPOINT_TYPE,
     IdentityType,
     build_mi_body,
 )
@@ -92,7 +92,7 @@ def _parse_dps_resource_id(dps_resource_id: str) -> dict:
 
 
 def _parse_su_resource_id(su_resource_id: str) -> dict:
-    """Parse an ASU update-instance ARM resource ID into its components.
+    """Parse an Update Instance ARM resource ID into its components.
 
     Expected shape:
         /subscriptions/<sub>/resourceGroups/<rg>/providers/
@@ -106,7 +106,7 @@ def _parse_su_resource_id(su_resource_id: str) -> dict:
     # Friendly hint: a bare name (no slashes) is the most common mistake here.
     if "/" not in raw:
         raise InvalidArgumentValueError(
-            f"'{raw}' looks like a bare ASU account name. Pass the full ARM resource ID instead."
+            f"'{raw}' looks like a bare Update Instance name. Pass the full ARM resource ID instead."
         )
     if not is_valid_resource_id(raw):
         raise InvalidArgumentValueError(
@@ -164,7 +164,7 @@ def _build_inbound_identity(mi_system_assigned: bool, mi_user_assigned: Optional
 def _get_endpoints(namespace: dict, section: str) -> dict:
     """Return ``properties.<section>.endpoints`` from a namespace, defaulting to {} at each hop.
 
-    ``section`` is one of "messaging" (Hub), "provisioning" (DPS) or "updating" (ASU).
+    ``section`` is one of "messaging" (Hub), "provisioning" (DPS) or "updating" (Software Updates).
     """
     return ((((namespace or {}).get("properties") or {}).get(section) or {}).get("endpoints")) or {}
 
@@ -224,9 +224,9 @@ def _build_su_endpoint_body(
     mi_system_assigned: bool,
     mi_user_assigned: Optional[str],
 ) -> dict:
-    """Build a full ASU updating-endpoint body for a namespace PATCH."""
+    """Build a full Software Updates updating-endpoint body for a namespace PATCH."""
     return {
-        "endpointType": ASU_ENDPOINT_TYPE,
+        "endpointType": SU_ENDPOINT_TYPE,
         "resourceId": su_resource_id,
         "inboundCallerIdentity": _build_inbound_identity(mi_system_assigned, mi_user_assigned),
     }
@@ -540,7 +540,7 @@ class LinkProvider(ADRProvider):
             if (ep or {}).get("endpointType") == DPS_ENDPOINT_TYPE
         ]
 
-    # ASU commands
+    # Software Updates commands
 
     def _patch_updating_endpoints(
         self,
@@ -573,7 +573,7 @@ class LinkProvider(ADRProvider):
         mi_user_assigned: Optional[str] = None,
         **kwargs,
     ):
-        """Add an Azure Software Update (ASU) updating endpoint to a namespace."""
+        """Add a Software Updates updating endpoint to a namespace."""
         _parse_su_resource_id(su_resource_id)  # validate ARM ID shape up front
 
         existing = self._get_namespace(namespace_name, resource_group_name)
@@ -602,7 +602,7 @@ class LinkProvider(ADRProvider):
         mi_user_assigned: Optional[str] = None,
         **kwargs,
     ):
-        """Partial-update an existing ASU updating endpoint on a namespace."""
+        """Partial-update an existing Software Updates updating endpoint on a namespace."""
         if mi_system_assigned and mi_user_assigned:
             raise ArgumentUsageError(_MI_MUTEX_MSG)
 
@@ -635,7 +635,7 @@ class LinkProvider(ADRProvider):
         )
 
     def su_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
-        """Project a single ASU updating endpoint from the namespace."""
+        """Project a single Software Updates updating endpoint from the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_updating_endpoints(ns)
         if endpoint_name not in endpoints:
@@ -645,13 +645,13 @@ class LinkProvider(ADRProvider):
         return {"name": endpoint_name, **(endpoints[endpoint_name] or {})}
 
     def su_list(self, namespace_name: str, resource_group_name: str):
-        """List all ASU updating endpoints on the namespace."""
+        """List all Software Updates updating endpoints on the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_updating_endpoints(ns)
         return [
             {"name": name, **(ep or {})}
             for name, ep in endpoints.items()
-            if (ep or {}).get("endpointType") == ASU_ENDPOINT_TYPE
+            if (ep or {}).get("endpointType") == SU_ENDPOINT_TYPE
         ]
 
     # Bundled link add

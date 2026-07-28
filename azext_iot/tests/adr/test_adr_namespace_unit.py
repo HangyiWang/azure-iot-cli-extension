@@ -343,7 +343,7 @@ def test_namespace_update_accepts_direct_endpoint_configuration(
         "namespace",
         "rg",
         provisioning_endpoints={},
-        updating_endpoints='{"asu":{"endpointType":"Microsoft.DeviceUpdate/updateInstances"}}',
+        updating_endpoints='{"su":{"endpointType":"Microsoft.DeviceUpdate/updateInstances"}}',
     )
 
     body = fixture_namespace_provider.client.namespaces.begin_update.call_args.kwargs[
@@ -354,7 +354,7 @@ def test_namespace_update_accepts_direct_endpoint_configuration(
             "provisioning": {"endpoints": {}},
             "updating": {
                 "endpoints": {
-                    "asu": {
+                    "su": {
                         "endpointType": "Microsoft.DeviceUpdate/updateInstances"
                     }
                 }

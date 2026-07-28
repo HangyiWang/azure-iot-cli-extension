@@ -10,7 +10,7 @@ from azure.cli.core.azclierror import RequiredArgumentMissingError
 
 from azext_iot._factory import adr_su_service_factory
 from azext_iot.adr.common import (
-    ASU_ENDPOINT_TYPE,
+    SU_ENDPOINT_TYPE,
     build_managed_service_identity,
 )
 from azext_iot.adr.providers import base as provider_base
@@ -27,7 +27,7 @@ class UpdateInstanceProvider(ADRProvider):
 
     def check_name(self, update_instance_name: str):
         return self.client.update_instances.check_name_availability(
-            {"name": update_instance_name, "type": ASU_ENDPOINT_TYPE}
+            {"name": update_instance_name, "type": SU_ENDPOINT_TYPE}
         )
 
     def list(self, resource_group_name: Optional[str] = None):
@@ -74,7 +74,7 @@ class UpdateInstanceProvider(ADRProvider):
         )
         return self._wait(
             poller,
-            f"Creating Software Update instance '{update_instance_name}'...",
+            f"Creating Update Instance '{update_instance_name}'...",
             **kwargs,
         )
 
@@ -106,7 +106,7 @@ class UpdateInstanceProvider(ADRProvider):
         )
         return self._wait(
             poller,
-            f"Updating Software Update instance '{update_instance_name}'...",
+            f"Updating Update Instance '{update_instance_name}'...",
             **kwargs,
         )
 
@@ -122,6 +122,6 @@ class UpdateInstanceProvider(ADRProvider):
         )
         return self._wait(
             poller,
-            f"Deleting Software Update instance '{update_instance_name}'...",
+            f"Deleting Update Instance '{update_instance_name}'...",
             **kwargs,
         )

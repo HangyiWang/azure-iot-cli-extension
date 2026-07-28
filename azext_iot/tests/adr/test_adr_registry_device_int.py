@@ -127,7 +127,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
             assert disabled["properties"]["enablementState"] == "Disabled"
 
             self.cmd(
-                "iot adr ns registry-device auth-profile list "
+                "iot adr ns registry-device auth list "
                 f"--registry-device-name missing-device --ns {namespace_name} "
                 f"-g {TEST_RG}",
                 expect_failure=True,
@@ -151,7 +151,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
             )
 
             profile_list_command = (
-                "iot adr ns registry-device auth-profile list "
+                "iot adr ns registry-device auth list "
                 f"--registry-device-name {device_name} --ns {namespace_name} "
                 f"-g {TEST_RG}"
             )
@@ -178,7 +178,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 profile_names.append(configured_profile)
             for profile_name in profile_names:
                 profile = self.cmd(
-                    "iot adr ns registry-device auth-profile show "
+                    "iot adr ns registry-device auth show "
                     f"-n {profile_name} --registry-device-name {device_name} "
                     f"--ns {namespace_name} -g {TEST_RG}"
                 ).get_output_in_json()
@@ -203,7 +203,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
             )
             if symmetric_profile:
                 key_lengths = self.cmd(
-                    "iot adr ns registry-device auth-profile get-keys "
+                    "iot adr ns registry-device auth show-keys "
                     f"-n {symmetric_profile} "
                     f"--registry-device-name {device_name} "
                     f"--ns {namespace_name} -g {TEST_RG} "
@@ -214,7 +214,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 assert key_lengths["secondary"] > 0
             else:
                 self.cmd(
-                    "iot adr ns registry-device auth-profile get-keys "
+                    "iot adr ns registry-device auth show-keys "
                     f"-n {next(iter(auth_profiles))} "
                     f"--registry-device-name {device_name} "
                     f"--ns {namespace_name} -g {TEST_RG}",
@@ -231,7 +231,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
             )
             if ineligible_profile:
                 self.cmd(
-                    "iot adr ns registry-device auth-profile revoke-certificates "
+                    "iot adr ns registry-device auth revoke-certs "
                     f"-n {ineligible_profile} "
                     f"--registry-device-name {device_name} "
                     f"--ns {namespace_name} -g {TEST_RG} --yes",
@@ -258,7 +258,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 self, namespace_name, device_name, no_wait=False
             )
             profile = self.cmd(
-                "iot adr ns registry-device auth-profile show "
+                "iot adr ns registry-device auth show "
                 f"-n {CA_AUTH_PROFILE_NAME} "
                 f"--registry-device-name {device_name} "
                 f"--ns {namespace_name} -g {TEST_RG}"
@@ -267,7 +267,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 "CertificateAuthority"
             )
             self.cmd(
-                "iot adr ns registry-device auth-profile revoke-certificates "
+                "iot adr ns registry-device auth revoke-certs "
                 f"-n {CA_AUTH_PROFILE_NAME} "
                 f"--registry-device-name {device_name} "
                 f"--ns {namespace_name} -g {TEST_RG} --yes"
@@ -320,6 +320,127 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
             "iot adr ns registry-device attribute list",
             "iot adr ns registry-device attribute show",
             "azext_iot_adr_attribute_name",
+        )
+
+    def test_registry_device_user_attribute_lifecycle(self):
+        """User-authored attributes are writable in 2026-11-02-preview."""
+        namespace_name = generate_adr_namespace_name()
+        device_name = _registry_device_name()
+        attribute_name = f"site{generate_generic_id()[:8]}"
+
+        try:
+            _create_registry_device(self, namespace_name, device_name, no_wait=False)
+
+            scope = (
+                f"--registry-device-name {device_name} "
+                f"--ns {namespace_name} -g {TEST_RG}"
+            )
+            created = self.cmd(
+                f"iot adr ns registry-device attribute create -n {attribute_name} {scope} "
+                f"--reported-by User "
+                f"--schema https://contoso.com/schemas/site.json "
+                f'--properties \'{{"site": "plant-3", "rack": 12}}\''
+            ).get_output_in_json()
+            assert created["name"] == attribute_name
+            properties = created["properties"]
+            assert properties["reportedBy"] == "User"
+            assert properties["schema"] == "https://contoso.com/schemas/site.json"
+            assert properties["site"] == "plant-3"
+
+            shown = self.cmd(
+                f"iot adr ns registry-device attribute show -n {attribute_name} {scope}"
+            ).get_output_in_json()
+            assert shown["name"] == attribute_name
+
+            listed = self.cmd(
+                f"iot adr ns registry-device attribute list {scope}"
+            ).get_output_in_json()
+            assert attribute_name in [item["name"] for item in listed]
+
+            # create is a full replace: omitted properties are dropped.
+            replaced = self.cmd(
+                f"iot adr ns registry-device attribute create -n {attribute_name} {scope} "
+                f'--properties \'{{"site": "plant-4"}}\''
+            ).get_output_in_json()
+            assert replaced["properties"]["site"] == "plant-4"
+            assert "rack" not in replaced["properties"]
+
+            self.cmd(
+                f"iot adr ns registry-device attribute delete -n {attribute_name} {scope} -y"
+            )
+            self.cmd(
+                f"iot adr ns registry-device attribute show -n {attribute_name} {scope}",
+                expect_failure=True,
+            )
+        finally:
+            _cleanup_namespace(self, namespace_name)
+
+    def test_registry_device_software_update_alias(self):
+        """`show -n software-update` resolves to the ADU-materialized 'update'."""
+        namespace_name = generate_adr_namespace_name()
+        device_name = _registry_device_name()
+
+        try:
+            _create_registry_device(self, namespace_name, device_name, no_wait=False)
+            scope = (
+                f"--registry-device-name {device_name} "
+                f"--ns {namespace_name} -g {TEST_RG}"
+            )
+            list_command = f"iot adr ns registry-device attribute list {scope}"
+            try:
+                attributes = wait_for_materialized_resources(
+                    self,
+                    list_command,
+                    description="registry device attributes",
+                    timeout=60,
+                )
+            except AssertionError as error:
+                pytest.skip(
+                    f"Backend did not materialize attributes within 60 seconds: {error}"
+                )
+
+            names = [item["name"] for item in attributes]
+            if "update" not in names:
+                pytest.skip(
+                    f"No ADU-reported 'update' attribute materialized; got {names}."
+                )
+
+            aliased = self.cmd(
+                f"iot adr ns registry-device attribute show -n software-update {scope}"
+            ).get_output_in_json()
+            # The alias is input-only: the resource still reports its real name.
+            assert aliased["name"] == "update"
+            assert aliased["id"].endswith("/attributes/update")
+
+            canonical = self.cmd(
+                f"iot adr ns registry-device attribute show -n update {scope}"
+            ).get_output_in_json()
+            assert canonical["id"] == aliased["id"]
+
+            # The alias is scoped to `show`; delete must not resolve it.
+            self.cmd(
+                f"iot adr ns registry-device attribute delete -n software-update "
+                f"{scope} -y",
+                expect_failure=True,
+            )
+        finally:
+            _cleanup_namespace(self, namespace_name)
+
+    def test_registry_device_attribute_negatives(self):
+        namespace_name = generate_adr_namespace_name()
+
+        # Client-side guard: fires before any service call.
+        self.cmd(
+            f"iot adr ns registry-device attribute create -n bad "
+            f"--registry-device-name nonexistent --ns {namespace_name} -g {TEST_RG} "
+            f"--reported-by NotAService",
+            expect_failure=True,
+        )
+        self.cmd(
+            f"iot adr ns registry-device attribute create -n bad "
+            f"--registry-device-name nonexistent --ns {namespace_name} -g {TEST_RG} "
+            f"--properties '[1, 2, 3]'",
+            expect_failure=True,
         )
 
     def test_registry_device_capabilities(self):

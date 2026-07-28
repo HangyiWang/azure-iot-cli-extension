@@ -1632,7 +1632,7 @@ def build_certificate_authorities_activate_request(  # pylint: disable=name-too-
     return HttpRequest(method="POST", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_certificate_authorities_revoke_request(  # pylint: disable=name-too-long
+def build_certificate_authorities_revoke_and_rotate_request(  # pylint: disable=name-too-long
     resource_group_name: str, namespace_name: str, certificate_authority_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -1642,7 +1642,7 @@ def build_certificate_authorities_revoke_request(  # pylint: disable=name-too-lo
     accept = _headers.pop("Accept", "application/json")
 
     # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/certificateAuthorities/{certificateAuthorityName}/revoke"
+    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/certificateAuthorities/{certificateAuthorityName}/revokeAndRotate"
     path_format_arguments = {
         "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
         "resourceGroupName": _SERIALIZER.url(
@@ -1780,7 +1780,7 @@ def build_certificate_policies_get_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
-def build_certificate_policies_create_or_update_request(  # pylint: disable=name-too-long
+def build_certificate_policies_create_or_replace_request(  # pylint: disable=name-too-long
     resource_group_name: str,
     namespace_name: str,
     certificate_authority_name: str,
@@ -3450,7 +3450,13 @@ def build_groups_refresh_members_request(
 
 
 def build_job_runs_list_by_namespace_request(
-    resource_group_name: str, namespace_name: str, subscription_id: str, *, filter: Optional[str] = None, **kwargs: Any
+    resource_group_name: str,
+    namespace_name: str,
+    subscription_id: str,
+    *,
+    filter: Optional[str] = None,
+    order_by: Optional[str] = None,
+    **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
     _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
@@ -3481,6 +3487,8 @@ def build_job_runs_list_by_namespace_request(
     _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
     if filter is not None:
         _params["$filter"] = _SERIALIZER.query("filter", filter, "str")
+    if order_by is not None:
+        _params["$orderBy"] = _SERIALIZER.query("order_by", order_by, "str")
 
     # Construct headers
     _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
@@ -3495,6 +3503,7 @@ def build_job_runs_list_by_job_request(
     subscription_id: str,
     *,
     filter: Optional[str] = None,
+    order_by: Optional[str] = None,
     **kwargs: Any
 ) -> HttpRequest:
     _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
@@ -3529,6 +3538,8 @@ def build_job_runs_list_by_job_request(
     _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
     if filter is not None:
         _params["$filter"] = _SERIALIZER.query("filter", filter, "str")
+    if order_by is not None:
+        _params["$orderBy"] = _SERIALIZER.query("order_by", order_by, "str")
 
     # Construct headers
     _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
@@ -3579,6 +3590,95 @@ def build_job_runs_get_request(
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
 
 
+def build_job_runs_create_or_replace_request(
+    resource_group_name: str, namespace_name: str, job_name: str, run_name: str, subscription_id: str, **kwargs: Any
+) -> HttpRequest:
+    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
+
+    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-02-preview"))
+    accept = _headers.pop("Accept", "application/json")
+
+    # Construct URL
+    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/jobs/{jobName}/runs/{runName}"
+    path_format_arguments = {
+        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
+        "resourceGroupName": _SERIALIZER.url(
+            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
+        ),
+        "namespaceName": _SERIALIZER.url(
+            "namespace_name",
+            namespace_name,
+            "str",
+            max_length=64,
+            min_length=3,
+            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+        ),
+        "jobName": _SERIALIZER.url(
+            "job_name", job_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
+        ),
+        "runName": _SERIALIZER.url(
+            "run_name", run_name, "str", max_length=64, min_length=3, pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$"
+        ),
+    }
+
+    _url: str = _url.format(**path_format_arguments)  # type: ignore
+
+    # Construct parameters
+    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
+
+    # Construct headers
+    if content_type is not None:
+        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
+    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
+
+    return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, **kwargs)
+
+
+def build_job_runs_delete_request(
+    resource_group_name: str, namespace_name: str, job_name: str, run_name: str, subscription_id: str, **kwargs: Any
+) -> HttpRequest:
+    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
+
+    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-02-preview"))
+    accept = _headers.pop("Accept", "application/json")
+
+    # Construct URL
+    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/jobs/{jobName}/runs/{runName}"
+    path_format_arguments = {
+        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
+        "resourceGroupName": _SERIALIZER.url(
+            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
+        ),
+        "namespaceName": _SERIALIZER.url(
+            "namespace_name",
+            namespace_name,
+            "str",
+            max_length=64,
+            min_length=3,
+            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+        ),
+        "jobName": _SERIALIZER.url(
+            "job_name", job_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
+        ),
+        "runName": _SERIALIZER.url(
+            "run_name", run_name, "str", max_length=64, min_length=3, pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$"
+        ),
+    }
+
+    _url: str = _url.format(**path_format_arguments)  # type: ignore
+
+    # Construct parameters
+    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
+
+    # Construct headers
+    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
+
+    return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
+
+
 def build_job_runs_cancel_request(
     resource_group_name: str, namespace_name: str, job_name: str, run_name: str, subscription_id: str, **kwargs: Any
 ) -> HttpRequest:
@@ -3590,6 +3690,49 @@ def build_job_runs_cancel_request(
 
     # Construct URL
     _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/jobs/{jobName}/runs/{runName}/cancel"
+    path_format_arguments = {
+        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
+        "resourceGroupName": _SERIALIZER.url(
+            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
+        ),
+        "namespaceName": _SERIALIZER.url(
+            "namespace_name",
+            namespace_name,
+            "str",
+            max_length=64,
+            min_length=3,
+            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+        ),
+        "jobName": _SERIALIZER.url(
+            "job_name", job_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
+        ),
+        "runName": _SERIALIZER.url(
+            "run_name", run_name, "str", max_length=64, min_length=3, pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$"
+        ),
+    }
+
+    _url: str = _url.format(**path_format_arguments)  # type: ignore
+
+    # Construct parameters
+    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
+
+    # Construct headers
+    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
+
+    return HttpRequest(method="POST", url=_url, params=_params, headers=_headers, **kwargs)
+
+
+def build_job_runs_get_summary_request(
+    resource_group_name: str, namespace_name: str, job_name: str, run_name: str, subscription_id: str, **kwargs: Any
+) -> HttpRequest:
+    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
+
+    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-02-preview"))
+    accept = _headers.pop("Accept", "application/json")
+
+    # Construct URL
+    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/jobs/{jobName}/runs/{runName}/getSummary"
     path_format_arguments = {
         "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
         "resourceGroupName": _SERIALIZER.url(
@@ -3869,49 +4012,6 @@ def build_jobs_delete_request(
     _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
 
     return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
-
-
-def build_jobs_schedule_request(
-    resource_group_name: str, namespace_name: str, job_name: str, subscription_id: str, **kwargs: Any
-) -> HttpRequest:
-    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
-
-    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-02-preview"))
-    accept = _headers.pop("Accept", "application/json")
-
-    # Construct URL
-    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/jobs/{jobName}/schedule"
-    path_format_arguments = {
-        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
-        "resourceGroupName": _SERIALIZER.url(
-            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
-        ),
-        "namespaceName": _SERIALIZER.url(
-            "namespace_name",
-            namespace_name,
-            "str",
-            max_length=64,
-            min_length=3,
-            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
-        ),
-        "jobName": _SERIALIZER.url(
-            "job_name", job_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
-        ),
-    }
-
-    _url: str = _url.format(**path_format_arguments)  # type: ignore
-
-    # Construct parameters
-    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
-
-    # Construct headers
-    if content_type is not None:
-        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
-    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
-
-    return HttpRequest(method="POST", url=_url, params=_params, headers=_headers, **kwargs)
 
 
 def build_registry_devices_list_by_namespace_request(  # pylint: disable=name-too-long
@@ -4233,6 +4333,115 @@ def build_registry_device_attributes_get_request(  # pylint: disable=name-too-lo
     _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
 
     return HttpRequest(method="GET", url=_url, params=_params, headers=_headers, **kwargs)
+
+
+def build_registry_device_attributes_create_or_replace_request(  # pylint: disable=name-too-long
+    resource_group_name: str,
+    namespace_name: str,
+    registry_device_name: str,
+    attribute_name: str,
+    subscription_id: str,
+    **kwargs: Any
+) -> HttpRequest:
+    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
+
+    content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-02-preview"))
+    accept = _headers.pop("Accept", "application/json")
+
+    # Construct URL
+    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/registryDevices/{registryDeviceName}/attributes/{attributeName}"
+    path_format_arguments = {
+        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
+        "resourceGroupName": _SERIALIZER.url(
+            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
+        ),
+        "namespaceName": _SERIALIZER.url(
+            "namespace_name",
+            namespace_name,
+            "str",
+            max_length=64,
+            min_length=3,
+            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+        ),
+        "registryDeviceName": _SERIALIZER.url(
+            "registry_device_name",
+            registry_device_name,
+            "str",
+            max_length=63,
+            min_length=3,
+            pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$",
+        ),
+        "attributeName": _SERIALIZER.url(
+            "attribute_name", attribute_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
+        ),
+    }
+
+    _url: str = _url.format(**path_format_arguments)  # type: ignore
+
+    # Construct parameters
+    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
+
+    # Construct headers
+    if content_type is not None:
+        _headers["Content-Type"] = _SERIALIZER.header("content_type", content_type, "str")
+    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
+
+    return HttpRequest(method="PUT", url=_url, params=_params, headers=_headers, **kwargs)
+
+
+def build_registry_device_attributes_delete_request(  # pylint: disable=name-too-long
+    resource_group_name: str,
+    namespace_name: str,
+    registry_device_name: str,
+    attribute_name: str,
+    subscription_id: str,
+    **kwargs: Any
+) -> HttpRequest:
+    _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+    _params = case_insensitive_dict(kwargs.pop("params", {}) or {})
+
+    api_version: str = kwargs.pop("api_version", _params.pop("api-version", "2026-11-02-preview"))
+    accept = _headers.pop("Accept", "application/json")
+
+    # Construct URL
+    _url = "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DeviceRegistry/namespaces/{namespaceName}/registryDevices/{registryDeviceName}/attributes/{attributeName}"
+    path_format_arguments = {
+        "subscriptionId": _SERIALIZER.url("subscription_id", subscription_id, "str"),
+        "resourceGroupName": _SERIALIZER.url(
+            "resource_group_name", resource_group_name, "str", max_length=90, min_length=1
+        ),
+        "namespaceName": _SERIALIZER.url(
+            "namespace_name",
+            namespace_name,
+            "str",
+            max_length=64,
+            min_length=3,
+            pattern=r"^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+        ),
+        "registryDeviceName": _SERIALIZER.url(
+            "registry_device_name",
+            registry_device_name,
+            "str",
+            max_length=63,
+            min_length=3,
+            pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$",
+        ),
+        "attributeName": _SERIALIZER.url(
+            "attribute_name", attribute_name, "str", max_length=63, min_length=3, pattern=r"^[0-9a-zA-Z][a-zA-Z0-9-]*$"
+        ),
+    }
+
+    _url: str = _url.format(**path_format_arguments)  # type: ignore
+
+    # Construct parameters
+    _params["api-version"] = _SERIALIZER.query("api_version", api_version, "str")
+
+    # Construct headers
+    _headers["Accept"] = _SERIALIZER.header("accept", accept, "str")
+
+    return HttpRequest(method="DELETE", url=_url, params=_params, headers=_headers, **kwargs)
 
 
 def build_registry_device_authentication_profiles_list_by_device_request(  # pylint: disable=name-too-long
@@ -8914,6 +9123,17 @@ class NamespacesOperations:
                                 }
                             }
                         },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
+                                }
+                            }
+                        },
                         "outboundIdentity": {
                             "type": "str",
                             "userAssignedIdentity": "str"
@@ -9096,6 +9316,17 @@ class NamespacesOperations:
                                         "availability": "str"
                                     },
                                     "resourceId": "str"
+                                }
+                            }
+                        },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
                                 }
                             }
                         },
@@ -9284,6 +9515,17 @@ class NamespacesOperations:
                                         "availability": "str"
                                     },
                                     "resourceId": "str"
+                                }
+                            }
+                        },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
                                 }
                             }
                         },
@@ -9533,6 +9775,17 @@ class NamespacesOperations:
                                 }
                             }
                         },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
+                                }
+                            }
+                        },
                         "outboundIdentity": {
                             "type": "str",
                             "userAssignedIdentity": "str"
@@ -9636,6 +9889,17 @@ class NamespacesOperations:
                                         "availability": "str"
                                     },
                                     "resourceId": "str"
+                                }
+                            }
+                        },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
                                 }
                             }
                         },
@@ -9775,6 +10039,17 @@ class NamespacesOperations:
                                 }
                             }
                         },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
+                                }
+                            }
+                        },
                         "outboundIdentity": {
                             "type": "str",
                             "userAssignedIdentity": "str"
@@ -9903,6 +10178,17 @@ class NamespacesOperations:
                                 }
                             }
                         },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
+                                }
+                            }
+                        },
                         "outboundIdentity": {
                             "type": "str",
                             "userAssignedIdentity": "str"
@@ -10006,6 +10292,17 @@ class NamespacesOperations:
                                         "availability": "str"
                                     },
                                     "resourceId": "str"
+                                }
+                            }
+                        },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
                                 }
                             }
                         },
@@ -10255,6 +10552,17 @@ class NamespacesOperations:
                                 }
                             }
                         },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
+                                }
+                            }
+                        },
                         "outboundIdentity": {
                             "type": "str",
                             "userAssignedIdentity": "str"
@@ -10356,6 +10664,17 @@ class NamespacesOperations:
                                         "availability": "str"
                                     },
                                     "resourceId": "str"
+                                }
+                            }
+                        },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
                                 }
                             }
                         },
@@ -10495,6 +10814,17 @@ class NamespacesOperations:
                                 }
                             }
                         },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
+                                }
+                            }
+                        },
                         "outboundIdentity": {
                             "type": "str",
                             "userAssignedIdentity": "str"
@@ -10620,6 +10950,17 @@ class NamespacesOperations:
                                 }
                             }
                         },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
+                                }
+                            }
+                        },
                         "outboundIdentity": {
                             "type": "str",
                             "userAssignedIdentity": "str"
@@ -10721,6 +11062,17 @@ class NamespacesOperations:
                                         "availability": "str"
                                     },
                                     "resourceId": "str"
+                                }
+                            }
+                        },
+                        "observability": {
+                            "enabled": bool,
+                            "endpoints": {
+                                "str": {
+                                    "address": "str",
+                                    "endpointType": "str",
+                                    "resourceId": "str",
+                                    "scopeId": "str"
                                 }
                             }
                         },
@@ -11068,11 +11420,7 @@ class NamespacesOperations:
                                     "str": "str"
                                 }
                             },
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
+                            "updateResourceId": "str"
                         }
                     ],
                     "expiresAt": "2020-02-20 00:00:00",
@@ -11096,9 +11444,7 @@ class NamespacesOperations:
                         {
                             "installableUpdates": [
                                 {
-                                    "name": "str",
-                                    "provider": "str",
-                                    "version": "str"
+                                    "updateResourceId": "str"
                                 }
                             ],
                             "targetDevices": {
@@ -11173,11 +11519,7 @@ class NamespacesOperations:
                                     "str": "str"
                                 }
                             },
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
+                            "updateResourceId": "str"
                         }
                     ],
                     "expiresAt": "2020-02-20 00:00:00",
@@ -11201,9 +11543,7 @@ class NamespacesOperations:
                         {
                             "installableUpdates": [
                                 {
-                                    "name": "str",
-                                    "provider": "str",
-                                    "version": "str"
+                                    "updateResourceId": "str"
                                 }
                             ],
                             "targetDevices": {
@@ -11294,11 +11634,7 @@ class NamespacesOperations:
                                     "str": "str"
                                 }
                             },
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
+                            "updateResourceId": "str"
                         }
                     ],
                     "expiresAt": "2020-02-20 00:00:00",
@@ -11322,9 +11658,7 @@ class NamespacesOperations:
                         {
                             "installableUpdates": [
                                 {
-                                    "name": "str",
-                                    "provider": "str",
-                                    "version": "str"
+                                    "updateResourceId": "str"
                                 }
                             ],
                             "targetDevices": {
@@ -11472,11 +11806,7 @@ class NamespacesOperations:
                                     "str": "str"
                                 }
                             },
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
+                            "updateResourceId": "str"
                         }
                     ],
                     "expiresAt": "2020-02-20 00:00:00",
@@ -11500,9 +11830,7 @@ class NamespacesOperations:
                         {
                             "installableUpdates": [
                                 {
-                                    "name": "str",
-                                    "provider": "str",
-                                    "version": "str"
+                                    "updateResourceId": "str"
                                 }
                             ],
                             "targetDevices": {
@@ -11578,11 +11906,7 @@ class NamespacesOperations:
                                     "str": "str"
                                 }
                             },
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
+                            "updateResourceId": "str"
                         }
                     ],
                     "expiresAt": "2020-02-20 00:00:00",
@@ -11606,9 +11930,7 @@ class NamespacesOperations:
                         {
                             "installableUpdates": [
                                 {
-                                    "name": "str",
-                                    "provider": "str",
-                                    "version": "str"
+                                    "updateResourceId": "str"
                                 }
                             ],
                             "targetDevices": {
@@ -11700,11 +12022,7 @@ class NamespacesOperations:
                                     "str": "str"
                                 }
                             },
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
+                            "updateResourceId": "str"
                         }
                     ],
                     "expiresAt": "2020-02-20 00:00:00",
@@ -11728,9 +12046,7 @@ class NamespacesOperations:
                         {
                             "installableUpdates": [
                                 {
-                                    "name": "str",
-                                    "provider": "str",
-                                    "version": "str"
+                                    "updateResourceId": "str"
                                 }
                             ],
                             "targetDevices": {
@@ -12135,7 +12451,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12143,6 +12465,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -12246,7 +12572,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12254,6 +12586,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -12360,7 +12696,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12368,6 +12710,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -12532,7 +12878,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12540,6 +12892,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -12564,7 +12920,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12572,6 +12934,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -12626,7 +12992,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12634,6 +13006,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -12680,7 +13056,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12688,6 +13070,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -12712,7 +13098,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12720,6 +13112,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -12884,12 +13280,22 @@ class SchemaRegistriesOperations:
                 properties = {
                     "id": "str",
                     "identity": {
-                        "type": "str"
+                        "type": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
                         "description": "str",
-                        "displayName": "str"
+                        "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        }
                     },
                     "systemData": {
                         "createdAt": "2020-02-20 00:00:00",
@@ -12912,7 +13318,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12920,6 +13332,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -12974,7 +13390,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -12982,6 +13404,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -13025,12 +13451,22 @@ class SchemaRegistriesOperations:
                 properties = {
                     "id": "str",
                     "identity": {
-                        "type": "str"
+                        "type": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
                         "description": "str",
-                        "displayName": "str"
+                        "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        }
                     },
                     "systemData": {
                         "createdAt": "2020-02-20 00:00:00",
@@ -13053,7 +13489,13 @@ class SchemaRegistriesOperations:
                     "identity": {
                         "type": "str",
                         "principalId": "str",
-                        "tenantId": "str"
+                        "tenantId": "str",
+                        "userAssignedIdentities": {
+                            "str": {
+                                "clientId": "str",
+                                "principalId": "str"
+                            }
+                        }
                     },
                     "name": "str",
                     "properties": {
@@ -13061,6 +13503,10 @@ class SchemaRegistriesOperations:
                         "storageAccountContainerUrl": "str",
                         "description": "str",
                         "displayName": "str",
+                        "outboundIdentity": {
+                            "type": "str",
+                            "userAssignedIdentity": "str"
+                        },
                         "provisioningState": "str",
                         "uuid": "str"
                     },
@@ -17241,10 +17687,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -17388,10 +17834,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -17598,10 +18044,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -17658,10 +18104,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -17698,10 +18144,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -17791,10 +18237,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -17831,10 +18277,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -17920,10 +18366,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -17980,10 +18426,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -18020,10 +18466,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -18240,10 +18686,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -18333,10 +18779,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -18429,10 +18875,10 @@ class CertificateAuthoritiesOperations:
                     "thumbprint": "str"
                 }
 
-                # JSON input template for discriminator value "Internal":
+                # JSON input template for discriminator value "Microsoft":
                 certificate_authority_issuer = {
-                    "issuerCertificateAuthorityUuid": "str",
-                    "issuerType": "Internal"
+                    "certificateAuthorityResourceId": "str",
+                    "issuerType": "Microsoft"
                 }
 
                 # JSON input template for discriminator value "Root":
@@ -18710,7 +19156,8 @@ class CertificateAuthoritiesOperations:
         content_type: str = "application/json",
         **kwargs: Any
     ) -> LROPoller[None]:
-        """Activates an intermediate Certificate Authority issued by an external certificate authority.
+        """Activates a Certificate Authority of type ``ICA`` and issuer type ``External``. If the
+        Certificate Authority is an invalid type, the API responds with HTTP 400.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -18748,7 +19195,8 @@ class CertificateAuthoritiesOperations:
         content_type: str = "application/json",
         **kwargs: Any
     ) -> LROPoller[None]:
-        """Activates an intermediate Certificate Authority issued by an external certificate authority.
+        """Activates a Certificate Authority of type ``ICA`` and issuer type ``External``. If the
+        Certificate Authority is an invalid type, the API responds with HTTP 400.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -18776,7 +19224,8 @@ class CertificateAuthoritiesOperations:
         body: Union[JSON, IO[bytes]],
         **kwargs: Any
     ) -> LROPoller[None]:
-        """Activates an intermediate Certificate Authority issued by an external certificate authority.
+        """Activates a Certificate Authority of type ``ICA`` and issuer type ``External``. If the
+        Certificate Authority is an invalid type, the API responds with HTTP 400.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -18844,7 +19293,7 @@ class CertificateAuthoritiesOperations:
             )
         return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
-    def _revoke_initial(
+    def _revoke_and_rotate_initial(
         self, resource_group_name: str, namespace_name: str, certificate_authority_name: str, **kwargs: Any
     ) -> Iterator[bytes]:
         error_map: MutableMapping = {
@@ -18860,7 +19309,7 @@ class CertificateAuthoritiesOperations:
 
         cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
 
-        _request = build_certificate_authorities_revoke_request(
+        _request = build_certificate_authorities_revoke_and_rotate_request(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             certificate_authority_name=certificate_authority_name,
@@ -18899,10 +19348,11 @@ class CertificateAuthoritiesOperations:
         return cast(Iterator[bytes], deserialized)  # type: ignore
 
     @distributed_trace
-    def begin_revoke(
+    def begin_revoke_and_rotate(
         self, resource_group_name: str, namespace_name: str, certificate_authority_name: str, **kwargs: Any
     ) -> LROPoller[None]:
-        """Revokes an intermediate Certificate Authority issued by an internal Certificate Authority.
+        """Revokes a Certificate Authority of type ``ICA`` and issuer type ``Internal``. If the
+        Certificate Authority is an invalid type, the API responds with HTTP 400.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -18923,7 +19373,7 @@ class CertificateAuthoritiesOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._revoke_initial(
+            raw_result = self._revoke_and_rotate_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 certificate_authority_name=certificate_authority_name,
@@ -19189,7 +19639,7 @@ class CertificatePoliciesOperations:
 
         return cast(JSON, deserialized)  # type: ignore
 
-    def _create_or_update_initial(
+    def _create_or_replace_initial(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -19220,7 +19670,7 @@ class CertificatePoliciesOperations:
         else:
             _json = resource
 
-        _request = build_certificate_policies_create_or_update_request(
+        _request = build_certificate_policies_create_or_replace_request(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             certificate_authority_name=certificate_authority_name,
@@ -19265,7 +19715,7 @@ class CertificatePoliciesOperations:
         return cast(Iterator[bytes], deserialized)  # type: ignore
 
     @overload
-    def begin_create_or_update(
+    def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -19353,7 +19803,7 @@ class CertificatePoliciesOperations:
         """
 
     @overload
-    def begin_create_or_update(
+    def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -19415,7 +19865,7 @@ class CertificatePoliciesOperations:
         """
 
     @distributed_trace
-    def begin_create_or_update(
+    def begin_create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
@@ -19506,7 +19956,7 @@ class CertificatePoliciesOperations:
         lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
         cont_token: Optional[str] = kwargs.pop("continuation_token", None)
         if cont_token is None:
-            raw_result = self._create_or_update_initial(
+            raw_result = self._create_or_replace_initial(
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 certificate_authority_name=certificate_authority_name,
@@ -19658,6 +20108,11 @@ class CertificatePoliciesOperations:
 
                 # JSON input template you can fill out and use as your body input.
                 properties = {
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        }
+                    },
                     "tags": {
                         "str": "str"
                     }
@@ -19785,6 +20240,11 @@ class CertificatePoliciesOperations:
 
                 # JSON input template you can fill out and use as your body input.
                 properties = {
+                    "properties": {
+                        "certificate": {
+                            "validityPeriodInDays": 0
+                        }
+                    },
                     "tags": {
                         "str": "str"
                     }
@@ -28436,15 +28896,10 @@ class GroupsOperations:
                 response == {
                     "location": "str",
                     "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
                     "name": "str",
                     "properties": {
                         "groupType": "str",
-                        "query": "str",
+                        "queryFilter": "str",
                         "description": "str",
                         "displayName": "str",
                         "lastMembershipRefreshTime": "2020-02-20 00:00:00",
@@ -28555,15 +29010,10 @@ class GroupsOperations:
                 response == {
                     "location": "str",
                     "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
                     "name": "str",
                     "properties": {
                         "groupType": "str",
-                        "query": "str",
+                        "queryFilter": "str",
                         "description": "str",
                         "displayName": "str",
                         "lastMembershipRefreshTime": "2020-02-20 00:00:00",
@@ -28630,14 +29080,245 @@ class GroupsOperations:
 
         return cast(JSON, deserialized)  # type: ignore
 
-    def _create_or_replace_initial(
+    @overload
+    def create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        group_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a Group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "groupType": "str",
+                        "queryFilter": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "groupType": "str",
+                        "queryFilter": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    def create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        group_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a Group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "groupType": "str",
+                        "queryFilter": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace
+    def create_or_replace(
         self,
         resource_group_name: str,
         namespace_name: str,
         group_name: str,
         resource: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> Iterator[bytes]:
+    ) -> JSON:
+        """Create a Group.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param group_name: The name of the group. Required.
+        :type group_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "groupType": "str",
+                        "queryFilter": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "location": "str",
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "groupType": "str",
+                        "queryFilter": "str",
+                        "description": "str",
+                        "displayName": "str",
+                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
+                        "membershipState": "str",
+                        "provisioningState": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "tags": {
+                        "str": "str"
+                    },
+                    "type": "str"
+                }
+        """
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -28650,7 +29331,7 @@ class GroupsOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -28674,7 +29355,7 @@ class GroupsOperations:
         )
         _request.url = self._client.format_url(_request.url)
 
-        _stream = True
+        _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
@@ -28682,39 +29363,31 @@ class GroupsOperations:
         response = pipeline_response.http_response
 
         if response.status_code not in [200, 201]:
-            try:
-                response.read()  # Load the body in memory and close the socket
-            except (StreamConsumedError, StreamClosedError):
-                pass
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        response_headers = {}
-        if response.status_code == 201:
-            response_headers["Azure-AsyncOperation"] = self._deserialize(
-                "str", response.headers.get("Azure-AsyncOperation")
-            )
-            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
-
-        deserialized = response.iter_bytes()
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
+        return cast(JSON, deserialized)  # type: ignore
 
     @overload
-    def begin_create_or_replace(
+    def update(
         self,
         resource_group_name: str,
         namespace_name: str,
         group_name: str,
-        resource: JSON,
+        properties: JSON,
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
-        """Create a Group.
+    ) -> JSON:
+        """Update a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -28723,37 +29396,25 @@ class GroupsOperations:
         :type namespace_name: str
         :param group_name: The name of the group. Required.
         :type group_name: str
-        :param resource: Resource create parameters. Required.
-        :type resource: JSON
+        :param properties: The resource properties to be updated. Required.
+        :type properties: JSON
         :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: JSON object
+        :rtype: JSON
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
             .. code-block:: python
 
                 # JSON input template you can fill out and use as your body input.
-                resource = {
-                    "location": "str",
+                properties = {
                     "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
                     "name": "str",
                     "properties": {
-                        "groupType": "str",
-                        "query": "str",
                         "description": "str",
-                        "displayName": "str",
-                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
-                        "membershipState": "str",
-                        "provisioningState": "str",
-                        "uuid": "str"
+                        "displayName": "str"
                     },
                     "systemData": {
                         "createdAt": "2020-02-20 00:00:00",
@@ -28769,19 +29430,14 @@ class GroupsOperations:
                     "type": "str"
                 }
 
-                # response body for status code(s): 200, 201
+                # response body for status code(s): 200
                 response == {
                     "location": "str",
                     "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
                     "name": "str",
                     "properties": {
                         "groupType": "str",
-                        "query": "str",
+                        "queryFilter": "str",
                         "description": "str",
                         "displayName": "str",
                         "lastMembershipRefreshTime": "2020-02-20 00:00:00",
@@ -28805,17 +29461,17 @@ class GroupsOperations:
         """
 
     @overload
-    def begin_create_or_replace(
+    def update(
         self,
         resource_group_name: str,
         namespace_name: str,
         group_name: str,
-        resource: IO[bytes],
+        properties: IO[bytes],
         *,
         content_type: str = "application/json",
         **kwargs: Any
-    ) -> LROPoller[JSON]:
-        """Create a Group.
+    ) -> JSON:
+        """Update a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -28824,31 +29480,26 @@ class GroupsOperations:
         :type namespace_name: str
         :param group_name: The name of the group. Required.
         :type group_name: str
-        :param resource: Resource create parameters. Required.
-        :type resource: IO[bytes]
+        :param properties: The resource properties to be updated. Required.
+        :type properties: IO[bytes]
         :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
          Default value is "application/json".
         :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :return: JSON object
+        :rtype: JSON
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
             .. code-block:: python
 
-                # response body for status code(s): 200, 201
+                # response body for status code(s): 200
                 response == {
                     "location": "str",
                     "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
                     "name": "str",
                     "properties": {
                         "groupType": "str",
-                        "query": "str",
+                        "queryFilter": "str",
                         "description": "str",
                         "displayName": "str",
                         "lastMembershipRefreshTime": "2020-02-20 00:00:00",
@@ -28872,15 +29523,15 @@ class GroupsOperations:
         """
 
     @distributed_trace
-    def begin_create_or_replace(
+    def update(
         self,
         resource_group_name: str,
         namespace_name: str,
         group_name: str,
-        resource: Union[JSON, IO[bytes]],
+        properties: Union[JSON, IO[bytes]],
         **kwargs: Any
-    ) -> LROPoller[JSON]:
-        """Create a Group.
+    ) -> JSON:
+        """Update a Group.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -28889,35 +29540,23 @@ class GroupsOperations:
         :type namespace_name: str
         :param group_name: The name of the group. Required.
         :type group_name: str
-        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
-         Required.
-        :type resource: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
+         type. Required.
+        :type properties: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
         :raises ~azure.core.exceptions.HttpResponseError:
 
         Example:
             .. code-block:: python
 
                 # JSON input template you can fill out and use as your body input.
-                resource = {
-                    "location": "str",
+                properties = {
                     "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
                     "name": "str",
                     "properties": {
-                        "groupType": "str",
-                        "query": "str",
                         "description": "str",
-                        "displayName": "str",
-                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
-                        "membershipState": "str",
-                        "provisioningState": "str",
-                        "uuid": "str"
+                        "displayName": "str"
                     },
                     "systemData": {
                         "createdAt": "2020-02-20 00:00:00",
@@ -28933,19 +29572,14 @@ class GroupsOperations:
                     "type": "str"
                 }
 
-                # response body for status code(s): 200, 201
+                # response body for status code(s): 200
                 response == {
                     "location": "str",
                     "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
                     "name": "str",
                     "properties": {
                         "groupType": "str",
-                        "query": "str",
+                        "queryFilter": "str",
                         "description": "str",
                         "displayName": "str",
                         "lastMembershipRefreshTime": "2020-02-20 00:00:00",
@@ -28967,64 +29601,6 @@ class GroupsOperations:
                     "type": "str"
                 }
         """
-        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-        _params = kwargs.pop("params", {}) or {}
-
-        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
-        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
-        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
-        if cont_token is None:
-            raw_result = self._create_or_replace_initial(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                group_name=group_name,
-                resource=resource,
-                content_type=content_type,
-                cls=lambda x, y, z: x,
-                headers=_headers,
-                params=_params,
-                **kwargs
-            )
-            raw_result.http_response.read()  # type: ignore
-        kwargs.pop("error_map", None)
-
-        def get_long_running_output(pipeline_response):
-            response = pipeline_response.http_response
-            if response.content:
-                deserialized = response.json()
-            else:
-                deserialized = None
-            if cls:
-                return cls(pipeline_response, deserialized, {})  # type: ignore
-            return deserialized
-
-        if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs)
-            )
-        elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
-        else:
-            polling_method = polling
-        if cont_token:
-            return LROPoller[JSON].from_continuation_token(
-                polling_method=polling_method,
-                continuation_token=cont_token,
-                client=self._client,
-                deserialization_callback=get_long_running_output,
-            )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    def _update_initial(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        group_name: str,
-        properties: Union[JSON, IO[bytes]],
-        **kwargs: Any
-    ) -> Iterator[bytes]:
         error_map: MutableMapping = {
             401: ClientAuthenticationError,
             404: ResourceNotFoundError,
@@ -29037,7 +29613,7 @@ class GroupsOperations:
         _params = kwargs.pop("params", {}) or {}
 
         content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
 
         content_type = content_type or "application/json"
         _json = None
@@ -29061,328 +29637,26 @@ class GroupsOperations:
         )
         _request.url = self._client.format_url(_request.url)
 
-        _stream = True
+        _stream = False
         pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
             _request, stream=_stream, **kwargs
         )
 
         response = pipeline_response.http_response
 
-        if response.status_code not in [200, 202]:
-            try:
-                response.read()  # Load the body in memory and close the socket
-            except (StreamConsumedError, StreamClosedError):
-                pass
+        if response.status_code not in [200]:
             map_error(status_code=response.status_code, response=response, error_map=error_map)
             raise HttpResponseError(response=response, error_format=ARMErrorFormat)
 
-        response_headers = {}
-        if response.status_code == 202:
-            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
-            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
-
-        deserialized = response.iter_bytes()
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
 
         if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
 
-        return cast(Iterator[bytes], deserialized)  # type: ignore
-
-    @overload
-    def begin_update(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        group_name: str,
-        properties: JSON,
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> LROPoller[JSON]:
-        """Update a Group.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param group_name: The name of the group. Required.
-        :type group_name: str
-        :param properties: The resource properties to be updated. Required.
-        :type properties: JSON
-        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                properties = {
-                    "id": "str",
-                    "identity": {
-                        "type": "str"
-                    },
-                    "name": "str",
-                    "properties": {
-                        "description": "str",
-                        "displayName": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-
-                # response body for status code(s): 200
-                response == {
-                    "location": "str",
-                    "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
-                    "name": "str",
-                    "properties": {
-                        "groupType": "str",
-                        "query": "str",
-                        "description": "str",
-                        "displayName": "str",
-                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
-                        "membershipState": "str",
-                        "provisioningState": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-
-    @overload
-    def begin_update(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        group_name: str,
-        properties: IO[bytes],
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> LROPoller[JSON]:
-        """Update a Group.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param group_name: The name of the group. Required.
-        :type group_name: str
-        :param properties: The resource properties to be updated. Required.
-        :type properties: IO[bytes]
-        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # response body for status code(s): 200
-                response == {
-                    "location": "str",
-                    "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
-                    "name": "str",
-                    "properties": {
-                        "groupType": "str",
-                        "query": "str",
-                        "description": "str",
-                        "displayName": "str",
-                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
-                        "membershipState": "str",
-                        "provisioningState": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-
-    @distributed_trace
-    def begin_update(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        group_name: str,
-        properties: Union[JSON, IO[bytes]],
-        **kwargs: Any
-    ) -> LROPoller[JSON]:
-        """Update a Group.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param group_name: The name of the group. Required.
-        :type group_name: str
-        :param properties: The resource properties to be updated. Is either a JSON type or a IO[bytes]
-         type. Required.
-        :type properties: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns JSON object
-        :rtype: ~azure.core.polling.LROPoller[JSON]
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                properties = {
-                    "id": "str",
-                    "identity": {
-                        "type": "str"
-                    },
-                    "name": "str",
-                    "properties": {
-                        "description": "str",
-                        "displayName": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-
-                # response body for status code(s): 200
-                response == {
-                    "location": "str",
-                    "id": "str",
-                    "identity": {
-                        "type": "str",
-                        "principalId": "str",
-                        "tenantId": "str"
-                    },
-                    "name": "str",
-                    "properties": {
-                        "groupType": "str",
-                        "query": "str",
-                        "description": "str",
-                        "displayName": "str",
-                        "lastMembershipRefreshTime": "2020-02-20 00:00:00",
-                        "membershipState": "str",
-                        "provisioningState": "str",
-                        "uuid": "str"
-                    },
-                    "systemData": {
-                        "createdAt": "2020-02-20 00:00:00",
-                        "createdBy": "str",
-                        "createdByType": "str",
-                        "lastModifiedAt": "2020-02-20 00:00:00",
-                        "lastModifiedBy": "str",
-                        "lastModifiedByType": "str"
-                    },
-                    "tags": {
-                        "str": "str"
-                    },
-                    "type": "str"
-                }
-        """
-        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-        _params = kwargs.pop("params", {}) or {}
-
-        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[JSON] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
-        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
-        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
-        if cont_token is None:
-            raw_result = self._update_initial(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                group_name=group_name,
-                properties=properties,
-                content_type=content_type,
-                cls=lambda x, y, z: x,
-                headers=_headers,
-                params=_params,
-                **kwargs
-            )
-            raw_result.http_response.read()  # type: ignore
-        kwargs.pop("error_map", None)
-
-        def get_long_running_output(pipeline_response):
-            response = pipeline_response.http_response
-            if response.content:
-                deserialized = response.json()
-            else:
-                deserialized = None
-            if cls:
-                return cls(pipeline_response, deserialized, {})  # type: ignore
-            return deserialized
-
-        if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
-            )
-        elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
-        else:
-            polling_method = polling
-        if cont_token:
-            return LROPoller[JSON].from_continuation_token(
-                polling_method=polling_method,
-                continuation_token=cont_token,
-                client=self._client,
-                deserialization_callback=get_long_running_output,
-            )
-        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+        return cast(JSON, deserialized)  # type: ignore
 
     def _delete_initial(
         self, resource_group_name: str, namespace_name: str, group_name: str, **kwargs: Any
@@ -29894,7 +30168,13 @@ class JobRunsOperations:
 
     @distributed_trace
     def list_by_namespace(
-        self, resource_group_name: str, namespace_name: str, *, filter: Optional[str] = None, **kwargs: Any
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        *,
+        filter: Optional[str] = None,
+        order_by: Optional[str] = None,
+        **kwargs: Any
     ) -> Iterable[JSON]:
         """List job runs by namespace, across all jobs in the namespace.
 
@@ -29909,6 +30189,9 @@ class JobRunsOperations:
          Scheduled, Queued, Active, Succeeded, Failed, TimedOut, Canceled. When omitted, all job runs
          are returned. Default value is None.
         :paramtype filter: str
+        :keyword order_by: An OData order by expression to sort the results. For example, "status asc"
+         or "status desc". Default value is None.
+        :paramtype order_by: str
         :return: An iterator like instance of JSON object
         :rtype: ~azure.core.paging.ItemPaged[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -29924,19 +30207,9 @@ class JobRunsOperations:
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
                         "provisioningState": "str",
-                        "results": {
-                            "canceled": 0,
-                            "failed": 0,
-                            "inProgress": 0,
-                            "notApplied": 0,
-                            "pending": 0,
-                            "succeeded": 0,
-                            "total": 0
-                        },
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
                         "status": "str",
-                        "targetResourceId": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -29971,6 +30244,7 @@ class JobRunsOperations:
                     namespace_name=namespace_name,
                     subscription_id=self._config.subscription_id,
                     filter=filter,
+                    order_by=order_by,
                     api_version=self._config.api_version,
                     headers=_headers,
                     params=_params,
@@ -30026,6 +30300,7 @@ class JobRunsOperations:
         job_name: str,
         *,
         filter: Optional[str] = None,
+        order_by: Optional[str] = None,
         **kwargs: Any
     ) -> Iterable[JSON]:
         """List JobRun resources by Job.
@@ -30043,6 +30318,9 @@ class JobRunsOperations:
          Scheduled, Queued, Active, Succeeded, Failed, TimedOut, Canceled. When omitted, all job runs
          are returned. Default value is None.
         :paramtype filter: str
+        :keyword order_by: An OData order by expression to sort the results. For example, "status asc"
+         or "status desc". Default value is None.
+        :paramtype order_by: str
         :return: An iterator like instance of JSON object
         :rtype: ~azure.core.paging.ItemPaged[JSON]
         :raises ~azure.core.exceptions.HttpResponseError:
@@ -30058,19 +30336,9 @@ class JobRunsOperations:
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
                         "provisioningState": "str",
-                        "results": {
-                            "canceled": 0,
-                            "failed": 0,
-                            "inProgress": 0,
-                            "notApplied": 0,
-                            "pending": 0,
-                            "succeeded": 0,
-                            "total": 0
-                        },
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
                         "status": "str",
-                        "targetResourceId": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -30106,6 +30374,7 @@ class JobRunsOperations:
                     job_name=job_name,
                     subscription_id=self._config.subscription_id,
                     filter=filter,
+                    order_by=order_by,
                     api_version=self._config.api_version,
                     headers=_headers,
                     params=_params,
@@ -30181,19 +30450,9 @@ class JobRunsOperations:
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
                         "provisioningState": "str",
-                        "results": {
-                            "canceled": 0,
-                            "failed": 0,
-                            "inProgress": 0,
-                            "notApplied": 0,
-                            "pending": 0,
-                            "succeeded": 0,
-                            "total": 0
-                        },
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
                         "status": "str",
-                        "targetResourceId": "str",
                         "uuid": "str"
                     },
                     "systemData": {
@@ -30252,6 +30511,471 @@ class JobRunsOperations:
             return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
 
         return cast(JSON, deserialized)  # type: ignore
+
+    def _create_or_replace_initial(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        run_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_job_runs_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            run_name=run_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            try:
+                response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 201:
+            response_headers["Azure-AsyncOperation"] = self._deserialize(
+                "str", response.headers.get("Azure-AsyncOperation")
+            )
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(Iterator[bytes], deserialized)  # type: ignore
+
+    @overload
+    def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        run_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> LROPoller[JSON]:
+        """Create a JobRun.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of LROPoller that returns JSON object
+        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "cancellationReason": "str",
+                        "endTime": "2020-02-20 00:00:00",
+                        "provisioningState": "str",
+                        "scheduledTime": "2020-02-20 00:00:00",
+                        "startTime": "2020-02-20 00:00:00",
+                        "status": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "cancellationReason": "str",
+                        "endTime": "2020-02-20 00:00:00",
+                        "provisioningState": "str",
+                        "scheduledTime": "2020-02-20 00:00:00",
+                        "startTime": "2020-02-20 00:00:00",
+                        "status": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        run_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> LROPoller[JSON]:
+        """Create a JobRun.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: An instance of LROPoller that returns JSON object
+        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "cancellationReason": "str",
+                        "endTime": "2020-02-20 00:00:00",
+                        "provisioningState": "str",
+                        "scheduledTime": "2020-02-20 00:00:00",
+                        "startTime": "2020-02-20 00:00:00",
+                        "status": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace
+    def begin_create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        job_name: str,
+        run_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> LROPoller[JSON]:
+        """Create a JobRun.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: An instance of LROPoller that returns JSON object
+        :rtype: ~azure.core.polling.LROPoller[JSON]
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "cancellationReason": "str",
+                        "endTime": "2020-02-20 00:00:00",
+                        "provisioningState": "str",
+                        "scheduledTime": "2020-02-20 00:00:00",
+                        "startTime": "2020-02-20 00:00:00",
+                        "status": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": {
+                        "cancellationReason": "str",
+                        "endTime": "2020-02-20 00:00:00",
+                        "provisioningState": "str",
+                        "scheduledTime": "2020-02-20 00:00:00",
+                        "startTime": "2020-02-20 00:00:00",
+                        "status": "str",
+                        "uuid": "str"
+                    },
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = self._create_or_replace_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                job_name=job_name,
+                run_name=run_name,
+                resource=resource,
+                content_type=content_type,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):
+            response = pipeline_response.http_response
+            if response.content:
+                deserialized = response.json()
+            else:
+                deserialized = None
+            if cls:
+                return cls(pipeline_response, deserialized, {})  # type: ignore
+            return deserialized
+
+        if polling is True:
+            polling_method: PollingMethod = cast(
+                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "azure-async-operation"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(PollingMethod, NoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return LROPoller[JSON].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return LROPoller[JSON](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
+
+    def _delete_initial(
+        self, resource_group_name: str, namespace_name: str, job_name: str, run_name: str, **kwargs: Any
+    ) -> Iterator[bytes]:
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
+
+        _request = build_job_runs_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            run_name=run_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = True
+        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [202, 204]:
+            try:
+                response.read()  # Load the body in memory and close the socket
+            except (StreamConsumedError, StreamClosedError):
+                pass
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        response_headers = {}
+        if response.status_code == 202:
+            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
+            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
+
+        deserialized = response.iter_bytes()
+
+        if cls:
+            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
+
+        return cast(Iterator[bytes], deserialized)  # type: ignore
+
+    @distributed_trace
+    def begin_delete(
+        self, resource_group_name: str, namespace_name: str, job_name: str, run_name: str, **kwargs: Any
+    ) -> LROPoller[None]:
+        """Delete a JobRun.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :return: An instance of LROPoller that returns None
+        :rtype: ~azure.core.polling.LROPoller[None]
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
+        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
+        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
+        if cont_token is None:
+            raw_result = self._delete_initial(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                job_name=job_name,
+                run_name=run_name,
+                cls=lambda x, y, z: x,
+                headers=_headers,
+                params=_params,
+                **kwargs
+            )
+            raw_result.http_response.read()  # type: ignore
+        kwargs.pop("error_map", None)
+
+        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
+            if cls:
+                return cls(pipeline_response, None, {})  # type: ignore
+
+        if polling is True:
+            polling_method: PollingMethod = cast(
+                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
+            )
+        elif polling is False:
+            polling_method = cast(PollingMethod, NoPolling())
+        else:
+            polling_method = polling
+        if cont_token:
+            return LROPoller[None].from_continuation_token(
+                polling_method=polling_method,
+                continuation_token=cont_token,
+                client=self._client,
+                deserialization_callback=get_long_running_output,
+            )
+        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
     def _cancel_initial(
         self, resource_group_name: str, namespace_name: str, job_name: str, run_name: str, **kwargs: Any
@@ -30369,6 +31093,85 @@ class JobRunsOperations:
             )
         return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
 
+    @distributed_trace
+    def get_summary(
+        self, resource_group_name: str, namespace_name: str, job_name: str, run_name: str, **kwargs: Any
+    ) -> JSON:
+        """Get a summary of the progress of a job run.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param job_name: The name of the job. Required.
+        :type job_name: str
+        :param run_name: The name of the job run. Required.
+        :type run_name: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # response body for status code(s): 200
+                response == {
+                    "canceled": 0,
+                    "failed": 0,
+                    "inProgress": 0,
+                    "notApplied": 0,
+                    "pending": 0,
+                    "succeeded": 0,
+                    "total": 0
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        _request = build_job_runs_get_summary_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            job_name=job_name,
+            run_name=run_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
     @overload
     def list_results(
         self,
@@ -30406,7 +31209,9 @@ class JobRunsOperations:
 
                 # JSON input template you can fill out and use as your body input.
                 body = {
-                    "filter": "str"
+                    "filter": "str",
+                    "orderBy": "str",
+                    "skipToken": "str"
                 }
 
                 # response body for status code(s): 200
@@ -30436,12 +31241,13 @@ class JobRunsOperations:
                             },
                             "reason": "str",
                             "resourceExternalId": "str",
+                            "resourceId": "str",
                             "resourceType": "str",
                             "resourceUuid": "str",
                             "status": "str"
                         }
                     ],
-                    "nextLink": "str"
+                    "skipToken": "str"
                 }
         """
 
@@ -30507,12 +31313,13 @@ class JobRunsOperations:
                             },
                             "reason": "str",
                             "resourceExternalId": "str",
+                            "resourceId": "str",
                             "resourceType": "str",
                             "resourceUuid": "str",
                             "status": "str"
                         }
                     ],
-                    "nextLink": "str"
+                    "skipToken": "str"
                 }
         """
 
@@ -30549,7 +31356,9 @@ class JobRunsOperations:
 
                 # JSON input template you can fill out and use as your body input.
                 body = {
-                    "filter": "str"
+                    "filter": "str",
+                    "orderBy": "str",
+                    "skipToken": "str"
                 }
 
                 # response body for status code(s): 200
@@ -30579,12 +31388,13 @@ class JobRunsOperations:
                             },
                             "reason": "str",
                             "resourceExternalId": "str",
+                            "resourceId": "str",
                             "resourceType": "str",
                             "resourceUuid": "str",
                             "status": "str"
                         }
                     ],
-                    "nextLink": "str"
+                    "skipToken": "str"
                 }
         """
         error_map: MutableMapping = {
@@ -30688,16 +31498,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -30706,19 +31511,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -30835,16 +31635,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -30853,19 +31648,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31047,16 +31837,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31065,19 +31850,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31109,16 +31889,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31127,19 +31902,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31151,16 +31921,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31169,19 +31934,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31246,16 +32006,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31264,19 +32019,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31288,16 +32038,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31306,19 +32051,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31379,16 +32119,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31397,19 +32132,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31441,16 +32171,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31459,19 +32184,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31483,16 +32203,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31501,19 +32216,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31634,16 +32344,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31652,19 +32357,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31729,16 +32429,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31747,19 +32442,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31827,16 +32517,11 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "OnboardingUpdate",
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -31845,19 +32530,14 @@ class JobsOperations:
                 job_properties = {
                     "definition": {
                         "schedulingType": "str",
-                        "update": {
-                            "updateId": {
-                                "name": "str",
-                                "provider": "str",
-                                "version": "str"
-                            }
-                        }
+                        "updateResourceId": "str"
                     },
                     "jobType": "SoftwareUpdate",
                     "target": {
                         "resourceId": "str"
                     },
                     "description": "str",
+                    "displayName": "str",
                     "provisioningState": "str",
                     "uuid": "str"
                 }
@@ -32022,214 +32702,6 @@ class JobsOperations:
                 resource_group_name=resource_group_name,
                 namespace_name=namespace_name,
                 job_name=job_name,
-                cls=lambda x, y, z: x,
-                headers=_headers,
-                params=_params,
-                **kwargs
-            )
-            raw_result.http_response.read()  # type: ignore
-        kwargs.pop("error_map", None)
-
-        def get_long_running_output(pipeline_response):  # pylint: disable=inconsistent-return-statements
-            if cls:
-                return cls(pipeline_response, None, {})  # type: ignore
-
-        if polling is True:
-            polling_method: PollingMethod = cast(
-                PollingMethod, ARMPolling(lro_delay, lro_options={"final-state-via": "location"}, **kwargs)
-            )
-        elif polling is False:
-            polling_method = cast(PollingMethod, NoPolling())
-        else:
-            polling_method = polling
-        if cont_token:
-            return LROPoller[None].from_continuation_token(
-                polling_method=polling_method,
-                continuation_token=cont_token,
-                client=self._client,
-                deserialization_callback=get_long_running_output,
-            )
-        return LROPoller[None](self._client, raw_result, get_long_running_output, polling_method)  # type: ignore
-
-    def _schedule_initial(
-        self, resource_group_name: str, namespace_name: str, job_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> Iterator[bytes]:
-        error_map: MutableMapping = {
-            401: ClientAuthenticationError,
-            404: ResourceNotFoundError,
-            409: ResourceExistsError,
-            304: ResourceNotModifiedError,
-        }
-        error_map.update(kwargs.pop("error_map", {}) or {})
-
-        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-        _params = kwargs.pop("params", {}) or {}
-
-        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[Iterator[bytes]] = kwargs.pop("cls", None)
-
-        content_type = content_type or "application/json"
-        _json = None
-        _content = None
-        if isinstance(body, (IOBase, bytes)):
-            _content = body
-        else:
-            _json = body
-
-        _request = build_jobs_schedule_request(
-            resource_group_name=resource_group_name,
-            namespace_name=namespace_name,
-            job_name=job_name,
-            subscription_id=self._config.subscription_id,
-            content_type=content_type,
-            api_version=self._config.api_version,
-            json=_json,
-            content=_content,
-            headers=_headers,
-            params=_params,
-        )
-        _request.url = self._client.format_url(_request.url)
-
-        _stream = True
-        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
-            _request, stream=_stream, **kwargs
-        )
-
-        response = pipeline_response.http_response
-
-        if response.status_code not in [202, 204]:
-            try:
-                response.read()  # Load the body in memory and close the socket
-            except (StreamConsumedError, StreamClosedError):
-                pass
-            map_error(status_code=response.status_code, response=response, error_map=error_map)
-            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
-
-        response_headers = {}
-        if response.status_code == 202:
-            response_headers["Location"] = self._deserialize("str", response.headers.get("Location"))
-            response_headers["Retry-After"] = self._deserialize("int", response.headers.get("Retry-After"))
-
-        deserialized = response.iter_bytes()
-
-        if cls:
-            return cls(pipeline_response, cast(Iterator[bytes], deserialized), response_headers)  # type: ignore
-
-        return cast(Iterator[bytes], deserialized)  # type: ignore
-
-    @overload
-    def begin_schedule(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        job_name: str,
-        body: JSON,
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> LROPoller[None]:
-        """Schedule the job for execution.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param job_name: The name of the job. Required.
-        :type job_name: str
-        :param body: The content of the action request. Required.
-        :type body: JSON
-        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: An instance of LROPoller that returns None
-        :rtype: ~azure.core.polling.LROPoller[None]
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                body = {
-                    "scheduledTime": "2020-02-20 00:00:00",
-                    "timeout": "1 day, 0:00:00"
-                }
-        """
-
-    @overload
-    def begin_schedule(
-        self,
-        resource_group_name: str,
-        namespace_name: str,
-        job_name: str,
-        body: IO[bytes],
-        *,
-        content_type: str = "application/json",
-        **kwargs: Any
-    ) -> LROPoller[None]:
-        """Schedule the job for execution.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param job_name: The name of the job. Required.
-        :type job_name: str
-        :param body: The content of the action request. Required.
-        :type body: IO[bytes]
-        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
-         Default value is "application/json".
-        :paramtype content_type: str
-        :return: An instance of LROPoller that returns None
-        :rtype: ~azure.core.polling.LROPoller[None]
-        :raises ~azure.core.exceptions.HttpResponseError:
-        """
-
-    @distributed_trace
-    def begin_schedule(
-        self, resource_group_name: str, namespace_name: str, job_name: str, body: Union[JSON, IO[bytes]], **kwargs: Any
-    ) -> LROPoller[None]:
-        """Schedule the job for execution.
-
-        :param resource_group_name: The name of the resource group. The name is case insensitive.
-         Required.
-        :type resource_group_name: str
-        :param namespace_name: The name of the namespace. Required.
-        :type namespace_name: str
-        :param job_name: The name of the job. Required.
-        :type job_name: str
-        :param body: The content of the action request. Is either a JSON type or a IO[bytes] type.
-         Required.
-        :type body: JSON or IO[bytes]
-        :return: An instance of LROPoller that returns None
-        :rtype: ~azure.core.polling.LROPoller[None]
-        :raises ~azure.core.exceptions.HttpResponseError:
-
-        Example:
-            .. code-block:: python
-
-                # JSON input template you can fill out and use as your body input.
-                body = {
-                    "scheduledTime": "2020-02-20 00:00:00",
-                    "timeout": "1 day, 0:00:00"
-                }
-        """
-        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
-        _params = kwargs.pop("params", {}) or {}
-
-        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
-        cls: ClsType[None] = kwargs.pop("cls", None)
-        polling: Union[bool, PollingMethod] = kwargs.pop("polling", True)
-        lro_delay = kwargs.pop("polling_interval", self._config.polling_interval)
-        cont_token: Optional[str] = kwargs.pop("continuation_token", None)
-        if cont_token is None:
-            raw_result = self._schedule_initial(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-                job_name=job_name,
-                body=body,
-                content_type=content_type,
                 cls=lambda x, y, z: x,
                 headers=_headers,
                 params=_params,
@@ -33650,6 +34122,782 @@ class RegistryDeviceAttributesOperations:
 
         return cast(JSON, deserialized)  # type: ignore
 
+    @overload
+    def create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        attribute_name: str,
+        resource: JSON,
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a RegistryDeviceAttribute.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param attribute_name: The name of the device attribute. Required.
+        :type attribute_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: JSON
+        :keyword content_type: Body Parameter content-type. Content type parameter for JSON body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": device_attribute_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": device_attribute_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @overload
+    def create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        attribute_name: str,
+        resource: IO[bytes],
+        *,
+        content_type: str = "application/json",
+        **kwargs: Any
+    ) -> JSON:
+        """Create a RegistryDeviceAttribute.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param attribute_name: The name of the device attribute. Required.
+        :type attribute_name: str
+        :param resource: Resource create parameters. Required.
+        :type resource: IO[bytes]
+        :keyword content_type: Body Parameter content-type. Content type parameter for binary body.
+         Default value is "application/json".
+        :paramtype content_type: str
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": device_attribute_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+
+    @distributed_trace
+    def create_or_replace(
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        attribute_name: str,
+        resource: Union[JSON, IO[bytes]],
+        **kwargs: Any
+    ) -> JSON:
+        """Create a RegistryDeviceAttribute.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param attribute_name: The name of the device attribute. Required.
+        :type attribute_name: str
+        :param resource: Resource create parameters. Is either a JSON type or a IO[bytes] type.
+         Required.
+        :type resource: JSON or IO[bytes]
+        :return: JSON object
+        :rtype: JSON
+        :raises ~azure.core.exceptions.HttpResponseError:
+
+        Example:
+            .. code-block:: python
+
+                # The input is polymorphic. The following are possible polymorphic inputs based off
+                  discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # JSON input template you can fill out and use as your body input.
+                resource = {
+                    "id": "str",
+                    "name": "str",
+                    "properties": device_attribute_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # The response is polymorphic. The following are possible polymorphic responses based
+                  off discriminator "reportedBy":
+
+                # JSON input template for discriminator value "Microsoft.DeviceUpdate":
+                device_attribute_properties = {
+                    "reportedBy": "Microsoft.DeviceUpdate",
+                    "agentInfo": {
+                        "agentProfile": 0,
+                        "agentSdkVersion": "str",
+                        "compatibilityProperties": {
+                            "str": "str"
+                        }
+                    },
+                    "agentInfoEtag": "str",
+                    "deviceClassId": "str",
+                    "installedUpdateId": {
+                        "name": "str",
+                        "provider": "str",
+                        "version": "str"
+                    },
+                    "latestUpdateJobInfo": {
+                        "state": "str",
+                        "updateId": {
+                            "name": "str",
+                            "provider": "str",
+                            "version": "str"
+                        },
+                        "workflowId": "str",
+                        "installResult": {
+                            "extendedResultCodes": "str",
+                            "failureOrigin": "str",
+                            "outcome": "str",
+                            "resultCode": 0,
+                            "resultDetails": "str",
+                            "stepResults": [
+                                {
+                                    "extendedResultCodes": "str",
+                                    "failureOrigin": "str",
+                                    "outcome": "str",
+                                    "resultCode": 0,
+                                    "updateId": {
+                                        "name": "str",
+                                        "provider": "str",
+                                        "version": "str"
+                                    },
+                                    "resultDetails": "str"
+                                }
+                            ]
+                        }
+                    },
+                    "schema": "str"
+                }
+
+                # JSON input template for discriminator value "User":
+                device_attribute_properties = {
+                    "reportedBy": "User",
+                    "schema": "str"
+                }
+
+                # response body for status code(s): 200, 201
+                response == {
+                    "id": "str",
+                    "name": "str",
+                    "properties": device_attribute_properties,
+                    "systemData": {
+                        "createdAt": "2020-02-20 00:00:00",
+                        "createdBy": "str",
+                        "createdByType": "str",
+                        "lastModifiedAt": "2020-02-20 00:00:00",
+                        "lastModifiedBy": "str",
+                        "lastModifiedByType": "str"
+                    },
+                    "type": "str"
+                }
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = case_insensitive_dict(kwargs.pop("headers", {}) or {})
+        _params = kwargs.pop("params", {}) or {}
+
+        content_type: Optional[str] = kwargs.pop("content_type", _headers.pop("Content-Type", None))
+        cls: ClsType[JSON] = kwargs.pop("cls", None)
+
+        content_type = content_type or "application/json"
+        _json = None
+        _content = None
+        if isinstance(resource, (IOBase, bytes)):
+            _content = resource
+        else:
+            _json = resource
+
+        _request = build_registry_device_attributes_create_or_replace_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            attribute_name=attribute_name,
+            subscription_id=self._config.subscription_id,
+            content_type=content_type,
+            api_version=self._config.api_version,
+            json=_json,
+            content=_content,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 201]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if response.content:
+            deserialized = response.json()
+        else:
+            deserialized = None
+
+        if cls:
+            return cls(pipeline_response, cast(JSON, deserialized), {})  # type: ignore
+
+        return cast(JSON, deserialized)  # type: ignore
+
+    @distributed_trace
+    def delete(  # pylint: disable=inconsistent-return-statements
+        self,
+        resource_group_name: str,
+        namespace_name: str,
+        registry_device_name: str,
+        attribute_name: str,
+        **kwargs: Any
+    ) -> None:
+        """Delete a RegistryDeviceAttribute.
+
+        :param resource_group_name: The name of the resource group. The name is case insensitive.
+         Required.
+        :type resource_group_name: str
+        :param namespace_name: The name of the namespace. Required.
+        :type namespace_name: str
+        :param registry_device_name: The name of the new device. Required.
+        :type registry_device_name: str
+        :param attribute_name: The name of the device attribute. Required.
+        :type attribute_name: str
+        :return: None
+        :rtype: None
+        :raises ~azure.core.exceptions.HttpResponseError:
+        """
+        error_map: MutableMapping = {
+            401: ClientAuthenticationError,
+            404: ResourceNotFoundError,
+            409: ResourceExistsError,
+            304: ResourceNotModifiedError,
+        }
+        error_map.update(kwargs.pop("error_map", {}) or {})
+
+        _headers = kwargs.pop("headers", {}) or {}
+        _params = kwargs.pop("params", {}) or {}
+
+        cls: ClsType[None] = kwargs.pop("cls", None)
+
+        _request = build_registry_device_attributes_delete_request(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            attribute_name=attribute_name,
+            subscription_id=self._config.subscription_id,
+            api_version=self._config.api_version,
+            headers=_headers,
+            params=_params,
+        )
+        _request.url = self._client.format_url(_request.url)
+
+        _stream = False
+        pipeline_response: PipelineResponse = self._client._pipeline.run(  # pylint: disable=protected-access
+            _request, stream=_stream, **kwargs
+        )
+
+        response = pipeline_response.http_response
+
+        if response.status_code not in [200, 204]:
+            map_error(status_code=response.status_code, response=response, error_map=error_map)
+            raise HttpResponseError(response=response, error_format=ARMErrorFormat)
+
+        if cls:
+            return cls(pipeline_response, None, {})  # type: ignore
+
 
 class RegistryDeviceAuthenticationProfilesOperations:  # pylint: disable=name-too-long
     """
@@ -33693,11 +34941,12 @@ class RegistryDeviceAuthenticationProfilesOperations:  # pylint: disable=name-to
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "authenticationType":
 
-                # JSON input template for discriminator value "CertificateAuthority":
+                # JSON input template for discriminator value
+                  "CertificateAuthoritySignedX509Certificate":
                 authentication_profile_properties = {
-                    "authenticationType": "CertificateAuthority",
+                    "authenticationType": "CertificateAuthoritySignedX509Certificate",
                     "certificateAuthority": {
-                        "adrCertificatePolicyResourceId": "str"
+                        "certificatePolicyResourceId": "str"
                     }
                 }
 
@@ -33833,11 +35082,12 @@ class RegistryDeviceAuthenticationProfilesOperations:  # pylint: disable=name-to
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "authenticationType":
 
-                # JSON input template for discriminator value "CertificateAuthority":
+                # JSON input template for discriminator value
+                  "CertificateAuthoritySignedX509Certificate":
                 authentication_profile_properties = {
-                    "authenticationType": "CertificateAuthority",
+                    "authenticationType": "CertificateAuthoritySignedX509Certificate",
                     "certificateAuthority": {
-                        "adrCertificatePolicyResourceId": "str"
+                        "certificatePolicyResourceId": "str"
                     }
                 }
 
@@ -34175,18 +35425,18 @@ class RegistryDeviceCapabilitiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "capabilityType":
 
-                # JSON input template for discriminator value "IoTHub":
+                # JSON input template for discriminator value "Microsoft.IoTHub":
                 device_capability_properties = {
                     "authenticationProfileResourceId": "str",
-                    "capabilityType": "IoTHub",
+                    "capabilityType": "Microsoft.IoTHub",
                     "enablementState": "str",
                     "messagingEndpointName": "str",
                     "provisioningState": "str"
                 }
 
-                # JSON input template for discriminator value "Update":
+                # JSON input template for discriminator value "Microsoft.SoftwareUpdate":
                 device_capability_properties = {
-                    "capabilityType": "Update",
+                    "capabilityType": "Microsoft.SoftwareUpdate",
                     "enablementState": "str",
                     "provisioningState": "str"
                 }
@@ -34293,7 +35543,10 @@ class RegistryDeviceCapabilitiesOperations:
         :type namespace_name: str
         :param registry_device_name: The name of the new device. Required.
         :type registry_device_name: str
-        :param capability_name: The name of the device capability. Required.
+        :param capability_name: The name of the device capability. For "IoT Hub" device capabilities
+         created through the
+         Device Provisioning Service, this name corresponds to the IoT Hub endpoint name assigned in
+         the Namespace resource. Required.
         :type capability_name: str
         :return: JSON object
         :rtype: JSON
@@ -34305,18 +35558,18 @@ class RegistryDeviceCapabilitiesOperations:
                 # The response is polymorphic. The following are possible polymorphic responses based
                   off discriminator "capabilityType":
 
-                # JSON input template for discriminator value "IoTHub":
+                # JSON input template for discriminator value "Microsoft.IoTHub":
                 device_capability_properties = {
                     "authenticationProfileResourceId": "str",
-                    "capabilityType": "IoTHub",
+                    "capabilityType": "Microsoft.IoTHub",
                     "enablementState": "str",
                     "messagingEndpointName": "str",
                     "provisioningState": "str"
                 }
 
-                # JSON input template for discriminator value "Update":
+                # JSON input template for discriminator value "Microsoft.SoftwareUpdate":
                 device_capability_properties = {
-                    "capabilityType": "Update",
+                    "capabilityType": "Microsoft.SoftwareUpdate",
                     "enablementState": "str",
                     "provisioningState": "str"
                 }

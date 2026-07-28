@@ -7,7 +7,7 @@
 import os
 import subprocess
 from typing import Optional
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, create_autospec, patch
 
 import pytest
 
@@ -247,11 +247,71 @@ def mock_poller():
     return _create_mock_poller
 
 
+# Operation groups reached by `az iot adr ns` commands. Specced strictly so an SDK
+# regeneration that renames or removes one of these methods fails a unit test.
+_SPECCED_OPERATION_GROUPS = (
+    "namespaces",
+    "certificate_authorities",
+    "certificate_policies",
+    "groups",
+    "jobs",
+    "job_runs",
+    "registry_devices",
+    "registry_device_attributes",
+)
+
+_REAL_ADR_CLIENT = None
+
+
+def _real_adr_client():
+    """Instantiate the real management client once per session (no network I/O)."""
+    global _REAL_ADR_CLIENT
+    if _REAL_ADR_CLIENT is None:
+        from azext_iot.sdk.deviceregistry import (
+            MicrosoftDeviceRegistryManagementService,
+        )
+
+        _REAL_ADR_CLIENT = MicrosoftDeviceRegistryManagementService(
+            credential=MagicMock(),
+            subscription_id="00000000-0000-0000-0000-000000000000",
+        )
+    return _REAL_ADR_CLIENT
+
+
+def _spec_adr_client() -> Mock:
+    """Build a strictly-specced mock of the Device Registry management client.
+
+    A bare ``Mock()`` auto-creates any attribute, so an SDK method rename (for
+    example ``groups.begin_create_or_replace`` -> ``groups.create_or_replace``)
+    silently keeps passing in unit tests while failing at runtime. Here every
+    operation group is replaced with ``create_autospec`` of the *real*
+    generated operations class, so calling a method that no longer exists
+    raises ``AttributeError`` and calling one with the wrong keyword arguments
+    raises ``TypeError``.
+
+    Only the operation groups the ADR commands actually use are specced;
+    everything else falls back to a permissive child mock. This keeps the
+    fixture cheap while still catching drift in the surface we call.
+    """
+    client = Mock()
+    real_client = _real_adr_client()
+    for attribute in _SPECCED_OPERATION_GROUPS:
+        operation_group = getattr(real_client, attribute)
+        setattr(client, attribute, create_autospec(type(operation_group), instance=True))
+    return client
+
+
+@pytest.fixture()
+def mock_adr_client():
+    """Strictly-specced Device Registry client mock. See :func:`_spec_adr_client`."""
+    return _spec_adr_client()
+
+
 @pytest.fixture()
 def fixture_adr_provider(fixture_cmd):
     """Base ADR provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
+        mock_client = _spec_adr_client()
         mock_factory.return_value = mock_client
         provider = ADRProvider(fixture_cmd)
         provider.client = mock_client
@@ -262,7 +322,7 @@ def fixture_adr_provider(fixture_cmd):
 def fixture_namespace_provider(fixture_cmd):
     """Namespace provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
+        mock_client = _spec_adr_client()
         mock_factory.return_value = mock_client
         provider = NamespaceProvider(fixture_cmd)
         provider.client = mock_client
@@ -273,7 +333,7 @@ def fixture_namespace_provider(fixture_cmd):
 def fixture_ca_provider(fixture_cmd):
     """Certificate authority provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
+        mock_client = _spec_adr_client()
         mock_factory.return_value = mock_client
         provider = CertificateAuthorityProvider(fixture_cmd)
         provider.client = mock_client
@@ -284,7 +344,7 @@ def fixture_ca_provider(fixture_cmd):
 def fixture_ca_policy_provider(fixture_cmd):
     """Certificate policy provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
+        mock_client = _spec_adr_client()
         mock_factory.return_value = mock_client
         provider = CertificatePolicyProvider(fixture_cmd)
         provider.client = mock_client
@@ -295,7 +355,7 @@ def fixture_ca_policy_provider(fixture_cmd):
 def fixture_link_provider(fixture_cmd):
     """Link provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
+        mock_client = _spec_adr_client()
         mock_factory.return_value = mock_client
         provider = LinkProvider(fixture_cmd)
         provider.client = mock_client
@@ -306,7 +366,7 @@ def fixture_link_provider(fixture_cmd):
 def fixture_group_provider(fixture_cmd):
     """Group provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
+        mock_client = _spec_adr_client()
         mock_factory.return_value = mock_client
         provider = GroupProvider(fixture_cmd)
         provider.client = mock_client
@@ -317,7 +377,7 @@ def fixture_group_provider(fixture_cmd):
 def fixture_job_provider(fixture_cmd):
     """Job provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
+        mock_client = _spec_adr_client()
         mock_factory.return_value = mock_client
         provider = JobProvider(fixture_cmd)
         provider.client = mock_client
@@ -328,7 +388,7 @@ def fixture_job_provider(fixture_cmd):
 def fixture_job_run_provider(fixture_cmd):
     """Job run (read-only) provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
+        mock_client = _spec_adr_client()
         mock_factory.return_value = mock_client
         provider = JobRunProvider(fixture_cmd)
         provider.client = mock_client
@@ -339,7 +399,7 @@ def fixture_job_run_provider(fixture_cmd):
 def fixture_report_provider(fixture_cmd):
     """Report provider fixture for testing."""
     with patch("azext_iot.adr.providers.base.adr_service_factory") as mock_factory:
-        mock_client = Mock()
+        mock_client = _spec_adr_client()
         mock_factory.return_value = mock_client
         provider = ReportProvider(fixture_cmd)
         provider.client = mock_client

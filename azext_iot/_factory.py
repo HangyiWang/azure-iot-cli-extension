@@ -147,7 +147,7 @@ def adr_service_factory(cli_ctx, *_):
 
 
 def adr_su_service_factory(cli_ctx, *_):
-    """Create the Software Update UpdateInstance management client."""
+    """Create the Software Updates Update Instance management client."""
     from azure.cli.core.commands.client_factory import get_subscription_id
 
     from azext_iot.sdk.deviceupdate.duregistry import (

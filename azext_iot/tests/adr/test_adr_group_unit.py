@@ -12,86 +12,99 @@ from azure.cli.core.azclierror import (
 )
 
 
-def test_group_create_all_fields(fixture_group_provider, mock_poller):
-    fixture_group_provider.client.groups.begin_create_or_replace.return_value = (
-        mock_poller({"name": "group"})
-    )
+def test_group_create_all_fields(fixture_group_provider):
+    fixture_group_provider.client.groups.create_or_replace.return_value = {
+        "name": "group"
+    }
 
     result = fixture_group_provider.create(
         group_name="group",
         namespace_name="namespace",
         resource_group_name="rg",
-        query_string="SELECT * FROM DEVICE",
-        group_type="Device",
+        query_string="properties.manufacturer = 'Contoso'",
+        group_type="RegistryDevice",
         location="eastus",
         display_name="Production",
         description="Production devices",
         tags={"env": "prod"},
-        mi_system_assigned=True,
     )
 
     assert result == {"name": "group"}
-    fixture_group_provider.client.groups.begin_create_or_replace.assert_called_once_with(
+    fixture_group_provider.client.groups.create_or_replace.assert_called_once_with(
         resource_group_name="rg",
         namespace_name="namespace",
         group_name="group",
         resource={
             "location": "eastus",
             "properties": {
-                "groupType": "Device",
-                "query": "SELECT * FROM DEVICE",
+                "groupType": "RegistryDevice",
+                "queryFilter": "properties.manufacturer = 'Contoso'",
                 "displayName": "Production",
                 "description": "Production devices",
             },
             "tags": {"env": "prod"},
-            "identity": {"type": "SystemAssigned"},
         },
     )
 
 
-def test_group_create_inherits_parent_location(fixture_group_provider, mock_poller):
-    fixture_group_provider.client.namespaces.get.return_value = {"location": "westus2"}
-    fixture_group_provider.client.groups.begin_create_or_replace.return_value = (
-        mock_poller({})
-    )
+def test_group_create_defaults_to_registry_device_type(fixture_group_provider):
+    """The 2026-11-02-preview GroupType enum only defines RegistryDevice."""
+    fixture_group_provider.client.groups.create_or_replace.return_value = {}
 
     fixture_group_provider.create(
         group_name="group",
         namespace_name="namespace",
         resource_group_name="rg",
-        query_string="SELECT * FROM DEVICE",
+        query_string="*",
+        location="eastus",
+    )
+
+    body = fixture_group_provider.client.groups.create_or_replace.call_args.kwargs[
+        "resource"
+    ]
+    assert body["properties"]["groupType"] == "RegistryDevice"
+
+
+def test_group_create_omits_identity(fixture_group_provider):
+    """Group is a plain TrackedResource in 2026-11-02-preview: no identity block."""
+    fixture_group_provider.client.groups.create_or_replace.return_value = {}
+
+    fixture_group_provider.create(
+        group_name="group",
+        namespace_name="namespace",
+        resource_group_name="rg",
+        query_string="*",
+        location="eastus",
+    )
+
+    body = fixture_group_provider.client.groups.create_or_replace.call_args.kwargs[
+        "resource"
+    ]
+    assert "identity" not in body
+
+
+def test_group_create_inherits_parent_location(fixture_group_provider):
+    fixture_group_provider.client.namespaces.get.return_value = {"location": "westus2"}
+    fixture_group_provider.client.groups.create_or_replace.return_value = {}
+
+    fixture_group_provider.create(
+        group_name="group",
+        namespace_name="namespace",
+        resource_group_name="rg",
+        query_string="*",
     )
 
     fixture_group_provider.client.namespaces.get.assert_called_once_with(
         resource_group_name="rg", namespace_name="namespace"
     )
-    body = fixture_group_provider.client.groups.begin_create_or_replace.call_args.kwargs[
+    body = fixture_group_provider.client.groups.create_or_replace.call_args.kwargs[
         "resource"
     ]
     assert body["location"] == "westus2"
 
 
-def test_group_create_no_wait(fixture_group_provider, mock_poller):
-    poller = mock_poller({"name": "group"})
-    fixture_group_provider.client.groups.begin_create_or_replace.return_value = poller
-
-    result = fixture_group_provider.create(
-        group_name="group",
-        namespace_name="namespace",
-        resource_group_name="rg",
-        query_string="SELECT * FROM DEVICE",
-        location="eastus",
-        no_wait=True,
-    )
-
-    assert result is poller
-    poller.result.assert_not_called()
-
-
-def test_group_update_all_mutable_fields(fixture_group_provider, mock_poller):
-    fixture_group_provider.client.groups.begin_update.return_value = mock_poller(
-        {"name": "group"}
-    )
+def test_group_update_all_mutable_fields(fixture_group_provider):
+    fixture_group_provider.client.groups.update.return_value = {"name": "group"}
 
     fixture_group_provider.update(
         group_name="group",
@@ -100,10 +113,9 @@ def test_group_update_all_mutable_fields(fixture_group_provider, mock_poller):
         display_name="New name",
         description="New description",
         tags={"env": "staging"},
-        mi_system_assigned=False,
     )
 
-    fixture_group_provider.client.groups.begin_update.assert_called_once_with(
+    fixture_group_provider.client.groups.update.assert_called_once_with(
         resource_group_name="rg",
         namespace_name="namespace",
         group_name="group",
@@ -113,13 +125,12 @@ def test_group_update_all_mutable_fields(fixture_group_provider, mock_poller):
                 "description": "New description",
             },
             "tags": {"env": "staging"},
-            "identity": {"type": "None"},
         },
     )
 
 
-def test_group_update_tags_only_allows_clear(fixture_group_provider, mock_poller):
-    fixture_group_provider.client.groups.begin_update.return_value = mock_poller({})
+def test_group_update_tags_only_allows_clear(fixture_group_provider):
+    fixture_group_provider.client.groups.update.return_value = {}
 
     fixture_group_provider.update(
         group_name="group",
@@ -129,7 +140,7 @@ def test_group_update_tags_only_allows_clear(fixture_group_provider, mock_poller
     )
 
     assert (
-        fixture_group_provider.client.groups.begin_update.call_args.kwargs["properties"]
+        fixture_group_provider.client.groups.update.call_args.kwargs["properties"]
         == {"tags": {}}
     )
 
@@ -141,23 +152,7 @@ def test_group_update_rejects_empty_patch(fixture_group_provider):
             namespace_name="namespace",
             resource_group_name="rg",
         )
-    fixture_group_provider.client.groups.begin_update.assert_not_called()
-
-
-def test_group_update_no_wait(fixture_group_provider, mock_poller):
-    poller = mock_poller({})
-    fixture_group_provider.client.groups.begin_update.return_value = poller
-
-    result = fixture_group_provider.update(
-        group_name="group",
-        namespace_name="namespace",
-        resource_group_name="rg",
-        description="description",
-        no_wait=True,
-    )
-
-    assert result is poller
-    poller.result.assert_not_called()
+    fixture_group_provider.client.groups.update.assert_not_called()
 
 
 def test_group_show_and_list(fixture_group_provider):

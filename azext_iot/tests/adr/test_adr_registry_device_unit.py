@@ -14,11 +14,16 @@ from azure.cli.core.azclierror import (
 )
 
 from azext_iot.adr import commands_registry_device
+from azure.core.exceptions import ResourceNotFoundError
+
 from azext_iot.adr.common import (
+    ADU_ATTRIBUTE_NAME,
+    DeviceAttributeReportedType,
     RegistryDeviceAuthenticationType,
     RegistryDeviceEnablementState,
 )
 from azext_iot.adr.providers.registry_device import RegistryDeviceProvider
+from azext_iot.tests.adr.conftest import _spec_adr_client
 
 RG = "test-rg"
 NS = "test-namespace"
@@ -36,7 +41,7 @@ def _completed_poller(result):
 @pytest.fixture()
 def registry_device_provider():
     with patch("azext_iot.adr.providers.base.adr_service_factory") as factory:
-        factory.return_value = Mock()
+        factory.return_value = _spec_adr_client()
         yield RegistryDeviceProvider(Mock(cli_ctx=Mock()))
 
 
@@ -291,7 +296,7 @@ def test_mutations_honor_no_wait(registry_device_provider, operation):
             "properties": {"authenticationType": "CertificateAuthority"}
         }
         auth_operations.begin_revoke_certificates.return_value = poller
-        result = registry_device_provider.auth_profile_revoke_certificates(
+        result = registry_device_provider.auth_revoke_certs(
             PROFILE,
             DEVICE,
             NS,
@@ -303,7 +308,7 @@ def test_mutations_honor_no_wait(registry_device_provider, operation):
     poller.result.assert_not_called()
 
 
-def test_auth_profile_list_and_show_select_expected_operations(
+def test_auth_list_and_show_select_expected_operations(
     registry_device_provider,
 ):
     operations = registry_device_provider.client.registry_device_authentication_profiles
@@ -312,11 +317,11 @@ def test_auth_profile_list_and_show_select_expected_operations(
     )
     operations.get.return_value = {"name": PROFILE}
 
-    assert registry_device_provider.auth_profile_list(DEVICE, NS, RG) == [
+    assert registry_device_provider.auth_list(DEVICE, NS, RG) == [
         {"name": "profile-one"},
         {"name": "profile-two"},
     ]
-    assert registry_device_provider.auth_profile_show(PROFILE, DEVICE, NS, RG) == {
+    assert registry_device_provider.auth_show(PROFILE, DEVICE, NS, RG) == {
         "name": PROFILE
     }
 
@@ -351,7 +356,7 @@ def test_get_keys_validates_type_and_warns_without_logging_secrets(
     with patch(
         "azext_iot.adr.providers.registry_device.logger.warning"
     ) as warning:
-        result = registry_device_provider.auth_profile_get_keys(
+        result = registry_device_provider.auth_show_keys(
             PROFILE,
             DEVICE,
             NS,
@@ -395,7 +400,7 @@ def test_get_keys_rejects_non_symmetric_profiles(
     operations.get.return_value = profile
 
     with pytest.raises(InvalidArgumentValueError, match="SymmetricKey"):
-        registry_device_provider.auth_profile_get_keys(
+        registry_device_provider.auth_show_keys(
             PROFILE,
             DEVICE,
             NS,
@@ -419,7 +424,7 @@ def test_revoke_certificates_requires_managed_x509_and_waits(
     operations.begin_revoke_certificates.return_value = poller
 
     assert (
-        registry_device_provider.auth_profile_revoke_certificates(
+        registry_device_provider.auth_revoke_certs(
             PROFILE,
             DEVICE,
             NS,
@@ -455,7 +460,7 @@ def test_revoke_certificates_rejects_ineligible_profiles(
     }
 
     with pytest.raises(InvalidArgumentValueError, match="CertificateAuthority"):
-        registry_device_provider.auth_profile_revoke_certificates(
+        registry_device_provider.auth_revoke_certs(
             PROFILE,
             DEVICE,
             NS,
@@ -580,8 +585,8 @@ COMMAND_CASES = [
         },
     ),
     (
-        "adr_registry_device_auth_profile_list",
-        "auth_profile_list",
+        "adr_registry_device_auth_list",
+        "auth_list",
         {
             "registry_device_name": DEVICE,
             "namespace_name": NS,
@@ -589,18 +594,8 @@ COMMAND_CASES = [
         },
     ),
     (
-        "adr_registry_device_auth_profile_show",
-        "auth_profile_show",
-        {
-            "authentication_profile_name": PROFILE,
-            "registry_device_name": DEVICE,
-            "namespace_name": NS,
-            "resource_group_name": RG,
-        },
-    ),
-    (
-        "adr_registry_device_auth_profile_get_keys",
-        "auth_profile_get_keys",
+        "adr_registry_device_auth_show",
+        "auth_show",
         {
             "authentication_profile_name": PROFILE,
             "registry_device_name": DEVICE,
@@ -609,8 +604,18 @@ COMMAND_CASES = [
         },
     ),
     (
-        "adr_registry_device_auth_profile_revoke_certificates",
-        "auth_profile_revoke_certificates",
+        "adr_registry_device_auth_show_keys",
+        "auth_show_keys",
+        {
+            "authentication_profile_name": PROFILE,
+            "registry_device_name": DEVICE,
+            "namespace_name": NS,
+            "resource_group_name": RG,
+        },
+    ),
+    (
+        "adr_registry_device_auth_revoke_certs",
+        "auth_revoke_certs",
         {
             "authentication_profile_name": PROFILE,
             "registry_device_name": DEVICE,
@@ -694,3 +699,264 @@ def test_command_wrappers_have_explicit_typed_parameters():
             for name, parameter in parameters.items()
             if name != "cmd"
         )
+
+
+def test_attribute_create_defaults_to_user_reported(registry_device_provider):
+    operations = registry_device_provider.client.registry_device_attributes
+    operations.create_or_replace.return_value = {"name": "siteInfo"}
+
+    result = registry_device_provider.attribute_create(
+        attribute_name="siteInfo",
+        registry_device_name=DEVICE,
+        namespace_name=NS,
+        resource_group_name=RG,
+    )
+
+    assert result == {"name": "siteInfo"}
+    operations.create_or_replace.assert_called_once_with(
+        resource_group_name=RG,
+        namespace_name=NS,
+        registry_device_name=DEVICE,
+        attribute_name="siteInfo",
+        resource={"properties": {"reportedBy": DeviceAttributeReportedType.user.value}},
+    )
+
+
+def test_attribute_create_merges_property_bag_and_schema(registry_device_provider):
+    operations = registry_device_provider.client.registry_device_attributes
+
+    registry_device_provider.attribute_create(
+        attribute_name="siteInfo",
+        registry_device_name=DEVICE,
+        namespace_name=NS,
+        resource_group_name=RG,
+        reported_by=DeviceAttributeReportedType.user.value,
+        schema="https://contoso.com/schemas/site.json",
+        properties='{"site": "plant-3", "rack": 12}',
+    )
+
+    resource = operations.create_or_replace.call_args.kwargs["resource"]
+    assert resource["properties"] == {
+        "site": "plant-3",
+        "rack": 12,
+        "reportedBy": DeviceAttributeReportedType.user.value,
+        "schema": "https://contoso.com/schemas/site.json",
+    }
+
+
+def test_attribute_create_reported_by_wins_over_property_bag(registry_device_provider):
+    """reportedBy is the discriminator; the explicit flag must not be overridden."""
+    operations = registry_device_provider.client.registry_device_attributes
+
+    registry_device_provider.attribute_create(
+        attribute_name="agent",
+        registry_device_name=DEVICE,
+        namespace_name=NS,
+        resource_group_name=RG,
+        reported_by=DeviceAttributeReportedType.adu.value,
+        properties='{"reportedBy": "User", "deviceClassId": "abc"}',
+    )
+
+    resource = operations.create_or_replace.call_args.kwargs["resource"]
+    assert resource["properties"]["reportedBy"] == DeviceAttributeReportedType.adu.value
+    assert resource["properties"]["deviceClassId"] == "abc"
+
+
+@pytest.mark.parametrize("reported_by", ["user", "Microsoft.DeviceRegistry", ""])
+def test_attribute_create_rejects_unknown_reported_by(
+    registry_device_provider, reported_by
+):
+    with pytest.raises(InvalidArgumentValueError):
+        registry_device_provider.attribute_create(
+            attribute_name="siteInfo",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+            reported_by=reported_by,
+        )
+
+    registry_device_provider.client.registry_device_attributes.create_or_replace.assert_not_called()
+
+
+@pytest.mark.parametrize("properties", ['["a", "b"]', '"just-a-string"', "42"])
+def test_attribute_create_rejects_non_object_properties(
+    registry_device_provider, properties
+):
+    with pytest.raises(InvalidArgumentValueError):
+        registry_device_provider.attribute_create(
+            attribute_name="siteInfo",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+            properties=properties,
+        )
+
+
+def test_attribute_delete_is_synchronous(registry_device_provider):
+    operations = registry_device_provider.client.registry_device_attributes
+    operations.delete.return_value = None
+
+    assert (
+        registry_device_provider.attribute_delete(
+            attribute_name="siteInfo",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+        is None
+    )
+
+    operations.delete.assert_called_once_with(
+        resource_group_name=RG,
+        namespace_name=NS,
+        registry_device_name=DEVICE,
+        attribute_name="siteInfo",
+    )
+    assert not hasattr(operations, "begin_delete")
+
+
+def test_attribute_command_wrappers_delegate(fixture_cmd):
+    with patch.object(
+        commands_registry_device, "RegistryDeviceProvider"
+    ) as provider_class:
+        provider = provider_class.return_value
+
+        commands_registry_device.adr_registry_device_attribute_create(
+            fixture_cmd,
+            attribute_name="siteInfo",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+            reported_by=DeviceAttributeReportedType.user.value,
+            schema="https://contoso.com/schemas/site.json",
+            properties='{"site": "plant-3"}',
+        )
+        provider.attribute_create.assert_called_once_with(
+            attribute_name="siteInfo",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+            reported_by=DeviceAttributeReportedType.user.value,
+            schema="https://contoso.com/schemas/site.json",
+            properties='{"site": "plant-3"}',
+        )
+
+        commands_registry_device.adr_registry_device_attribute_delete(
+            fixture_cmd,
+            attribute_name="siteInfo",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+        provider.attribute_delete.assert_called_once_with(
+            attribute_name="siteInfo",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+
+
+def test_attribute_create_warns_when_overwriting_adu_reported(
+    registry_device_provider, caplog
+):
+    """ADU owns the materialized 'update' attribute; overwriting it must be loud."""
+    with caplog.at_level("WARNING"):
+        registry_device_provider.attribute_create(
+            attribute_name="update",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+            reported_by=DeviceAttributeReportedType.adu.value,
+        )
+
+    assert "Azure Device Update" in caplog.text
+
+
+def test_attribute_create_does_not_warn_for_user_reported(
+    registry_device_provider, caplog
+):
+    with caplog.at_level("WARNING"):
+        registry_device_provider.attribute_create(
+            attribute_name="siteInfo",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+
+    assert "Azure Device Update" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "alias", ["software-update", "software_update", "softwareUpdate", "Software-Update"]
+)
+def test_attribute_show_falls_back_to_adu_attribute_for_alias(
+    registry_device_provider, alias, caplog
+):
+    """PM-requested alias: `-n software-update` resolves to the ADU attribute."""
+    operations = registry_device_provider.client.registry_device_attributes
+    expected = {"name": ADU_ATTRIBUTE_NAME}
+    operations.get.side_effect = [ResourceNotFoundError("nope"), expected]
+
+    with caplog.at_level("WARNING"):
+        assert (
+            registry_device_provider.attribute_show(alias, DEVICE, NS, RG) == expected
+        )
+
+    # The literal name is always tried first, then the canonical ADU name.
+    assert [
+        call.kwargs["attribute_name"] for call in operations.get.call_args_list
+    ] == [alias, ADU_ATTRIBUTE_NAME]
+    assert ADU_ATTRIBUTE_NAME in caplog.text
+
+
+def test_attribute_show_prefers_a_real_attribute_over_the_alias(
+    registry_device_provider, caplog
+):
+    """A customer-authored attribute literally named software-update must win."""
+    operations = registry_device_provider.client.registry_device_attributes
+    expected = {"name": "software-update", "properties": {"reportedBy": "User"}}
+    operations.get.return_value = expected
+
+    with caplog.at_level("WARNING"):
+        assert (
+            registry_device_provider.attribute_show(
+                "software-update", DEVICE, NS, RG
+            )
+            == expected
+        )
+
+    operations.get.assert_called_once()
+    assert caplog.text == ""
+
+
+def test_attribute_show_does_not_alias_unrelated_missing_names(
+    registry_device_provider,
+):
+    operations = registry_device_provider.client.registry_device_attributes
+    operations.get.side_effect = ResourceNotFoundError("nope")
+
+    with pytest.raises(ResourceNotFoundError):
+        registry_device_provider.attribute_show("firmware", DEVICE, NS, RG)
+
+    operations.get.assert_called_once()
+
+
+def test_attribute_list_and_delete_do_not_alias(registry_device_provider):
+    """The alias is scoped to `show` only."""
+    operations = registry_device_provider.client.registry_device_attributes
+    operations.delete.side_effect = ResourceNotFoundError("nope")
+
+    with pytest.raises(ResourceNotFoundError):
+        registry_device_provider.attribute_delete(
+            attribute_name="software-update",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+        )
+
+    operations.delete.assert_called_once_with(
+        resource_group_name=RG,
+        namespace_name=NS,
+        registry_device_name=DEVICE,
+        attribute_name="software-update",
+    )

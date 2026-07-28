@@ -14,9 +14,9 @@ Validates the namespace-linking surface exposed as ``iot adr ns link ...``:
 * ``link hub add / update / show / list`` — both UAMI and SAMI inbound caller
   identities, multi-hub list, identity rotation via ``hub update``
 * ``link add`` bundled Hub+DPS PATCH in a single round trip
-* ``link su add / update / show / list`` — ASU (software update) updating
+* ``link su add / update / show / list`` — Software Updates updating
   endpoints with UAMI/SAMI identity rotation. Set
-  ``azext_iot_adr_update_instance_id`` to a pre-provisioned ASU update-instance
+  ``azext_iot_adr_update_instance_id`` to a pre-provisioned Update Instance
   resource ID to enable this test.
 
 These tests require real Hub and DPS resources to be linked to a real ADR
@@ -586,7 +586,7 @@ class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 )
 @pytest.mark.usefixtures("set_cwd")
 class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
-    """End-to-end lifecycle of namespace-side ASU (software update) link entries.
+    """End-to-end lifecycle of namespace-side Software Updates link entries.
 
     Mirrors the Hub/DPS link lifecycle for the ``iot adr ns link su`` surface:
 
@@ -594,14 +594,14 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
        supplied by ``azext_iot_adr_update_instance_id``. It must have both SAMI
        and UAMI identities.
     2. Create an ADR namespace and authorize the update instance identities.
-    3. Step 1: ``link su add`` (UAMI) attaches the ASU updating endpoint.
+    3. Step 1: ``link su add`` (UAMI) attaches the Software Updates updating endpoint.
     4. Step 2: ``link su show`` / ``list`` surface the single entry.
     5. Step 3: ``link su update`` rotates the inbound caller identity UAMI → SAMI.
 
     What is intentionally NOT covered here (covered by unit tests):
     - Duplicate endpoint-name rejection
     - MI mutually-exclusive rejection
-    - Invalid / wrong-type ASU resource id rejection
+    - Invalid / wrong-type Update Instance resource id rejection
     """
 
     def test_adr_link_su_lifecycle(self):
@@ -625,7 +625,7 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
         su_id = _SU_UPDATE_INSTANCE_ID
         try:
-            with timed_step("Setup 1/2 ❯ Resolve ASU SAMI and UAMI"):
+            with timed_step("Setup 1/2 ❯ Resolve Update Instance SAMI and UAMI"):
                 update_instance = self.cmd(
                     f"resource show --ids {su_id}"
                 ).get_output_in_json()
@@ -691,7 +691,7 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                         wait_for_condition(
                             denied_state,
                             lambda state: state == "Failed",
-                            description="unauthorized ASU link failure",
+                            description="unauthorized Software Updates link failure",
                             is_terminal_failure=lambda state: (
                                 state == "Succeeded"
                             ),
@@ -740,7 +740,7 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"-g {rg} --updated"
                 )
                 self.cmd(add_cmd, expect_failure=True)
-                _log(LogKind.OK, "ASU link '%s' created (UAMI)", su_endpoint)
+                _log(LogKind.OK, "Software Updates link '%s' created (UAMI)", su_endpoint)
 
             with timed_step("Step 2 > link su show / list (single entry)"):
                 shown = self.cmd(
@@ -758,10 +758,10 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 ).get_output_in_json()
                 names = _names_in(listed)
                 assert su_endpoint in names, (
-                    f"ASU link '{su_endpoint}' missing from list: {names}"
+                    f"Software Updates link '{su_endpoint}' missing from list: {names}"
                 )
-                assert len(names) == 1, f"Expected exactly one ASU link, got {names}"
-                _log(LogKind.OK, "ASU list returned 1 entry")
+                assert len(names) == 1, f"Expected exactly one Software Updates link, got {names}"
+                _log(LogKind.OK, "Software Updates list returned 1 entry")
 
             with timed_step("Step 3 > link su update (rotate identity UAMI to SAMI)"):
                 update_cmd = (
@@ -783,7 +783,7 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "Rotated UAMI to SAMI")
 
-            _log(LogKind.OK, "ASU link lifecycle passed")
+            _log(LogKind.OK, "Software Updates link lifecycle passed")
 
         finally:
             with timed_step("Cleanup ❯ Delete ADR namespace"):
@@ -840,18 +840,18 @@ class TestADRLinkValidationNegatives(CaptureOutputLiveScenarioTest):
                 expect_failure=True,
             )
 
-        # --- ASU resource-id parsing rejections (su add) ---
-        with timed_step("ASU add ❯ empty --su-id rejected"):
+        # --- Update Instance resource-id parsing rejections (su add) ---
+        with timed_step("SU add ❯ empty --su-id rejected"):
             self.cmd(
                 f'iot adr ns link su add -n primary --ns {ns} -g {rg} --su-id "" --mi-sa',
                 expect_failure=True,
             )
-        with timed_step("ASU add ❯ bare ASU account name rejected"):
+        with timed_step("SU add ❯ bare Update Instance name rejected"):
             self.cmd(
                 f"iot adr ns link su add -n primary --ns {ns} -g {rg} --su-id mysu --mi-sa",
                 expect_failure=True,
             )
-        with timed_step("ASU add ❯ wrong resource type rejected"):
+        with timed_step("SU add ❯ wrong resource type rejected"):
             self.cmd(
                 f"iot adr ns link su add -n primary --ns {ns} -g {rg} --su-id {hub_id} --mi-sa",
                 expect_failure=True,
@@ -870,7 +870,7 @@ class TestADRLinkValidationNegatives(CaptureOutputLiveScenarioTest):
                 f"--mi-sa --mi-ua {uami_id}",
                 expect_failure=True,
             )
-        with timed_step("ASU update ❯ SAMI + UAMI together rejected"):
+        with timed_step("SU update ❯ SAMI + UAMI together rejected"):
             self.cmd(
                 f"iot adr ns link su update -n primary --ns {ns} -g {rg} "
                 f"--mi-sa --mi-ua {uami_id}",

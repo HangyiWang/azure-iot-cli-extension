@@ -107,10 +107,10 @@ def test_2026_command_surface_is_registered():
         "iot adr ns registry-device update",
         "iot adr ns registry-device delete",
         "iot adr ns registry-device wait",
-        "iot adr ns registry-device auth-profile list",
-        "iot adr ns registry-device auth-profile show",
-        "iot adr ns registry-device auth-profile get-keys",
-        "iot adr ns registry-device auth-profile revoke-certificates",
+        "iot adr ns registry-device auth list",
+        "iot adr ns registry-device auth show",
+        "iot adr ns registry-device auth show-keys",
+        "iot adr ns registry-device auth revoke-certs",
         "iot adr ns registry-device attribute list",
         "iot adr ns registry-device attribute show",
         "iot adr ns registry-device capability list",
@@ -133,11 +133,31 @@ def test_2026_command_surface_is_registered():
         "iot adr ns su instance update",
         "iot adr ns su instance delete",
         "iot adr ns su instance wait",
+        "iot adr ns job schedule",
+        "iot adr ns job run delete",
+        "iot adr ns job run summary",
+        "iot adr ns registry-device attribute create",
+        "iot adr ns registry-device attribute delete",
     }
     assert expected_commands <= set(commands)
-    assert len(commands) == 85
+    # There is no Jobs_Schedule API; `job schedule` drives JobRuns_CreateOrReplace.
+    assert "iot adr ns job run create" not in commands
+    # Groups_CreateOrReplace / Groups_Update are synchronous in 2026-11-02-preview.
+    assert commands["iot adr ns group create"] == ("command", "adr_group_create", {})
+    assert commands["iot adr ns group update"] == ("command", "adr_group_update", {})
+    assert commands["iot adr ns job schedule"] == (
+        "command",
+        "adr_job_schedule",
+        {"supports_no_wait": True},
+    )
+    assert commands["iot adr ns job run delete"] == (
+        "command",
+        "adr_job_run_delete",
+        {"confirmation": True, "supports_no_wait": True},
+    )
+    assert len(commands) == 89
     assert commands[
-        "iot adr ns registry-device auth-profile revoke-certificates"
+        "iot adr ns registry-device auth revoke-certs"
     ][2] == {"confirmation": True, "supports_no_wait": True}
     assert commands["iot adr ns link wait"][:2] == (
         "wait",
@@ -152,10 +172,13 @@ def test_unsupported_command_surfaces_are_not_registered():
         command.startswith(("iot adr ns credential", "iot adr ns policy"))
         for command in commands
     )
-    for child in ("auth-profile", "attribute", "capability"):
+    # auth and capability remain service-materialized (read-only).
+    # attribute gained create/delete in 2026-11-02-preview.
+    for child in ("auth", "capability"):
         assert f"iot adr ns registry-device {child} create" not in commands
         assert f"iot adr ns registry-device {child} update" not in commands
         assert f"iot adr ns registry-device {child} delete" not in commands
+    assert "iot adr ns registry-device attribute update" not in commands
     assert not any(
         command.startswith(
             (
@@ -170,6 +193,14 @@ def test_unsupported_command_surfaces_are_not_registered():
     )
     for endpoint in ("hub", "dps", "su"):
         assert f"iot adr ns link {endpoint} remove" not in commands
+    # Pre-rename spellings must not resurface.
+    for stale in (
+        "iot adr ns registry-device auth-profile list",
+        "iot adr ns registry-device auth-profile show",
+        "iot adr ns registry-device auth-profile get-keys",
+        "iot adr ns registry-device auth-profile revoke-certificates",
+    ):
+        assert stale not in commands
     assert not any(
         command.startswith("iot adr ns su link") for command in commands
     )
@@ -223,8 +254,14 @@ def test_load_adr_arguments():
         arguments["iot adr ns identity assign"]
     )
     assert "--ns" in arguments["iot adr ns link"]["namespace_name"]["options_list"]
-    assert "mi_system_assigned" in arguments["iot adr ns group create"]
-    assert "mi_system_assigned" in arguments["iot adr ns group update"]
+    # Group is a plain TrackedResource in 2026-11-02-preview: no identity.
+    assert "mi_system_assigned" not in arguments["iot adr ns group create"]
+    assert "mi_system_assigned" not in arguments["iot adr ns group update"]
+    assert "scheduled_time" in arguments["iot adr ns job schedule"]
+    assert "run_name" in arguments["iot adr ns job schedule"]
+    assert "order_by" in arguments["iot adr ns job run results"]
+    for name in ("reported_by", "schema", "properties"):
+        assert name in arguments["iot adr ns registry-device attribute create"]
     assert {
         "mi_system_assigned",
         "mi_user_assigned",
@@ -284,14 +321,20 @@ def test_help_surface_matches_2026_commands_and_su_type():
         "iot adr ns report generate",
         "iot adr ns report latest",
         "iot adr ns registry-device create",
-        "iot adr ns registry-device auth-profile get-keys",
+        "iot adr ns registry-device auth show-keys",
         "iot adr ns registry-device attribute list",
         "iot adr ns registry-device capability show",
         "iot adr ns identity assign",
         "iot adr ns su instance create",
         "iot adr ns su instance check-name",
+        "iot adr ns job schedule",
+        "iot adr ns job run delete",
+        "iot adr ns job run summary",
+        "iot adr ns registry-device attribute create",
+        "iot adr ns registry-device attribute delete",
     ):
         assert command in helps
+    assert "iot adr ns job run create" not in helps
 
     assert "Microsoft.DeviceUpdate/updateInstances" in helps["iot adr ns link su"]
     assert "linkedAccounts" not in helps["iot adr ns link su"]

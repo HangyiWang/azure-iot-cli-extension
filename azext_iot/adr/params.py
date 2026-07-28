@@ -20,6 +20,7 @@ from azext_iot.adr.common import (
     CertificateAuthorityKeyType,
     CertificateAuthorityIssuerType,
     CertificateAuthorityType,
+    DeviceAttributeReportedType,
     GroupType,
     JobType,
     MessagingEndpointAvailability,
@@ -63,7 +64,7 @@ def load_adr_arguments(self, _):
             context.argument(
                 "updating_endpoints",
                 options_list=["--updating-endpoints"],
-                help="Software Update endpoint dictionary as inline JSON or a JSON file path.",
+                help="Software Updates endpoint dictionary as inline JSON or a JSON file path.",
             )
 
     # Certificate Authority arguments
@@ -96,13 +97,14 @@ def load_adr_arguments(self, _):
             "issuer_type",
             options_list=["--issuer-type"],
             arg_type=get_enum_type(CertificateAuthorityIssuerType),
-            help="Issuer type for an ICA. Use 'Internal' for a same-namespace CA or 'External' "
+            help="Issuer type for an ICA. Use 'Microsoft' for a same-namespace CA or 'External' "
                  "for an external PKI.",
         )
         context.argument(
-            "issuer_certificate_authority_uuid",
-            options_list=["--issuer-ca-uuid", "--issuer-certificate-authority-uuid"],
-            help="UUID of the same-namespace issuing CA. Required with --issuer-type Internal.",
+            "issuer_certificate_authority_name",
+            options_list=["--issuer-ca-name", "--issuer-certificate-authority-name"],
+            help="Name of the same-namespace issuing root CA. Required with "
+                 "--issuer-type Microsoft.",
         )
         context.argument(
             "key_type",
@@ -223,7 +225,7 @@ def load_adr_arguments(self, _):
         )
 
     with self.argument_context(
-        "iot adr ns registry-device auth-profile"
+        "iot adr ns registry-device auth"
     ) as context:
         context.argument(
             "registry_device_name",
@@ -248,6 +250,41 @@ def load_adr_arguments(self, _):
             "attribute_name",
             options_list=["--attribute-name", "--an", "--name", "-n"],
             help="Name of the Registry Device attribute.",
+        )
+
+    with self.argument_context(
+        "iot adr ns registry-device attribute show"
+    ) as context:
+        context.argument(
+            "attribute_name",
+            options_list=["--attribute-name", "--an", "--name", "-n"],
+            help="Name of the Registry Device attribute. 'software-update' is accepted "
+            "as an alias for the Azure Device Update attribute, whose canonical "
+            "resource name is 'update'; the alias only applies when no attribute "
+            "matches the name you supplied.",
+        )
+
+    with self.argument_context(
+        "iot adr ns registry-device attribute create"
+    ) as context:
+        context.argument(
+            "reported_by",
+            options_list=["--reported-by", "--rb"],
+            arg_type=get_enum_type(DeviceAttributeReportedType),
+            help="The cloud service that reports this attribute. 'Microsoft.DeviceUpdate' "
+            "attributes are service-materialized; author your own metadata with 'User'.",
+        )
+        context.argument(
+            "schema",
+            options_list=["--schema"],
+            help="URL of a JSON Schema document describing the shape of the attribute "
+            "property bag. Advertisement only; the service does not validate against it.",
+        )
+        context.argument(
+            "properties",
+            options_list=["--properties", "--props"],
+            help="Attribute property bag as inline JSON or a path to a JSON file "
+            "prefixed with '@'. The service stores and returns the bag verbatim.",
         )
 
     with self.argument_context(
@@ -395,7 +432,7 @@ def load_adr_arguments(self, _):
             help="Azure resource ID of the Device Provisioning Service to link to this namespace.",
         )
 
-    # Software Update link arguments
+    # Software Updates link arguments
     with self.argument_context("iot adr ns link su") as context:
         context.argument(
             "namespace_name",
@@ -405,7 +442,7 @@ def load_adr_arguments(self, _):
         context.argument(
             "endpoint_name",
             options_list=["--endpoint-name", "--en", "--name", "-n"],
-            help="Logical name of the Software Update endpoint entry.",
+            help="Logical name of the Software Updates endpoint entry.",
         )
 
     for action in ("add", "update"):
@@ -415,7 +452,7 @@ def load_adr_arguments(self, _):
                 arg_group="Inbound Caller Identity",
                 options_list=["--mi-system-assigned", "--mi-sa"],
                 arg_type=get_three_state_flag(),
-                help="Use the linked Software Update instance's system-assigned "
+                help="Use the linked Update Instance's system-assigned "
                      "identity. The instance must have that identity enabled.",
             )
             context.argument(
@@ -423,22 +460,22 @@ def load_adr_arguments(self, _):
                 arg_group="Inbound Caller Identity",
                 options_list=["--mi-user-assigned", "--mi-ua"],
                 help="Resource ID of a user-assigned identity attached to the "
-                     "linked Software Update instance.",
+                     "linked Update Instance.",
             )
 
     with self.argument_context("iot adr ns link su add") as context:
         context.argument(
             "su_resource_id",
             options_list=["--su-resource-id", "--su-id"],
-            help="Azure resource ID of the Software Update instance to link.",
+            help="Azure resource ID of the Update Instance to link.",
         )
 
-    # Software Update commands
+    # Software Updates commands
     with self.argument_context("iot adr ns su instance") as context:
         context.argument(
             "update_instance_name",
             options_list=["--name", "-n"],
-            help="Name of the Software Update instance.",
+            help="Name of the Update Instance.",
         )
 
     with self.argument_context("iot adr ns su instance create") as context:
@@ -567,14 +604,18 @@ def load_adr_arguments(self, _):
             "group_type",
             options_list=["--group-type", "--gt"],
             arg_type=get_enum_type(GroupType),
-            help="Type of the group. Only 'Device' is supported in the current preview API; "
-                 "this is immutable after creation.",
+            help="Type of the group. Only 'RegistryDevice' is supported in the current preview "
+                 "API; this is immutable after creation.",
         )
         context.argument(
             "query_string",
             options_list=["--query-string", "--qs"],
-            help="Membership query string used to determine which devices belong to the group. "
-                 "This is immutable after creation.",
+            # TODO(queryFilter): the 2026-11-02-preview examples disagree on the filter dialect
+            # ("where a == 'b'" vs "a = 'b'"). Passed through verbatim until the service team
+            # confirms the canonical grammar; do not add client-side validation before then.
+            help="Membership query filter used to determine which devices belong to the group. "
+                 "Use '*' to include every device in the namespace. Required and immutable "
+                 "after creation.",
         )
         context.argument(
             "display_name",
@@ -585,12 +626,6 @@ def load_adr_arguments(self, _):
             "description",
             options_list=["--description"],
             help="Human-readable description of the group.",
-        )
-        context.argument(
-            "mi_system_assigned",
-            options_list=["--mi-system-assigned"],
-            arg_type=get_three_state_flag(),
-            help="Enable the group's system-assigned managed identity.",
         )
 
     with self.argument_context("iot adr ns group update") as context:
@@ -604,12 +639,6 @@ def load_adr_arguments(self, _):
             "description",
             options_list=["--description"],
             help="Human-readable description of the group.",
-        )
-        context.argument(
-            "mi_system_assigned",
-            options_list=["--mi-system-assigned"],
-            arg_type=get_three_state_flag(),
-            help="Enable or remove the group's system-assigned managed identity.",
         )
 
     with self.argument_context("iot adr ns group list-members") as context:
@@ -661,14 +690,14 @@ def load_adr_arguments(self, _):
             "update_provider",
             arg_group="Update",
             options_list=["--update-id-provider", "--update-provider", "--up"],
-            help="ASU updateId.provider (e.g. 'Contoso'). The ASU update identity is a {provider, name, version} triple.",
+            help="Software Update updateId.provider (e.g. 'Contoso'). The update identity is a {provider, name, version} triple.",
         )
         context.argument(
             "update_name",
             arg_group="Update",
             options_list=["--update-id-name", "--update-name", "--un"],
             help=(
-                "ASU updateId.name (e.g. 'gateway-firmware'). "
+                "Software Update updateId.name (e.g. 'gateway-firmware'). "
                 "This is the update identity's name, distinct from the job's --name."
             ),
         )
@@ -676,30 +705,21 @@ def load_adr_arguments(self, _):
             "update_version",
             arg_group="Update",
             options_list=["--update-id-version", "--update-version", "--uv"],
-            help="ASU updateId.version (e.g. '1.2.3').",
+            help="Software Update updateId.version (e.g. '1.2.3').",
         )
         context.argument(
             "description",
             options_list=["--description"],
             help="Human-readable job description.",
         )
+        context.argument(
+            "display_name",
+            options_list=["--display-name"],
+            help="Human-readable display name for the job.",
+        )
 
     with self.argument_context("iot adr ns job update") as context:
         context.argument("tags", arg_type=tags_type)
-
-    with self.argument_context("iot adr ns job schedule") as context:
-        context.argument(
-            "scheduled_time",
-            options_list=["--scheduled-time", "--st"],
-            help="Optional ISO 8601 UTC timestamp at which the job should be scheduled to run "
-                 "(e.g. '2025-12-01T08:00:00Z'). Omit to schedule immediately.",
-        )
-        context.argument(
-            "timeout",
-            options_list=["--timeout"],
-            help="Optional ISO 8601 duration after which the job execution times out "
-                 "(e.g. 'PT1H' for one hour, 'P1D' for one day).",
-        )
 
     # Job run arguments
     with self.argument_context("iot adr ns job run") as context:
@@ -719,14 +739,26 @@ def load_adr_arguments(self, _):
             help="Name of the job run.",
         )
 
+    with self.argument_context("iot adr ns job schedule") as context:
+        context.argument(
+            "run_name",
+            options_list=["--run-name", "--rn"],
+            help="Name of the job run to create. Defaults to a generated "
+                 "UTC-timestamped name such as 'run-20251201T080000'.",
+        )
+        context.argument(
+            "scheduled_time",
+            options_list=["--scheduled-time", "--st"],
+            help="Optional ISO 8601 UTC timestamp at which the run should start "
+                 "(e.g. '2025-12-01T08:00:00Z'). Omit to start immediately.",
+        )
+
     with self.argument_context("iot adr ns job run list") as context:
         context.argument(
             "job_name",
             options_list=["--job-name", "--jn", "--name", "-n"],
             help="Optional parent job name. Omit to list runs across the namespace.",
         )
-
-    with self.argument_context("iot adr ns job run list") as context:
         context.argument(
             "status_filter",
             options_list=["--filter"],
@@ -739,6 +771,12 @@ def load_adr_arguments(self, _):
             "status_filter",
             options_list=["--filter"],
             help="One result status equality clause, for example: status eq 'Failed'.",
+        )
+        context.argument(
+            "order_by",
+            options_list=["--order-by", "--ob"],
+            help="Sort expression for the results, for example: \"status asc\" or "
+                 "\"status desc\".",
         )
 
     with self.argument_context("iot adr ns report") as context:

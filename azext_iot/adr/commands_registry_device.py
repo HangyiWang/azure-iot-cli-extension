@@ -6,7 +6,10 @@
 
 from typing import Dict, Optional
 
-from azext_iot.adr.common import RegistryDeviceEnablementState
+from azext_iot.adr.common import (
+    DeviceAttributeReportedType,
+    RegistryDeviceEnablementState,
+)
 from azext_iot.adr.providers.registry_device import RegistryDeviceProvider
 
 
@@ -112,37 +115,21 @@ def adr_registry_device_delete(
     )
 
 
-def adr_registry_device_auth_profile_list(
+def adr_registry_device_auth_list(
     cmd,
     registry_device_name: str,
     namespace_name: str,
     resource_group_name: str,
 ):
     provider = RegistryDeviceProvider(cmd)
-    return provider.auth_profile_list(
+    return provider.auth_list(
         registry_device_name=registry_device_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
     )
 
 
-def adr_registry_device_auth_profile_show(
-    cmd,
-    authentication_profile_name: str,
-    registry_device_name: str,
-    namespace_name: str,
-    resource_group_name: str,
-):
-    provider = RegistryDeviceProvider(cmd)
-    return provider.auth_profile_show(
-        authentication_profile_name=authentication_profile_name,
-        registry_device_name=registry_device_name,
-        namespace_name=namespace_name,
-        resource_group_name=resource_group_name,
-    )
-
-
-def adr_registry_device_auth_profile_get_keys(
+def adr_registry_device_auth_show(
     cmd,
     authentication_profile_name: str,
     registry_device_name: str,
@@ -150,7 +137,7 @@ def adr_registry_device_auth_profile_get_keys(
     resource_group_name: str,
 ):
     provider = RegistryDeviceProvider(cmd)
-    return provider.auth_profile_get_keys(
+    return provider.auth_show(
         authentication_profile_name=authentication_profile_name,
         registry_device_name=registry_device_name,
         namespace_name=namespace_name,
@@ -158,7 +145,23 @@ def adr_registry_device_auth_profile_get_keys(
     )
 
 
-def adr_registry_device_auth_profile_revoke_certificates(
+def adr_registry_device_auth_show_keys(
+    cmd,
+    authentication_profile_name: str,
+    registry_device_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+):
+    provider = RegistryDeviceProvider(cmd)
+    return provider.auth_show_keys(
+        authentication_profile_name=authentication_profile_name,
+        registry_device_name=registry_device_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+    )
+
+
+def adr_registry_device_auth_revoke_certs(
     cmd,
     authentication_profile_name: str,
     registry_device_name: str,
@@ -167,7 +170,7 @@ def adr_registry_device_auth_profile_revoke_certificates(
     no_wait: bool = False,
 ):
     provider = RegistryDeviceProvider(cmd)
-    return provider.auth_profile_revoke_certificates(
+    return provider.auth_revoke_certs(
         authentication_profile_name=authentication_profile_name,
         registry_device_name=registry_device_name,
         namespace_name=namespace_name,
@@ -199,6 +202,44 @@ def adr_registry_device_attribute_show(
 ):
     provider = RegistryDeviceProvider(cmd)
     return provider.attribute_show(
+        attribute_name=attribute_name,
+        registry_device_name=registry_device_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+    )
+
+
+def adr_registry_device_attribute_create(
+    cmd,
+    attribute_name: str,
+    registry_device_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+    reported_by: str = DeviceAttributeReportedType.user.value,
+    schema: Optional[str] = None,
+    properties: Optional[str] = None,
+):
+    provider = RegistryDeviceProvider(cmd)
+    return provider.attribute_create(
+        attribute_name=attribute_name,
+        registry_device_name=registry_device_name,
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        reported_by=reported_by,
+        schema=schema,
+        properties=properties,
+    )
+
+
+def adr_registry_device_attribute_delete(
+    cmd,
+    attribute_name: str,
+    registry_device_name: str,
+    namespace_name: str,
+    resource_group_name: str,
+):
+    provider = RegistryDeviceProvider(cmd)
+    return provider.attribute_delete(
         attribute_name=attribute_name,
         registry_device_name=registry_device_name,
         namespace_name=namespace_name,

@@ -10,15 +10,24 @@ from azure.cli.core.azclierror import (
     InvalidArgumentValueError,
     RequiredArgumentMissingError,
 )
+from azure.core.exceptions import ResourceNotFoundError
 from knack.log import get_logger
 
 from azext_iot.adr.common import (
+    ADU_ATTRIBUTE_NAME,
+    DeviceAttributeReportedType,
     RegistryDeviceAuthenticationType,
     RegistryDeviceEnablementState,
+    is_adu_attribute_alias,
 )
 from azext_iot.adr.providers.base import ADRProvider
+from azext_iot.common.utility import process_json_arg
 
 logger = get_logger(__name__)
+
+INVALID_ATTRIBUTE_PROPERTIES_MSG = (
+    "--properties must be a JSON object (inline JSON or @/path/to/file.json)."
+)
 
 
 def _validate_enablement_state(enablement_state: Optional[str]) -> None:
@@ -170,7 +179,7 @@ class RegistryDeviceProvider(ADRProvider):
             no_wait=no_wait,
         )
 
-    def auth_profile_list(
+    def auth_list(
         self,
         registry_device_name: str,
         namespace_name: str,
@@ -184,7 +193,7 @@ class RegistryDeviceProvider(ADRProvider):
             )
         )
 
-    def auth_profile_show(
+    def auth_show(
         self,
         authentication_profile_name: str,
         registry_device_name: str,
@@ -198,14 +207,14 @@ class RegistryDeviceProvider(ADRProvider):
             authentication_profile_name=authentication_profile_name,
         )
 
-    def auth_profile_get_keys(
+    def auth_show_keys(
         self,
         authentication_profile_name: str,
         registry_device_name: str,
         namespace_name: str,
         resource_group_name: str,
     ):
-        profile = self.auth_profile_show(
+        profile = self.auth_show(
             authentication_profile_name=authentication_profile_name,
             registry_device_name=registry_device_name,
             namespace_name=namespace_name,
@@ -232,7 +241,7 @@ class RegistryDeviceProvider(ADRProvider):
         )
         return keys
 
-    def auth_profile_revoke_certificates(
+    def auth_revoke_certs(
         self,
         authentication_profile_name: str,
         registry_device_name: str,
@@ -240,7 +249,7 @@ class RegistryDeviceProvider(ADRProvider):
         resource_group_name: str,
         no_wait: bool = False,
     ):
-        profile = self.auth_profile_show(
+        profile = self.auth_show(
             authentication_profile_name=authentication_profile_name,
             registry_device_name=registry_device_name,
             namespace_name=namespace_name,
@@ -293,7 +302,86 @@ class RegistryDeviceProvider(ADRProvider):
         namespace_name: str,
         resource_group_name: str,
     ):
-        return self.client.registry_device_attributes.get(
+        try:
+            return self.client.registry_device_attributes.get(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                registry_device_name=registry_device_name,
+                attribute_name=attribute_name,
+            )
+        except ResourceNotFoundError:
+            # `software-update` is accepted as a friendlier spelling of the
+            # ADU-reported attribute. The literal name is always tried first so
+            # a customer-authored attribute of the same name still wins.
+            if not is_adu_attribute_alias(attribute_name):
+                raise
+            logger.warning(
+                "No attribute named '%s' exists on Registry Device '%s'. Showing the "
+                "Azure Device Update attribute '%s' instead; '%s' is its canonical "
+                "resource name and the only name accepted by other commands.",
+                attribute_name,
+                registry_device_name,
+                ADU_ATTRIBUTE_NAME,
+                ADU_ATTRIBUTE_NAME,
+            )
+            return self.client.registry_device_attributes.get(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                registry_device_name=registry_device_name,
+                attribute_name=ADU_ATTRIBUTE_NAME,
+            )
+
+    def attribute_create(
+        self,
+        attribute_name: str,
+        registry_device_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+        reported_by: str = DeviceAttributeReportedType.user.value,
+        schema: Optional[str] = None,
+        properties: Optional[str] = None,
+    ):
+        supported = {member.value for member in DeviceAttributeReportedType}
+        if reported_by not in supported:
+            raise InvalidArgumentValueError(
+                f"--reported-by must be one of {', '.join(sorted(supported))}."
+            )
+
+        attribute_properties: Dict[str, object] = {}
+        if properties is not None:
+            parsed = process_json_arg(properties, argument_name="properties")
+            if not isinstance(parsed, dict):
+                raise InvalidArgumentValueError(INVALID_ATTRIBUTE_PROPERTIES_MSG)
+            attribute_properties.update(parsed)
+
+        attribute_properties["reportedBy"] = reported_by
+        if schema is not None:
+            attribute_properties["schema"] = schema
+
+        if reported_by == DeviceAttributeReportedType.adu.value:
+            logger.warning(
+                "Attributes reported by '%s' are materialized and owned by Azure Device "
+                "Update. Overwriting one can clobber service-reported state and may be "
+                "reverted without notice. Use --reported-by User for your own metadata.",
+                DeviceAttributeReportedType.adu.value,
+            )
+
+        return self.client.registry_device_attributes.create_or_replace(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            registry_device_name=registry_device_name,
+            attribute_name=attribute_name,
+            resource={"properties": attribute_properties},
+        )
+
+    def attribute_delete(
+        self,
+        attribute_name: str,
+        registry_device_name: str,
+        namespace_name: str,
+        resource_group_name: str,
+    ):
+        return self.client.registry_device_attributes.delete(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             registry_device_name=registry_device_name,

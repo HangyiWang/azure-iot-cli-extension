@@ -9,7 +9,7 @@ The **Azure IoT extension for Azure CLI** aims to accelerate the development, ma
 
 - ❗ When upgrading your Azure CLI core version, for the best experience and to avoid breaking changes, we recommend updating your `azure-iot` extension to the [latest available](https://github.com/Azure/azure-iot-cli-extension/releases).
 
-- 🆕 **`0.33.0b7` Preview** updates `az iot adr ns` to the namespace-scoped `2026-11-02-preview` Device Registry contract and adds `az iot adr ns su instance` control-plane commands for Software Update instance lifecycle. It also includes Registry Device CRUD and child Authentication Profile/Attribute/Capability commands, Namespace Asset CRUD and `execute-action`, Discovered Device and Discovered Asset CRUD, namespace identity and management-endpoint commands, Namespace Device extended locations, Group identity support, jobs, job runs, migration, reporting, CMS, and Hub/DPS/ASU links. Legacy namespace credential and policy groups are removed; Software Update data-plane commands are not included. See [HISTORY.rst](HISTORY.rst) for details. Install with `az extension add --name azure-iot --allow-preview`.
+- 🆕 **`0.33.0b7` Preview** updates `az iot adr ns` to the namespace-scoped `2026-11-02-preview` Device Registry contract and adds `az iot adr ns su instance` control-plane commands for Update Instance lifecycle. It also includes Registry Device CRUD with child Authentication Profile/Attribute/Capability commands, namespace identity management, Group identity support, groups, jobs, job runs, update-compliance reporting, certificate authorities and CA policies, and Hub/DPS/Software Updates links. `az iot adr ns` is cloud-only: asset, Namespace Device, discovered-*, management-endpoint and migrate commands require Azure IoT Operations and live under `az iot ops ns`. Legacy namespace credential and policy groups are removed; Software Updates data-plane commands are not included. See [HISTORY.rst](HISTORY.rst) for details. Install with `az extension add --name azure-iot --allow-preview`.
 
 - Azure CLI `2.24.0` requires an `azure-iot` extension update to `0.10.11` or later for IoT Hub commands to work properly. However **we recommend** at least `azure-iot` `0.10.14`. Updating the extension can be done with `az extension update --name azure-iot`.
 
@@ -108,30 +108,28 @@ Group
     az iot adr ns : Manage Device Registry namespaces.
 
 Subgroups:
-    asset                   : Manage assets beneath a Device Registry namespace.
     ca                      : Manage certificate authorities for a Device Registry namespace.
-    device                  : Manage Device Registry namespace devices.
-    discovered-asset        : Manage discovered-asset resources beneath a namespace.
-    discovered-device       : Manage discovered-device resources beneath a namespace.
     group                   : Manage Device Registry namespace groups.
     identity                : Manage identities assigned to a Device Registry namespace.
     job                     : Manage Device Registry namespace jobs.
     link                    : Manage links between a Device Registry namespace and downstream
                               resources.
-    management-endpoint     : Configure namespace management endpoints.
     registry-device         : Manage Registry Devices in a Device Registry namespace.
     report                  : Manage Device Registry update-compliance reports.
-    su                      : Manage Software Update instances.
+    su                      : Manage Software Updates for Device Registry namespaces.
 
 Commands:
     create                  : Create a Device Registry namespace.
     delete                  : Delete a Device Registry namespace.
     list                    : List Device Registry namespaces.
-    migrate                 : Migrate resources into a Device Registry namespace.
     show                    : Show details of a Device Registry namespace.
     update                  : Update a Device Registry namespace.
     wait                    : Wait for a Device Registry namespace to reach a desired state.
 ```
+
+`az iot adr ns` is a cloud-only surface. Asset, Namespace Device, discovered-asset,
+discovered-device, management-endpoint and migrate commands require an Azure IoT Operations
+custom location and live in the `azure-iot-ops` extension under `az iot ops ns`.
 
 </details>
 

@@ -103,15 +103,34 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 f"iot adr ns job update -n myjob --ns {ns} -g {rg}",
                 expect_failure=True,
             )
-        with timed_step("job schedule ❯ invalid ISO 8601 --timeout rejected"):
+        with timed_step("job run create ❯ not a command; use job schedule"):
             self.cmd(
-                f"iot adr ns job schedule -n myjob --ns {ns} -g {rg} --timeout not-a-duration",
+                f"iot adr ns job run create --job-name myjob --ns {ns} -g {rg}",
                 expect_failure=True,
             )
         with timed_step("job schedule ❯ invalid ISO 8601 --scheduled-time rejected"):
             self.cmd(
                 f"iot adr ns job schedule -n myjob --ns {ns} -g {rg} "
                 f"--scheduled-time not-a-datetime",
+                expect_failure=True,
+            )
+        with timed_step("job schedule ❯ timezone-naive --scheduled-time rejected"):
+            self.cmd(
+                f"iot adr ns job schedule -n myjob --ns {ns} -g {rg} "
+                f"--scheduled-time 2026-11-02T12:00:00",
+                expect_failure=True,
+            )
+        with timed_step("job run results ❯ unsupported --order-by field rejected"):
+            self.cmd(
+                f"iot adr ns job run results --job-name myjob --run-name myrun "
+                f"--ns {ns} -g {rg} --order-by \"name asc\"",
+                expect_failure=True,
+            )
+
+        # --- Group: query filter is required at create time ---
+        with timed_step("group create ❯ missing --query-string rejected"):
+            self.cmd(
+                f"iot adr ns group create -n mygroup --ns {ns} -g {rg}",
                 expect_failure=True,
             )
 

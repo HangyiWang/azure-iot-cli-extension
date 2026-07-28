@@ -8,6 +8,7 @@ from typing import Dict, Optional
 
 from azext_iot.adr.common import JobType
 from azext_iot.adr.providers.job import JobProvider
+from azext_iot.adr.providers.job_run import JobRunProvider
 
 
 def adr_job_create(
@@ -21,6 +22,7 @@ def adr_job_create(
     target_group_name: Optional[str] = None,
     job_type: str = JobType.software_update.value,
     description: Optional[str] = None,
+    display_name: Optional[str] = None,
     location: Optional[str] = None,
     tags: Optional[Dict[str, str]] = None,
     no_wait: bool = False,
@@ -36,6 +38,7 @@ def adr_job_create(
         target_group_name=target_group_name,
         job_type=job_type,
         description=description,
+        display_name=display_name,
         location=location,
         tags=tags,
         no_wait=no_wait,
@@ -96,16 +99,22 @@ def adr_job_schedule(
     job_name: str,
     namespace_name: str,
     resource_group_name: str,
+    run_name: Optional[str] = None,
     scheduled_time: Optional[str] = None,
-    timeout: Optional[str] = None,
     no_wait: bool = False,
 ):
-    provider = JobProvider(cmd)
-    return provider.schedule(
+    """Schedule an execution of a job.
+
+    Backed by ``JobRuns_CreateOrReplace``: a job defines *what* to roll out and
+    *to whom*, and each run carries *when* it executes. ``scheduledTime`` is the
+    only writable field on a run, so scheduling is expressed by creating one.
+    """
+    provider = JobRunProvider(cmd)
+    return provider.create(
         job_name=job_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
+        run_name=run_name,
         scheduled_time=scheduled_time,
-        timeout=timeout,
         no_wait=no_wait,
     )

@@ -23,16 +23,15 @@ class GroupProvider(ADRProvider):
         namespace_name: str,
         resource_group_name: str,
         query_string: str,
-        group_type: str = GroupType.device.value,
+        group_type: str = GroupType.registry_device.value,
         location: Optional[str] = None,
         display_name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
-        mi_system_assigned: Optional[bool] = None,
-        **kwargs,
+        **kwargs,  # pylint: disable=unused-argument
     ):
         location = self._resolve_location(namespace_name, resource_group_name, location)
-        properties = {"groupType": group_type, "query": query_string}
+        properties = {"groupType": group_type, "queryFilter": query_string}
         if display_name is not None:
             properties["displayName"] = display_name
         if description is not None:
@@ -41,19 +40,12 @@ class GroupProvider(ADRProvider):
         resource = {"location": location, "properties": properties}
         if tags is not None:
             resource["tags"] = tags
-        if mi_system_assigned:
-            resource["identity"] = {"type": "SystemAssigned"}
 
-        poller = self.client.groups.begin_create_or_replace(
+        return self.client.groups.create_or_replace(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             group_name=group_name,
             resource=resource,
-        )
-        return self._wait(
-            poller,
-            f"Creating group '{group_name}' in namespace {namespace_name}...",
-            **kwargs,
         )
 
     def update(
@@ -64,18 +56,16 @@ class GroupProvider(ADRProvider):
         display_name: Optional[str] = None,
         description: Optional[str] = None,
         tags: Optional[Dict[str, str]] = None,
-        mi_system_assigned: Optional[bool] = None,
-        **kwargs,
+        **kwargs,  # pylint: disable=unused-argument
     ):
         inner_properties = {}
         if display_name is not None:
             inner_properties["displayName"] = display_name
         if description is not None:
             inner_properties["description"] = description
-        if not inner_properties and tags is None and mi_system_assigned is None:
+        if not inner_properties and tags is None:
             raise RequiredArgumentMissingError(
-                "Nothing to update. Provide --display-name, --description, --tags, "
-                "or --mi-system-assigned."
+                "Nothing to update. Provide --display-name, --description or --tags."
             )
 
         body = {}
@@ -83,21 +73,12 @@ class GroupProvider(ADRProvider):
             body["properties"] = inner_properties
         if tags is not None:
             body["tags"] = tags
-        if mi_system_assigned is not None:
-            body["identity"] = {
-                "type": "SystemAssigned" if mi_system_assigned else "None"
-            }
 
-        poller = self.client.groups.begin_update(
+        return self.client.groups.update(
             resource_group_name=resource_group_name,
             namespace_name=namespace_name,
             group_name=group_name,
             properties=body,
-        )
-        return self._wait(
-            poller,
-            f"Updating group '{group_name}' in namespace {namespace_name}...",
-            **kwargs,
         )
 
     def show(self, group_name: str, namespace_name: str, resource_group_name: str):

@@ -41,15 +41,14 @@ class TestADRGroupLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 created = self.cmd(
                     f"iot adr ns group create -n {group_name} "
                     f"--ns {namespace_name} -g {rg} "
-                    '--query-string "SELECT * FROM DEVICE" '
-                    "--mi-system-assigned true"
+                    '--query-string "*"'
                 ).get_output_in_json()
                 assert created["name"] == group_name
-                assert created["identity"]["type"] == "SystemAssigned"
-                self.cmd(
-                    f"iot adr ns group wait -n {group_name} "
-                    f"--ns {namespace_name} -g {rg} --created"
-                )
+                assert created["properties"]["groupType"] == "RegistryDevice"
+                assert created["properties"]["queryFilter"] == "*"
+                # Group is a plain TrackedResource in 2026-11-02-preview: no identity.
+                assert "identity" not in created
+                # Groups_CreateOrReplace is synchronous, so no wait is needed here.
 
                 shown = self.cmd(
                     f"iot adr ns group show -n {group_name} "
@@ -66,12 +65,12 @@ class TestADRGroupLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     f"iot adr ns group update -n {group_name} "
                     f"--ns {namespace_name} -g {rg} "
                     "--display-name 'Test group' --description 'integration test' "
-                    "--tags env=ci --mi-system-assigned false"
+                    "--tags env=ci"
                 ).get_output_in_json()
                 assert updated["properties"]["displayName"] == "Test group"
                 assert updated["properties"]["description"] == "integration test"
                 assert updated["tags"]["env"] == "ci"
-                assert updated["identity"]["type"] == "None"
+                assert "identity" not in updated
 
             with timed_step("Step 3 ❯ Reject empty update"):
                 self.cmd(

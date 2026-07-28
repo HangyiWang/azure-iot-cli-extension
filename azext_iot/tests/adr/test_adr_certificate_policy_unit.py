@@ -23,7 +23,7 @@ def _parent_not_found_error():
 def test_create_ca_policy(fixture_ca_policy_provider, mock_poller):
     """Create builds the certificate config body and resolves location from the namespace."""
     sentinel = Mock()
-    fixture_ca_policy_provider.client.certificate_policies.begin_create_or_update.return_value = mock_poller(
+    fixture_ca_policy_provider.client.certificate_policies.begin_create_or_replace.return_value = mock_poller(
         sentinel
     )
     fixture_ca_policy_provider.client.namespaces.get.return_value = {"location": "eastus"}
@@ -34,7 +34,7 @@ def test_create_ca_policy(fixture_ca_policy_provider, mock_poller):
     )
 
     assert result == sentinel
-    call = fixture_ca_policy_provider.client.certificate_policies.begin_create_or_update.call_args[1]
+    call = fixture_ca_policy_provider.client.certificate_policies.begin_create_or_replace.call_args[1]
     assert call["certificate_authority_name"] == "ca"
     assert call["certificate_policy_name"] == "cp"
     resource = call["resource"]
@@ -45,7 +45,7 @@ def test_create_ca_policy(fixture_ca_policy_provider, mock_poller):
 def test_create_ca_policy_parent_not_found(fixture_ca_policy_provider):
     """Create surfaces a friendly ResourceNotFoundError when the parent CA is missing."""
     fixture_ca_policy_provider.client.namespaces.get.return_value = {"location": "eastus"}
-    fixture_ca_policy_provider.client.certificate_policies.begin_create_or_update.side_effect = (
+    fixture_ca_policy_provider.client.certificate_policies.begin_create_or_replace.side_effect = (
         _parent_not_found_error()
     )
 
@@ -143,7 +143,7 @@ def test_delete_ca_policy(fixture_ca_policy_provider, mock_poller):
 def test_create_ca_policy_no_wait_returns_poller(fixture_ca_policy_provider, mock_poller):
     """With --no-wait, create returns the poller without waiting."""
     poller = mock_poller({"name": "cp"})
-    fixture_ca_policy_provider.client.certificate_policies.begin_create_or_update.return_value = poller
+    fixture_ca_policy_provider.client.certificate_policies.begin_create_or_replace.return_value = poller
     fixture_ca_policy_provider.client.namespaces.get.return_value = {"location": "eastus"}
 
     result = fixture_ca_policy_provider.create(
@@ -168,7 +168,7 @@ def test_update_ca_policy_requires_a_field(fixture_ca_policy_provider):
 
 def test_create_ca_policy_with_tags(fixture_ca_policy_provider, mock_poller):
     """Tags are included in the create body when provided."""
-    fixture_ca_policy_provider.client.certificate_policies.begin_create_or_update.return_value = mock_poller(
+    fixture_ca_policy_provider.client.certificate_policies.begin_create_or_replace.return_value = mock_poller(
         Mock()
     )
     fixture_ca_policy_provider.client.namespaces.get.return_value = {"location": "eastus"}
@@ -178,7 +178,7 @@ def test_create_ca_policy_with_tags(fixture_ca_policy_provider, mock_poller):
         namespace_name="ns", resource_group_name="rg", validity_days=10, tags={"env": "prod"},
     )
 
-    resource = fixture_ca_policy_provider.client.certificate_policies.begin_create_or_update.call_args[1][
+    resource = fixture_ca_policy_provider.client.certificate_policies.begin_create_or_replace.call_args[1][
         "resource"
     ]
     assert resource["tags"] == {"env": "prod"}

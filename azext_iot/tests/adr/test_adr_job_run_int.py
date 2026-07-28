@@ -87,7 +87,7 @@ class TestADRJobRunSurface(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 self.cmd(
                     f"iot adr ns group create -n {group_name} --ns {namespace_name} -g {rg} "
-                    f"--query-string \"SELECT * FROM DEVICE\""
+                    f'--query-string "*"'
                 )
                 self.cmd(
                     f"iot adr ns job create -n {job_name} --ns {namespace_name} -g {rg} "
@@ -100,9 +100,44 @@ class TestADRJobRunSurface(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 # Immediate schedule (no --scheduled-time) opens the window
                 # right away. With zero devices in the group, backend will
                 # typically produce zero runs.
+                generated = self.cmd(
+                    f"iot adr ns job schedule -n {job_name} "
+                    f"--ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                # --run-name is optional; a UTC-timestamped name is generated.
+                assert generated["name"].startswith("run-")
+                _log(LogKind.OK, "generated run name=%s", generated["name"])
+
+            with timed_step("Step 1b ❯ Explicit run name, summary, results, delete"):
+                explicit_run = f"run-explicit-{generate_generic_id()[:8]}"
+                created_run = self.cmd(
+                    f"iot adr ns job schedule -n {job_name} "
+                    f"--ns {namespace_name} -g {rg} --run-name {explicit_run}"
+                ).get_output_in_json()
+                assert created_run["name"] == explicit_run
+
+                summary = self.cmd(
+                    f"iot adr ns job run summary -n {explicit_run} --job-name {job_name} "
+                    f"--ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                assert isinstance(summary, dict)
+
+                ordered = self.cmd(
+                    f"iot adr ns job run results --jn {job_name} --rn {explicit_run} "
+                    f"--ns {namespace_name} -g {rg} --order-by \"status asc\""
+                ).get_output_in_json()
+                assert isinstance(ordered, list)
+
                 self.cmd(
-                    f"iot adr ns job schedule -n {job_name} --ns {namespace_name} -g {rg}"
+                    f"iot adr ns job run delete -n {explicit_run} --job-name {job_name} "
+                    f"--ns {namespace_name} -g {rg} -y"
                 )
+                self.cmd(
+                    f"iot adr ns job run show -n {explicit_run} --job-name {job_name} "
+                    f"--ns {namespace_name} -g {rg}",
+                    expect_failure=True,
+                )
+                _log(LogKind.OK, "explicit run lifecycle complete")
 
             with timed_step("Step 2 ❯ job run list returns a list (likely empty)"):
                 runs = self.cmd(
