@@ -6,7 +6,7 @@
 
 from azure.cli.core.commands import CliCommandType
 
-from azext_iot._factory import adr_du_service_factory, adr_service_factory
+from azext_iot._factory import adr_service_factory, adr_su_service_factory
 
 adr_namespace_ops = CliCommandType(
     operations_tmpl="azext_iot.adr.commands_namespace#{}",
@@ -53,9 +53,9 @@ adr_report_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
-adr_du_ops = CliCommandType(
-    operations_tmpl="azext_iot.adr.commands_du#{}",
-    client_factory=adr_du_service_factory,
+adr_su_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_su#{}",
+    client_factory=adr_su_service_factory,
 )
 
 
@@ -166,34 +166,34 @@ def load_adr_commands(self, _):
             "wait", "adr_namespace_show", getter_type=adr_namespace_ops
         )
 
-    with self.command_group("iot adr ns link du", command_type=adr_link_ops) as cmd_group:
-        cmd_group.command("add", "adr_link_du_add", supports_no_wait=True)
-        cmd_group.command("update", "adr_link_du_update", supports_no_wait=True)
-        cmd_group.show_command("show", "adr_link_du_show")
-        cmd_group.command("list", "adr_link_du_list")
+    with self.command_group("iot adr ns link su", command_type=adr_link_ops) as cmd_group:
+        cmd_group.command("add", "adr_link_su_add", supports_no_wait=True)
+        cmd_group.command("update", "adr_link_su_update", supports_no_wait=True)
+        cmd_group.show_command("show", "adr_link_su_show")
+        cmd_group.command("list", "adr_link_su_list")
         cmd_group.wait_command(
             "wait", "adr_namespace_show", getter_type=adr_namespace_ops
         )
 
     with self.command_group(
-        "iot adr ns du instance", command_type=adr_du_ops
+        "iot adr ns su instance", command_type=adr_su_ops
     ) as cmd_group:
-        cmd_group.command("check-name", "adr_du_instance_check_name")
+        cmd_group.command("check-name", "adr_su_instance_check_name")
         cmd_group.command(
-            "create", "adr_du_instance_create", supports_no_wait=True
+            "create", "adr_su_instance_create", supports_no_wait=True
         )
-        cmd_group.show_command("show", "adr_du_instance_show")
-        cmd_group.command("list", "adr_du_instance_list")
+        cmd_group.show_command("show", "adr_su_instance_show")
+        cmd_group.command("list", "adr_su_instance_list")
         cmd_group.command(
-            "update", "adr_du_instance_update", supports_no_wait=True
+            "update", "adr_su_instance_update", supports_no_wait=True
         )
         cmd_group.command(
             "delete",
-            "adr_du_instance_delete",
+            "adr_su_instance_delete",
             confirmation=True,
             supports_no_wait=True,
         )
-        cmd_group.wait_command("wait", "adr_du_instance_show")
+        cmd_group.wait_command("wait", "adr_su_instance_show")
 
     # Group commands
     with self.command_group("iot adr ns group", command_type=adr_group_ops) as cmd_group:

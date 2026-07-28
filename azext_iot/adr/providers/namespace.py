@@ -7,10 +7,12 @@
 from typing import Any, Dict, List, Optional
 
 from azure.cli.core.azclierror import (
+    AzureResponseError,
     InvalidArgumentValueError,
     MutuallyExclusiveArgumentError,
     RequiredArgumentMissingError,
 )
+from azure.core.exceptions import HttpResponseError
 from knack.log import get_logger
 
 from azext_iot.adr.common import (
@@ -213,14 +215,37 @@ class NamespaceProvider(ADRProvider):
         return list(result)
 
     def delete(self, namespace_name: str, resource_group_name: str, **kwargs):
-        logger.warning(
-            "All child resources under namespace '%s' will be deleted.",
-            namespace_name,
+        # The service does NOT cascade: it rejects the delete with 'NamespaceNotEmpty'
+        # while any child resource remains, so children must be removed first.
+        try:
+            poller = self.client.namespaces.begin_delete(
+                resource_group_name=resource_group_name, namespace_name=namespace_name
+            )
+            return self._wait(poller, f"Deleting namespace {namespace_name}...", **kwargs)
+        except HttpResponseError as error:
+            self._raise_if_namespace_not_empty(error, namespace_name)
+            raise
+
+    @staticmethod
+    def _raise_if_namespace_not_empty(error: HttpResponseError, namespace_name: str):
+        """Translate the backend 'NamespaceNotEmpty' rejection into actionable guidance.
+
+        Returns without raising when ``error`` is unrelated, so the caller can re-raise it
+        unchanged.
+        """
+        if "NamespaceNotEmpty" not in str(error):
+            return
+        # error.message carries a multi-line 'Exception Details' block; keep only its first
+        # line so the guidance below stays readable.
+        summary = (error.message or str(error)).strip().splitlines()[0].strip()
+        raise AzureResponseError(
+            f"{summary}\nNamespace deletion does not cascade. Delete the child resources "
+            f"first, for example:\n"
+            f"  az iot adr ns registry-device delete --ns {namespace_name} -g <rg> -n <device>\n"
+            f"  az iot adr ns group delete --ns {namespace_name} -g <rg> -n <group>\n"
+            f"  az iot adr ns job delete --ns {namespace_name} -g <rg> -n <job>\n"
+            f"  az iot adr ns ca delete --ns {namespace_name} -g <rg> -n <ca>"
         )
-        poller = self.client.namespaces.begin_delete(
-            resource_group_name=resource_group_name, namespace_name=namespace_name
-        )
-        return self._wait(poller, f"Deleting namespace {namespace_name}...", **kwargs)
 
     def update(
         self,

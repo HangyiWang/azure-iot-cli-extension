@@ -9,22 +9,22 @@ from typing import Dict, List, Optional
 from azext_iot.adr.providers.update_instance import UpdateInstanceProvider
 
 
-def adr_du_instance_check_name(cmd, update_instance_name: str):
+def adr_su_instance_check_name(cmd, update_instance_name: str):
     return UpdateInstanceProvider(cmd).check_name(update_instance_name)
 
 
-def adr_du_instance_list(cmd, resource_group_name: Optional[str] = None):
+def adr_su_instance_list(cmd, resource_group_name: Optional[str] = None):
     return UpdateInstanceProvider(cmd).list(resource_group_name=resource_group_name)
 
 
-def adr_du_instance_show(cmd, update_instance_name: str, resource_group_name: str):
+def adr_su_instance_show(cmd, update_instance_name: str, resource_group_name: str):
     return UpdateInstanceProvider(cmd).show(
         update_instance_name=update_instance_name,
         resource_group_name=resource_group_name,
     )
 
 
-def adr_du_instance_create(
+def adr_su_instance_create(
     cmd,
     update_instance_name: str,
     resource_group_name: str,
@@ -45,7 +45,7 @@ def adr_du_instance_create(
     )
 
 
-def adr_du_instance_update(
+def adr_su_instance_update(
     cmd,
     update_instance_name: str,
     resource_group_name: str,
@@ -64,7 +64,7 @@ def adr_du_instance_update(
     )
 
 
-def adr_du_instance_delete(
+def adr_su_instance_delete(
     cmd,
     update_instance_name: str,
     resource_group_name: str,

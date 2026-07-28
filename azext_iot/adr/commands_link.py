@@ -134,32 +134,32 @@ def adr_link_dps_list(cmd, namespace_name: str, resource_group_name: str):
     )
 
 
-# ==================== link du ====================
+# ==================== link su ====================
 
 
-def adr_link_du_add(
+def adr_link_su_add(
     cmd,
     endpoint_name: str,
     namespace_name: str,
     resource_group_name: str,
-    du_resource_id: str,
+    su_resource_id: str,
     mi_system_assigned: bool = False,
     mi_user_assigned: Optional[str] = None,
     no_wait: bool = False,
 ):
     provider = LinkProvider(cmd)
-    return provider.du_add(
+    return provider.su_add(
         endpoint_name=endpoint_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
-        du_resource_id=du_resource_id,
+        su_resource_id=su_resource_id,
         mi_system_assigned=mi_system_assigned,
         mi_user_assigned=mi_user_assigned,
         no_wait=no_wait,
     )
 
 
-def adr_link_du_update(
+def adr_link_su_update(
     cmd,
     endpoint_name: str,
     namespace_name: str,
@@ -169,7 +169,7 @@ def adr_link_du_update(
     no_wait: bool = False,
 ):
     provider = LinkProvider(cmd)
-    return provider.du_update(
+    return provider.su_update(
         endpoint_name=endpoint_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
@@ -179,18 +179,18 @@ def adr_link_du_update(
     )
 
 
-def adr_link_du_show(cmd, endpoint_name: str, namespace_name: str, resource_group_name: str):
+def adr_link_su_show(cmd, endpoint_name: str, namespace_name: str, resource_group_name: str):
     provider = LinkProvider(cmd)
-    return provider.du_show(
+    return provider.su_show(
         endpoint_name=endpoint_name,
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
     )
 
 
-def adr_link_du_list(cmd, namespace_name: str, resource_group_name: str):
+def adr_link_su_list(cmd, namespace_name: str, resource_group_name: str):
     provider = LinkProvider(cmd)
-    return provider.du_list(
+    return provider.su_list(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
     )

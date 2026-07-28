@@ -19,7 +19,7 @@ from azext_iot._factory import iot_service_provisioning_factory
 from azext_iot.adr.common import (
     DPS_ENDPOINT_TYPE,
     IOT_HUB_ENDPOINT_TYPE,
-    ADU_ENDPOINT_TYPE,
+    ASU_ENDPOINT_TYPE,
     IdentityType,
     build_mi_body,
 )
@@ -91,26 +91,26 @@ def _parse_dps_resource_id(dps_resource_id: str) -> dict:
     }
 
 
-def _parse_du_resource_id(du_resource_id: str) -> dict:
-    """Parse an ADU update-instance ARM resource ID into its components.
+def _parse_su_resource_id(su_resource_id: str) -> dict:
+    """Parse an ASU update-instance ARM resource ID into its components.
 
     Expected shape:
         /subscriptions/<sub>/resourceGroups/<rg>/providers/
             Microsoft.DeviceUpdate/updateInstances/<name>
     """
-    raw = (du_resource_id or "").strip()
+    raw = (su_resource_id or "").strip()
     if not raw:
         raise InvalidArgumentValueError(
-            "--du-id is required and must be a Microsoft.DeviceUpdate/updateInstances ARM resource ID."
+            "--su-id is required and must be a Microsoft.DeviceUpdate/updateInstances ARM resource ID."
         )
     # Friendly hint: a bare name (no slashes) is the most common mistake here.
     if "/" not in raw:
         raise InvalidArgumentValueError(
-            f"'{raw}' looks like a bare ADU account name. Pass the full ARM resource ID instead."
+            f"'{raw}' looks like a bare ASU account name. Pass the full ARM resource ID instead."
         )
     if not is_valid_resource_id(raw):
         raise InvalidArgumentValueError(
-            f"'{du_resource_id}' is not a valid ARM resource ID."
+            f"'{su_resource_id}' is not a valid ARM resource ID."
         )
     parsed = parse_resource_id(raw)
     # Reject child resources and any non-updateInstances resource type.
@@ -120,8 +120,8 @@ def _parse_du_resource_id(du_resource_id: str) -> dict:
         or "child_name_1" in parsed
     ):
         raise InvalidArgumentValueError(
-            f"'{du_resource_id}' is not a Microsoft.DeviceUpdate/updateInstances resource ID. "
-            "Pass the full ARM resource ID of the Device Update instance."
+            f"'{su_resource_id}' is not a Microsoft.DeviceUpdate/updateInstances resource ID. "
+            "Pass the full ARM resource ID of the Software Update instance."
         )
     return {
         "subscription_id": parsed["subscription"],
@@ -164,7 +164,7 @@ def _build_inbound_identity(mi_system_assigned: bool, mi_user_assigned: Optional
 def _get_endpoints(namespace: dict, section: str) -> dict:
     """Return ``properties.<section>.endpoints`` from a namespace, defaulting to {} at each hop.
 
-    ``section`` is one of "messaging" (Hub), "provisioning" (DPS) or "updating" (ADU).
+    ``section`` is one of "messaging" (Hub), "provisioning" (DPS) or "updating" (ASU).
     """
     return ((((namespace or {}).get("properties") or {}).get(section) or {}).get("endpoints")) or {}
 
@@ -219,15 +219,15 @@ def _build_dps_endpoint_body(
     }
 
 
-def _build_du_endpoint_body(
-    du_resource_id: str,
+def _build_su_endpoint_body(
+    su_resource_id: str,
     mi_system_assigned: bool,
     mi_user_assigned: Optional[str],
 ) -> dict:
-    """Build a full ADU updating-endpoint body for a namespace PATCH."""
+    """Build a full ASU updating-endpoint body for a namespace PATCH."""
     return {
-        "endpointType": ADU_ENDPOINT_TYPE,
-        "resourceId": du_resource_id,
+        "endpointType": ASU_ENDPOINT_TYPE,
+        "resourceId": su_resource_id,
         "inboundCallerIdentity": _build_inbound_identity(mi_system_assigned, mi_user_assigned),
     }
 
@@ -540,7 +540,7 @@ class LinkProvider(ADRProvider):
             if (ep or {}).get("endpointType") == DPS_ENDPOINT_TYPE
         ]
 
-    # ADU commands
+    # ASU commands
 
     def _patch_updating_endpoints(
         self,
@@ -558,33 +558,33 @@ class LinkProvider(ADRProvider):
         )
         return self._wait(
             poller,
-            f"Updating device update endpoints on namespace {namespace_name}...",
+            f"Updating software update endpoints on namespace {namespace_name}...",
             no_wait=no_wait,
             **kwargs,
         )
 
-    def du_add(
+    def su_add(
         self,
         endpoint_name: str,
         namespace_name: str,
         resource_group_name: str,
-        du_resource_id: str,
+        su_resource_id: str,
         mi_system_assigned: bool = False,
         mi_user_assigned: Optional[str] = None,
         **kwargs,
     ):
-        """Add an Azure Device Update (ADU) updating endpoint to a namespace."""
-        _parse_du_resource_id(du_resource_id)  # validate ARM ID shape up front
+        """Add an Azure Software Update (ASU) updating endpoint to a namespace."""
+        _parse_su_resource_id(su_resource_id)  # validate ARM ID shape up front
 
         existing = self._get_namespace(namespace_name, resource_group_name)
         if endpoint_name in _get_updating_endpoints(existing):
             raise ArgumentUsageError(
-                f"Device update endpoint '{endpoint_name}' already exists on namespace "
-                f"'{namespace_name}'. Use 'az iot adr ns link du update' to modify it."
+                f"Software update endpoint '{endpoint_name}' already exists on namespace "
+                f"'{namespace_name}'. Use 'az iot adr ns link su update' to modify it."
             )
 
-        endpoint_body = _build_du_endpoint_body(
-            du_resource_id, mi_system_assigned, mi_user_assigned
+        endpoint_body = _build_su_endpoint_body(
+            su_resource_id, mi_system_assigned, mi_user_assigned
         )
         return self._patch_updating_endpoints(
             namespace_name=namespace_name,
@@ -593,7 +593,7 @@ class LinkProvider(ADRProvider):
             **kwargs,
         )
 
-    def du_update(
+    def su_update(
         self,
         endpoint_name: str,
         namespace_name: str,
@@ -602,7 +602,7 @@ class LinkProvider(ADRProvider):
         mi_user_assigned: Optional[str] = None,
         **kwargs,
     ):
-        """Partial-update an existing ADU updating endpoint on a namespace."""
+        """Partial-update an existing ASU updating endpoint on a namespace."""
         if mi_system_assigned and mi_user_assigned:
             raise ArgumentUsageError(_MI_MUTEX_MSG)
 
@@ -610,7 +610,7 @@ class LinkProvider(ADRProvider):
         endpoints = _get_updating_endpoints(existing)
         if endpoint_name not in endpoints:
             raise ResourceNotFoundError(
-                f"Device update endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
+                f"Software update endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
             )
 
         inbound_identity = _resolve_inbound_identity(mi_system_assigned, mi_user_assigned)
@@ -634,24 +634,24 @@ class LinkProvider(ADRProvider):
             **kwargs,
         )
 
-    def du_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
-        """Project a single ADU updating endpoint from the namespace."""
+    def su_show(self, endpoint_name: str, namespace_name: str, resource_group_name: str):
+        """Project a single ASU updating endpoint from the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_updating_endpoints(ns)
         if endpoint_name not in endpoints:
             raise ResourceNotFoundError(
-                f"Device update endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
+                f"Software update endpoint '{endpoint_name}' was not found on namespace '{namespace_name}'."
             )
         return {"name": endpoint_name, **(endpoints[endpoint_name] or {})}
 
-    def du_list(self, namespace_name: str, resource_group_name: str):
-        """List all ADU updating endpoints on the namespace."""
+    def su_list(self, namespace_name: str, resource_group_name: str):
+        """List all ASU updating endpoints on the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
         endpoints = _get_updating_endpoints(ns)
         return [
             {"name": name, **(ep or {})}
             for name, ep in endpoints.items()
-            if (ep or {}).get("endpointType") == ADU_ENDPOINT_TYPE
+            if (ep or {}).get("endpointType") == ASU_ENDPOINT_TYPE
         ]
 
     # Bundled link add

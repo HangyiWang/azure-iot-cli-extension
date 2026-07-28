@@ -33,7 +33,7 @@ __all__ = [
     "iot_hub_service_factory",
     "iot_service_provisioning_factory",
     "adr_service_factory",
-    "adr_du_service_factory",
+    "adr_su_service_factory",
 ]
 
 
@@ -146,8 +146,8 @@ def adr_service_factory(cli_ctx, *_):
     )
 
 
-def adr_du_service_factory(cli_ctx, *_):
-    """Create the Device Update UpdateInstance management client."""
+def adr_su_service_factory(cli_ctx, *_):
+    """Create the Software Update UpdateInstance management client."""
     from azure.cli.core.commands.client_factory import get_subscription_id
 
     from azext_iot.sdk.deviceupdate.duregistry import (

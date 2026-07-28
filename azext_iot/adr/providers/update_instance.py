@@ -8,9 +8,9 @@ from typing import Dict, List, Optional
 
 from azure.cli.core.azclierror import RequiredArgumentMissingError
 
-from azext_iot._factory import adr_du_service_factory
+from azext_iot._factory import adr_su_service_factory
 from azext_iot.adr.common import (
-    ADU_ENDPOINT_TYPE,
+    ASU_ENDPOINT_TYPE,
     build_managed_service_identity,
 )
 from azext_iot.adr.providers import base as provider_base
@@ -20,14 +20,14 @@ from azext_iot.adr.providers.base import ADRProvider
 class UpdateInstanceProvider(ADRProvider):
     def __init__(self, cmd):
         self.cmd = cmd
-        self.client = adr_du_service_factory(cmd.cli_ctx)
+        self.client = adr_su_service_factory(cmd.cli_ctx)
 
     def _await_terminal(self, poller, **kwargs):
         return provider_base.wait_for_terminal_state(poller, **kwargs)
 
     def check_name(self, update_instance_name: str):
         return self.client.update_instances.check_name_availability(
-            {"name": update_instance_name, "type": ADU_ENDPOINT_TYPE}
+            {"name": update_instance_name, "type": ASU_ENDPOINT_TYPE}
         )
 
     def list(self, resource_group_name: Optional[str] = None):
@@ -74,7 +74,7 @@ class UpdateInstanceProvider(ADRProvider):
         )
         return self._wait(
             poller,
-            f"Creating Device Update instance '{update_instance_name}'...",
+            f"Creating Software Update instance '{update_instance_name}'...",
             **kwargs,
         )
 
@@ -106,7 +106,7 @@ class UpdateInstanceProvider(ADRProvider):
         )
         return self._wait(
             poller,
-            f"Updating Device Update instance '{update_instance_name}'...",
+            f"Updating Software Update instance '{update_instance_name}'...",
             **kwargs,
         )
 
@@ -122,6 +122,6 @@ class UpdateInstanceProvider(ADRProvider):
         )
         return self._wait(
             poller,
-            f"Deleting Device Update instance '{update_instance_name}'...",
+            f"Deleting Software Update instance '{update_instance_name}'...",
             **kwargs,
         )

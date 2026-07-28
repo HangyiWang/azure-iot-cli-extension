@@ -63,7 +63,7 @@ def load_adr_arguments(self, _):
             context.argument(
                 "updating_endpoints",
                 options_list=["--updating-endpoints"],
-                help="Device Update endpoint dictionary as inline JSON or a JSON file path.",
+                help="Software Update endpoint dictionary as inline JSON or a JSON file path.",
             )
 
     # Certificate Authority arguments
@@ -395,8 +395,8 @@ def load_adr_arguments(self, _):
             help="Azure resource ID of the Device Provisioning Service to link to this namespace.",
         )
 
-    # Device Update link arguments
-    with self.argument_context("iot adr ns link du") as context:
+    # Software Update link arguments
+    with self.argument_context("iot adr ns link su") as context:
         context.argument(
             "namespace_name",
             options_list=["--namespace", "--ns"],
@@ -405,17 +405,17 @@ def load_adr_arguments(self, _):
         context.argument(
             "endpoint_name",
             options_list=["--endpoint-name", "--en", "--name", "-n"],
-            help="Logical name of the Device Update endpoint entry.",
+            help="Logical name of the Software Update endpoint entry.",
         )
 
     for action in ("add", "update"):
-        with self.argument_context(f"iot adr ns link du {action}") as context:
+        with self.argument_context(f"iot adr ns link su {action}") as context:
             context.argument(
                 "mi_system_assigned",
                 arg_group="Inbound Caller Identity",
                 options_list=["--mi-system-assigned", "--mi-sa"],
                 arg_type=get_three_state_flag(),
-                help="Use the linked Device Update instance's system-assigned "
+                help="Use the linked Software Update instance's system-assigned "
                      "identity. The instance must have that identity enabled.",
             )
             context.argument(
@@ -423,25 +423,25 @@ def load_adr_arguments(self, _):
                 arg_group="Inbound Caller Identity",
                 options_list=["--mi-user-assigned", "--mi-ua"],
                 help="Resource ID of a user-assigned identity attached to the "
-                     "linked Device Update instance.",
+                     "linked Software Update instance.",
             )
 
-    with self.argument_context("iot adr ns link du add") as context:
+    with self.argument_context("iot adr ns link su add") as context:
         context.argument(
-            "du_resource_id",
-            options_list=["--du-resource-id", "--du-id"],
-            help="Azure resource ID of the Device Update instance to link.",
+            "su_resource_id",
+            options_list=["--su-resource-id", "--su-id"],
+            help="Azure resource ID of the Software Update instance to link.",
         )
 
-    # Device Update commands
-    with self.argument_context("iot adr ns du instance") as context:
+    # Software Update commands
+    with self.argument_context("iot adr ns su instance") as context:
         context.argument(
             "update_instance_name",
             options_list=["--name", "-n"],
-            help="Name of the Device Update instance.",
+            help="Name of the Software Update instance.",
         )
 
-    with self.argument_context("iot adr ns du instance create") as context:
+    with self.argument_context("iot adr ns su instance create") as context:
         context.argument(
             "location",
             arg_type=get_location_type(self.cli_ctx),
@@ -449,12 +449,12 @@ def load_adr_arguments(self, _):
         )
         context.argument("tags", arg_type=tags_type)
 
-    with self.argument_context("iot adr ns du instance update") as context:
+    with self.argument_context("iot adr ns su instance update") as context:
         context.argument("tags", arg_type=tags_type)
 
     for cmd in [
-        "iot adr ns du instance create",
-        "iot adr ns du instance update",
+        "iot adr ns su instance create",
+        "iot adr ns su instance update",
     ]:
         with self.argument_context(cmd) as context:
             context.argument(
@@ -661,14 +661,14 @@ def load_adr_arguments(self, _):
             "update_provider",
             arg_group="Update",
             options_list=["--update-id-provider", "--update-provider", "--up"],
-            help="ADU updateId.provider (e.g. 'Contoso'). The ADU update identity is a {provider, name, version} triple.",
+            help="ASU updateId.provider (e.g. 'Contoso'). The ASU update identity is a {provider, name, version} triple.",
         )
         context.argument(
             "update_name",
             arg_group="Update",
             options_list=["--update-id-name", "--update-name", "--un"],
             help=(
-                "ADU updateId.name (e.g. 'gateway-firmware'). "
+                "ASU updateId.name (e.g. 'gateway-firmware'). "
                 "This is the update identity's name, distinct from the job's --name."
             ),
         )
@@ -676,7 +676,7 @@ def load_adr_arguments(self, _):
             "update_version",
             arg_group="Update",
             options_list=["--update-id-version", "--update-version", "--uv"],
-            help="ADU updateId.version (e.g. '1.2.3').",
+            help="ASU updateId.version (e.g. '1.2.3').",
         )
         context.argument(
             "description",

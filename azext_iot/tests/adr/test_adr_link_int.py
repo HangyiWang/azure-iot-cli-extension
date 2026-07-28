@@ -14,9 +14,9 @@ Validates the namespace-linking surface exposed as ``iot adr ns link ...``:
 * ``link hub add / update / show / list`` — both UAMI and SAMI inbound caller
   identities, multi-hub list, identity rotation via ``hub update``
 * ``link add`` bundled Hub+DPS PATCH in a single round trip
-* ``link du add / update / show / list`` — ADU (device update) updating
+* ``link su add / update / show / list`` — ASU (software update) updating
   endpoints with UAMI/SAMI identity rotation. Set
-  ``azext_iot_adr_update_instance_id`` to a pre-provisioned ADU update-instance
+  ``azext_iot_adr_update_instance_id`` to a pre-provisioned ASU update-instance
   resource ID to enable this test.
 
 These tests require real Hub and DPS resources to be linked to a real ADR
@@ -54,8 +54,8 @@ from azext_iot.tests.adr.conftest import (
 )
 
 
-_DU_UPDATE_INSTANCE_ENV = "azext_iot_adr_update_instance_id"
-_DU_UPDATE_INSTANCE_ID = os.getenv(_DU_UPDATE_INSTANCE_ENV, "").strip()
+_SU_UPDATE_INSTANCE_ENV = "azext_iot_adr_update_instance_id"
+_SU_UPDATE_INSTANCE_ID = os.getenv(_SU_UPDATE_INSTANCE_ENV, "").strip()
 _LINKING_POLL_ATTEMPTS = 18
 _LINKING_POLL_INTERVAL_SECONDS = 10
 
@@ -578,7 +578,7 @@ class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
 
 @pytest.mark.skipif(
-    not _DU_UPDATE_INSTANCE_ID,
+    not _SU_UPDATE_INSTANCE_ID,
     reason=(
         "Set azext_iot_adr_update_instance_id to the full resource ID of a "
         "pre-provisioned Microsoft.DeviceUpdate/updateInstances resource."
@@ -586,33 +586,33 @@ class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 )
 @pytest.mark.usefixtures("set_cwd")
 class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
-    """End-to-end lifecycle of namespace-side ADU (device update) link entries.
+    """End-to-end lifecycle of namespace-side ASU (software update) link entries.
 
-    Mirrors the Hub/DPS link lifecycle for the ``iot adr ns link du`` surface:
+    Mirrors the Hub/DPS link lifecycle for the ``iot adr ns link su`` surface:
 
     1. Use the pre-provisioned ``Microsoft.DeviceUpdate/updateInstances`` resource
        supplied by ``azext_iot_adr_update_instance_id``. It must have both SAMI
        and UAMI identities.
     2. Create an ADR namespace and authorize the update instance identities.
-    3. Step 1: ``link du add`` (UAMI) attaches the ADU updating endpoint.
-    4. Step 2: ``link du show`` / ``list`` surface the single entry.
-    5. Step 3: ``link du update`` rotates the inbound caller identity UAMI → SAMI.
+    3. Step 1: ``link su add`` (UAMI) attaches the ASU updating endpoint.
+    4. Step 2: ``link su show`` / ``list`` surface the single entry.
+    5. Step 3: ``link su update`` rotates the inbound caller identity UAMI → SAMI.
 
     What is intentionally NOT covered here (covered by unit tests):
     - Duplicate endpoint-name rejection
     - MI mutually-exclusive rejection
-    - Invalid / wrong-type ADU resource id rejection
+    - Invalid / wrong-type ASU resource id rejection
     """
 
-    def test_adr_link_du_lifecycle(self):
-        _log(LogKind.TEST, "test_adr_link_du_lifecycle")
+    def test_adr_link_su_lifecycle(self):
+        _log(LogKind.TEST, "test_adr_link_su_lifecycle")
         from azext_iot.tests.adr.conftest import TEST_LOCATION
 
         rg = TEST_RG
         namespace_name = generate_adr_namespace_name()
         denied_namespace_name = generate_adr_namespace_name()
-        du_endpoint = "du-primary"
-        denied_endpoint = "du-no-role"
+        su_endpoint = "su-primary"
+        denied_endpoint = "su-no-role"
 
         def _names_in(listed):
             assert isinstance(listed, list)
@@ -623,11 +623,11 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                    or endpoint.get("inboundCallerIdentity") or {})
             return ici.get("type")
 
-        du_id = _DU_UPDATE_INSTANCE_ID
+        su_id = _SU_UPDATE_INSTANCE_ID
         try:
-            with timed_step("Setup 1/2 ❯ Resolve ADU SAMI and UAMI"):
+            with timed_step("Setup 1/2 ❯ Resolve ASU SAMI and UAMI"):
                 update_instance = self.cmd(
-                    f"resource show --ids {du_id}"
+                    f"resource show --ids {su_id}"
                 ).get_output_in_json()
                 identity = update_instance.get("identity") or {}
                 sami_principal_id = identity.get("principalId")
@@ -654,15 +654,15 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 try:
                     self.cmd(
-                        f"iot adr ns link du add "
+                        f"iot adr ns link su add "
                         f"--ns {denied_namespace_name} -g {rg} "
-                        f"-n du-no-identity --du-id {du_id}",
+                        f"-n su-no-identity --su-id {su_id}",
                         expect_failure=True,
                     )
                     denied_command = (
-                        f"iot adr ns link du add "
+                        f"iot adr ns link su add "
                         f"--ns {denied_namespace_name} -g {rg} "
-                        f"-n {denied_endpoint} --du-id {du_id} "
+                        f"-n {denied_endpoint} --su-id {su_id} "
                         "--mi-system-assigned"
                     )
                     try:
@@ -682,7 +682,7 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                     else:
                         def denied_state():
                             response = self.cmd(
-                                f"iot adr ns link du show "
+                                f"iot adr ns link su show "
                                 f"--ns {denied_namespace_name} -g {rg} "
                                 f"-n {denied_endpoint}"
                             ).get_output_in_json()
@@ -691,7 +691,7 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                         wait_for_condition(
                             denied_state,
                             lambda state: state == "Failed",
-                            description="unauthorized ADU link failure",
+                            description="unauthorized ASU link failure",
                             is_terminal_failure=lambda state: (
                                 state == "Succeeded"
                             ),
@@ -714,68 +714,68 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 self.assign_adr_roles_to_identity(sami_principal_id, ns["id"])
                 namespace_principal_id = (ns.get("identity") or {}).get("principalId")
                 assert namespace_principal_id, "Namespace SAMI principalId is required."
-                self.assign_role(namespace_principal_id, "Contributor", du_id)
+                self.assign_role(namespace_principal_id, "Contributor", su_id)
 
             # Allow role assignments to propagate
             time.sleep(30)
 
-            with timed_step("Step 1 > link du add (UAMI)"):
+            with timed_step("Step 1 > link su add (UAMI)"):
                 add_cmd = (
-                    f"iot adr ns link du add --ns {namespace_name} -g {rg} "
-                    f"-n {du_endpoint} --du-id {du_id} "
+                    f"iot adr ns link su add --ns {namespace_name} -g {rg} "
+                    f"-n {su_endpoint} --su-id {su_id} "
                     f"--mi-user-assigned {identity_resource_id}"
                 )
                 _log(LogKind.CMD, "az %s", add_cmd)
                 self.cmd(add_cmd)
                 _wait_for_linking_succeeded(
                     self,
-                    "du",
+                    "su",
                     namespace_name,
                     rg,
-                    du_endpoint,
+                    su_endpoint,
                     expected_identity_type="UserAssigned",
                 )
                 self.cmd(
-                    f"iot adr ns link du wait --ns {namespace_name} "
+                    f"iot adr ns link su wait --ns {namespace_name} "
                     f"-g {rg} --updated"
                 )
                 self.cmd(add_cmd, expect_failure=True)
-                _log(LogKind.OK, "ADU link '%s' created (UAMI)", du_endpoint)
+                _log(LogKind.OK, "ASU link '%s' created (UAMI)", su_endpoint)
 
-            with timed_step("Step 2 > link du show / list (single entry)"):
+            with timed_step("Step 2 > link su show / list (single entry)"):
                 shown = self.cmd(
-                    f"iot adr ns link du show --ns {namespace_name} -g {rg} -n {du_endpoint}"
+                    f"iot adr ns link su show --ns {namespace_name} -g {rg} -n {su_endpoint}"
                 ).get_output_in_json()
-                assert shown.get("name") == du_endpoint, (
-                    f"link du show did not surface name field: {shown}"
+                assert shown.get("name") == su_endpoint, (
+                    f"link su show did not surface name field: {shown}"
                 )
                 assert _identity_type(shown) == "UserAssigned", (
                     f"Expected UserAssigned inbound identity, saw: {_identity_type(shown)}"
                 )
 
                 listed = self.cmd(
-                    f"iot adr ns link du list --ns {namespace_name} -g {rg}"
+                    f"iot adr ns link su list --ns {namespace_name} -g {rg}"
                 ).get_output_in_json()
                 names = _names_in(listed)
-                assert du_endpoint in names, (
-                    f"ADU link '{du_endpoint}' missing from list: {names}"
+                assert su_endpoint in names, (
+                    f"ASU link '{su_endpoint}' missing from list: {names}"
                 )
-                assert len(names) == 1, f"Expected exactly one ADU link, got {names}"
-                _log(LogKind.OK, "ADU list returned 1 entry")
+                assert len(names) == 1, f"Expected exactly one ASU link, got {names}"
+                _log(LogKind.OK, "ASU list returned 1 entry")
 
-            with timed_step("Step 3 > link du update (rotate identity UAMI to SAMI)"):
+            with timed_step("Step 3 > link su update (rotate identity UAMI to SAMI)"):
                 update_cmd = (
-                    f"iot adr ns link du update --ns {namespace_name} -g {rg} "
-                    f"-n {du_endpoint} --mi-system-assigned"
+                    f"iot adr ns link su update --ns {namespace_name} -g {rg} "
+                    f"-n {su_endpoint} --mi-system-assigned"
                 )
                 _log(LogKind.CMD, "az %s", update_cmd)
                 self.cmd(update_cmd)
                 shown = _wait_for_linking_succeeded(
                     self,
-                    "du",
+                    "su",
                     namespace_name,
                     rg,
-                    du_endpoint,
+                    su_endpoint,
                     expected_identity_type="SystemAssigned",
                 )
                 assert _identity_type(shown) == "SystemAssigned", (
@@ -783,7 +783,7 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 )
                 _log(LogKind.OK, "Rotated UAMI to SAMI")
 
-            _log(LogKind.OK, "ADU link lifecycle passed")
+            _log(LogKind.OK, "ASU link lifecycle passed")
 
         finally:
             with timed_step("Cleanup ❯ Delete ADR namespace"):
@@ -840,20 +840,20 @@ class TestADRLinkValidationNegatives(CaptureOutputLiveScenarioTest):
                 expect_failure=True,
             )
 
-        # --- ADU resource-id parsing rejections (du add) ---
-        with timed_step("ADU add ❯ empty --du-id rejected"):
+        # --- ASU resource-id parsing rejections (su add) ---
+        with timed_step("ASU add ❯ empty --su-id rejected"):
             self.cmd(
-                f'iot adr ns link du add -n primary --ns {ns} -g {rg} --du-id "" --mi-sa',
+                f'iot adr ns link su add -n primary --ns {ns} -g {rg} --su-id "" --mi-sa',
                 expect_failure=True,
             )
-        with timed_step("ADU add ❯ bare ADU account name rejected"):
+        with timed_step("ASU add ❯ bare ASU account name rejected"):
             self.cmd(
-                f"iot adr ns link du add -n primary --ns {ns} -g {rg} --du-id mydu --mi-sa",
+                f"iot adr ns link su add -n primary --ns {ns} -g {rg} --su-id mysu --mi-sa",
                 expect_failure=True,
             )
-        with timed_step("ADU add ❯ wrong resource type rejected"):
+        with timed_step("ASU add ❯ wrong resource type rejected"):
             self.cmd(
-                f"iot adr ns link du add -n primary --ns {ns} -g {rg} --du-id {hub_id} --mi-sa",
+                f"iot adr ns link su add -n primary --ns {ns} -g {rg} --su-id {hub_id} --mi-sa",
                 expect_failure=True,
             )
 
@@ -870,9 +870,9 @@ class TestADRLinkValidationNegatives(CaptureOutputLiveScenarioTest):
                 f"--mi-sa --mi-ua {uami_id}",
                 expect_failure=True,
             )
-        with timed_step("ADU update ❯ SAMI + UAMI together rejected"):
+        with timed_step("ASU update ❯ SAMI + UAMI together rejected"):
             self.cmd(
-                f"iot adr ns link du update -n primary --ns {ns} -g {rg} "
+                f"iot adr ns link su update -n primary --ns {ns} -g {rg} "
                 f"--mi-sa --mi-ua {uami_id}",
                 expect_failure=True,
             )

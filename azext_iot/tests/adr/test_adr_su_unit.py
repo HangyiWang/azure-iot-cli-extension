@@ -13,7 +13,7 @@ from azure.cli.core.azclierror import (
 )
 
 from azext_iot import _factory
-from azext_iot.adr import commands_du
+from azext_iot.adr import commands_su
 from azext_iot.adr.common import build_managed_service_identity
 from azext_iot.adr.providers.update_instance import UpdateInstanceProvider
 
@@ -28,7 +28,7 @@ UAMI_ID = (
 @pytest.fixture()
 def update_instance_provider():
     with patch(
-        "azext_iot.adr.providers.update_instance.adr_du_service_factory"
+        "azext_iot.adr.providers.update_instance.adr_su_service_factory"
     ) as factory:
         client = Mock()
         factory.return_value = client
@@ -254,13 +254,13 @@ def test_delete_waits_and_supports_no_wait(update_instance_provider):
 
 def test_command_wrappers_delegate_all_arguments():
     cmd = Mock()
-    with patch("azext_iot.adr.commands_du.UpdateInstanceProvider") as provider_type:
+    with patch("azext_iot.adr.commands_su.UpdateInstanceProvider") as provider_type:
         provider = provider_type.return_value
 
-        commands_du.adr_du_instance_check_name(cmd, INSTANCE)
-        commands_du.adr_du_instance_list(cmd, RG)
-        commands_du.adr_du_instance_show(cmd, INSTANCE, RG)
-        commands_du.adr_du_instance_create(
+        commands_su.adr_su_instance_check_name(cmd, INSTANCE)
+        commands_su.adr_su_instance_list(cmd, RG)
+        commands_su.adr_su_instance_show(cmd, INSTANCE, RG)
+        commands_su.adr_su_instance_create(
             cmd,
             INSTANCE,
             RG,
@@ -270,7 +270,7 @@ def test_command_wrappers_delegate_all_arguments():
             mi_user_assigned=[UAMI_ID],
             no_wait=True,
         )
-        commands_du.adr_du_instance_update(
+        commands_su.adr_su_instance_update(
             cmd,
             INSTANCE,
             RG,
@@ -279,7 +279,7 @@ def test_command_wrappers_delegate_all_arguments():
             mi_user_assigned=[UAMI_ID],
             no_wait=True,
         )
-        commands_du.adr_du_instance_delete(cmd, INSTANCE, RG, no_wait=True)
+        commands_su.adr_su_instance_delete(cmd, INSTANCE, RG, no_wait=True)
 
         assert provider_type.call_count == 6
         provider.check_name.assert_called_once_with(INSTANCE)
@@ -312,7 +312,7 @@ def test_command_wrappers_delegate_all_arguments():
         )
 
 
-def test_adr_du_factory_uses_generated_sdk_and_canary_arm_endpoint():
+def test_adr_su_factory_uses_generated_sdk_and_canary_arm_endpoint():
     cli_ctx = Mock()
     client_path = (
         "azext_iot.sdk.deviceupdate.duregistry."
@@ -327,7 +327,7 @@ def test_adr_du_factory_uses_generated_sdk_and_canary_arm_endpoint():
     ), patch(
         client_path
     ) as client_type:
-        assert _factory.adr_du_service_factory(cli_ctx) is client_type.return_value
+        assert _factory.adr_su_service_factory(cli_ctx) is client_type.return_value
 
     assert client_type.call_args.kwargs["subscription_id"] == "subscription"
     assert (

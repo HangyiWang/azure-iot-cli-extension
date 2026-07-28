@@ -36,10 +36,10 @@ from azext_iot.sdk.deviceupdate.duregistry.aio._configuration import (
     DeviceRegistryLinkedDeviceUpdatingServiceUnderMicrosoftDeviceUpdateConfiguration as AsyncDeviceUpdateConfiguration,
 )
 from azext_iot.sdk.deviceupdate.duregistry.aio.operations import (
-    _operations as async_du_operations,
+    _operations as async_su_operations,
 )
 from azext_iot.sdk.deviceupdate.duregistry.operations import (
-    _operations as sync_du_operations,
+    _operations as sync_su_operations,
 )
 
 
@@ -199,10 +199,10 @@ def test_every_handwritten_provider_operation_exists():
     assert not hasattr(async_client, "adaptive_devices")
 
 
-def test_device_update_sdk_operation_inventory_and_provider_contract():
+def test_software_update_sdk_operation_inventory_and_provider_contract():
     expected = {"Operations": 1, "UpdateInstancesOperations": 11}
-    assert _operation_inventory(sync_du_operations) == expected
-    assert _operation_inventory(async_du_operations) == expected
+    assert _operation_inventory(sync_su_operations) == expected
+    assert _operation_inventory(async_su_operations) == expected
 
     methods = {
         "check_name_availability",

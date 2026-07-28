@@ -80,7 +80,7 @@ class CertificateAuthorityIssuerType(Enum):
 # Endpoint type discriminators on Namespace messaging / provisioning / updating endpoints
 IOT_HUB_ENDPOINT_TYPE = "Microsoft.Devices/IotHubs"
 DPS_ENDPOINT_TYPE = "Microsoft.Devices/provisioningServices"
-ADU_ENDPOINT_TYPE = "Microsoft.DeviceUpdate/updateInstances"
+ASU_ENDPOINT_TYPE = "Microsoft.DeviceUpdate/updateInstances"
 
 
 DEFAULT_NS_CA_KEY_TYPE = CertificateAuthorityKeyType.ecc.value

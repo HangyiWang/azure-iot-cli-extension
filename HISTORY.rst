@@ -23,12 +23,12 @@ Release History
   - Added read-only ``registry-device attribute list / show`` and ``registry-device capability list / show`` commands.
   - Authentication Profiles remain service-materialized children; create, update, and delete operations are not exposed by this API.
 
-* **Device Update instances and namespace links**
+* **Software Update instances and namespace links**
 
-  - Added ``az iot adr ns du instance check-name / create / show / list / update / delete / wait`` for ``Microsoft.DeviceUpdate/updateInstances`` resources.
+  - Added ``az iot adr ns su instance check-name / create / show / list / update / delete / wait`` for ``Microsoft.DeviceUpdate/updateInstances`` resources.
   - Update Instance create and update support tags plus complete system- and user-assigned managed identity configuration. List supports resource-group and subscription scopes.
-  - Namespace updating endpoints remain under ``az iot adr ns link du add / show / list / update / wait``, consistent with the existing Hub and DPS link groups.
-  - Device Update data-plane commands and the service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions are intentionally not exposed.
+  - Namespace updating endpoints remain under ``az iot adr ns link su add / show / list / update / wait``, consistent with the existing Hub and DPS link groups.
+  - Software Update data-plane commands and the service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions are intentionally not exposed.
 
 * **Namespace parity**
 
@@ -39,7 +39,7 @@ Release History
 
 * **Namespace links**
 
-  - Added Hub, DPS, and ADU update-instance links with add, show, list, and identity-update behavior.
+  - Added Hub, DPS, and ASU update-instance links with add, show, list, and identity-update behavior.
   - Hub provisioning fields remain create-only; link update rotates identity only.
 
 * **Groups, jobs, runs, and CMS**
@@ -53,7 +53,7 @@ Release History
 
 * Added an SDK contract test that locks the API version, operation-group inventory, and provider method surface for synchronous and asynchronous clients.
 * Expanded integration-test coverage across Registry Devices, Update Instances, links, CMS, groups, jobs, job runs, reports, and validation failures, with explicit infrastructure-dependent skips and secret-safe key validation.
-* Added focused unit tests with complete branch coverage for the handwritten Device Update command and provider modules.
+* Added focused unit tests with complete branch coverage for the handwritten Software Update command and provider modules.
 
 **Intentionally unsupported**
 
@@ -66,7 +66,7 @@ Release History
 
 * Authentication Profile create/update/delete and Attribute/Capability mutation are not available in the management API.
 * Link-remove commands remain unregistered because no supported backing operation exists.
-* Device Update data-plane operations and direct customer invocation of UpdateInstance internal link actions are not registered.
+* Software Update data-plane operations and direct customer invocation of UpdateInstance internal link actions are not registered.
 * Removed the legacy ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups.
 
 0.31.0b3 (Preview)

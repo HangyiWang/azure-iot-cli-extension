@@ -15,7 +15,7 @@ Covers the ``iot adr ns job run`` surface:
 * ``run cancel``  — cancellation LRO when an active run is available
 
 Job runs are produced by the backend after a job is *scheduled* and the
-scheduling window opens. Without a real device-update target deployed to a
+scheduling window opens. Without a real software-update target deployed to a
 real device population, the backend will typically not spawn any runs for a
 test job. So the integration coverage here is intentionally minimal:
 

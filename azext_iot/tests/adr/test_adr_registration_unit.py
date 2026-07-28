@@ -123,16 +123,16 @@ def test_2026_command_surface_is_registered():
         "iot adr ns ca policy wait",
         "iot adr ns job run wait",
         "iot adr ns link wait",
-        "iot adr ns link du wait",
+        "iot adr ns link su wait",
         "iot adr ns link dps wait",
         "iot adr ns link hub wait",
-        "iot adr ns du instance check-name",
-        "iot adr ns du instance create",
-        "iot adr ns du instance show",
-        "iot adr ns du instance list",
-        "iot adr ns du instance update",
-        "iot adr ns du instance delete",
-        "iot adr ns du instance wait",
+        "iot adr ns su instance check-name",
+        "iot adr ns su instance create",
+        "iot adr ns su instance show",
+        "iot adr ns su instance list",
+        "iot adr ns su instance update",
+        "iot adr ns su instance delete",
+        "iot adr ns su instance wait",
     }
     assert expected_commands <= set(commands)
     assert len(commands) == 85
@@ -168,10 +168,10 @@ def test_unsupported_command_surfaces_are_not_registered():
         )
         for command in commands
     )
-    for endpoint in ("hub", "dps", "du"):
+    for endpoint in ("hub", "dps", "su"):
         assert f"iot adr ns link {endpoint} remove" not in commands
     assert not any(
-        command.startswith("iot adr ns du link") for command in commands
+        command.startswith("iot adr ns su link") for command in commands
     )
     for operation in (
         "link-preflight",
@@ -179,7 +179,7 @@ def test_unsupported_command_surfaces_are_not_registered():
         "link-notify",
         "link-update",
     ):
-        assert f"iot adr ns du instance {operation}" not in commands
+        assert f"iot adr ns su instance {operation}" not in commands
 
 
 def test_load_adr_arguments():
@@ -230,17 +230,17 @@ def test_load_adr_arguments():
         "mi_user_assigned",
         "location",
         "tags",
-    } <= set(arguments["iot adr ns du instance create"])
+    } <= set(arguments["iot adr ns su instance create"])
     assert {
         "mi_system_assigned",
         "mi_user_assigned",
         "tags",
-    } <= set(arguments["iot adr ns du instance update"])
-    assert "--du-id" in arguments["iot adr ns link du add"][
-        "du_resource_id"
+    } <= set(arguments["iot adr ns su instance update"])
+    assert "--su-id" in arguments["iot adr ns link su add"][
+        "su_resource_id"
     ]["options_list"]
     assert not any(
-        command.startswith("iot adr ns du link") for command in arguments
+        command.startswith("iot adr ns su link") for command in arguments
     )
 
     assert not any(
@@ -275,7 +275,7 @@ def test_load_adr_arguments():
     )
 
 
-def test_help_surface_matches_2026_commands_and_du_type():
+def test_help_surface_matches_2026_commands_and_su_type():
     load_adr_help()
 
     for command in (
@@ -288,13 +288,13 @@ def test_help_surface_matches_2026_commands_and_du_type():
         "iot adr ns registry-device attribute list",
         "iot adr ns registry-device capability show",
         "iot adr ns identity assign",
-        "iot adr ns du instance create",
-        "iot adr ns du instance check-name",
+        "iot adr ns su instance create",
+        "iot adr ns su instance check-name",
     ):
         assert command in helps
 
-    assert "Microsoft.DeviceUpdate/updateInstances" in helps["iot adr ns link du"]
-    assert "linkedAccounts" not in helps["iot adr ns link du"]
+    assert "Microsoft.DeviceUpdate/updateInstances" in helps["iot adr ns link su"]
+    assert "linkedAccounts" not in helps["iot adr ns link su"]
 
     assert not any(
         command.startswith(
@@ -310,9 +310,9 @@ def test_help_surface_matches_2026_commands_and_du_type():
         )
         for command in helps
     )
-    for endpoint in ("hub", "dps", "du"):
+    for endpoint in ("hub", "dps", "su"):
         assert f"iot adr ns link {endpoint} remove" not in helps
-    assert not any(command.startswith("iot adr ns du link") for command in helps)
+    assert not any(command.startswith("iot adr ns su link") for command in helps)
 
 
 def test_every_registered_adr_command_has_help():

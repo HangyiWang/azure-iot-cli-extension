@@ -16,17 +16,17 @@ from azext_iot.tests.generators import generate_generic_id
 
 
 def _update_instance_name() -> str:
-    return f"testdu{generate_generic_id()[:8]}"
+    return f"testsu{generate_generic_id()[:8]}"
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRDUInstanceLifecycle(CaptureOutputLiveScenarioTest):
-    def test_adr_du_instance_lifecycle(self):
+class TestADRSUInstanceLifecycle(CaptureOutputLiveScenarioTest):
+    def test_adr_su_instance_lifecycle(self):
         instance_name = _update_instance_name()
-        identity_name = f"testduid{generate_generic_id()[:8]}"
-        show_command = f"iot adr ns du instance show -n {instance_name} -g {TEST_RG}"
+        identity_name = f"testsuid{generate_generic_id()[:8]}"
+        show_command = f"iot adr ns su instance show -n {instance_name} -g {TEST_RG}"
         delete_command = (
-            f"iot adr ns du instance delete -n {instance_name} " f"-g {TEST_RG} --yes"
+            f"iot adr ns su instance delete -n {instance_name} " f"-g {TEST_RG} --yes"
         )
         with CleanupLedger() as cleanup:
             identity = self.cmd(
@@ -42,12 +42,12 @@ class TestADRDUInstanceLifecycle(CaptureOutputLiveScenarioTest):
             )
 
             availability = self.cmd(
-                f"iot adr ns du instance check-name -n {instance_name}"
+                f"iot adr ns su instance check-name -n {instance_name}"
             ).get_output_in_json()
             assert availability["nameAvailable"] is True
 
             self.cmd(
-                f"iot adr ns du instance create -n {instance_name} "
+                f"iot adr ns su instance create -n {instance_name} "
                 f"-g {TEST_RG} --location {TEST_LOCATION} "
                 "--mi-system-assigned --tags env=integration --no-wait"
             )
@@ -60,35 +60,35 @@ class TestADRDUInstanceLifecycle(CaptureOutputLiveScenarioTest):
             assert "SystemAssigned" in created["identity"]["type"]
 
             self.cmd(
-                f"iot adr ns du instance wait -n {instance_name} -g {TEST_RG} "
+                f"iot adr ns su instance wait -n {instance_name} -g {TEST_RG} "
                 "--custom \"properties.provisioningState=='Succeeded'\""
             )
 
             unavailable = self.cmd(
-                f"iot adr ns du instance check-name -n {instance_name}"
+                f"iot adr ns su instance check-name -n {instance_name}"
             ).get_output_in_json()
             assert unavailable["nameAvailable"] is False
 
             listed_by_group = self.cmd(
-                f"iot adr ns du instance list -g {TEST_RG}"
+                f"iot adr ns su instance list -g {TEST_RG}"
             ).get_output_in_json()
             assert instance_name in {instance["name"] for instance in listed_by_group}
 
             listed_by_subscription = self.cmd(
-                "iot adr ns du instance list"
+                "iot adr ns su instance list"
             ).get_output_in_json()
             assert instance_name in {
                 instance["name"] for instance in listed_by_subscription
             }
 
             updated = self.cmd(
-                f"iot adr ns du instance update -n {instance_name} "
+                f"iot adr ns su instance update -n {instance_name} "
                 f"-g {TEST_RG} --tags env=updated"
             ).get_output_in_json()
             assert updated["tags"]["env"] == "updated"
 
             combined = self.cmd(
-                f"iot adr ns du instance update -n {instance_name} "
+                f"iot adr ns su instance update -n {instance_name} "
                 f"-g {TEST_RG} --mi-system-assigned "
                 f"--mi-user-assigned {identity_id}"
             ).get_output_in_json()
@@ -105,38 +105,38 @@ class TestADRDUInstanceLifecycle(CaptureOutputLiveScenarioTest):
             }
 
             user_only = self.cmd(
-                f"iot adr ns du instance update -n {instance_name} "
+                f"iot adr ns su instance update -n {instance_name} "
                 f"-g {TEST_RG} --mi-user-assigned {identity_id}"
             ).get_output_in_json()
             assert user_only["identity"]["type"] == "UserAssigned"
 
             system_only = self.cmd(
-                f"iot adr ns du instance update -n {instance_name} "
+                f"iot adr ns su instance update -n {instance_name} "
                 f"-g {TEST_RG} --mi-system-assigned"
             ).get_output_in_json()
             assert system_only["identity"]["type"] == "SystemAssigned"
             assert not system_only["identity"].get("userAssignedIdentities")
 
             cleared_tags = self.cmd(
-                f"iot adr ns du instance update -n {instance_name} "
+                f"iot adr ns su instance update -n {instance_name} "
                 f"-g {TEST_RG} --tags ''"
             ).get_output_in_json()
             assert cleared_tags.get("tags") in ({}, None)
 
             no_identity = self.cmd(
-                f"iot adr ns du instance update -n {instance_name} "
+                f"iot adr ns su instance update -n {instance_name} "
                 f"-g {TEST_RG} --mi-system-assigned false"
             ).get_output_in_json()
             assert no_identity["identity"]["type"] == "None"
 
             self.cmd(
-                f"iot adr ns du instance update -n {instance_name} " f"-g {TEST_RG}",
+                f"iot adr ns su instance update -n {instance_name} " f"-g {TEST_RG}",
                 expect_failure=True,
             )
 
             self.cmd(f"{delete_command} --no-wait")
             self.cmd(
-                f"iot adr ns du instance wait -n {instance_name} "
+                f"iot adr ns su instance wait -n {instance_name} "
                 f"-g {TEST_RG} --deleted"
             )
             cleanup.dismiss("UpdateInstance")
@@ -144,14 +144,14 @@ class TestADRDUInstanceLifecycle(CaptureOutputLiveScenarioTest):
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRDUValidationNegatives(CaptureOutputLiveScenarioTest):
-    def test_adr_du_validation_negatives(self):
+class TestADRSUValidationNegatives(CaptureOutputLiveScenarioTest):
+    def test_adr_su_validation_negatives(self):
         self.cmd(
-            "iot adr ns du instance update -n missing-instance " f"-g {TEST_RG}",
+            "iot adr ns su instance update -n missing-instance " f"-g {TEST_RG}",
             expect_failure=True,
         )
         self.cmd(
-            "iot adr ns du instance update -n missing-instance "
+            "iot adr ns su instance update -n missing-instance "
             f"-g {TEST_RG} --mi-user-assigned not-an-arm-id",
             expect_failure=True,
         )
