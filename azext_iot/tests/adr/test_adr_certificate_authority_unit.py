@@ -14,6 +14,17 @@ from azure.cli.core.azclierror import (
 )
 
 
+_SUBSCRIPTION_ID = "00000000-0000-0000-0000-000000000000"
+
+
+@pytest.fixture(autouse=True)
+def _patch_subscription_id(monkeypatch):
+    monkeypatch.setattr(
+        "azext_iot.adr.providers.certificate_authority.get_subscription_id",
+        lambda _ctx: _SUBSCRIPTION_ID,
+    )
+
+
 # ==================== Create ====================
 
 
