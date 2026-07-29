@@ -99,6 +99,11 @@ def load_iothub_commands(self, _):
             "message_endpoint_create_storage_container",
             transform=EndpointUpdateResultTransform(self.cli_ctx)
         )
+        cmd_group.command(
+            "fabric-eventstream",
+            "message_endpoint_create_fabric_eventstream",
+            transform=EndpointUpdateResultTransform(self.cli_ctx)
+        )
 
     with self.command_group(
         "iot hub message-endpoint update",
@@ -128,6 +133,11 @@ def load_iothub_commands(self, _):
         cmd_group.command(
             "storage-container",
             "message_endpoint_update_storage_container",
+            transform=EndpointUpdateResultTransform(self.cli_ctx)
+        )
+        cmd_group.command(
+            "fabric-eventstream",
+            "message_endpoint_update_fabric_eventstream",
             transform=EndpointUpdateResultTransform(self.cli_ctx)
         )
 

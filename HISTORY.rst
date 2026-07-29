@@ -75,6 +75,21 @@ Release History
 * Software Updates data-plane operations and direct customer invocation of Update Instance internal link actions are not registered.
 * Removed the legacy ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups.
 
+0.32.0b1 (Preview)
+++++++++++++++++++
+
+**IoT Hub updates**
+
+* IoT Hub management SDK regenerated to ``2026-05-01-preview``, which natively exposes the new ``eventStreams`` routing endpoint type.
+
+* Added Microsoft Fabric Eventstream as a routing endpoint type. The Fabric workspace, Eventstream item and Custom Endpoint source must be created in Fabric first; pass the source's ``sb://`` URI, entity path and the Fabric IDs into the new commands:
+
+  - ``az iot hub message-endpoint create fabric-eventstream`` registers the endpoint (identity-based authentication only; requires ``--endpoint-uri``, ``--entity-path``, ``--identity``, ``--workspace-id``, ``--eventstream-id`` and ``--source-id``).
+  - ``az iot hub message-endpoint update fabric-eventstream`` modifies an existing endpoint.
+  - ``az iot hub message-endpoint show --en <name>`` returns a ``fabric-eventstream`` endpoint by name (no type flag needed).
+  - ``az iot hub message-endpoint list`` includes ``fabric-eventstream`` endpoints in its output; pass ``--endpoint-type fabric-eventstream`` to filter to only this type.
+  - ``az iot hub message-endpoint delete`` removes ``fabric-eventstream`` endpoints by name (``--en``) or in bulk (``--endpoint-type fabric-eventstream``).
+
 0.31.0b3 (Preview)
 ++++++++++++++++++++
 

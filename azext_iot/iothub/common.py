@@ -121,6 +121,7 @@ class EndpointType(Enum):
     ServiceBusTopic = "servicebus-topic"
     AzureStorageContainer = "storage-container"
     CosmosDBContainer = "cosmosdb-container"
+    FabricEventStream = "fabric-eventstream"
 
     @classmethod
     def list(cls):

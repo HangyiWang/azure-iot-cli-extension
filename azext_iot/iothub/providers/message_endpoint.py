@@ -44,6 +44,7 @@ class MessageEndpoint(IoTHubProvider):
         super(MessageEndpoint, self).__init__(cmd, hub_name, rg, dataplane=False)
         # Modelless SDK omits None/empty fields; ensure enrichments key exists.
         self.hub_resource["properties"]["routing"].setdefault("enrichments", [])
+        self.hub_resource["properties"]["routing"]["endpoints"].setdefault("eventStreams", [])
         # Temporary flag to check for which cosmos property to look for.
         self.support_cosmos = IoTHubSDKVersion.NoCosmos.value
         endpoints = self.hub_resource["properties"]["routing"]["endpoints"]
@@ -74,7 +75,10 @@ class MessageEndpoint(IoTHubProvider):
         secondary_key: Optional[str] = None,
         partition_key_name: Optional[str] = None,
         partition_key_template: Optional[str] = None,
-        identity: Optional[str] = None
+        identity: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        eventstream_id: Optional[str] = None,
+        source_id: Optional[str] = None,
     ):
         if not endpoint_resource_group:
             endpoint_resource_group = self.hub_resource["resourcegroup"]
@@ -225,6 +229,34 @@ class MessageEndpoint(IoTHubProvider):
                 "maxChunkSizeInBytes": (chunk_size_window * BYTES_PER_MEGABYTE),
             })
             endpoints["storageContainers"].append(new_endpoint)
+        elif endpoint_type == EndpointType.FabricEventStream.value:
+            if not identity:
+                raise RequiredArgumentMissingError(
+                    "--identity is required for fabric-eventstream endpoints. "
+                    "Use --identity [system] for the hub's system-assigned identity, "
+                    "or pass a user-assigned identity resource ID."
+                )
+            if not endpoint_uri or not entity_path:
+                raise RequiredArgumentMissingError(
+                    "--endpoint-uri and --entity-path are both required for fabric-eventstream endpoints. "
+                    "Obtain these values from the Fabric Custom Endpoint source connection details."
+                )
+            if not workspace_id or not eventstream_id or not source_id:
+                raise RequiredArgumentMissingError(
+                    "--workspace-id, --eventstream-id, and --source-id are all required for "
+                    "fabric-eventstream endpoints. Obtain these from the Fabric Custom Endpoint."
+                )
+            es_endpoint = {
+                "name": endpoint_name,
+                "endpointUri": endpoint_uri,
+                "entityPath": entity_path,
+                "authenticationType": AuthenticationType.IdentityBased.value,
+                "identity": endpoint_identity,
+                "workspaceId": workspace_id,
+                "eventStreamId": eventstream_id,
+                "sourceId": source_id,
+            }
+            endpoints["eventStreams"].append(es_endpoint)
 
         try:
             return self.discovery.client.begin_create_or_update(
@@ -253,7 +285,10 @@ class MessageEndpoint(IoTHubProvider):
         secondary_key: Optional[str] = None,
         partition_key_name: Optional[str] = None,
         partition_key_template: Optional[str] = None,
-        identity: Optional[str] = None
+        identity: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        eventstream_id: Optional[str] = None,
+        source_id: Optional[str] = None,
     ):
         # if nothing is provided -> should we block?
         # have the user say the type. Will make args easier (as in we do not need to check for unneeded args)
@@ -343,6 +378,15 @@ class MessageEndpoint(IoTHubProvider):
                 original_endpoint["partitionKeyName"] = None if partition_key_name == "" else partition_key_name
             if partition_key_template:
                 original_endpoint["partitionKeyTemplate"] = None if partition_key_template == "" else partition_key_template
+        elif endpoint_type == EndpointType.FabricEventStream.value:
+            if entity_path:
+                original_endpoint["entityPath"] = entity_path
+            if workspace_id:
+                original_endpoint["workspaceId"] = workspace_id
+            if eventstream_id:
+                original_endpoint["eventStreamId"] = eventstream_id
+            if source_id:
+                original_endpoint["sourceId"] = source_id
 
         return self.discovery.client.begin_create_or_update(
             self.hub_resource["resourcegroup"],
@@ -391,6 +435,8 @@ class MessageEndpoint(IoTHubProvider):
                 endpoint_list.extend(endpoints["cosmosDBSqlContainers"])
             elif self.support_cosmos == IoTHubSDKVersion.CosmosCollections.value:
                 endpoint_list.extend(endpoints["cosmosDBSqlCollections"])
+        if endpoint_type is None or endpoint_type.lower() == EndpointType.FabricEventStream.value:
+            endpoint_list.extend(endpoints["eventStreams"])
 
         for endpoint in endpoint_list:
             if endpoint["name"].lower() == endpoint_name.lower():
@@ -426,6 +472,8 @@ class MessageEndpoint(IoTHubProvider):
             raise InvalidArgumentValueError(INVALID_CLI_CORE_FOR_COSMOS)
         elif EndpointType.AzureStorageContainer.value == endpoint_type:
             return endpoints["storageContainers"]
+        elif EndpointType.FabricEventStream.value == endpoint_type:
+            return endpoints["eventStreams"]
 
     def delete(
         self,
@@ -465,6 +513,8 @@ class MessageEndpoint(IoTHubProvider):
                         endpoint_names.extend([e["name"] for e in endpoints["cosmosDBSqlCollections"]])
                 if not endpoint_type or endpoint_type == EndpointType.AzureStorageContainer.value:
                     endpoint_names.extend([e["name"] for e in endpoints["storageContainers"]])
+                if not endpoint_type or endpoint_type == EndpointType.FabricEventStream.value:
+                    endpoint_names.extend([e["name"] for e in endpoints["eventStreams"]])
 
             # only do the routing and enrichment checks if there are endpoints to check.
             if force and endpoint_names:
@@ -522,6 +572,8 @@ class MessageEndpoint(IoTHubProvider):
                     ]
             if not endpoint_type or EndpointType.AzureStorageContainer.value == endpoint_type:
                 endpoints["storageContainers"] = [e for e in endpoints["storageContainers"] if e["name"].lower() != endpoint_name]
+            if not endpoint_type or EndpointType.FabricEventStream.value == endpoint_type:
+                endpoints["eventStreams"] = [e for e in endpoints["eventStreams"] if e["name"].lower() != endpoint_name]
         elif endpoint_type:
             # Delete all endpoints in type
             if EndpointType.EventHub.value == endpoint_type:
@@ -537,6 +589,8 @@ class MessageEndpoint(IoTHubProvider):
                     endpoints["cosmosDBSqlCollections"] = []
             elif EndpointType.AzureStorageContainer.value == endpoint_type:
                 endpoints["storageContainers"] = []
+            elif EndpointType.FabricEventStream.value == endpoint_type:
+                endpoints["eventStreams"] = []
         else:
             # Delete all endpoints
             endpoints["eventHubs"] = []
@@ -547,6 +601,7 @@ class MessageEndpoint(IoTHubProvider):
             if self.support_cosmos == IoTHubSDKVersion.CosmosCollections.value:
                 endpoints["cosmosDBSqlCollections"] = []
             endpoints["storageContainers"] = []
+            endpoints["eventStreams"] = []
 
         try:
             return self.discovery.client.begin_create_or_update(
