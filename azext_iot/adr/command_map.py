@@ -58,6 +58,9 @@ adr_su_ops = CliCommandType(
     client_factory=adr_su_service_factory,
 )
 
+# Terminal UI. No client_factory: the UI builds its own session from the command context.
+adr_ui_ops = CliCommandType(operations_tmpl="azext_iot.adr.ui.entry#{}")
+
 
 def load_adr_commands(self, _):
     # Namespace commands
@@ -240,3 +243,7 @@ def load_adr_commands(self, _):
     with self.command_group("iot adr ns report", command_type=adr_report_ops) as cmd_group:
         cmd_group.command("generate", "adr_report_generate", supports_no_wait=True)
         cmd_group.command("latest", "adr_report_latest")
+
+    # Terminal UI entry point. Appended last so this block stays contiguous and easy to rebase.
+    with self.command_group("iot adr ns", command_type=adr_ui_ops) as cmd_group:
+        cmd_group.command("ui", "adr_ui_launch")

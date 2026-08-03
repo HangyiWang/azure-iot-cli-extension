@@ -1,0 +1,125 @@
+# coding=utf-8
+# --------------------------------------------------------------------------------------------
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See License.txt in the project root for license information.
+# --------------------------------------------------------------------------------------------
+
+"""Creation requests for onboarding.
+
+Every selection step offers "use an existing one" or "create a new one". A creation
+request is a plain description of what to make; it is turned into a plan item like any
+other, so nothing is created during selection.
+
+New resources are always created **with a system-assigned identity**: without one the
+resource cannot present a caller identity and the link would fail after a long-running
+operation.
+
+This module is deliberately free of any UI framework import.
+"""
+
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
+#: Defaults for resources radr creates on the customer's behalf. Deliberately modest:
+#: onboarding should not silently provision expensive capacity.
+DEFAULT_HUB_SKU = "S1"
+DEFAULT_DPS_SKU = "S1"
+DEFAULT_CAPACITY = 1
+
+
+@dataclass
+class CreateRequest:
+    """A resource the flow will create."""
+
+    kind: str            # namespace | dps | hub | su
+    name: str
+    resource_group_name: str
+    location: str
+    sku: Optional[str] = None
+
+    @property
+    def label(self) -> str:
+        return {
+            "namespace": "namespace",
+            "dps": "provisioning service",
+            "hub": "IoT Hub",
+            "su": "update instance",
+        }.get(self.kind, self.kind)
+
+    def arm_id(self, subscription_id: str) -> str:
+        provider = {
+            "namespace": "Microsoft.DeviceRegistry/namespaces",
+            "dps": "Microsoft.Devices/provisioningServices",
+            "hub": "Microsoft.Devices/IotHubs",
+            "su": "Microsoft.DeviceUpdate/updateInstances",
+        }[self.kind]
+        return (
+            f"/subscriptions/{subscription_id}/resourceGroups/{self.resource_group_name}"
+            f"/providers/{provider}/{self.name}"
+        )
+
+
+def hub_body(location: str, sku: str = DEFAULT_HUB_SKU) -> Dict[str, Any]:
+    return {
+        "location": location,
+        "sku": {"name": sku, "capacity": DEFAULT_CAPACITY},
+        # Required so the hub can present a caller identity to the namespace.
+        "identity": {"type": "SystemAssigned"},
+        "properties": {},
+    }
+
+
+def dps_body(location: str, sku: str = DEFAULT_DPS_SKU) -> Dict[str, Any]:
+    return {
+        "location": location,
+        "sku": {"name": sku, "capacity": DEFAULT_CAPACITY},
+        "identity": {"type": "SystemAssigned"},
+        "properties": {},
+    }
+
+
+def create_hub(catalog, request: CreateRequest):
+    """Start hub creation. Returns a poller for the operations tray."""
+    from azext_iot._factory import iot_hub_service_factory
+
+    client = iot_hub_service_factory(catalog.cmd.cli_ctx).iot_hub_resource
+    return client.begin_create_or_update(
+        resource_group_name=request.resource_group_name,
+        resource_name=request.name,
+        iot_hub_description=hub_body(request.location, request.sku or DEFAULT_HUB_SKU),
+    )
+
+
+def create_dps(catalog, request: CreateRequest):
+    """Start provisioning service creation. Returns a poller for the operations tray."""
+    from azext_iot._factory import iot_service_provisioning_factory
+
+    client = iot_service_provisioning_factory(catalog.cmd.cli_ctx).iot_dps_resource
+    return client.begin_create_or_update(
+        resource_group_name=request.resource_group_name,
+        provisioning_service_name=request.name,
+        iot_dps_description=dps_body(request.location, request.sku or DEFAULT_DPS_SKU),
+    )
+
+
+def create_namespace(session, request: CreateRequest):
+    """Create the namespace with an outbound identity already assigned."""
+    return session.call(
+        session.provider("namespace").create,
+        namespace_name=request.name,
+        resource_group_name=request.resource_group_name,
+        location=request.location,
+        outbound_mi_system_assigned=True,
+        no_wait=True,
+    )
+
+
+def create_update_instance(session, request: CreateRequest):
+    return session.call(
+        session.provider("update_instance").create,
+        update_instance_name=request.name,
+        resource_group_name=request.resource_group_name,
+        location=request.location,
+        mi_system_assigned=True,
+        no_wait=True,
+    )

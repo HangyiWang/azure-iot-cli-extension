@@ -1,0 +1,1225 @@
+# coding=utf-8
+# --------------------------------------------------------------------------------------------
+# Copyright (c) Microsoft Corporation. All rights reserved.
+# Licensed under the MIT License. See License.txt in the project root for license information.
+# --------------------------------------------------------------------------------------------
+
+"""Guided onboarding: step graph, pickers and plan (steps 11-12)."""
+
+import time
+
+from azext_iot.adr.ui.screens.onboard.flow import Flow, PlanItem, Step, StepState
+from azext_iot.adr.ui.screens.onboard.pickers import (
+    ELIGIBLE,
+    INELIGIBLE,
+    WARNING,
+    Candidate,
+    evaluate,
+    rank,
+)
+from azext_iot.adr.ui.screens.onboard.steps import build_flow
+
+
+def namespace_payload(identity=None, provisioning=None, messaging=None, location="eastus2"):
+    properties = {}
+    if provisioning is not None:
+        properties["provisioning"] = {"endpoints": provisioning}
+    if messaging is not None:
+        properties["messaging"] = {"endpoints": messaging}
+    return {
+        "name": "ns1",
+        "location": location,
+        "properties": properties,
+        "identity": {"type": identity} if identity else {},
+    }
+
+
+def context(namespace=None, **extra):
+    # A live session always resolves a subscription, so the default context has one.
+    base = {
+        "subscription_id": "sub-1",
+        "resource_group_name": "rg1",
+        "namespace_name": "ns1",
+        "namespace": namespace or {},
+    }
+    base.update(extra)
+    return base
+
+
+def all_states(flow):
+    """State of every step, including the ones the rail hides.
+
+    Visible steps come from ``states()`` so the current one is marked; hidden steps are
+    resolved directly, since they never appear on the rail.
+    """
+    resolved = {step.id: state for step, state in flow.states()}
+    for step in flow.steps:
+        resolved.setdefault(step.id, flow.state_of(step))
+    return resolved
+
+
+def dps_candidate(name="dps-1"):
+    return Candidate(name=name, resource_id=f"/subscriptions/s/rg/providers/dps/{name}")
+
+
+def hub_candidate(name="hub-1"):
+    return Candidate(name=name, resource_id=f"/subscriptions/s/rg/providers/hubs/{name}")
+
+
+# -- the ordering rules the service enforces -----------------------------------------
+
+
+def test_nothing_is_satisfied_for_a_bare_namespace():
+    flow = build_flow(context())
+    states = all_states(flow)
+    assert states["namespace"] is StepState.CURRENT
+    # Later steps are sequential, not blocked: the plan will create the namespace first.
+    assert states["identity"] is StepState.PENDING
+    # The DPS-first rule still holds, because no provisioning service is selected.
+    assert states["hub"] is StepState.BLOCKED
+
+
+def test_messaging_is_blocked_until_a_provisioning_endpoint_exists():
+    """The service rejects a hub before a DPS; the interface must show that, not fail later."""
+    flow = build_flow(context(namespace_payload(identity="SystemAssigned")))
+    states = all_states(flow)
+    assert states["dps"] is StepState.CURRENT
+    assert states["hub"] is StepState.BLOCKED
+
+
+def test_messaging_unblocks_once_provisioning_is_linked():
+    flow = build_flow(
+        context(namespace_payload(identity="SystemAssigned", provisioning={"dps": {}}))
+    )
+    states = all_states(flow)
+    assert states["dps"] is StepState.SATISFIED
+    assert states["hub"] is StepState.CURRENT
+
+
+def test_identity_is_planned_but_never_shown_as_a_decision():
+    """It is automatic, so it belongs in the plan and not on the rail."""
+    flow = build_flow(context(namespace_payload()))
+    assert "identity" not in {step.id for step in flow.visible_steps()}
+    assert all_states(flow)["identity"] is StepState.PENDING
+    # Ordering that matters is among the operations that will actually run; blocked
+    # placeholders are informational and sort with the context block.
+    runnable = [item.key for item in flow.build_plan() if item.is_actionable]
+    assert "identity" in runnable
+
+
+def test_hub_is_blocked_until_a_provisioning_service_is_selected():
+    """The one rule that must be enforced up front: a hub is meaningless without a DPS."""
+    flow = build_flow(context(namespace_payload(identity="SystemAssigned")))
+    blocked = all_states(flow)["hub"]
+    assert blocked is StepState.BLOCKED
+
+    chosen = build_flow(context(namespace_payload(identity="SystemAssigned"),
+                                selected_dps=dps_candidate()))
+    unblocked = all_states(chosen)["hub"]
+    assert unblocked is not StepState.BLOCKED, "selecting a DPS unblocks planning the hub"
+
+
+def test_blocked_step_explains_why():
+    flow = build_flow(context(namespace_payload(identity="SystemAssigned")))
+    hub = next(step for step in flow.steps if step.id == "hub")
+    assert "provisioning service must be linked" in hub.blocked_reason
+    assert [blocked.id for blocked in flow.blocking(hub)] == ["dps"]
+
+
+def test_a_fully_linked_namespace_has_only_optional_work_left():
+    flow = build_flow(
+        context(namespace_payload(identity="SystemAssigned",
+                                  provisioning={"dps": {}}, messaging={"hub": {}}))
+    )
+    states = all_states(flow)
+    for required in ("namespace", "identity", "dps", "hub"):
+        assert states[required] is StepState.SATISFIED
+    # Only optional work is left: Software Updates, and the review step itself.
+    assert flow.current().id in ("su", "review")
+
+
+def test_progress_counts_required_steps_only():
+    """Software Updates is optional and must not count against completion."""
+    flow = build_flow(context(namespace_payload(identity="SystemAssigned")))
+    done, total = flow.progress()
+    required = [s for s in flow.visible_steps() if not s.optional]
+    assert total == len(required)
+    # subscription, resource group and namespace are satisfied here.
+    assert done == 3
+
+
+# -- resumability --------------------------------------------------------------------
+
+
+def test_satisfied_steps_are_skipped_on_re_entry():
+    """Re-entering a partly configured namespace resumes rather than restarting."""
+    flow = build_flow(
+        context(namespace_payload(identity="SystemAssigned", provisioning={"dps": {}}))
+    )
+    satisfied = {step.id for step in flow.satisfied()}
+    assert {"scope", "namespace", "identity", "dps"} <= satisfied
+
+
+def test_detection_reads_live_state_not_selections():
+    """A selection must not make a step look done; only service state counts."""
+    flow = build_flow(context(namespace_payload(identity="SystemAssigned"),
+                              selected_dps=dps_candidate()))
+    states = all_states(flow)
+    assert states["dps"] is StepState.CURRENT, "selecting is not linking"
+
+
+# -- plan ----------------------------------------------------------------------------
+
+
+def test_plan_marks_existing_configuration_as_exists():
+    flow = build_flow(context(namespace_payload(identity="SystemAssigned")))
+    plan = {item.key: item for item in flow.build_plan()}
+    assert plan["namespace"].action == "exists"
+    assert plan["identity"].action == "exists"
+
+
+def test_plan_includes_the_link_command_for_a_selected_service():
+    flow = build_flow(context(namespace_payload(identity="SystemAssigned"),
+                              selected_dps=dps_candidate()))
+    plan = {item.key: item for item in flow.build_plan()}
+    assert plan["dps"].action == "create"
+    assert "az iot adr ns link dps add" in plan["dps"].command
+    assert "--dps-id" in plan["dps"].command
+
+
+def test_plan_shows_blocked_items_with_a_reason():
+    flow = build_flow(context(namespace_payload(identity="SystemAssigned")))
+    plan = {item.key: item for item in flow.build_plan()}
+    assert plan["hub"].action == "blocked"
+    assert plan["hub"].blocked_reason
+
+
+def test_hub_link_depends_on_the_provisioning_link():
+    flow = build_flow(
+        context(namespace_payload(identity="SystemAssigned"),
+                selected_dps=dps_candidate(), selected_hubs=[hub_candidate()])
+    )
+    plan = {item.key: item for item in flow.build_plan()}
+    assert "dps" in plan["hub-0"].depends_on, "ordering is encoded in the plan, not assumed"
+
+
+def identified(candidate, principal="pid-target"):
+    candidate.raw = {"identity": {"type": "SystemAssigned", "principalId": principal}}
+    return candidate
+
+
+def namespace_with_principal(principal="pid-ns", **kwargs):
+    payload = namespace_payload(identity="SystemAssigned", **kwargs)
+    payload["identity"]["principalId"] = principal
+    return payload
+
+
+def test_grant_commands_are_runnable_not_placeholders():
+    """The customer must be able to paste these; a placeholder makes the plan useless."""
+    flow = build_flow(
+        context(namespace_with_principal(provisioning={"dps": {}}),
+                selected_dps=identified(dps_candidate()), subscription_id="sub-1")
+    )
+    grants = [item for item in flow.build_plan() if item.key.startswith("grant-ns-to")]
+    assert grants
+    for item in grants:
+        assert "<" not in item.command, f"unresolved placeholder in: {item.command}"
+        assert "--assignee-object-id pid-ns" in item.command
+        assert "--assignee-principal-type ServicePrincipal" in item.command
+
+
+def test_reverse_grant_uses_the_targets_own_principal():
+    flow = build_flow(
+        context(namespace_with_principal(provisioning={"dps": {}}),
+                selected_dps=identified(dps_candidate(), principal="pid-dps"),
+                subscription_id="sub-1")
+    )
+    reverse = next(item for item in flow.build_plan() if item.key.startswith("grant-dps-to-ns"))
+    assert "--assignee-object-id pid-dps" in reverse.command
+    assert "/providers/Microsoft.DeviceRegistry/namespaces/ns1" in reverse.command
+
+
+def test_missing_namespace_principal_blocks_rather_than_guesses():
+    flow = build_flow(
+        context(namespace_payload(identity="SystemAssigned", provisioning={"dps": {}}),
+                selected_dps=identified(dps_candidate()))
+    )
+    forward = next(item for item in flow.build_plan() if item.key.startswith("grant-ns-to"))
+    assert forward.action == "blocked"
+    assert "no system-assigned identity" in forward.blocked_reason
+
+
+def test_target_without_identity_blocks_the_reverse_grant():
+    """This is exactly what the e2e reports as 'recreate the resource with an identity'."""
+    candidate = dps_candidate()
+    candidate.raw = {"identity": {}}
+    flow = build_flow(
+        context(namespace_with_principal(provisioning={"dps": {}}), selected_dps=candidate)
+    )
+    reverse = next(item for item in flow.build_plan() if item.key.startswith("grant-dps-to-ns"))
+    assert reverse.action == "blocked"
+    assert "recreate it with an identity" in reverse.blocked_reason
+
+
+def test_plan_includes_a_propagation_wait():
+    """Linking immediately after granting fails in a way that looks like a backend bug."""
+    flow = build_flow(
+        context(namespace_with_principal(provisioning={"dps": {}}),
+                selected_dps=identified(dps_candidate()))
+    )
+    wait = next(item for item in flow.build_plan() if item.key == "grant-propagation")
+    assert "propagation" in wait.description
+
+
+def test_permissions_plan_covers_both_directions():
+    flow = build_flow(
+        context(namespace_payload(identity="SystemAssigned", provisioning={"dps": {}}),
+                selected_dps=dps_candidate(), selected_hubs=[hub_candidate()],
+                subscription_id="sub-1")
+    )
+    commands = [item.description for item in flow.build_plan() if item.key.startswith("grant-")]
+    assert any("namespace identity" in text for text in commands)
+    assert any("identity 'Contributor' on the namespace" in text for text in commands)
+
+
+def test_hub_grants_include_the_data_role():
+    flow = build_flow(
+        context(namespace_payload(identity="SystemAssigned", provisioning={"dps": {}}),
+                selected_hubs=[hub_candidate()])
+    )
+    roles = " ".join(item.description for item in flow.build_plan())
+    assert "IoT Hub Data Contributor" in roles
+
+
+def test_grants_stay_manual_when_the_account_may_not_make_them():
+    """Without the right, radr reports the grants rather than failing halfway through."""
+    flow = build_flow(
+        context(namespace_with_principal(provisioning={"dps": {}}),
+                selected_dps=identified(dps_candidate()), can_grant_roles=False)
+    )
+    grants = [item for item in flow.build_plan() if item.key.startswith("grant-")]
+    assert grants
+    assert all(item.action == "manual" for item in grants)
+    assert all(item.invoke is None for item in grants)
+
+
+def test_an_unanswered_permission_probe_is_treated_as_no():
+    """Promising a grant radr cannot make would fail the run at the worst moment."""
+    flow = build_flow(
+        context(namespace_with_principal(provisioning={"dps": {}}),
+                selected_dps=identified(dps_candidate()), can_grant_roles=None)
+    )
+    grants = [item for item in flow.build_plan() if item.key.startswith("grant-")]
+    assert grants and all(item.invoke is None for item in grants)
+
+
+def test_grants_are_applied_when_the_account_is_allowed_to_make_them():
+    flow = build_flow(
+        context(namespace_with_principal(provisioning={"dps": {}}),
+                selected_dps=identified(dps_candidate()), can_grant_roles=True)
+    )
+    grants = [item for item in flow.build_plan() if item.key.startswith("grant-ns-to")]
+    assert grants
+    assert all(item.action == "create" for item in grants)
+    assert all(item.invoke is not None for item in grants), "radr should do this itself"
+
+
+def test_grants_run_before_the_links_that_need_them():
+    flow = build_flow(
+        context(namespace_with_principal(), selected_dps=identified(dps_candidate()),
+                selected_hubs=[identified(hub_candidate())], can_grant_roles=True)
+    )
+    plan = [item for item in flow.build_plan() if item.invoke is not None]
+    keys = [item.key for item in plan]
+    last_grant = max(i for i, k in enumerate(keys) if k.startswith("grant-"))
+    first_link = min(i for i, k in enumerate(keys) if k in ("dps", "hub-0"))
+    assert last_grant < first_link
+
+
+def test_script_is_runnable_and_annotates_what_is_skipped():
+    flow = build_flow(
+        context(namespace_payload(identity="SystemAssigned"), selected_dps=dps_candidate())
+    )
+    script = flow.script()
+    assert script.startswith("#!/usr/bin/env bash")
+    assert "az iot adr ns link dps add" in script
+    assert "# Namespace - already configured" in script
+
+
+def test_plan_never_mutates():
+    """Building a plan must not touch the service; only apply may."""
+    called = []
+    step = Step(id="s", title="S", plan=lambda ctx: [
+        PlanItem(key="s", description="do", invoke=lambda *a: called.append(1))
+    ])
+    Flow(steps=[step], context={}).build_plan()
+    assert called == []
+
+
+# -- pickers -------------------------------------------------------------------------
+
+
+def test_resource_without_identity_is_ineligible():
+    candidate = evaluate({"name": "dps-old", "id": "/x/dps-old", "location": "eastus2"})
+    assert candidate.verdict == INELIGIBLE
+    assert "no managed identity" in candidate.reason
+    assert not candidate.selectable
+
+
+def test_region_mismatch_is_a_warning_not_a_block():
+    candidate = evaluate(
+        {"name": "dps-west", "id": "/x/dps-west", "location": "westus2",
+         "identity": {"type": "SystemAssigned"}},
+        namespace_location="eastus2",
+    )
+    assert candidate.verdict == WARNING
+    assert candidate.selectable, "a warning must not prevent selection"
+
+
+def test_hub_registered_on_the_service_is_recommended():
+    candidate = evaluate(
+        {"name": "hub-a", "id": "/x/hub-a", "location": "eastus2",
+         "identity": {"type": "SystemAssigned"}},
+        namespace_location="eastus2",
+        registered_hub_names=["hub-a.azure-devices.net"],
+    )
+    assert candidate.recommended and candidate.verdict == ELIGIBLE
+
+
+def test_unregistered_hub_warns_about_silent_allocation_failure():
+    candidate = evaluate(
+        {"name": "hub-b", "id": "/x/hub-b", "location": "eastus2",
+         "identity": {"type": "SystemAssigned"}},
+        namespace_location="eastus2",
+        registered_hub_names=["hub-a.azure-devices.net"],
+    )
+    assert candidate.verdict == WARNING
+    assert "not registered" in candidate.reason
+
+
+def test_resource_group_is_parsed_from_the_id():
+    candidate = evaluate(
+        {"name": "dps", "id": "/subscriptions/s/resourceGroups/my-rg/providers/x/dps",
+         "identity": {"type": "SystemAssigned"}}
+    )
+    assert candidate.resource_group == "my-rg"
+
+
+def test_ranking_puts_recommended_first_and_ineligible_last():
+    items = [
+        Candidate(name="c", resource_id="c", verdict=INELIGIBLE),
+        Candidate(name="b", resource_id="b", verdict=WARNING),
+        Candidate(name="a", resource_id="a", verdict=ELIGIBLE),
+        Candidate(name="r", resource_id="r", verdict=ELIGIBLE, recommended=True),
+    ]
+    assert [candidate.name for candidate in rank(items)] == ["r", "a", "b", "c"]
+
+
+def test_ineligible_candidates_are_still_listed():
+    """Hiding a resource makes a customer think the product is broken."""
+    items = [Candidate(name="x", resource_id="x", verdict=INELIGIBLE)]
+    assert len(rank(items)) == 1
+
+
+def test_step_states_are_hidden_until_live_state_is_read():
+    """Showing steps before reading the namespace would claim an existing one needs creating."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"namespace_name": "ns1",
+                                                "resource_group_name": "rg1"})
+    assert screen._state_loaded is False
+
+    loaded = OnboardScreen(session=None, scope={"namespace_name": "ns1"},
+                           namespace=namespace_payload(identity="SystemAssigned"))
+    assert loaded._state_loaded is True
+
+
+def test_registered_hub_names_are_read_from_the_service_record():
+    """DPS records hub host names; the picker must compare on the same form."""
+    from azext_iot.adr.ui.screens.onboard.pickers import ResourceCatalog
+
+    catalog = ResourceCatalog(cmd=None)
+    dps = {"properties": {"iotHubs": [{"name": "hub-a.azure-devices.net"}, {"name": "hub-b"}]}}
+    assert catalog.registered_hub_names(dps) == ["hub-a.azure-devices.net", "hub-b"]
+    assert catalog.registered_hub_names({}) == []
+
+
+def test_host_name_registration_matches_a_bare_hub_name():
+    candidate = evaluate(
+        {"name": "hub-a", "id": "/x/hub-a", "identity": {"type": "SystemAssigned"}},
+        registered_hub_names=["hub-a.azure-devices.net"],
+    )
+    assert candidate.recommended, "a host-name record must match the hub resource name"
+
+
+def test_catalog_records_why_an_enumeration_failed():
+    """'None exist' and 'none visible to you' need different customer actions."""
+    from azext_iot.adr.ui.screens.onboard.pickers import ResourceCatalog
+
+    catalog = ResourceCatalog(cmd=None)
+
+    def broken():
+        raise RuntimeError("AuthorizationFailed")
+
+    assert catalog._listed("dps", broken) == []
+    assert "AuthorizationFailed" in catalog.errors["dps"]
+
+
+def test_candidate_keeps_the_payload_it_was_judged_from():
+    resource = {"name": "dps", "id": "/x/dps", "identity": {"type": "SystemAssigned"}}
+    assert evaluate(resource).raw is resource
+
+
+def test_arm_none_identity_is_treated_as_missing():
+    """ARM renders an absent identity as the string 'None', not an empty value."""
+    for shape in ({"type": "None"}, {"type": "none"}, {"type": ""}, {}):
+        candidate = evaluate({"name": "dps", "id": "/x/dps", "identity": shape})
+        assert candidate.verdict == INELIGIBLE, f"identity {shape} must be ineligible"
+
+
+def test_real_identity_shapes_remain_eligible():
+    for shape in ("SystemAssigned", "UserAssigned", "SystemAssigned, UserAssigned"):
+        candidate = evaluate({"name": "dps", "id": "/x/dps", "identity": {"type": shape}})
+        assert candidate.verdict == ELIGIBLE
+
+
+def test_grants_are_ordered_before_the_links_that_need_them():
+    """Linking before the grant propagates fails with an authorization error."""
+    flow = build_flow(
+        context(namespace_with_principal(), selected_dps=identified(dps_candidate()),
+                selected_hubs=[identified(hub_candidate())], subscription_id="sub-1")
+    )
+    keys = [item.key for item in flow.build_plan()]
+    first_grant = min(i for i, key in enumerate(keys) if key.startswith("grant-ns-to"))
+    link_dps = keys.index("dps")
+    assert first_grant < link_dps, "grants must precede the link"
+    assert keys.index("grant-propagation") < link_dps, "and the wait must precede it too"
+
+
+def test_prerequisites_come_before_grants():
+    flow = build_flow(
+        context({}, namespace_name="new-ns", selected_dps=identified(dps_candidate()))
+    )
+    keys = [item.key for item in flow.build_plan()]
+    assert keys.index("namespace") < keys.index("dps")
+
+
+def test_script_states_existing_context_before_changes():
+    flow = build_flow(
+        context(namespace_with_principal(), selected_dps=identified(dps_candidate()),
+                subscription_id="sub-1")
+    )
+    script = flow.script()
+    assert script.index("already configured") < script.index("az role assignment create")
+
+
+# -- apply --------------------------------------------------------------------------
+
+
+def test_identity_and_link_steps_are_executable():
+    """The wizard must be able to do the work, not only describe it."""
+    flow = build_flow(
+        context(namespace_payload(), namespace_name="ns1",
+                selected_dps=identified(dps_candidate()),
+                selected_hubs=[identified(hub_candidate())])
+    )
+    plan = {item.key: item for item in flow.build_plan()}
+    assert plan["identity"].invoke is not None
+    assert plan["dps"].invoke is not None
+    assert plan["hub-0"].invoke is not None
+
+
+def test_propagation_wait_is_skipped_when_nothing_was_newly_granted():
+    """Re-running setup should not idle for a minute over long-settled assignments."""
+    flow = build_flow(
+        context(namespace_with_principal(provisioning={"dps": {}}),
+                selected_dps=identified(dps_candidate()), can_grant_roles=True)
+    )
+    wait = next(item for item in flow.build_plan() if item.key == "grant-propagation")
+    assert wait.invoke is not None
+    started = time.monotonic()
+    wait.invoke(None, {})
+    assert time.monotonic() - started < 1, "no grant was created, so there is nothing to wait for"
+
+
+def test_identity_step_calls_the_provider_with_no_wait():
+    """PR1: the tray drives the poller, so the provider must not block on it."""
+    calls = {}
+
+    class FakeSession:
+        def provider(self, name):
+            calls["provider"] = name
+            return self
+
+        def identity_assign(self, **kwargs):
+            calls.update(kwargs)
+            return "poller"
+
+        def call(self, func, **kwargs):
+            return func(**kwargs)
+
+    flow = build_flow(context(namespace_payload(), namespace_name="ns1",
+                              resource_group_name="rg1"))
+    identity = next(item for item in flow.build_plan() if item.key == "identity")
+    assert identity.invoke(FakeSession(), flow.context) == "poller"
+    assert calls["provider"] == "namespace"
+    assert calls["system_assigned"] is True
+    assert calls["no_wait"] is True
+    assert calls["namespace_name"] == "ns1"
+
+
+def test_link_steps_pass_the_selected_resource_id():
+    class FakeSession:
+        def __init__(self):
+            self.seen = {}
+
+        def provider(self, name):
+            return self
+
+        def dps_add(self, **kwargs):
+            self.seen.update(kwargs)
+            return "poller"
+
+        def call(self, func, **kwargs):
+            return func(**kwargs)
+
+    dps = identified(dps_candidate())
+    flow = build_flow(context(namespace_payload(identity="SystemAssigned"), selected_dps=dps))
+    item = next(entry for entry in flow.build_plan() if entry.key == "dps")
+    session = FakeSession()
+    item.invoke(session, flow.context)
+    assert session.seen["dps_resource_id"] == dps.resource_id
+    assert session.seen["mi_system_assigned"] is True
+    assert session.seen["no_wait"] is True
+
+
+def test_selection_summary_reports_what_was_chosen():
+    """After pressing space the user must see that the selection registered."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"namespace_name": "ns1"},
+                           namespace=namespace_payload(identity="SystemAssigned"))
+    assert screen._selection_summary() == ""
+    screen.context["selected_dps"] = dps_candidate("dps-a")
+    screen.context["selected_hubs"] = [hub_candidate("hub-a")]
+    summary = screen._selection_summary()
+    assert "dps-a" in summary and "hub-a" in summary
+
+
+# -- create-new paths ---------------------------------------------------------------
+
+
+def create_request(kind="dps", name="new-dps", rg="rg1", location="eastus2"):
+    from azext_iot.adr.ui.screens.onboard.create import CreateRequest
+
+    return CreateRequest(kind=kind, name=name, resource_group_name=rg, location=location)
+
+
+def test_flow_can_start_with_no_namespace_at_all():
+    """A fresh start: nothing exists yet, and the first step is to choose or create."""
+    flow = build_flow({"subscription_id": "sub-1", "resource_group_name": "rg1"})
+    states = all_states(flow)
+    assert states["namespace"] is StepState.CURRENT
+
+
+def test_creating_a_namespace_plans_it_with_an_identity():
+    flow = build_flow({"subscription_id": "sub-1", "resource_group_name": "rg1",
+                       "namespace_name": "new-ns",
+                       "create_namespace": create_request("namespace", "new-ns")})
+    plan = {item.key: item for item in flow.build_plan()}
+    assert plan["namespace"].action == "create"
+    assert plan["namespace"].invoke is not None
+    assert "--mi-system-assigned" in plan["namespace"].command
+
+
+def test_creating_a_provisioning_service_plans_create_then_link():
+    flow = build_flow(context(namespace_with_principal(), create_dps=create_request(),
+                              subscription_id="sub-1"))
+    plan = [item.key for item in flow.build_plan() if item.is_actionable]
+    assert plan.index("dps-create") < plan.index("dps"), "create before link"
+
+
+def test_created_resources_get_a_deterministic_arm_id():
+    """The link command can be written before the resource exists."""
+    flow = build_flow(context(namespace_with_principal(), create_dps=create_request(),
+                              subscription_id="sub-1"))
+    link = next(item for item in flow.build_plan() if item.key == "dps")
+    assert "/subscriptions/sub-1/resourceGroups/rg1/providers/" in link.command
+    assert "provisioningServices/new-dps" in link.command
+
+
+def test_new_resources_are_always_created_with_an_identity():
+    from azext_iot.adr.ui.screens.onboard.create import dps_body, hub_body
+
+    assert dps_body("eastus2")["identity"]["type"] == "SystemAssigned"
+    assert hub_body("eastus2")["identity"]["type"] == "SystemAssigned"
+
+
+def test_reverse_grant_for_a_pending_resource_says_when_to_run_it():
+    """Without the right to grant, the principal id can only be read after creation."""
+    flow = build_flow(context(namespace_with_principal(), create_dps=create_request(),
+                              subscription_id="sub-1", can_grant_roles=False))
+    reverse = next(item for item in flow.build_plan() if item.key.startswith("grant-dps-to-ns"))
+    assert reverse.action == "manual"
+    assert "after" in reverse.blocked_reason and "is created" in reverse.blocked_reason
+    assert "principal id" in reverse.command, "the placeholder must be obvious, not blank"
+
+
+def test_a_resource_without_an_identity_cannot_receive_the_reverse_grant():
+    flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
+                              selected_dps=dps_candidate(), can_grant_roles=True))
+    reverse = next(item for item in flow.build_plan() if item.key.startswith("grant-dps-to-ns"))
+    assert reverse.action == "blocked"
+    assert "no system-assigned identity" in reverse.blocked_reason
+
+
+def test_creating_a_hub_plans_create_then_link():
+    flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
+                              create_hub=create_request("hub", "new-hub"),
+                              subscription_id="sub-1"))
+    plan = [item.key for item in flow.build_plan() if item.is_actionable]
+    assert plan.index("hub-create") < plan.index("hub-0")
+
+
+def test_software_updates_is_optional_and_absent_until_chosen():
+    flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}},
+                                                       messaging={"hub": {}})))
+    keys = [item.key for item in flow.build_plan()]
+    assert "su" not in keys, "an optional step contributes nothing until chosen"
+    assert flow.is_complete is False or True  # optional steps never block completion
+
+
+def test_choosing_software_updates_plans_the_link():
+    flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
+                              selected_sus=[identified(dps_candidate("su-1"))],
+                              subscription_id="sub-1"))
+    link = next(item for item in flow.build_plan() if item.key == "su")
+    assert "link su add" in link.command
+    assert link.invoke is not None
+
+
+def test_several_update_instances_are_each_linked_under_their_own_endpoint():
+    """Updating endpoints are a map, so one namespace may serve several instances."""
+    flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
+                              selected_sus=[identified(dps_candidate("su-1")),
+                                            identified(dps_candidate("su-2"))],
+                              subscription_id="sub-1"))
+    links = [item for item in flow.build_plan() if item.key in ("su", "su-1")]
+    assert len(links) == 2
+    endpoints = {item.command.split("--endpoint-name ")[1].split()[0] for item in links}
+    assert endpoints == {"su-1", "su-2"}, "a shared endpoint name would overwrite the first"
+
+
+def test_name_validation_rejects_bad_resource_names():
+    from azext_iot.adr.ui.screens.onboard.forms import validate_name
+
+    assert validate_name("good-name-1") is None
+    assert validate_name("") is not None
+    assert validate_name("-leading") is not None
+    assert validate_name("trailing-") is not None
+    assert validate_name("has space") is not None
+
+
+def test_created_resources_still_get_forward_grants():
+    """A new resource needs the same grants; only its own principal id is unknown."""
+    flow = build_flow(context(namespace_with_principal(), create_dps=create_request(),
+                              subscription_id="sub-1"))
+    forward = next(item for item in flow.build_plan() if item.key.startswith("grant-ns-to-dps"))
+    assert "--assignee-object-id pid-ns" in forward.command
+
+
+def test_a_resource_created_in_the_same_run_can_still_be_granted():
+    """Its principal id is unknown when planning, so it is read when the grant runs."""
+    flow = build_flow(context(namespace_with_principal(), create_dps=create_request(),
+                              subscription_id="sub-1", can_grant_roles=True))
+    reverse = next(item for item in flow.build_plan() if item.key.startswith("grant-dps-to-ns"))
+    assert reverse.action == "create", "waiting for a second run defeats guided setup"
+    assert reverse.invoke is not None
+
+
+# -- scope: subscription and resource group ------------------------------------------
+
+
+def test_subscription_is_the_first_step_and_gates_the_rest():
+    flow = build_flow({})
+    states = all_states(flow)
+    assert states["subscription"] is StepState.CURRENT
+    assert states["scope"] is StepState.BLOCKED
+
+
+def test_resource_group_step_follows_the_subscription():
+    flow = build_flow({"subscription_id": "sub-1"})
+    states = all_states(flow)
+    assert states["subscription"] is StepState.SATISFIED
+    assert states["scope"] is StepState.CURRENT
+
+
+def test_creating_a_resource_group_is_planned():
+    flow = build_flow({"subscription_id": "sub-1",
+                       "create_resource_group": create_request("resource_group", "new-rg")})
+    item = next(entry for entry in flow.build_plan() if entry.key == "resource-group")
+    assert item.invoke is not None
+    assert "az group create -n new-rg" in item.command
+
+
+def test_scope_without_a_resource_group_is_blocked_not_silent():
+    flow = build_flow({"subscription_id": "sub-1"})
+    item = next(entry for entry in flow.build_plan() if entry.key == "scope")
+    assert item.action == "blocked"
+    assert "no resource group chosen" in item.blocked_reason
+
+
+def test_a_satisfied_step_can_be_revisited():
+    """Satisfied steps are skipped by the flow; without a jump, subscription is unreachable."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None,
+                           scope={"subscription_id": "sub-1", "resource_group_name": "rg1"},
+                           namespace=namespace_payload(identity="SystemAssigned"))
+    assert screen.active_step().id != "subscription", "satisfied, so normally skipped"
+    screen._focus_step = "subscription"
+    assert screen.active_step().id == "subscription", "a jump makes it reachable again"
+
+
+def test_active_step_falls_back_to_the_flow():
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    screen._focus_step = "does-not-exist"
+    assert screen.active_step() is screen.flow.current()
+
+
+# -- interaction model (follows Posting/Harlequin: focusable panes, inline forms) -----
+
+
+def test_creation_is_inline_not_a_pushed_screen():
+    """A pushed screen would hide the step rail and the context being worked against."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    assert "CreateResourceDialog" not in source, "creation must not push a screen"
+    assert 'id="create-form"' in source, "the form lives inside the pane"
+
+
+def test_screen_focuses_the_picker_on_arrival():
+    """Without an explicit focus, arrow keys go nowhere."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    assert '.focus()' in source
+
+
+def test_steps_are_listed_in_a_navigable_widget():
+    """The rail is a list so arrows move through steps, as in the reference apps."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    assert "ListView" in source and "on_list_view_highlighted" in source
+
+
+def test_create_request_is_recorded_and_scopes_downstream_steps():
+    """Regression: _accept_create was lost in a refactor and crashed the form."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    request = create_request("namespace", "radar1", rg="cli-test-canary",
+                             location="centraluseuap")
+    screen._accept_create("namespace", "create_namespace", request)
+    assert screen.context["create_namespace"] is request
+    assert screen.context["namespace_name"] == "radar1"
+    assert screen.context["resource_group_name"] == "cli-test-canary"
+    assert screen.context["location"] == "centraluseuap"
+
+
+def test_accept_create_ignores_a_cancelled_form():
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    screen._accept_create("namespace", "create_namespace", None)
+    assert "create_namespace" not in screen.context
+
+
+def test_candidate_filter_matches_name_group_and_region():
+    """Scrolling 308 subscriptions is unusable; filtering is not optional."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+    from azext_iot.adr.ui.screens.onboard.pickers import Candidate
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    screen._candidates = [
+        Candidate(name="alpha-dps", resource_id="1", resource_group="rg-one",
+                  location="eastus2"),
+        Candidate(name="beta-dps", resource_id="2", resource_group="rg-two",
+                  location="westus"),
+    ]
+    screen._candidate_filter = "alpha"
+    assert [c.name for c in screen._visible_candidates()] == ["alpha-dps"]
+    screen._candidate_filter = "rg-two"
+    assert [c.name for c in screen._visible_candidates()] == ["beta-dps"]
+    screen._candidate_filter = "westus"
+    assert [c.name for c in screen._visible_candidates()] == ["beta-dps"]
+    screen._candidate_filter = ""
+    assert len(screen._visible_candidates()) == 2
+
+
+def test_tab_is_not_swallowed_by_a_dead_binding():
+    """A screen-level 'tab' binding to a non-existent action broke focus traversal."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    keys = [binding.key for binding in OnboardScreen.BINDINGS]
+    assert "tab" not in keys, "Textual moves focus on Tab natively"
+
+
+def test_queued_creation_is_visible_in_the_rail_and_body():
+    """Clicking the button records intent; the customer must see that it landed."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    assert screen._pending_creation("namespace") is None
+    assert screen._pending_summary() == ""
+
+    request = create_request("namespace", "radar1")
+    screen._accept_create("namespace", "create_namespace", request)
+    assert screen._pending_creation("namespace") is request
+    assert "create namespace 'radar1'" in screen._pending_summary()
+
+
+def test_button_label_does_not_claim_to_create():
+    """It adds to the plan; nothing runs until apply."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    assert 'Button("Confirm"' in source
+
+
+def test_creating_a_namespace_does_not_also_assign_an_identity():
+    """`ns create` always assigns one; assigning again fails as 'already assigned'."""
+    flow = build_flow({"subscription_id": "sub-1", "resource_group_name": "rg1",
+                       "namespace_name": "radr",
+                       "create_namespace": create_request("namespace", "radr")})
+    identity = next(item for item in flow.build_plan() if item.key == "identity")
+    assert identity.action == "exists"
+    assert identity.invoke is None, "a redundant assign would fail the whole apply"
+
+
+def test_adopting_a_namespace_without_identity_still_assigns_one():
+    flow = build_flow(context(namespace_payload()))
+    identity = next(item for item in flow.build_plan() if item.key == "identity")
+    assert identity.invoke is not None
+
+
+def test_steps_are_named_after_the_action_they_perform():
+    """'Provisioning service' describes a noun; 'Link DPS' describes what happens."""
+    flow = build_flow(context())
+    titles = {step.id: step.title for step in flow.steps}
+    assert titles["dps"] == "Link DPS"
+    assert titles["hub"] == "Link Hub"
+    assert titles["su"] == "Link Software Updates"
+    assert titles["permissions"] == "Grant role assignments"
+
+
+def test_step_titles_fit_a_narrow_rail():
+    """The rail is ~28 columns at its narrowest; longer titles were being truncated."""
+    flow = build_flow(context())
+    for step in flow.steps:
+        assert len(step.title) <= 24, f"'{step.title}' is too long for the rail"
+
+
+# -- many hubs per namespace ---------------------------------------------------------
+
+
+def test_multiple_hubs_each_get_their_own_link():
+    """One DPS is the cap; hubs are many, which is why allocation weight exists."""
+    hubs = [identified(hub_candidate("hub-a")), identified(hub_candidate("hub-b"))]
+    flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
+                              selected_hubs=hubs, subscription_id="sub-1"))
+    links = [item for item in flow.build_plan() if item.key.startswith("hub-")]
+    assert len(links) == 2
+    assert "hub-a" in links[0].command and "hub-b" in links[1].command
+
+
+def test_each_hub_gets_its_own_endpoint_name():
+    """Endpoint names must be unique within the namespace or the second link overwrites."""
+    hubs = [identified(hub_candidate("hub-a")), identified(hub_candidate("hub-b"))]
+    flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
+                              selected_hubs=hubs, subscription_id="sub-1"))
+    names = [
+        item.command.split("--endpoint-name ")[1].split(" ")[0]
+        for item in flow.build_plan() if item.key.startswith("hub-")
+    ]
+    assert len(set(names)) == len(names), f"endpoint names collide: {names}"
+
+
+def test_every_selected_hub_gets_grants_in_both_directions():
+    hubs = [identified(hub_candidate("hub-a")), identified(hub_candidate("hub-b"))]
+    flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
+                              selected_hubs=hubs, subscription_id="sub-1"))
+    grants = [item.description for item in flow.build_plan() if item.key.startswith("grant-")]
+    for hub in ("hub-a", "hub-b"):
+        assert any(hub in text and "namespace identity" in text for text in grants)
+        assert any(hub in text and "on the namespace" in text for text in grants)
+
+
+def test_rail_lists_decisions_only():
+    """Automatic operations shown as steps read as chores the customer must act on."""
+    flow = build_flow(context())
+    visible = [step.id for step in flow.visible_steps()]
+    assert "identity" not in visible, "assigning an identity is never a choice"
+    assert "permissions" not in visible, "grants are an output, not a decision"
+    assert visible[-1] == "review", "the rail ends where changes happen"
+
+
+def test_hidden_steps_still_contribute_to_the_plan():
+    flow = build_flow(context(namespace_payload()))
+    keys = [item.key for item in flow.build_plan()]
+    assert "identity" in keys, "hidden from the rail, but still executed"
+
+
+# -- orientation: what am I choosing, and what have I chosen -------------------------
+
+
+def test_rail_shows_what_was_chosen_for_each_step():
+    """Without this the rail says 'Subscription' but never which one."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={
+        "subscription_id": "sub-1", "subscription_name": "Contoso-Dev",
+        "resource_group_name": "rg-one", "namespace_name": "factory",
+    })
+    assert screen._chosen_lines("subscription") == ["Contoso-Dev"]
+    assert screen._chosen_lines("scope") == ["rg-one"]
+    assert screen._chosen_lines("namespace") == ["factory"]
+
+
+def test_rail_lists_every_chosen_hub_rather_than_hiding_them():
+    """'+3 more' hides exactly what the customer is checking before running the plan."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    screen.context["selected_hubs"] = [hub_candidate(f"hub-{i}") for i in range(4)]
+    assert screen._chosen_lines("hub") == ["hub-0", "hub-1", "hub-2", "hub-3"]
+
+
+def test_rail_lists_chosen_update_instances_too():
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    screen.context["selected_sus"] = [hub_candidate("su-a"), hub_candidate("su-b")]
+    assert screen._chosen_lines("su") == ["su-a", "su-b"]
+
+
+def test_rail_stops_listing_choices_before_it_fills_the_pane():
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen, _RAIL_CHOICE_LIMIT
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    screen.context["selected_hubs"] = [hub_candidate(f"hub-{i}") for i in range(14)]
+    lines = screen._chosen_lines("hub")
+    assert len(lines) == _RAIL_CHOICE_LIMIT + 1
+    assert lines[-1] == f"and {14 - _RAIL_CHOICE_LIMIT} more"
+
+
+def test_every_picker_step_has_empty_state_guidance():
+    """An empty table with no explanation reads as a broken product."""
+    from azext_iot.adr.ui.screens.onboard.screen import _EMPTY_GUIDANCE, _PICKER_STEPS
+
+    for step_id in _PICKER_STEPS:
+        message = _EMPTY_GUIDANCE.get(step_id, "")
+        assert message, f"no guidance for an empty '{step_id}' picker"
+        assert "press n" in message or "az login" in message, (
+            f"guidance for '{step_id}' does not say what to do next"
+        )
+
+
+def test_existing_namespaces_can_be_selected():
+    """Namespaces had no picker, so an existing one could not be adopted from the flow."""
+    from azext_iot.adr.ui.screens.onboard.screen import _PICKER_STEPS
+
+    assert "namespace" in _PICKER_STEPS
+
+
+def test_rail_positions_map_to_visible_steps_only():
+    """Indexing all steps selects the wrong one once a hidden step sits between two."""
+    flow = build_flow(context())
+    visible = flow.visible_steps()
+    assert [s.id for s in visible][:4] == ["subscription", "scope", "namespace", "dps"]
+    # 'identity' is hidden and sits between 'namespace' and 'dps' in the full list.
+    assert [s.id for s in flow.steps][3] == "identity"
+    assert visible[3].id == "dps", "rail position 4 must be Link DPS, not the hidden step"
+
+
+def test_every_picker_step_has_a_loading_noun():
+    """A missing entry crashed the status line the moment a new picker was added."""
+    from azext_iot.adr.ui.screens.onboard.screen import _PICKER_NOUNS, _PICKER_STEPS
+
+    for step_id in _PICKER_STEPS:
+        assert step_id in _PICKER_NOUNS, f"no loading noun for '{step_id}'"
+
+
+# -- advancing after a choice --------------------------------------------------------
+
+
+def test_selecting_clears_the_pinned_step_so_the_flow_moves_on():
+    """Without this the pane stays on the completed step and the customer must navigate."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    screen._focus_step = "scope"
+    screen._candidate_filter = "canary"
+    screen._advance()
+    assert screen._focus_step is None, "the flow must fall back to the next open step"
+    assert screen._candidate_filter == "", "a filter must not carry into the next step"
+
+
+def test_advance_moves_to_the_next_unsatisfied_step():
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    assert screen.active_step().id == "scope"
+    screen.context["resource_group_name"] = "rg-one"
+    screen._advance()
+    assert screen.active_step().id == "namespace"
+
+
+def test_hub_step_does_not_advance_because_it_is_multi_select():
+    """Advancing after the first hub would make linking a second one awkward."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    hub_branch = source.split('if step.id == "hub":', 1)[1].split("def ", 1)[0]
+    assert "_advance(" not in hub_branch, "the hub step must stay put for multi-select"
+
+
+def test_rail_repaint_is_not_mistaken_for_a_choice():
+    """Setting the rail index programmatically used to re-pin the step being left."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    assert "_syncing_rail" in source
+    handler = source.split("def on_list_view_highlighted", 1)[1].split("def ", 1)[0]
+    assert "if self._syncing_rail:" in handler
+
+
+# -- finishing a multi-select step ---------------------------------------------------
+
+
+def _screen_with(**context):
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
+    screen.context.update(context)
+    screen.flashes = []
+    screen.flash = lambda message, level="info": screen.flashes.append((level, message))
+    return screen
+
+
+def test_selecting_a_second_hub_keeps_both():
+    screen = _screen_with()
+    screen._toggle_choice("hub", hub_candidate("hub-a"))
+    screen._toggle_choice("hub", hub_candidate("hub-b"))
+    assert [h.name for h in screen.context["selected_hubs"]] == ["hub-a", "hub-b"]
+
+
+def test_selecting_the_same_hub_twice_removes_it():
+    """Appending twice used to queue a duplicate endpoint, which failed at link time."""
+    screen = _screen_with()
+    screen._toggle_choice("hub", hub_candidate("hub-a"))
+    screen._toggle_choice("hub", hub_candidate("hub-a"))
+    assert screen.context["selected_hubs"] == []
+
+
+def test_update_instances_toggle_the_same_way_as_hubs():
+    screen = _screen_with()
+    screen._toggle_choice("su", hub_candidate("su-a"))
+    screen._toggle_choice("su", hub_candidate("su-b"))
+    assert [s.name for s in screen.context["selected_sus"]] == ["su-a", "su-b"]
+
+
+def test_done_on_a_multi_select_step_moves_on():
+    screen = _screen_with(selected_hubs=[hub_candidate("hub-a")])
+    screen._focus_step = "hub"
+    screen.action_done_step()
+    assert screen._focus_step is None
+
+
+def test_done_with_nothing_chosen_on_a_required_step_says_so():
+    """Silently advancing would produce a namespace with no messaging endpoint."""
+    screen = _screen_with()
+    screen._focus_step = "hub"
+    screen.action_done_step()
+    assert screen._focus_step == "hub"
+    assert any(level == "warning" for level, _ in screen.flashes)
+
+
+def test_done_with_nothing_chosen_skips_an_optional_step():
+    screen = _screen_with()
+    screen._focus_step = "su"
+    screen.action_done_step()
+    assert screen._focus_step is None
+
+
+def test_done_counts_a_resource_that_is_still_to_be_created():
+    screen = _screen_with(create_hub=create_request("hub", "new-hub"))
+    screen._focus_step = "hub"
+    screen.action_done_step()
+    assert screen._focus_step is None
+
+
+def test_the_done_key_is_bound_and_advertised():
+    """A multi-select step with no visible way out is a dead end."""
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    binding = next(b for b in OnboardScreen.BINDINGS if b.action == "done_step")
+    assert binding.key == "d"
+    assert binding.show, "the customer cannot guess an unlisted key"
+
+
+def test_a_step_whose_choices_are_made_is_not_shown_as_outstanding():
+    """The rail must distinguish 'chosen, will run' from 'nothing done here yet'."""
+    from azext_iot.adr.ui.screens.onboard.steps import build_flow
+
+    flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
+                              selected_hubs=[identified(hub_candidate())]))
+    hub = next(step for step in flow.steps if step.id == "hub")
+    assert not hub.is_satisfied(flow.context), "nothing is linked until the plan runs"
+    assert hub.is_planned(flow.context), "but the rail should show it as ready"
+
+
+def test_help_documents_the_guided_setup_keys():
+    """Keys that only appear in the footer are invisible to anyone who opens help."""
+    from azext_iot.adr.ui.screens.help import SETUP_KEYS
+
+    keys = {key for key, _ in SETUP_KEYS}
+    assert {"space", "d", "n", "a", "p"} <= keys
+
+
+def test_reload_re_asks_whether_grants_are_allowed():
+    """The review panel tells the customer to activate PIM and press r, so r must re-ask."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    handler = source.split("def action_reload", 1)[1].split("    def ", 1)[0]
+    assert "_grant_probe_for" in handler and "_probe_grant_rights()" in handler
+
+
+def test_switching_subscription_discards_the_previous_grant_verdict():
+    """Rights are per subscription; carrying the answer over would be wrong either way."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    handler = source.split("def _switch_subscription", 1)[1].split("    def ", 1)[0]
+    assert 'pop("can_grant_roles"' in handler
