@@ -102,7 +102,8 @@ def load_iothub_commands(self, _):
         cmd_group.command(
             "fabric-eventstream",
             "message_endpoint_create_fabric_eventstream",
-            transform=EndpointUpdateResultTransform(self.cli_ctx)
+            transform=EndpointUpdateResultTransform(self.cli_ctx),
+            is_preview=True
         )
 
     with self.command_group(
@@ -138,7 +139,8 @@ def load_iothub_commands(self, _):
         cmd_group.command(
             "fabric-eventstream",
             "message_endpoint_update_fabric_eventstream",
-            transform=EndpointUpdateResultTransform(self.cli_ctx)
+            transform=EndpointUpdateResultTransform(self.cli_ctx),
+            is_preview=True
         )
 
     with self.command_group(
