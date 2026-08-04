@@ -7,7 +7,7 @@ Release History
 
 **General updates**
 
-* Updated all ``az iot adr ns`` commands to the ``Microsoft.DeviceRegistry/2026-11-02-preview`` management API.
+* Updated all ``az iot adr ns`` commands to the ``Microsoft.DeviceRegistry/2026-11-02-preview`` management API and marked the complete command tree as preview.
 * Regenerated the complete synchronous and asynchronous Device Registry SDK from the ``package-preview-2026-11-02`` specification tag. The generated clients expose all 25 operation groups and 118 operations in the source specification.
 * Generated a dedicated synchronous and asynchronous Device Update control-plane SDK from the ``package-2026-11-02-preview`` DuDeviceRegistry specification tag without replacing the existing ``az iot du`` SDK.
 * Added safer long-running-operation handling: resource mutations poll ``provisioningState`` and POST actions poll the authenticated ``Location`` URL instead of the service's unsupported ``Azure-AsyncOperation`` host.
@@ -29,7 +29,9 @@ Release History
   - Added ``az iot adr ns su instance check-name / create / show / list / update / delete / wait`` for ``Microsoft.DeviceUpdate/updateInstances`` resources.
   - Update Instance create and update support tags plus complete system- and user-assigned managed identity configuration. List supports resource-group and subscription scopes.
   - Namespace updating endpoints remain under ``az iot adr ns link su add / show / list / update / wait``, consistent with the existing Hub and DPS link groups.
-  - Software Updates data-plane commands and the service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions are intentionally not exposed.
+  - Added ``az iot adr ns su update import / list / show / delete``, ``su update file list / show``, local ``su update calculate-hash`` and ``su update init v5``, and ``su device-class list / show / delete`` using the linked namespace's Software Updates data-plane endpoint.
+  - Added ``az iot adr ns device show`` as the Software Updates workflow alias for ``registry-device show``.
+  - Device-class update remains unavailable because ``2026-11-02-preview`` exposes no update route or writable friendly-name property. The service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions remain intentionally hidden.
 
 * **Namespace parity**
 

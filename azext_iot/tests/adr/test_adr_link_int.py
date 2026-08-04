@@ -34,10 +34,12 @@ What is intentionally NOT covered here (covered by unit tests):
 """
 
 import os
+import sys
 import time
 from typing import Optional
 
 import pytest
+from msrestazure.tools import parse_resource_id
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._helpers import (
@@ -56,8 +58,17 @@ from azext_iot.tests.adr.conftest import (
 
 _SU_UPDATE_INSTANCE_ENV = "azext_iot_adr_update_instance_id"
 _SU_UPDATE_INSTANCE_ID = os.getenv(_SU_UPDATE_INSTANCE_ENV, "").strip()
-_LINKING_POLL_ATTEMPTS = 18
+_SU_UPDATE_INSTANCE_DISPOSABLE = os.getenv(
+    "azext_iot_adr_update_instance_disposable", ""
+).lower() in {"1", "true", "yes"}
+_LINKING_POLL_ATTEMPTS = int(
+    os.getenv("azext_iot_adr_su_link_poll_attempts", "240")
+)
 _LINKING_POLL_INTERVAL_SECONDS = 10
+_ADU_FPA_OBJECT_ID = os.getenv(
+    "azext_iot_adr_adu_fpa_object_id",
+    "e6c17e40-1542-4a44-9e8e-971232625ea8",
+).strip()
 
 
 def _wait_for_linking_succeeded(
@@ -578,10 +589,12 @@ class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
 
 @pytest.mark.skipif(
-    not _SU_UPDATE_INSTANCE_ID,
+    not _SU_UPDATE_INSTANCE_ID or not _SU_UPDATE_INSTANCE_DISPOSABLE,
     reason=(
-        "Set azext_iot_adr_update_instance_id to the full resource ID of a "
-        "pre-provisioned Microsoft.DeviceUpdate/updateInstances resource."
+        "Set azext_iot_adr_update_instance_id to a pre-provisioned disposable "
+        "Microsoft.DeviceUpdate/updateInstances resource and set "
+        "azext_iot_adr_update_instance_disposable=true. The test permanently "
+        "links and then deletes that instance."
     ),
 )
 @pytest.mark.usefixtures("set_cwd")
@@ -591,12 +604,13 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     Mirrors the Hub/DPS link lifecycle for the ``iot adr ns link su`` surface:
 
     1. Use the pre-provisioned ``Microsoft.DeviceUpdate/updateInstances`` resource
-       supplied by ``azext_iot_adr_update_instance_id``. It must have both SAMI
-       and UAMI identities.
+       supplied by ``azext_iot_adr_update_instance_id``. It must be disposable
+       and have both SAMI and UAMI identities.
     2. Create an ADR namespace and authorize the update instance identities.
     3. Step 1: ``link su add`` (UAMI) attaches the Software Updates updating endpoint.
     4. Step 2: ``link su show`` / ``list`` surface the single entry.
-    5. Step 3: ``link su update`` rotates the inbound caller identity UAMI → SAMI.
+    5. Step 3: data-plane list commands verify the materialized service address.
+    6. Step 4: ``link su update`` rotates the inbound caller identity UAMI → SAMI.
 
     What is intentionally NOT covered here (covered by unit tests):
     - Duplicate endpoint-name rejection
@@ -619,13 +633,12 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             return {item["name"] for item in listed}
 
         def _identity_type(endpoint: dict) -> Optional[str]:
-            ici = (endpoint.get("properties", endpoint).get("inboundCallerIdentity")
-                   or endpoint.get("inboundCallerIdentity") or {})
-            return ici.get("type")
+            properties = endpoint.get("properties") or endpoint
+            return (properties.get("inboundCallerIdentity") or {}).get("type")
 
         su_id = _SU_UPDATE_INSTANCE_ID
         try:
-            with timed_step("Setup 1/2 ❯ Resolve Update Instance SAMI and UAMI"):
+            with timed_step("Setup 1/3 ❯ Resolve Update Instance SAMI and UAMI"):
                 update_instance = self.cmd(
                     f"resource show --ids {su_id}"
                 ).get_output_in_json()
@@ -715,6 +728,7 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 namespace_principal_id = (ns.get("identity") or {}).get("principalId")
                 assert namespace_principal_id, "Namespace SAMI principalId is required."
                 self.assign_role(namespace_principal_id, "Contributor", su_id)
+                self.assign_role(_ADU_FPA_OBJECT_ID, "Contributor", su_id)
 
             # Allow role assignments to propagate
             time.sleep(30)
@@ -763,7 +777,23 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 assert len(names) == 1, f"Expected exactly one Software Updates link, got {names}"
                 _log(LogKind.OK, "Software Updates list returned 1 entry")
 
-            with timed_step("Step 3 > link su update (rotate identity UAMI to SAMI)"):
+            with timed_step("Step 3 > Software Updates data-plane discovery"):
+                updates = self.cmd(
+                    f"iot adr ns su update list --ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                classes = self.cmd(
+                    f"iot adr ns su device-class list --ns {namespace_name} -g {rg}"
+                ).get_output_in_json()
+                assert isinstance(updates, list)
+                assert isinstance(classes, list)
+                _log(
+                    LogKind.OK,
+                    "Software Updates data plane returned %d update(s), %d class(es)",
+                    len(updates),
+                    len(classes),
+                )
+
+            with timed_step("Step 4 > link su update (rotate identity UAMI to SAMI)"):
                 update_cmd = (
                     f"iot adr ns link su update --ns {namespace_name} -g {rg} "
                     f"-n {su_endpoint} --mi-system-assigned"
@@ -786,12 +816,40 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
             _log(LogKind.OK, "Software Updates link lifecycle passed")
 
         finally:
+            active_error = sys.exc_info()[1]
+            cleanup_failures = []
             with timed_step("Cleanup ❯ Delete ADR namespace"):
                 try:
                     self.cmd(f"iot adr ns delete -n {namespace_name} -g {rg} -y")
                     _log(LogKind.RESULT, "ADR namespace deleted")
-                except Exception as e:  # noqa: BLE001 — best-effort cleanup
-                    _log(LogKind.WARN, "Namespace cleanup failed: %s", e)
+                except Exception as error:  # noqa: BLE001 - report after all cleanup
+                    cleanup_failures.append(("namespace", error))
+                    _log(LogKind.WARN, "Namespace cleanup failed: %s", error)
+            with timed_step("Cleanup ❯ Delete disposable Update Instance"):
+                try:
+                    parsed_su_id = parse_resource_id(su_id)
+                    instance_name = parsed_su_id["name"]
+                    instance_rg = parsed_su_id["resource_group"]
+                    self.cmd(
+                        f"iot adr ns su instance delete -n {instance_name} "
+                        f"-g {instance_rg} --yes --no-wait"
+                    )
+                    self.cmd(
+                        f"iot adr ns su instance wait -n {instance_name} "
+                        f"-g {instance_rg} --deleted"
+                    )
+                    _log(LogKind.RESULT, "Disposable Update Instance deleted")
+                except Exception as error:  # noqa: BLE001 - report after all cleanup
+                    cleanup_failures.append(("Update Instance", error))
+                    _log(LogKind.WARN, "Update Instance cleanup failed: %s", error)
+            if cleanup_failures and active_error is None:
+                detail = ", ".join(
+                    f"{resource}: {error}"
+                    for resource, error in cleanup_failures
+                )
+                raise AssertionError(
+                    f"Cleanup failed: {detail}"
+                ) from cleanup_failures[0][1]
 
 
 @pytest.mark.usefixtures("set_cwd")

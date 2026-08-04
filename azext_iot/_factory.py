@@ -34,6 +34,7 @@ __all__ = [
     "iot_service_provisioning_factory",
     "adr_service_factory",
     "adr_su_service_factory",
+    "adr_su_data_service_factory",
 ]
 
 
@@ -159,6 +160,17 @@ def adr_su_service_factory(cli_ctx, *_):
         subscription_id=get_subscription_id(cli_ctx),
         endpoint=_ADR_CANARY_ARM_ENDPOINT,
         credential_scopes=_get_credential_scopes(cli_ctx),
+        user_agent_policy=UserAgentPolicy(user_agent=USER_AGENT),
+        http_logging_policy=_get_default_logging_policy(),
+    )
+
+
+def adr_su_data_service_factory(cli_ctx, *_):
+    """Create the Software Updates data-plane client."""
+    from azext_iot.sdk.deviceupdate.duregistrydata import DeviceRegistryUpdateClient
+
+    return DeviceRegistryUpdateClient(
+        credential=AZURE_CLI_CREDENTIAL,
         user_agent_policy=UserAgentPolicy(user_agent=USER_AGENT),
         http_logging_policy=_get_default_logging_policy(),
     )

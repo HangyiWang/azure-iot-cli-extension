@@ -547,8 +547,8 @@ def load_adr_help():
   short-summary: Manage Software Updates for Device Registry namespaces.
   long-summary: |
     Manages the Update Instance (Microsoft.DeviceUpdate/updateInstances) that powers
-    Software Updates. Namespace links remain under 'az iot adr ns link su'.
-    Software Updates data-plane operations are not part of this command group.
+    Software Updates and the updates and device classes available through a linked
+    Device Registry namespace. Namespace links remain under 'az iot adr ns link su'.
   """
 
     helps[
@@ -640,6 +640,158 @@ def load_adr_help():
   examples:
     - name: Wait until provisioning succeeds
       text: az iot adr ns su instance wait -n myUpdateInstance -g myResourceGroup --custom "properties.provisioningState=='Succeeded'"
+  """
+
+    helps["iot adr ns device"] = """
+  type: group
+  short-summary: View Device Registry device identity information.
+  """
+
+    helps["iot adr ns device show"] = """
+  type: command
+  short-summary: Show a device identity in a Device Registry namespace.
+  long-summary: |
+    This Software Updates workflow alias returns the same Registry Device
+    resource as 'az iot adr ns registry-device show'.
+  examples:
+    - name: Show a device identity
+      text: az iot adr ns device show -n myDevice --ns myNamespace -g myResourceGroup
+  """
+
+    helps["iot adr ns su update"] = """
+  type: group
+  short-summary: Import and manage Software Updates content.
+  long-summary: |
+    Uses the data-plane serviceAddress materialized on the namespace's Software
+    Updates link. The link must finish provisioning before these commands can run.
+  """
+
+    helps["iot adr ns su update import"] = """
+  type: command
+  short-summary: Import an update into Software Updates.
+  long-summary: |
+    Imports a v5 manifest from a read-accessible URL. When --size or --hashes is
+    omitted, the CLI streams the manifest to calculate its size and SHA-256 hash.
+  examples:
+    - name: Import a manifest and one payload file
+      text: |
+        az iot adr ns su update import --ns myNamespace -g myResourceGroup \\
+          --url "https://storage.example/manifest.json?<sas>" \\
+          --file filename=payload.bin url="https://storage.example/payload.bin?<sas>"
+  """
+
+    helps["iot adr ns su update list"] = """
+  type: command
+  short-summary: List updates imported into Software Updates.
+  examples:
+    - name: List all imported updates
+      text: az iot adr ns su update list --ns myNamespace -g myResourceGroup
+    - name: List deployable updates
+      text: az iot adr ns su update list --ns myNamespace -g myResourceGroup --filter "isDeployable eq true"
+  """
+
+    helps["iot adr ns su update show"] = """
+  type: command
+  short-summary: Show an imported update.
+  examples:
+    - name: Show an update version
+      text: |
+        az iot adr ns su update show --ns myNamespace -g myResourceGroup \\
+          --update-provider Contoso --update-name Thermostat --update-version 1.0
+  """
+
+    helps["iot adr ns su update delete"] = """
+  type: command
+  short-summary: Delete an imported update.
+  examples:
+    - name: Delete an update version without prompting
+      text: |
+        az iot adr ns su update delete --ns myNamespace -g myResourceGroup \\
+          --update-provider Contoso --update-name Thermostat --update-version 1.0 --yes
+  """
+
+    helps["iot adr ns su update calculate-hash"] = """
+  type: command
+  short-summary: Calculate update-file hashes locally.
+  examples:
+    - name: Calculate a SHA-256 hash
+      text: az iot adr ns su update calculate-hash --file-path ./payload.bin
+  """
+
+    helps["iot adr ns su update file"] = """
+  type: group
+  short-summary: Inspect files belonging to an imported update.
+  """
+
+    helps["iot adr ns su update file list"] = """
+  type: command
+  short-summary: List file identifiers for an imported update.
+  examples:
+    - name: List files
+      text: |
+        az iot adr ns su update file list --ns myNamespace -g myResourceGroup \\
+          --update-provider Contoso --update-name Thermostat --update-version 1.0
+  """
+
+    helps["iot adr ns su update file show"] = """
+  type: command
+  short-summary: Show an imported update file.
+  examples:
+    - name: Show a file
+      text: |
+        az iot adr ns su update file show --ns myNamespace -g myResourceGroup \\
+          --update-provider Contoso --update-name Thermostat --update-version 1.0 \\
+          --update-file-id payload
+  """
+
+    helps["iot adr ns su update init"] = """
+  type: group
+  short-summary: Create Software Updates import manifests locally.
+  """
+
+    helps["iot adr ns su update init v5"] = """
+  type: command
+  short-summary: Create a version 5 import manifest.
+  examples:
+    - name: Create a simple manifest
+      text: |
+        az iot adr ns su update init v5 --update-provider Contoso \\
+          --update-name Thermostat --update-version 1.0 \\
+          --compat manufacturer=Contoso model=T1000 \\
+          --step handler=microsoft/script:1 --file path=./install.sh
+  """
+
+    helps["iot adr ns su device-class"] = """
+  type: group
+  short-summary: View and delete Software Updates device classes.
+  """
+
+    helps["iot adr ns su device-class list"] = """
+  type: command
+  short-summary: List device classes in a linked Software Updates instance.
+  examples:
+    - name: List device classes
+      text: az iot adr ns su device-class list --ns myNamespace -g myResourceGroup
+  """
+
+    helps["iot adr ns su device-class show"] = """
+  type: command
+  short-summary: Show a Software Updates device class.
+  examples:
+    - name: Show a device class
+      text: |
+        az iot adr ns su device-class show --ns myNamespace -g myResourceGroup \\
+          --device-class-id 0123456789abcdef
+  """
+
+    helps["iot adr ns su device-class delete"] = """
+  type: command
+  short-summary: Delete a Software Updates device class.
+  examples:
+    - name: Delete a device class without prompting
+      text: |
+        az iot adr ns su device-class delete --ns myNamespace -g myResourceGroup \\
+          --device-class-id 0123456789abcdef --yes
   """
 
     helps[

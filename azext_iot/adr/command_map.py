@@ -6,7 +6,11 @@
 
 from azure.cli.core.commands import CliCommandType
 
-from azext_iot._factory import adr_service_factory, adr_su_service_factory
+from azext_iot._factory import (
+    adr_service_factory,
+    adr_su_data_service_factory,
+    adr_su_service_factory,
+)
 
 adr_namespace_ops = CliCommandType(
     operations_tmpl="azext_iot.adr.commands_namespace#{}",
@@ -58,13 +62,20 @@ adr_su_ops = CliCommandType(
     client_factory=adr_su_service_factory,
 )
 
+adr_su_data_ops = CliCommandType(
+    operations_tmpl="azext_iot.adr.commands_su#{}",
+    client_factory=adr_su_data_service_factory,
+)
+
 # Terminal UI. No client_factory: the UI builds its own session from the command context.
 adr_ui_ops = CliCommandType(operations_tmpl="azext_iot.adr.ui.entry#{}")
 
 
 def load_adr_commands(self, _):
     # Namespace commands
-    with self.command_group("iot adr ns", command_type=adr_namespace_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns", command_type=adr_namespace_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("create", "adr_namespace_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_namespace_show")
         cmd_group.command("list", "adr_namespace_list")
@@ -73,7 +84,9 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_namespace_show")
 
     # Certificate Authority commands
-    with self.command_group("iot adr ns ca", command_type=adr_ca_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns ca", command_type=adr_ca_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("create", "adr_ca_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_ca_show")
         cmd_group.command("list", "adr_ca_list")
@@ -84,7 +97,9 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_ca_show")
 
     # Certificate Policy commands (nested under a certificate authority)
-    with self.command_group("iot adr ns ca policy", command_type=adr_ca_policy_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns ca policy", command_type=adr_ca_policy_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("create", "adr_ca_policy_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_ca_policy_show")
         cmd_group.command("list", "adr_ca_policy_list")
@@ -94,7 +109,9 @@ def load_adr_commands(self, _):
 
     # Registry Device commands
     with self.command_group(
-        "iot adr ns registry-device", command_type=adr_registry_device_ops
+        "iot adr ns registry-device",
+        command_type=adr_registry_device_ops,
+        is_preview=True,
     ) as cmd_group:
         cmd_group.command("create", "adr_registry_device_create", supports_no_wait=True)
         cmd_group.show_command("show", "adr_registry_device_show")
@@ -109,8 +126,16 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_registry_device_show")
 
     with self.command_group(
+        "iot adr ns device",
+        command_type=adr_registry_device_ops,
+        is_preview=True,
+    ) as cmd_group:
+        cmd_group.show_command("show", "adr_registry_device_show")
+
+    with self.command_group(
         "iot adr ns registry-device auth",
         command_type=adr_registry_device_ops,
+        is_preview=True,
     ) as cmd_group:
         cmd_group.command("list", "adr_registry_device_auth_list")
         cmd_group.show_command("show", "adr_registry_device_auth_show")
@@ -125,6 +150,7 @@ def load_adr_commands(self, _):
     with self.command_group(
         "iot adr ns registry-device attribute",
         command_type=adr_registry_device_ops,
+        is_preview=True,
     ) as cmd_group:
         cmd_group.command("create", "adr_registry_device_attribute_create")
         cmd_group.command("list", "adr_registry_device_attribute_list")
@@ -138,12 +164,13 @@ def load_adr_commands(self, _):
     with self.command_group(
         "iot adr ns registry-device capability",
         command_type=adr_registry_device_ops,
+        is_preview=True,
     ) as cmd_group:
         cmd_group.command("list", "adr_registry_device_capability_list")
         cmd_group.show_command("show", "adr_registry_device_capability_show")
 
     with self.command_group(
-        "iot adr ns identity", command_type=adr_namespace_ops
+        "iot adr ns identity", command_type=adr_namespace_ops, is_preview=True
     ) as cmd_group:
         cmd_group.show_command("show", "adr_namespace_identity_show")
         cmd_group.command("assign", "adr_namespace_identity_assign", supports_no_wait=True)
@@ -151,13 +178,17 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_namespace_show")
 
     # Link commands (mutate namespace.properties.messaging.endpoints / provisioning.endpoints)
-    with self.command_group("iot adr ns link", command_type=adr_link_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns link", command_type=adr_link_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("add", "adr_link_add", supports_no_wait=True)
         cmd_group.wait_command(
             "wait", "adr_namespace_show", getter_type=adr_namespace_ops
         )
 
-    with self.command_group("iot adr ns link hub", command_type=adr_link_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns link hub", command_type=adr_link_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("add", "adr_link_hub_add", supports_no_wait=True)
         cmd_group.command("update", "adr_link_hub_update", supports_no_wait=True)
         cmd_group.show_command("show", "adr_link_hub_show")
@@ -166,7 +197,9 @@ def load_adr_commands(self, _):
             "wait", "adr_namespace_show", getter_type=adr_namespace_ops
         )
 
-    with self.command_group("iot adr ns link dps", command_type=adr_link_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns link dps", command_type=adr_link_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("add", "adr_link_dps_add", supports_no_wait=True)
         cmd_group.command("update", "adr_link_dps_update", supports_no_wait=True)
         cmd_group.show_command("show", "adr_link_dps_show")
@@ -175,7 +208,9 @@ def load_adr_commands(self, _):
             "wait", "adr_namespace_show", getter_type=adr_namespace_ops
         )
 
-    with self.command_group("iot adr ns link su", command_type=adr_link_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns link su", command_type=adr_link_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("add", "adr_link_su_add", supports_no_wait=True)
         cmd_group.command("update", "adr_link_su_update", supports_no_wait=True)
         cmd_group.show_command("show", "adr_link_su_show")
@@ -185,7 +220,7 @@ def load_adr_commands(self, _):
         )
 
     with self.command_group(
-        "iot adr ns su instance", command_type=adr_su_ops
+        "iot adr ns su instance", command_type=adr_su_ops, is_preview=True
     ) as cmd_group:
         cmd_group.command("check-name", "adr_su_instance_check_name")
         cmd_group.command(
@@ -204,8 +239,65 @@ def load_adr_commands(self, _):
         )
         cmd_group.wait_command("wait", "adr_su_instance_show")
 
+    with self.command_group(
+        "iot adr ns su update", command_type=adr_su_data_ops, is_preview=True
+    ) as cmd_group:
+        cmd_group.command(
+            "import", "adr_su_update_import", supports_no_wait=True
+        )
+        cmd_group.command(
+            "list",
+            "adr_su_update_list",
+            table_transformer=(
+                "[*].{UpdateProvider:updateId.provider,UpdateName:updateId.name,"
+                "UpdateVersion:updateId.version,FriendlyName:friendlyName,"
+                "IsDeployable:isDeployable,ManifestVersion:manifestVersion,"
+                "ImportedDateTime:importedDateTime}"
+            ),
+        )
+        cmd_group.show_command("show", "adr_su_update_show")
+        cmd_group.command(
+            "delete",
+            "adr_su_update_delete",
+            confirmation=True,
+            supports_no_wait=True,
+        )
+        cmd_group.show_command(
+            "calculate-hash", "adr_su_update_calculate_hash"
+        )
+
+    with self.command_group(
+        "iot adr ns su update file",
+        command_type=adr_su_data_ops,
+        is_preview=True,
+    ) as cmd_group:
+        cmd_group.command("list", "adr_su_update_file_list")
+        cmd_group.show_command("show", "adr_su_update_file_show")
+
+    with self.command_group(
+        "iot adr ns su update init",
+        command_type=adr_su_data_ops,
+        is_preview=True,
+    ) as cmd_group:
+        cmd_group.command("v5", "adr_su_update_manifest_init_v5")
+
+    with self.command_group(
+        "iot adr ns su device-class",
+        command_type=adr_su_data_ops,
+        is_preview=True,
+    ) as cmd_group:
+        cmd_group.command("list", "adr_su_device_class_list")
+        cmd_group.show_command("show", "adr_su_device_class_show")
+        cmd_group.command(
+            "delete",
+            "adr_su_device_class_delete",
+            confirmation=True,
+        )
+
     # Group commands
-    with self.command_group("iot adr ns group", command_type=adr_group_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns group", command_type=adr_group_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("create", "adr_group_create")
         cmd_group.command("update", "adr_group_update")
         cmd_group.show_command("show", "adr_group_show")
@@ -217,7 +309,9 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_group_show")
 
     # Job commands
-    with self.command_group("iot adr ns job", command_type=adr_job_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns job", command_type=adr_job_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("create", "adr_job_create", supports_no_wait=True)
         cmd_group.command("update", "adr_job_update")
         cmd_group.show_command("show", "adr_job_show")
@@ -227,7 +321,9 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_job_show")
 
     # Job run commands
-    with self.command_group("iot adr ns job run", command_type=adr_job_run_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns job run", command_type=adr_job_run_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.show_command("show", "adr_job_run_show")
         cmd_group.command("list", "adr_job_run_list")
         cmd_group.command("results", "adr_job_run_results")
@@ -240,10 +336,14 @@ def load_adr_commands(self, _):
         )
         cmd_group.wait_command("wait", "adr_job_run_show")
 
-    with self.command_group("iot adr ns report", command_type=adr_report_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns report", command_type=adr_report_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("generate", "adr_report_generate", supports_no_wait=True)
         cmd_group.command("latest", "adr_report_latest")
 
     # Terminal UI entry point. Appended last so this block stays contiguous and easy to rebase.
-    with self.command_group("iot adr ns", command_type=adr_ui_ops) as cmd_group:
+    with self.command_group(
+        "iot adr ns", command_type=adr_ui_ops, is_preview=True
+    ) as cmd_group:
         cmd_group.command("ui", "adr_ui_launch")

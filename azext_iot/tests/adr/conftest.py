@@ -47,6 +47,9 @@ TEST_ARM_ENDPOINT = os.getenv(
 PREFLIGHT_TIMEOUT_SECONDS = 60
 OPTIONAL_FIXTURE_ENV_VARS = (
     "azext_iot_adr_update_instance_id",
+    "azext_iot_adr_update_instance_disposable",
+    "azext_iot_adr_su_link_poll_attempts",
+    "azext_iot_adr_adu_fpa_object_id",
     "azext_iot_adr_run_resource_parity_int",
     "azext_iot_adr_reports_enabled",
     "azext_iot_adr_revoke_certificates",

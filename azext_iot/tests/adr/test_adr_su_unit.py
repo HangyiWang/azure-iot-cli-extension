@@ -312,6 +312,145 @@ def test_command_wrappers_delegate_all_arguments():
         )
 
 
+def test_data_command_wrappers_delegate_all_arguments():
+    cmd = Mock()
+    with patch("azext_iot.adr.commands_su.SoftwareUpdateProvider") as provider_type:
+        provider = provider_type.return_value
+
+        commands_su.adr_su_update_list(cmd, "ns", RG, search="s", filter="f")
+        commands_su.adr_su_update_show(cmd, "ns", RG, "p", "n", "v")
+        commands_su.adr_su_update_delete(
+            cmd, "ns", RG, "p", "n", "v", no_wait=True
+        )
+        commands_su.adr_su_update_import(
+            cmd,
+            "ns",
+            RG,
+            "https://example.test/manifest",
+            size=1,
+            hashes=["sha256=digest"],
+            friendly_name="friendly",
+            files=[["filename=f", "url=https://example.test/f"]],
+            enable_scan=True,
+            no_wait=True,
+        )
+        commands_su.adr_su_update_file_list(cmd, "ns", RG, "p", "n", "v")
+        commands_su.adr_su_update_file_show(
+            cmd, "ns", RG, "p", "n", "v", "file-id"
+        )
+        commands_su.adr_su_device_class_list(cmd, "ns", RG)
+        commands_su.adr_su_device_class_show(cmd, "ns", RG, "class")
+        commands_su.adr_su_device_class_delete(cmd, "ns", RG, "class")
+
+        assert provider_type.call_count == 9
+        provider.list_updates.assert_called_once_with(
+            namespace_name="ns",
+            resource_group_name=RG,
+            search="s",
+            filter="f",
+        )
+        provider.show_update.assert_called_once_with(
+            namespace_name="ns",
+            resource_group_name=RG,
+            update_provider="p",
+            update_name="n",
+            update_version="v",
+        )
+        provider.delete_update.assert_called_once_with(
+            namespace_name="ns",
+            resource_group_name=RG,
+            update_provider="p",
+            update_name="n",
+            update_version="v",
+            no_wait=True,
+        )
+        provider.import_update.assert_called_once_with(
+            namespace_name="ns",
+            resource_group_name=RG,
+            url="https://example.test/manifest",
+            size=1,
+            hashes=["sha256=digest"],
+            friendly_name="friendly",
+            files=[["filename=f", "url=https://example.test/f"]],
+            enable_scan=True,
+            no_wait=True,
+        )
+        provider.list_update_files.assert_called_once_with(
+            namespace_name="ns",
+            resource_group_name=RG,
+            update_provider="p",
+            update_name="n",
+            update_version="v",
+        )
+        provider.show_update_file.assert_called_once_with(
+            namespace_name="ns",
+            resource_group_name=RG,
+            update_provider="p",
+            update_name="n",
+            update_version="v",
+            update_file_id="file-id",
+        )
+        provider.list_device_classes.assert_called_once_with(
+            namespace_name="ns",
+            resource_group_name=RG,
+        )
+        provider.show_device_class.assert_called_once_with(
+            namespace_name="ns",
+            resource_group_name=RG,
+            device_class_id="class",
+        )
+        provider.delete_device_class.assert_called_once_with(
+            namespace_name="ns",
+            resource_group_name=RG,
+            device_class_id="class",
+        )
+
+
+def test_local_update_command_wrappers_delegate():
+    cmd = Mock()
+    with patch(
+        "azext_iot.adr.commands_su.calculate_update_hash",
+        return_value=[{"hash": "digest"}],
+    ) as calculate, patch(
+        "azext_iot.adr.commands_su.manifest_init_v5",
+        return_value={"manifestVersion": "5.0"},
+    ) as manifest:
+        assert commands_su.adr_su_update_calculate_hash(
+            ["payload.bin"], "sha256"
+        ) == [{"hash": "digest"}]
+        assert commands_su.adr_su_update_manifest_init_v5(
+            cmd,
+            "name",
+            "provider",
+            "version",
+            [["manufacturer=Contoso"]],
+            [["handler=microsoft/script:1"]],
+            files=[["path=payload.bin"]],
+            related_files=[["path=signature"]],
+            description="description",
+            deployable=False,
+            no_validation=True,
+        ) == {"manifestVersion": "5.0"}
+
+    calculate.assert_called_once_with(
+        file_paths=["payload.bin"],
+        hash_algo="sha256",
+    )
+    manifest.assert_called_once_with(
+        cmd=cmd,
+        update_name="name",
+        update_provider="provider",
+        update_version="version",
+        compatibility=[["manufacturer=Contoso"]],
+        steps=[["handler=microsoft/script:1"]],
+        files=[["path=payload.bin"]],
+        related_files=[["path=signature"]],
+        description="description",
+        deployable=False,
+        no_validation=True,
+    )
+
+
 def test_adr_su_factory_uses_generated_sdk_and_canary_arm_endpoint():
     cli_ctx = Mock()
     client_path = (
@@ -335,3 +474,19 @@ def test_adr_su_factory_uses_generated_sdk_and_canary_arm_endpoint():
         == "https://centraluseuap.management.azure.com"
     )
     assert client_type.call_args.kwargs["credential_scopes"] == ["scope"]
+
+
+def test_adr_su_data_factory_uses_generated_sdk():
+    cli_ctx = Mock()
+    client_path = (
+        "azext_iot.sdk.deviceupdate.duregistrydata.DeviceRegistryUpdateClient"
+    )
+    with patch(client_path) as client_type:
+        assert (
+            _factory.adr_su_data_service_factory(cli_ctx)
+            is client_type.return_value
+        )
+
+    assert client_type.call_args.kwargs["credential"] is _factory.AZURE_CLI_CREDENTIAL
+    assert "user_agent_policy" in client_type.call_args.kwargs
+    assert "http_logging_policy" in client_type.call_args.kwargs
