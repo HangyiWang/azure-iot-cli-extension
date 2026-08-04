@@ -4,6 +4,9 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
 import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
@@ -13,6 +16,9 @@ from azext_iot.tests.adr._helpers import (
 )
 from azext_iot.tests.adr.conftest import TEST_LOCATION, TEST_RG
 from azext_iot.tests.generators import generate_generic_id
+
+SU_PROVISIONING_MAX_POLLS = 360
+SU_PROVISIONING_POLL_INTERVAL = 10
 
 
 def _update_instance_name() -> str:
@@ -55,7 +61,12 @@ class TestADRSUInstanceLifecycle(CaptureOutputLiveScenarioTest):
                 "UpdateInstance",
                 lambda: self.cmd(delete_command),
             )
-            created = wait_for_resource_succeeded(self, show_command)
+            created = wait_for_resource_succeeded(
+                self,
+                show_command,
+                max_polls=SU_PROVISIONING_MAX_POLLS,
+                poll_interval=SU_PROVISIONING_POLL_INTERVAL,
+            )
             assert created["name"] == instance_name
             assert "SystemAssigned" in created["identity"]["type"]
 
@@ -155,3 +166,33 @@ class TestADRSUValidationNegatives(CaptureOutputLiveScenarioTest):
             f"-g {TEST_RG} --mi-user-assigned not-an-arm-id",
             expect_failure=True,
         )
+
+
+@pytest.mark.usefixtures("set_cwd")
+class TestADRSULocalUpdateCommands(CaptureOutputLiveScenarioTest):
+    def test_adr_su_local_update_commands(self):
+        with TemporaryDirectory() as directory:
+            payload_path = Path(directory) / "install.sh"
+            payload_path.write_bytes(b"#!/bin/sh\necho updated\n")
+
+            hashes = self.cmd(
+                "iot adr ns su update calculate-hash "
+                f"--file-path {payload_path}"
+            ).get_output_in_json()
+            assert hashes[0]["bytes"] == payload_path.stat().st_size
+            assert hashes[0]["hashAlgorithm"] == "sha256"
+
+            manifest = self.cmd(
+                "iot adr ns su update init v5 "
+                "--update-provider Contoso --update-name integration "
+                "--update-version 1.0 --compat manufacturer=Contoso model=T1000 "
+                "--step handler=microsoft/script:1 "
+                f"--file path={payload_path}"
+            ).get_output_in_json()
+            assert manifest["manifestVersion"] == "5.0"
+            assert manifest["updateId"] == {
+                "provider": "Contoso",
+                "name": "integration",
+                "version": "1.0",
+            }
+            assert manifest["files"][0]["filename"] == payload_path.name

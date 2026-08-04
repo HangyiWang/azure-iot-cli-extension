@@ -16,6 +16,7 @@ from azure.cli.core.commands.parameters import (
     get_three_state_flag,
 )
 from azure.cli.core.commands.validators import get_default_location_from_resource_group
+from azext_iot.deviceupdate.common import ADUValidHashAlgorithmType
 from azext_iot.adr.common import (
     CertificateAuthorityKeyType,
     CertificateAuthorityIssuerType,
@@ -149,6 +150,18 @@ def load_adr_arguments(self, _):
 
     # Registry Device arguments
     with self.argument_context("iot adr ns registry-device") as context:
+        context.argument(
+            "namespace_name",
+            options_list=["--namespace", "--ns"],
+            help="Name of the Device Registry namespace.",
+        )
+        context.argument(
+            "registry_device_name",
+            options_list=["--device-name", "--dn", "--name", "-n"],
+            help="Name of the Registry Device.",
+        )
+
+    with self.argument_context("iot adr ns device") as context:
         context.argument(
             "namespace_name",
             options_list=["--namespace", "--ns"],
@@ -508,6 +521,167 @@ def load_adr_arguments(self, _):
                 help="One or more user-assigned managed identity resource IDs in the "
                      "complete desired identity state.",
             )
+
+    for command in (
+        "iot adr ns su update",
+        "iot adr ns su device-class",
+    ):
+        with self.argument_context(command) as context:
+            context.argument(
+                "namespace_name",
+                options_list=["--namespace", "--ns", "--name", "-n"],
+                help="Name of the Device Registry namespace.",
+            )
+
+    with self.argument_context("iot adr ns su update") as context:
+        context.argument(
+            "update_name",
+            options_list=["--update-name", "--un"],
+            help="Update name.",
+        )
+        context.argument(
+            "update_provider",
+            options_list=["--update-provider", "--up"],
+            help="Update provider.",
+        )
+        context.argument(
+            "update_version",
+            options_list=["--update-version", "--uv"],
+            help="Update version.",
+        )
+
+    with self.argument_context("iot adr ns su update list") as context:
+        context.argument(
+            "search",
+            options_list=["--search"],
+            help="Request updates matching a free-text search expression.",
+            arg_group="Filter",
+        )
+        context.argument(
+            "filter",
+            options_list=["--filter"],
+            help="Filter updates by supported service properties.",
+            arg_group="Filter",
+        )
+
+    with self.argument_context("iot adr ns su update import") as context:
+        context.argument(
+            "url",
+            options_list=["--url"],
+            help="Read-accessible URL of the update import manifest.",
+        )
+        context.argument(
+            "size",
+            type=int,
+            options_list=["--size"],
+            help="Import manifest size in bytes. Calculated from --url when omitted.",
+        )
+        context.argument(
+            "hashes",
+            options_list=["--hashes"],
+            nargs="+",
+            help="Manifest hashes as key=value pairs. A sha256 value is required. "
+            "Calculated from --url when omitted.",
+        )
+        context.argument(
+            "friendly_name",
+            options_list=["--friendly-name"],
+            help="Friendly name associated with the imported update.",
+        )
+        context.argument(
+            "files",
+            options_list=["--file"],
+            nargs="+",
+            action="append",
+            help="Update file metadata as filename=<name> url=<read-accessible-url>. "
+            "--file can be used more than once.",
+        )
+        context.argument(
+            "enable_scan",
+            options_list=["--enable-scan"],
+            arg_type=get_three_state_flag(),
+            help="Request malware scanning for the imported update.",
+        )
+
+    with self.argument_context("iot adr ns su update file") as context:
+        context.argument(
+            "update_file_id",
+            options_list=["--update-file-id", "--ufid"],
+            help="Update file identifier.",
+        )
+
+    with self.argument_context("iot adr ns su update calculate-hash") as context:
+        context.argument(
+            "file_paths",
+            options_list=["--file-path", "-f"],
+            action="append",
+            help="Local file to hash. Use --file-path more than once for multiple files.",
+        )
+        context.argument(
+            "hash_algo",
+            options_list=["--hash-algo"],
+            arg_type=get_enum_type(ADUValidHashAlgorithmType),
+            type=str,
+            help="Cryptographic hash algorithm.",
+        )
+
+    with self.argument_context("iot adr ns su update init") as context:
+        context.argument(
+            "description",
+            options_list=["--description"],
+            help="Description for the import manifest.",
+        )
+        context.argument(
+            "deployable",
+            options_list=["--is-deployable"],
+            arg_type=get_three_state_flag(),
+            help="Whether the update is independently deployable.",
+        )
+        context.argument(
+            "compatibility",
+            options_list=["--compat"],
+            nargs="+",
+            action="append",
+            help="Compatible device properties as key=value pairs. "
+            "--compat can be used more than once.",
+        )
+        context.argument(
+            "steps",
+            options_list=["--step"],
+            nargs="+",
+            action="append",
+            help="Manifest step properties as key=value pairs. "
+            "--step can be used more than once.",
+        )
+        context.argument(
+            "files",
+            options_list=["--file"],
+            nargs="+",
+            action="append",
+            help="Manifest file properties as key=value pairs. "
+            "--file can be used more than once.",
+        )
+        context.argument(
+            "related_files",
+            options_list=["--related-file"],
+            nargs="+",
+            action="append",
+            help="Related-file properties as key=value pairs. "
+            "Each entry is associated with the nearest --file.",
+        )
+        context.argument(
+            "no_validation",
+            options_list=["--no-validation"],
+            arg_type=get_three_state_flag(),
+            help="Disable client-side import-manifest schema validation.",
+        )
+
+    with self.argument_context("iot adr ns su device-class") as context:
+        context.argument(
+            "device_class_id",
+            options_list=["--device-class-id", "--class-id", "--cid"],
+            help="Device class identifier.",
+        )
 
     # Bundled link add
     with self.argument_context("iot adr ns link add") as context:
