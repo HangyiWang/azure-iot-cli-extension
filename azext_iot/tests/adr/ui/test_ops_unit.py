@@ -158,9 +158,15 @@ def test_render_does_not_duplicate_the_name_flag():
 
 def test_quote_only_when_needed():
     assert quote("simple") == "simple"
-    assert quote("has space") == '"has space"'
-    assert quote("properties.manufacturer = 'Contoso'").startswith('"')
-    assert quote("") == '""'
+    assert quote("has space") == "'has space'"
+    assert quote("properties.manufacturer = 'Contoso'").startswith("'")
+    assert quote("") == "''"
+
+
+def test_quote_blocks_shell_expansion():
+    assert quote("$(touch /tmp/owned)") == "'$(touch /tmp/owned)'"
+    assert quote("`touch /tmp/owned`") == "'`touch /tmp/owned`'"
+    assert quote("$HOME") == "'$HOME'"
 
 
 def test_wrap_leaves_short_commands_alone():
@@ -176,3 +182,17 @@ def test_wrap_uses_shell_continuations():
     wrapped = wrap(long_command, width=60)
     assert " \\\n" in wrapped
     assert wrapped.replace(" \\\n", " ").replace("    ", " ").split() == long_command.split()
+
+
+def test_wrap_preserves_intentional_command_substitution():
+    command = (
+        'az role assignment create --assignee-object-id "$(az resource show '
+        '--ids /subscriptions/sub/resourceGroups/rg/providers/type/resource '
+        '--query identity.principalId --output tsv)" '
+        "--assignee-principal-type ServicePrincipal --role Contributor "
+        "--scope /subscriptions/sub/resourceGroups/rg/providers/type/target"
+    )
+    wrapped = wrap(command, width=72)
+    assert '"$(az resource show ' in wrapped
+    assert "'$(az resource show " not in wrapped
+    assert wrapped.replace(" \\\n    ", " ") == command

@@ -12,6 +12,7 @@ sleeping.
 
 import pytest
 
+from azext_iot.adr.ui.core.redaction import REDACTED
 from azext_iot.adr.ui.core.store import MAX_BACKOFF_SEC, MIN_INTERVAL_SEC, Store, cache_key
 from azext_iot.tests.adr.ui.conftest import widget_spec
 
@@ -134,6 +135,15 @@ def test_failure_with_no_cached_data_propagates(store, spec):
         store.fetch(spec, SCOPE, loader)
 
 
+def test_first_load_failure_remains_an_error_during_backoff(store, spec):
+    loader = Loader(error=RuntimeError("service down"))
+    with pytest.raises(RuntimeError, match="service down"):
+        store.fetch_result(spec, SCOPE, loader)
+    with pytest.raises(RuntimeError, match="service down"):
+        store.fetch_result(spec, SCOPE, loader)
+    assert loader.calls == 1
+
+
 def test_failure_after_success_returns_stale_data(store, spec, clock):
     good = Loader([{"name": "a"}])
     store.fetch(spec, SCOPE, good)
@@ -141,6 +151,33 @@ def test_failure_after_success_returns_stale_data(store, spec, clock):
     bad = Loader(error=RuntimeError("service down"))
     assert store.fetch(spec, SCOPE, bad) == [{"name": "a"}], "last known data is retained"
     assert store.entry(spec.kind, SCOPE).error == "service down"
+
+
+def test_fetch_result_reports_cached_refresh_failures(store, spec, clock):
+    store.fetch_result(spec, SCOPE, Loader([{"name": "a"}]))
+    clock.advance(20)
+    result = store.fetch_result(
+        spec,
+        SCOPE,
+        Loader(error=RuntimeError("service down")),
+    )
+    assert result.payloads == [{"name": "a"}]
+    assert result.error == "service down"
+    assert result.stale
+
+
+def test_credentials_are_redacted_before_they_are_cached(store, spec):
+    payload = {
+        "name": "symmetric",
+        "properties": {
+            "primaryKey": "secret-one",
+            "secondaryKey": "secret-two",
+        },
+    }
+    result = store.fetch_result(spec, SCOPE, Loader([payload]))
+    assert result.payloads[0]["properties"]["primaryKey"] == REDACTED
+    assert result.payloads[0]["properties"]["secondaryKey"] == REDACTED
+    assert store.entry(spec.kind, SCOPE).payloads == result.payloads
 
 
 def test_backoff_grows_with_consecutive_failures(store, spec, clock):

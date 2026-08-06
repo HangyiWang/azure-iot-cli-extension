@@ -94,11 +94,32 @@ def test_missing_framework_reports_an_actionable_error(monkeypatch):
 
     def fake_import(name, *args, **kwargs):
         if name == "azext_iot.adr.ui.app":
-            raise ImportError("No module named 'textual'")
+            raise ModuleNotFoundError(
+                "No module named 'textual'",
+                name="textual",
+            )
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", fake_import)
     with pytest.raises(CLIInternalError, match="textual"):
+        adr_ui_launch(cmd=object())
+
+
+def test_unrelated_ui_import_failure_is_not_misreported(monkeypatch):
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "azext_iot.adr.ui.app":
+            raise ModuleNotFoundError(
+                "No module named 'broken_dependency'",
+                name="broken_dependency",
+            )
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    with pytest.raises(ModuleNotFoundError, match="broken_dependency"):
         adr_ui_launch(cmd=object())
 
 

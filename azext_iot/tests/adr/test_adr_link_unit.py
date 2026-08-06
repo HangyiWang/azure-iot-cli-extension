@@ -321,6 +321,27 @@ def test_hub_list_empty_is_list(fixture_link_provider):
     assert isinstance(result, list)
 
 
+def test_list_all_reads_the_namespace_once(fixture_link_provider):
+    hub = _endpoint(IOT_HUB_ENDPOINT_TYPE, HUB_ID)
+    dps = _endpoint(DPS_ENDPOINT_TYPE, DPS_ID)
+    update = _endpoint(SU_ENDPOINT_TYPE, SU_ID)
+    fixture_link_provider.client.namespaces.get.return_value = _namespace(
+        hubs={"hub": hub},
+        dps={"dps": dps},
+        su={"su": update},
+    )
+
+    assert fixture_link_provider.list_all("namespace", "rg") == [
+        {"name": "dps", **dps},
+        {"name": "hub", **hub},
+        {"name": "su", **update},
+    ]
+    fixture_link_provider.client.namespaces.get.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+    )
+
+
 @pytest.mark.parametrize(
     "kind,section,expected_type,resource_id",
     [

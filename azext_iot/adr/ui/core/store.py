@@ -19,6 +19,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from azext_iot.adr.ui.core.redaction import redact
+
 #: Floor on how often any kind may be refetched, mirroring the CLI-side floor.
 MIN_INTERVAL_SEC = 5
 #: Backoff ceiling: a persistently failing collection is retried at most this rarely.
@@ -62,6 +64,22 @@ class Entry:
         return (now if now is not None else time.monotonic()) - self.loaded_at
 
 
+@dataclass(frozen=True)
+class FetchResult:
+    """One cache read, including whether its payloads survived a failed refresh."""
+
+    payloads: List[Any]
+    error: Optional[str] = None
+    loaded_at: Optional[float] = None
+
+    @property
+    def stale(self) -> bool:
+        return self.error is not None and self.loaded_at is not None
+
+    def __iter__(self):
+        return iter(self.payloads)
+
+
 class Store:
     """Caches collections and decides when they may be refetched."""
 
@@ -101,6 +119,16 @@ class Store:
         when there is no cached data to fall back on; otherwise it records the failure and
         returns the last known payloads so the screen can show stale data.
         """
+        return self.fetch_result(spec, scope, loader, force=force).payloads
+
+    def fetch_result(
+        self,
+        spec,
+        scope: Dict[str, Any],
+        loader: Callable[[Dict[str, Any]], List[Any]],
+        force: bool = False,
+    ) -> FetchResult:
+        """Return cached payloads together with refresh failure and freshness metadata."""
         key = cache_key(spec.kind, scope)
         with self._lock:
             entry = self._entries.setdefault(key, Entry())
@@ -108,18 +136,21 @@ class Store:
             should = self._should_fetch(entry, interval, force)
 
         if not should:
-            return list(entry.payloads)
+            with self._lock:
+                if entry.error and not entry.has_loaded:
+                    raise RuntimeError(entry.error)
+                return FetchResult(list(entry.payloads), entry.error, entry.loaded_at)
 
         try:
-            payloads = list(loader(scope))
+            payloads = list(redact(list(loader(scope))))
         except Exception as error:  # noqa: BLE001 - recorded, then re-raised if fatal
             with self._lock:
                 entry.failures += 1
                 entry.error = str(error)
                 entry.next_attempt_at = self._clock() + self._backoff(entry.failures)
-            if not entry.has_loaded:
-                raise
-            return list(entry.payloads)
+                if not entry.has_loaded:
+                    raise
+                return FetchResult(list(entry.payloads), entry.error, entry.loaded_at)
 
         with self._lock:
             entry.payloads = payloads
@@ -127,7 +158,7 @@ class Store:
             entry.error = None
             entry.failures = 0
             entry.next_attempt_at = 0.0
-        return list(payloads)
+            return FetchResult(list(payloads), loaded_at=entry.loaded_at)
 
     @staticmethod
     def _backoff(failures: int) -> float:

@@ -133,7 +133,7 @@ def test_a_grant_is_addressed_by_object_id_and_principal_type(fake_cli):
     command = cli.commands[0]
     assert "--assignee-object-id pid-1" in command
     assert "--assignee-principal-type ServicePrincipal" in command
-    assert '--role "Contributor"' in command
+    assert "--role Contributor" in command
     assert "--scope /subscriptions/s/rg/hub" in command
 
 
@@ -171,13 +171,27 @@ def test_a_grant_needs_both_a_principal_and_a_scope():
         rbac.grant_role(object(), "pid-1", "Contributor", "")
 
 
+def test_grant_arguments_are_shell_safe(fake_cli):
+    cli = fake_cli(payload={})
+    rbac.grant_role(
+        object(),
+        "$(touch /tmp/owned)",
+        "Role `unsafe`",
+        "/subscriptions/s/resourceGroups/rg with spaces",
+    )
+    command = cli.commands[0]
+    assert "'$(touch /tmp/owned)'" in command
+    assert "'Role `unsafe`'" in command
+    assert "'/subscriptions/s/resourceGroups/rg with spaces'" in command
+
+
 # -- reading an identity created moments ago ------------------------------------------
 
 
 def test_a_principal_can_be_read_after_the_resource_exists(fake_cli):
     cli = fake_cli(payload="pid-new")
     assert rbac.resolve_principal(object(), "/subscriptions/s/rg/dps-a") == "pid-new"
-    assert '--ids "/subscriptions/s/rg/dps-a"' in cli.commands[0]
+    assert "--ids /subscriptions/s/rg/dps-a" in cli.commands[0]
 
 
 def test_a_resource_without_an_identity_resolves_to_nothing(fake_cli):

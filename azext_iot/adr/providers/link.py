@@ -290,6 +290,24 @@ class LinkProvider(ADRProvider):
             or {}
         )
 
+    def list_all(self, namespace_name: str, resource_group_name: str) -> list:
+        """Project every endpoint section from one namespace read."""
+        namespace = self._get_namespace(namespace_name, resource_group_name)
+        return (
+            _project_endpoint_section(
+                _get_provisioning_endpoints(namespace),
+                DPS_ENDPOINT_TYPE,
+            )
+            + _project_endpoint_section(
+                _get_messaging_endpoints(namespace),
+                IOT_HUB_ENDPOINT_TYPE,
+            )
+            + _project_endpoint_section(
+                _get_updating_endpoints(namespace),
+                SU_ENDPOINT_TYPE,
+            )
+        )
+
     def _patch_messaging_endpoints(
         self,
         namespace_name: str,

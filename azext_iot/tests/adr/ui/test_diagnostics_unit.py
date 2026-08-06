@@ -16,6 +16,13 @@ def test_logging_is_off_without_a_path():
     assert diagnostics.configure("") is None
 
 
+def test_disabling_logging_closes_the_active_file(tmp_path):
+    diagnostics.configure(str(tmp_path / "active.log"))
+    diagnostics.configure(None)
+    logger = logging.getLogger(diagnostics.LOGGER_NAME)
+    assert not any(isinstance(handler, logging.FileHandler) for handler in logger.handlers)
+
+
 def test_configure_writes_to_the_requested_file(tmp_path):
     target = tmp_path / "nested" / "radr.log"
     resolved = diagnostics.configure(str(target))

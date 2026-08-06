@@ -81,15 +81,27 @@ class OverviewScreen(ChromeScreen):
         self, child: ChildRef, spec: ResourceSpec, source, force: bool
     ) -> None:
         try:
-            payloads = list(source(self.scope, force=force))
+            result = source(self.scope, force=force)
+            payloads = list(result)
         except Exception as error:  # noqa: BLE001 - one unavailable collection should not hide the rest
             self.app.call_from_thread(self._child_failed, child.kind, str(error))
         else:
+            details = spec.summarize_rows(payloads)
+            error = getattr(result, "error", None)
+            if error:
+                if not getattr(result, "stale", False):
+                    self.app.call_from_thread(
+                        self._child_failed,
+                        child.kind,
+                        error,
+                    )
+                    return
+                details = f"Stale data: {error}"
             self.app.call_from_thread(
                 self._child_loaded,
                 child.kind,
                 str(len(payloads)),
-                spec.summarize_rows(payloads),
+                details,
             )
 
     def _child_loaded(self, kind: str, count: str, details: str) -> None:

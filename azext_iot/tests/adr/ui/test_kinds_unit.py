@@ -91,6 +91,12 @@ def test_child_relationships_are_declared(registry):
     assert children("ca") == {"policy"}
 
 
+def test_auth_guide_uses_the_registered_device_name_flag(registry):
+    command = registry.get("auth").guide.runs
+    assert "--registry-device-name" in command
+    assert " --device " not in command
+
+
 def test_namespace_hierarchy_explains_every_related_collection(registry):
     children = registry.get("namespace").children
     assert [child.kind for child in children] == ["link", "device", "group", "job", "ca"]
@@ -140,7 +146,7 @@ def test_link_list_merges_the_three_endpoint_sections(registry, session):
     """Endpoints are three sections of one namespace and are read together."""
     registry.get("link").list(SCOPE)
     methods = [method for _, method, _ in session.calls]
-    assert methods == ["dps_list", "hub_list", "su_list"]
+    assert methods == ["list_all"]
 
 
 # -- scoping -------------------------------------------------------------------------

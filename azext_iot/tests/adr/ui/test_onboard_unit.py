@@ -519,6 +519,83 @@ def test_catalog_records_why_an_enumeration_failed():
     assert "AuthorizationFailed" in catalog.errors["dps"]
 
 
+def test_namespace_catalog_errors_use_the_scoped_key():
+    from azext_iot.adr.ui.screens.onboard.pickers import ResourceCatalog
+
+    catalog = ResourceCatalog(cmd=None)
+    key = catalog.namespace_key("rg-one")
+    catalog.errors[key] = "AuthorizationFailed"
+    assert catalog.error_for("namespace", "rg-one") == "AuthorizationFailed"
+    assert catalog.error_for("namespace", "rg-two") is None
+
+
+def test_catalog_discards_results_started_before_clear():
+    import threading
+
+    from azext_iot.adr.ui.screens.onboard.pickers import ResourceCatalog
+
+    catalog = ResourceCatalog(cmd=None)
+    started = threading.Event()
+    release = threading.Event()
+    result = []
+
+    def slow_loader():
+        started.set()
+        release.wait(timeout=2)
+        return [{"name": "old-subscription"}]
+
+    worker = threading.Thread(
+        target=lambda: result.extend(catalog._listed("hub", slow_loader))
+    )
+    worker.start()
+    assert started.wait(timeout=2)
+    catalog.clear()
+    release.set()
+    worker.join(timeout=2)
+
+    assert result == []
+    assert catalog._cache == {}
+    assert catalog.errors == {}
+
+
+def test_newer_same_key_catalog_load_wins():
+    import threading
+
+    from azext_iot.adr.ui.screens.onboard.pickers import ResourceCatalog
+
+    catalog = ResourceCatalog(cmd=None)
+    old_started = threading.Event()
+    release_old = threading.Event()
+    old_result = []
+    new_result = []
+
+    def old_loader():
+        old_started.set()
+        release_old.wait(timeout=2)
+        raise RuntimeError("old failure")
+
+    old_worker = threading.Thread(
+        target=lambda: old_result.extend(catalog._listed("hub", old_loader))
+    )
+    old_worker.start()
+    assert old_started.wait(timeout=2)
+
+    new_worker = threading.Thread(
+        target=lambda: new_result.extend(
+            catalog._listed("hub", lambda: [{"name": "current"}])
+        )
+    )
+    new_worker.start()
+    new_worker.join(timeout=2)
+    release_old.set()
+    old_worker.join(timeout=2)
+
+    assert old_result == []
+    assert new_result == [{"name": "current"}]
+    assert catalog._cache["hub"] == [{"name": "current"}]
+    assert "hub" not in catalog.errors
+
+
 def test_candidate_keeps_the_payload_it_was_judged_from():
     resource = {"name": "dps", "id": "/x/dps", "identity": {"type": "SystemAssigned"}}
     assert evaluate(resource).raw is resource
@@ -716,7 +793,7 @@ def test_namespace_plan_includes_optional_tags():
     })
     command = next(item.command for item in flow.build_plan() if item.key == "namespace")
     assert "--tags environment=dev" in command
-    assert '"owner=iot team"' in command
+    assert "'owner=iot team'" in command
 
 
 def test_namespace_creation_passes_tags_to_the_provider():
@@ -813,7 +890,8 @@ def test_reverse_grant_for_a_pending_resource_says_when_to_run_it():
     reverse = next(item for item in flow.build_plan() if item.key.startswith("grant-dps-to-ns"))
     assert reverse.action == "manual"
     assert "after" in reverse.blocked_reason and "is created" in reverse.blocked_reason
-    assert "principal id" in reverse.command, "the placeholder must be obvious, not blank"
+    assert "az resource show" in reverse.command
+    assert "<" not in reverse.command
 
 
 def test_a_resource_without_an_identity_cannot_receive_the_reverse_grant():
@@ -849,6 +927,27 @@ def test_choosing_software_updates_plans_the_link():
     assert link.invoke is not None
 
 
+def test_software_updates_gets_grants_in_both_directions():
+    update = identified(dps_candidate("su-1"), principal="pid-su")
+    flow = build_flow(
+        context(
+            namespace_with_principal(provisioning={"dps": {}}),
+            selected_sus=[update],
+            subscription_id="sub-1",
+        )
+    )
+    grants = [
+        item
+        for item in flow.build_plan()
+        if item.key.startswith("grant-") and "su-1" in item.key
+    ]
+    assert len(grants) == 2
+    assert any("--assignee-object-id pid-ns" in item.command for item in grants)
+    assert any("--assignee-object-id pid-su" in item.command for item in grants)
+    link = next(item for item in flow.build_plan() if item.key == "su")
+    assert max(item.phase for item in grants) < link.phase
+
+
 def test_several_update_instances_are_each_linked_under_their_own_endpoint():
     """Updating endpoints are a map, so one namespace may serve several instances."""
     flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
@@ -869,6 +968,11 @@ def test_name_validation_rejects_bad_resource_names():
     assert validate_name("-leading") is not None
     assert validate_name("trailing-") is not None
     assert validate_name("has space") is not None
+    assert validate_name("rg.prod_team", "resource_group") is None
+    assert validate_name("rg.", "resource_group") is not None
+    assert validate_name("d" * 64, "dps") is None
+    assert validate_name("h" * 51, "hub") is not None
+    assert validate_name("u" * 37, "su") is not None
     assert parse_tags('environment=dev owner="iot team"') == (
         {"environment": "dev", "owner": "iot team"},
         None,
@@ -1209,7 +1313,7 @@ def test_candidate_loading_never_shows_rows_from_the_previous_step():
         "azext_iot/adr/ui/screens/onboard/screen.py"
     ).read_text(encoding="utf-8")
     assert 'LoadingIndicator(id="candidate-loading")' in source
-    assert "def _load_candidates(self, step_id: str)" in source
+    assert "def _load_candidates(self, step_id: str, generation: int)" in source
     show = source.split("def _show_candidates", 1)[1].split(
         "def _paint_candidates", 1
     )[0]
@@ -1481,6 +1585,7 @@ def test_reload_re_asks_whether_grants_are_allowed():
     ).read_text(encoding="utf-8")
     handler = source.split("def action_reload", 1)[1].split("    def ", 1)[0]
     assert "_grant_probe_for" in handler and "_probe_grant_rights()" in handler
+    assert "self.catalog.clear()" in handler
 
 
 def test_switching_subscription_discards_the_previous_grant_verdict():

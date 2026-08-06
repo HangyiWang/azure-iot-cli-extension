@@ -44,6 +44,7 @@ from azext_iot.adr.ui.screens.onboard.flow import StepState
 from azext_iot.adr.ui.screens.onboard.pickers import (
     INELIGIBLE,
     ResourceCatalog,
+    catalog_key,
     evaluate,
     rank,
 )
@@ -234,6 +235,7 @@ class OnboardScreen(ChromeScreen):
         self._candidates: List = []
         self._candidates_for: Optional[str] = None
         self._candidates_loading = False
+        self._candidate_generation = 0
         #: A step the user jumped to. Satisfied steps are skipped by the flow, so without
         #: this there is no way to revisit one - for example to change subscription.
         self._focus_step: Optional[str] = None
@@ -811,6 +813,8 @@ class OnboardScreen(ChromeScreen):
         step = self.active_step()
         if step is None or step.id == self._candidates_for:
             return
+        self._candidate_generation += 1
+        generation = self._candidate_generation
         if step.id not in _PICKER_STEPS:
             self._candidates, self._candidates_for = [], step.id
             self._candidates_loading = False
@@ -835,7 +839,7 @@ class OnboardScreen(ChromeScreen):
         self._render_candidate_status()
         step_id = step.id
         self.run_worker(
-            lambda: self._load_candidates(step_id),
+            lambda: self._load_candidates(step_id, generation),
             thread=True,
             name=f"onboard-candidates-{step_id}",
         )
@@ -851,8 +855,21 @@ class OnboardScreen(ChromeScreen):
             noun = _PICKER_NOUNS.get(step.id, "candidates")
             status.update(Text(f"Loading {noun} from Azure...", style="dim"))
         elif not self._candidates:
-            errors = getattr(self.catalog, "errors", None) or {}
-            failure = errors.get({"scope": "resource_group"}.get(step.id, step.id))
+            failure = None
+            if self.catalog is not None:
+                error_for = getattr(self.catalog, "error_for", None)
+                if callable(error_for):
+                    failure = error_for(
+                        step.id,
+                        self.context.get("resource_group_name"),
+                    )
+                else:
+                    failure = (getattr(self.catalog, "errors", None) or {}).get(
+                        catalog_key(
+                            step.id,
+                            self.context.get("resource_group_name"),
+                        )
+                    )
             if failure:
                 status.update(
                     Text(
@@ -878,7 +895,7 @@ class OnboardScreen(ChromeScreen):
             )
             status.update(Text(f"{summary} candidates - {hint}", style="dim"))
 
-    def _load_candidates(self, step_id: str) -> None:
+    def _load_candidates(self, step_id: str, generation: int) -> None:
         """Enumerate selectable resources on a worker; pickers never block the UI."""
         if self.catalog is None:
             return
@@ -929,7 +946,12 @@ class OnboardScreen(ChromeScreen):
         except Exception as error:  # noqa: BLE001 - an unavailable provider yields no candidates
             diagnostics.exception("candidate enumeration failed: %s", error)
             candidates = []
-        self.app.call_from_thread(self._show_candidates, step_id, rank(candidates))
+        self.app.call_from_thread(
+            self._show_candidates,
+            step_id,
+            generation,
+            rank(candidates),
+        )
 
     def _namespace_location(self) -> Optional[str]:
         return (self.context.get("namespace") or {}).get("location")
@@ -945,12 +967,13 @@ class OnboardScreen(ChromeScreen):
             or needle in (candidate.location or "").lower()
         ]
 
-    def _show_candidates(self, step_id: str, candidates) -> None:
+    def _show_candidates(self, step_id: str, generation: int, candidates) -> None:
         step = self.active_step()
         if (
             step is None
             or step.id != step_id
             or self._candidates_for != step_id
+            or generation != self._candidate_generation
         ):
             return
         self._candidates = candidates
@@ -1096,6 +1119,7 @@ class OnboardScreen(ChromeScreen):
             self.session._providers.clear()
         if self.catalog is not None:
             self.catalog.clear()
+        self._candidate_generation += 1
         store = getattr(self.app, "store", None)
         if store is not None:
             store.clear()
@@ -1230,7 +1254,7 @@ class OnboardScreen(ChromeScreen):
                     raise ValueError
             except ValueError:
                 capacity_problem = "units must be a whole number greater than zero"
-        problem = validate_name(name)
+        problem = validate_name(name, kind)
         if problem is None and not resource_group:
             problem = "a resource group is required"
         if problem is None and not location:
@@ -1554,6 +1578,9 @@ class OnboardScreen(ChromeScreen):
         """Re-derive every step from live state, which is what makes the flow resumable."""
         self._state_loaded = False
         self._candidates_for = None
+        self._candidate_generation += 1
+        if self.catalog is not None:
+            self.catalog.clear()
         self.refresh_view()
         self.run_worker(self._reload_namespace, thread=True, name="onboard-reload")
         # Grant rights are live state too: activating Owner in PIM should be picked up

@@ -48,7 +48,10 @@ def adr_ui_launch(
     """Launch the terminal UI. Returns nothing; the UI owns the terminal until it exits."""
     try:
         from azext_iot.adr.ui.app import RadrApp
-    except ImportError as error:  # pragma: no cover - depends on install shape
+    except ModuleNotFoundError as error:  # pragma: no cover - depends on install shape
+        missing = error.name or ""
+        if missing != "textual" and not missing.startswith("textual."):
+            raise
         raise CLIInternalError(_TEXTUAL_MISSING_MSG) from error
 
     _silence_provider_console()

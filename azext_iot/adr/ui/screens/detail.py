@@ -15,6 +15,7 @@ from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 
+from azext_iot.adr.ui.core.redaction import redact
 from azext_iot.adr.ui.core.spec import Guide, ResourceSpec
 from azext_iot.adr.ui.screens.base import ChromeScreen
 
@@ -38,7 +39,7 @@ class DetailScreen(ChromeScreen):
     ):
         super().__init__(**kwargs)
         self.spec = spec
-        self.payload = payload
+        self.payload = redact(payload)
         self._title = title or (spec.title if spec is not None else "Resource")
         self._name = name
 

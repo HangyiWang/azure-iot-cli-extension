@@ -24,6 +24,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from azext_iot.adr.ui.core import diagnostics
+from azext_iot.adr.ui.core.commands import quote
 
 #: The action a caller needs to create a role assignment. Held by Owner and by
 #: User Access Administrator, and by nothing else built in.
@@ -100,7 +101,7 @@ def can_grant_roles(session, scope: str) -> Optional[bool]:
     try:
         cli = _embedded_cli(session)
         with _quiet():
-            cli.invoke(f'rest --method get --url "{url}"')
+            cli.invoke(f"rest --method get --url {quote(url)}")
         payload = cli.as_json()
     except Exception as error:  # noqa: BLE001 - an unanswered probe is not a failure
         diagnostics.exception("role permission probe failed for %s: %s", scope, error)
@@ -122,7 +123,10 @@ def resolve_principal(session, resource_id: str) -> Optional[str]:
     try:
         cli = _embedded_cli(session)
         with _quiet():
-            cli.invoke(f'resource show --ids "{resource_id}" --query identity.principalId')
+            cli.invoke(
+                f"resource show --ids {quote(resource_id)} "
+                "--query identity.principalId"
+            )
         principal = cli.as_json()
     except Exception as error:  # noqa: BLE001 - reported by the caller as a blocked grant
         diagnostics.exception("could not read identity of %s: %s", resource_id, error)
@@ -141,8 +145,9 @@ def grant_role(session, principal_id: str, role: str, scope: str) -> bool:
         raise ValueError("a role grant needs both a principal id and a scope")
 
     command = (
-        f"role assignment create --assignee-object-id {principal_id} "
-        f'--assignee-principal-type ServicePrincipal --role "{role}" --scope {scope}'
+        f"role assignment create --assignee-object-id {quote(principal_id)} "
+        f"--assignee-principal-type ServicePrincipal --role {quote(role)} "
+        f"--scope {quote(scope)}"
     )
     try:
         cli = _embedded_cli(session)

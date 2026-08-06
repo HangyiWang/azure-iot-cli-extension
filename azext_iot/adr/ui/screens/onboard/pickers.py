@@ -14,6 +14,7 @@ broken.
 This module is deliberately free of any UI framework import.
 """
 
+import threading
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -53,6 +54,13 @@ class Candidate:
 
 
 NO_IDENTITY = "none"
+
+
+def catalog_key(step_id: str, resource_group_name: Optional[str] = None) -> str:
+    """Cache/error key for one onboarding picker step."""
+    if step_id == "namespace":
+        return f"namespace:{resource_group_name or '-'}"
+    return {"scope": "resource_group"}.get(step_id, step_id)
 
 
 def _identity_of(resource: Dict[str, Any]) -> str:
@@ -153,17 +161,57 @@ class ResourceCatalog:
         self.cmd = cmd
         self._cache: Dict[str, List[Dict[str, Any]]] = {}
         self.errors: Dict[str, str] = {}
+        self._generation = 0
+        self._request_sequence = 0
+        self._requests: Dict[str, int] = {}
+        self._lock = threading.RLock()
 
     def _listed(self, key: str, loader) -> List[Dict[str, Any]]:
-        if key not in self._cache:
-            try:
-                self._cache[key] = [self._as_dict(item) for item in loader()]
-                self.errors.pop(key, None)
-            except Exception as error:  # noqa: BLE001 - recorded so the UI can explain
-                # An empty list and an unreadable provider need different customer actions.
+        with self._lock:
+            if key in self._cache:
+                return list(self._cache[key])
+            generation = self._generation
+            self._request_sequence += 1
+            request = self._request_sequence
+            self._requests[key] = request
+        try:
+            listed = [self._as_dict(item) for item in loader()]
+        except Exception as error:  # noqa: BLE001 - recorded so the UI can explain
+            # An empty list and an unreadable provider need different customer actions.
+            with self._lock:
+                if (
+                    generation != self._generation
+                    or self._requests.get(key) != request
+                ):
+                    return []
                 self.errors[key] = str(error)
                 self._cache[key] = []
-        return self._cache[key]
+                self._requests.pop(key, None)
+                return []
+        with self._lock:
+            if (
+                generation != self._generation
+                or self._requests.get(key) != request
+            ):
+                return []
+            self._cache[key] = listed
+            self.errors.pop(key, None)
+            self._requests.pop(key, None)
+            return list(listed)
+
+    @staticmethod
+    def namespace_key(resource_group_name: Optional[str]) -> str:
+        return catalog_key("namespace", resource_group_name)
+
+    def error_for(
+        self,
+        step_id: str,
+        resource_group_name: Optional[str] = None,
+    ) -> Optional[str]:
+        """Return the loader error associated with an onboarding picker step."""
+        key = catalog_key(step_id, resource_group_name)
+        with self._lock:
+            return self.errors.get(key)
 
     @staticmethod
     def _as_dict(item) -> Dict[str, Any]:
@@ -252,7 +300,7 @@ class ResourceCatalog:
                 "namespace", "list", resource_group_name=resource_group_name
             )
 
-        return self._listed(f"namespace:{resource_group_name or '-'}", load)
+        return self._listed(self.namespace_key(resource_group_name), load)
 
     def update_instances(self) -> List[Dict[str, Any]]:
         """Software Update instances, which the product owns and can also create."""
@@ -266,4 +314,8 @@ class ResourceCatalog:
         return self._listed("su", load)
 
     def clear(self) -> None:
-        self._cache.clear()
+        with self._lock:
+            self._generation += 1
+            self._cache.clear()
+            self.errors.clear()
+            self._requests.clear()

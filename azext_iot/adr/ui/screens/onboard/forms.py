@@ -8,7 +8,8 @@
 
 import re
 import shlex
-from typing import Dict, Optional, Tuple
+from dataclasses import dataclass
+from typing import Dict, Optional, Pattern, Tuple
 
 from rich.text import Text
 from textual.app import ComposeResult
@@ -21,17 +22,54 @@ from azext_iot.adr.ui.core.spec import STYLE_ERROR
 from azext_iot.adr.ui.screens.onboard.create import CreateRequest
 from azext_iot.adr.ui.theme import style_for
 
-#: Azure resource names: letters, digits and hyphens, not starting or ending with one.
-_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{1,48}[A-Za-z0-9]$")
+
+@dataclass(frozen=True)
+class _NameRule:
+    minimum: int
+    maximum: int
+    pattern: Pattern[str]
+    characters: str
+    cannot_end_with_period: bool = False
 
 
-def validate_name(name: str) -> Optional[str]:
+_HYPHENATED_NAME = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$")
+_RESOURCE_GROUP_NAME = re.compile(r"^[\w().-]+$", flags=re.UNICODE)
+
+_NAME_RULES = {
+    "resource_group": _NameRule(
+        1,
+        90,
+        _RESOURCE_GROUP_NAME,
+        "letters, digits, periods, underscores, parentheses, and hyphens",
+        cannot_end_with_period=True,
+    ),
+    "namespace": _NameRule(
+        3, 64, _HYPHENATED_NAME, "letters, digits, and hyphens"
+    ),
+    "dps": _NameRule(
+        3, 64, _HYPHENATED_NAME, "letters, digits, and hyphens"
+    ),
+    "hub": _NameRule(
+        3, 50, _HYPHENATED_NAME, "letters, digits, and hyphens"
+    ),
+    "su": _NameRule(
+        3, 36, _HYPHENATED_NAME, "letters, digits, and hyphens"
+    ),
+}
+
+
+def validate_name(name: str, kind: str = "namespace") -> Optional[str]:
     """Return an error message, or None when the name is acceptable."""
     text = (name or "").strip()
     if not text:
         return "a name is required"
-    if not _NAME_PATTERN.match(text):
-        return "3-50 characters: letters, digits and hyphens, not starting or ending with '-'"
+    rule = _NAME_RULES.get(kind, _NAME_RULES["namespace"])
+    if not rule.minimum <= len(text) <= rule.maximum:
+        return f"{rule.minimum}-{rule.maximum} characters: {rule.characters}"
+    if not rule.pattern.fullmatch(text):
+        return f"{rule.minimum}-{rule.maximum} characters: {rule.characters}"
+    if rule.cannot_end_with_period and text.endswith("."):
+        return "a resource group name cannot end with '.'"
     return None
 
 
@@ -96,7 +134,7 @@ class CreateResourceDialog(ModalScreen[Optional[CreateRequest]]):
 
     def _collect(self) -> Optional[CreateRequest]:
         name = self.query_one("#name", Input).value.strip()
-        problem = validate_name(name)
+        problem = validate_name(name, self.kind)
         resource_group = self.query_one("#rg", Input).value.strip()
         location = self.query_one("#location", Input).value.strip()
         if problem is None and not resource_group:

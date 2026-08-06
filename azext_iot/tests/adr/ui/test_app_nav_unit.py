@@ -503,6 +503,23 @@ def test_source_failure_degrades_instead_of_crashing():
     assert "service unavailable" in status
 
 
+def test_detail_screen_defensively_redacts_credentials():
+    detail = DetailScreen(
+        None,
+        {
+            "name": "symmetric",
+            "properties": {
+                "primaryKey": "secret-one",
+                "secondaryKey": "secret-two",
+            },
+        },
+    )
+    assert detail.payload["properties"] == {
+        "primaryKey": "[REDACTED]",
+        "secondaryKey": "[REDACTED]",
+    }
+
+
 def test_screen_renders_at_minimum_terminal_size():
     async def runner():
         app = RadrApp(registry=build_synthetic_registry())

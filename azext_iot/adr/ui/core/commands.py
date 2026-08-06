@@ -13,6 +13,7 @@ the preview cannot drift from what actually executes (design doc risk R9).
 This module is deliberately free of any UI framework import.
 """
 
+import shlex
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 #: Scope keys mapped to the CLI flags that carry them. Ordered so generated commands read
@@ -35,14 +36,8 @@ _KEY_ORDER = [key for key, _ in _FLAGS]
 
 
 def quote(value: Any) -> str:
-    """Quote a value only when a shell would need it."""
-    text = str(value)
-    if text == "":
-        return '""'
-    if any(character in text for character in " \t\"'$`\\|&;<>()"):
-        escaped = text.replace('"', '\\"')
-        return f'"{escaped}"'
-    return text
+    """Quote one value for a POSIX shell without permitting expansion."""
+    return shlex.quote(str(value))
 
 
 def render(command: str, name: Optional[str] = None, scope: Optional[Dict[str, Any]] = None,
@@ -80,7 +75,7 @@ def wrap(command: str, width: int = 96) -> str:
     """Wrap a long command across lines with shell continuations, for display."""
     if len(command) <= width:
         return command
-    tokens = command.split(" ")
+    tokens = _shell_lexemes(command)
     lines: List[str] = []
     current = tokens[0]
     for token in tokens[1:]:
@@ -92,3 +87,38 @@ def wrap(command: str, width: int = 96) -> str:
             current = f"{current} {token}"
     lines.append(current)
     return " \\\n".join(lines)
+
+
+def _shell_lexemes(command: str) -> List[str]:
+    """Split on unquoted whitespace while preserving the original shell syntax."""
+    tokens: List[str] = []
+    current: List[str] = []
+    quote_character = ""
+    escaped = False
+    for character in command:
+        if escaped:
+            current.append(character)
+            escaped = False
+            continue
+        if character == "\\" and quote_character != "'":
+            current.append(character)
+            escaped = True
+            continue
+        if quote_character:
+            current.append(character)
+            if character == quote_character:
+                quote_character = ""
+            continue
+        if character in ("'", '"'):
+            quote_character = character
+            current.append(character)
+            continue
+        if character.isspace():
+            if current:
+                tokens.append("".join(current))
+                current = []
+            continue
+        current.append(character)
+    if current:
+        tokens.append("".join(current))
+    return tokens

@@ -126,16 +126,30 @@ class BrowseScreen(ChromeScreen):
     def _load(self, force: bool = False) -> None:
         """Worker body. Runs on a thread; touches the UI only via the app."""
         try:
-            payloads = list(self.source(self.scope, force=force))
+            result = self.source(self.scope, force=force)
+            payloads = list(result)
         except Exception as error:  # noqa: BLE001 - this worker is the error boundary
             self.app.call_from_thread(self._on_load_failed, str(error))
         else:
-            self.app.call_from_thread(self._on_loaded, payloads)
+            self.app.call_from_thread(
+                self._on_loaded,
+                payloads,
+                getattr(result, "error", None),
+                getattr(result, "loaded_at", None),
+            )
 
-    def _on_loaded(self, payloads) -> None:
+    def _on_loaded(self, payloads, error=None, loaded_at=None) -> None:
         self._loading = False
         self.query_one("#rows-loading", LoadingIndicator).display = False
-        self.model.apply(payloads)
+        self.model.apply(payloads, loaded_at=loaded_at)
+        if error:
+            self.model.fail(error)
+            message = (
+                f"refresh failed; showing cached data: {error}"
+                if loaded_at is not None
+                else f"refresh failed: {error}"
+            )
+            self.flash(message, "warning")
         self._repaint()
 
     def _on_load_failed(self, message: str) -> None:

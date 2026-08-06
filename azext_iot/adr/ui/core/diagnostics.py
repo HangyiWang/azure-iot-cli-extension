@@ -34,14 +34,14 @@ def default_log_path() -> str:
 
 def configure(path: Optional[str]) -> Optional[str]:
     """Start file logging. Returns the path in use, or None when logging is off."""
-    if not path:
-        return None
-    resolved = os.path.abspath(os.path.expanduser(path))
-    os.makedirs(os.path.dirname(resolved), exist_ok=True)
     for handler in list(_logger.handlers):
         if isinstance(handler, logging.FileHandler):
             _logger.removeHandler(handler)
             handler.close()
+    if not path:
+        return None
+    resolved = os.path.abspath(os.path.expanduser(path))
+    os.makedirs(os.path.dirname(resolved), exist_ok=True)
     handler = logging.FileHandler(resolved, encoding="utf-8")
     handler.setFormatter(
         logging.Formatter("%(asctime)s %(levelname)-7s %(message)s", "%H:%M:%S")

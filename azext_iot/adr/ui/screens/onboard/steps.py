@@ -33,6 +33,7 @@ from azext_iot.adr.ui.screens.onboard.flow import Flow, PlanItem, Step
 NAMESPACE_TO_RESOURCE_ROLES = {
     "hub": ("Contributor", "IoT Hub Data Contributor"),
     "dps": ("Contributor",),
+    "su": ("Contributor",),
 }
 RESOURCE_TO_NAMESPACE_ROLE = "Contributor"
 #: Role assignments are not effective immediately; linking too soon fails for a reason
@@ -174,7 +175,11 @@ def plan_resource_group(context: Dict[str, Any]) -> List[PlanItem]:
             key="resource-group",
             description=f"Create resource group '{request.name}' in {request.location}",
             phase=PHASE_PREREQUISITE,
-            command=f"az group create -n {request.name} -l {request.location}",
+            command=render(
+                "group create",
+                name=request.name,
+                options={"location": request.location},
+            ),
             long_running=False,
             invoke=make,
         )
@@ -285,10 +290,16 @@ def plan_provisioning(context: Dict[str, Any]) -> List[PlanItem]:
                     f"with {request.capacity} S1 unit(s)"
                 ),
                 phase=PHASE_PREREQUISITE,
-                command=(
-                    f"az iot dps create -n {request.name} -g {request.resource_group_name} "
-                    f"-l {request.location} --sku {request.sku or 'S1'} "
-                    f"--unit {request.capacity} --mi-system-assigned"
+                command=render(
+                    "iot dps create",
+                    name=request.name,
+                    scope={"resource_group_name": request.resource_group_name},
+                    options={
+                        "location": request.location,
+                        "sku": request.sku or "S1",
+                        "unit": request.capacity,
+                    },
+                    flags=("--mi-system-assigned",),
                 ),
                 invoke=make,
             )
@@ -346,10 +357,16 @@ def plan_messaging(context: Dict[str, Any]) -> List[PlanItem]:
                     f"with {request.capacity} {request.sku or 'S1'} unit(s)"
                 ),
                 phase=PHASE_PREREQUISITE,
-                command=(
-                    f"az iot hub create -n {request.name} -g {request.resource_group_name} "
-                    f"-l {request.location} --sku {request.sku or 'S1'} "
-                    f"--unit {request.capacity} --mi-system-assigned"
+                command=render(
+                    "iot hub create",
+                    name=request.name,
+                    scope={"resource_group_name": request.resource_group_name},
+                    options={
+                        "location": request.location,
+                        "sku": request.sku or "S1",
+                        "unit": request.capacity,
+                    },
+                    flags=("--mi-system-assigned",),
                 ),
                 invoke=make,
             )
@@ -400,15 +417,33 @@ def namespace_arm_id(context: Dict[str, Any]) -> str:
     )
 
 
-def grant_command(principal: str, role: str, scope: str) -> str:
+def _principal_lookup(resource_id: str) -> str:
+    """A shell expression that resolves a newly created resource's principal id."""
+    if not resource_id:
+        raise ValueError("a principal lookup needs a resource id")
+    return (
+        '"$(az resource show '
+        f"--ids {quote(resource_id)} "
+        '--query identity.principalId --output tsv)"'
+    )
+
+
+def grant_command(
+    principal: str,
+    role: str,
+    scope: str,
+    principal_source: str = "",
+) -> str:
     """A role grant addressed by object id.
 
     Matches the form the e2e uses: an object id needs no directory lookup, and the
     principal type must be given explicitly for a managed identity.
     """
+    assignee = quote(principal) if principal else _principal_lookup(principal_source)
     return (
-        f"az role assignment create --assignee-object-id {principal} "
-        f'--assignee-principal-type ServicePrincipal --role "{role}" --scope {scope}'
+        f"az role assignment create --assignee-object-id {assignee} "
+        f"--assignee-principal-type ServicePrincipal --role {quote(role)} "
+        f"--scope {quote(scope)}"
     )
 
 
@@ -540,6 +575,10 @@ def plan_permissions(context: Dict[str, Any]) -> List[PlanItem]:
         targets.append(("hub", hub))
     if context.get("create_hub") is not None:
         targets.append(("hub", _placeholder(context["create_hub"], context)))
+    for instance in context.get("selected_sus") or []:
+        targets.append(("su", instance))
+    if context.get("create_su") is not None:
+        targets.append(("su", _placeholder(context["create_su"], context)))
 
     for kind, target in targets:
         target_principal = principal_of(getattr(target, "raw", None) or {})
@@ -557,7 +596,10 @@ def plan_permissions(context: Dict[str, Any]) -> List[PlanItem]:
             )
             if namespace_principal or namespace_pending:
                 item.command = grant_command(
-                    namespace_principal or "<namespace principal id>", role, target.resource_id
+                    namespace_principal,
+                    role,
+                    target.resource_id,
+                    principal_source=namespace_scope,
                 )
                 if may_grant:
                     item.action = "create"
@@ -590,9 +632,10 @@ def plan_permissions(context: Dict[str, Any]) -> List[PlanItem]:
         )
         if target_principal or target_pending:
             reverse.command = grant_command(
-                target_principal or f"<{target.name} principal id>",
+                target_principal,
                 RESOURCE_TO_NAMESPACE_ROLE,
                 namespace_scope,
+                principal_source=target.resource_id,
             )
             if may_grant:
                 reverse.action = "create"

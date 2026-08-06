@@ -68,20 +68,13 @@ def _overview(payloads) -> str:
 
 def build(session) -> ResourceSpec:
     def list_endpoints(scope):
-        """Concatenate the three endpoint sections into one collection."""
-        namespace_name = scope.get("namespace_name")
-        resource_group_name = scope.get("resource_group_name")
-        endpoints = []
-        for method in ("dps_list", "hub_list", "su_list"):
-            endpoints.extend(
-                session.list_from(
-                    "link",
-                    method,
-                    namespace_name=namespace_name,
-                    resource_group_name=resource_group_name,
-                )
-            )
-        return endpoints
+        """Project all endpoint sections from one namespace request."""
+        return session.list_from(
+            "link",
+            "list_all",
+            namespace_name=scope.get("namespace_name"),
+            resource_group_name=scope.get("resource_group_name"),
+        )
 
     return ResourceSpec(
         kind="link",

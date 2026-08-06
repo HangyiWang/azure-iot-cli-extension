@@ -175,7 +175,7 @@ class RadrApp(App):
         lister = spec.list or (lambda _scope: [])
 
         def source(scope: Dict[str, Any], force: bool = False):
-            return self.store.fetch(spec, scope, lister, force=force)
+            return self.store.fetch_result(spec, scope, lister, force=force)
 
         return source
 

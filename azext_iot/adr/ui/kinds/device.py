@@ -105,7 +105,11 @@ def build_auth(session) -> ResourceSpec:
         parent="device",
         guide=Guide(
             about="How this device proves who it is - one profile per supported method.",
-            runs="Projected from the device payload already loaded  ·  no extra call",
+            runs=(
+                "az iot adr ns registry-device auth list "
+                "--registry-device-name <device> --ns <namespace> "
+                "-g <resource-group>  ·  read-only"
+            ),
             note="A device with no profile cannot connect until one is added.",
         ),
         row_id=name_of,
