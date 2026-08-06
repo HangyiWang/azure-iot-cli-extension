@@ -9,7 +9,7 @@
 The CLI splits these across `link hub`, `link dps` and `link su`, but they are three
 sections of one namespace and are read together far more often than separately. They are
 presented as a single table with a TYPE column, which is also what makes the ordering rule
-(a provisioning endpoint must exist before a hub) visible at a glance.
+(a DPS endpoint must exist before a Hub) visible at a glance.
 """
 
 from azext_iot.adr.ui.core.spec import (
@@ -25,15 +25,19 @@ from azext_iot.adr.ui.kinds._common import dig, name_of, prop, short_id, value_s
 
 #: Endpoint type discriminator -> short label shown in the TYPE column.
 _TYPE_LABELS = {
-    "Microsoft.Devices/IotHubs": "hub",
-    "Microsoft.Devices/provisioningServices": "provisioning",
-    "Microsoft.DeviceUpdate/updateInstances": "updating",
+    "Microsoft.Devices/IotHubs": "IoT Hub",
+    "Microsoft.Devices/provisioningServices": "DPS",
+    "Microsoft.DeviceUpdate/updateInstances": "Software Updates",
 }
-_TYPE_STYLES = {"provisioning": STYLE_WARN, "hub": STYLE_OK, "updating": STYLE_MUTED}
+_TYPE_STYLES = {
+    "DPS": STYLE_WARN,
+    "IoT Hub": STYLE_OK,
+    "Software Updates": STYLE_MUTED,
+}
 
 #: The order the endpoints must be established in, which is also the most useful reading
 #: order: provisioning first, then messaging, then updating.
-_TYPE_ORDER = {"provisioning": 0, "hub": 1, "updating": 2}
+_TYPE_ORDER = {"DPS": 0, "IoT Hub": 1, "Software Updates": 2}
 
 
 def _endpoint_type(payload) -> str:
@@ -47,6 +51,19 @@ def _identity(payload) -> str:
         return "none"
     assigned = identity.get("userAssignedIdentity")
     return f"{kind}:{short_id(assigned)}" if assigned else kind
+
+
+def _overview(payloads) -> str:
+    counts = {"DPS": 0, "IoT Hub": 0, "Software Updates": 0}
+    for payload in payloads:
+        kind = _endpoint_type(payload)
+        if kind in counts:
+            counts[kind] += 1
+    return (
+        f"DPS {counts['DPS']}  ·  "
+        f"IoT Hubs {counts['IoT Hub']}  ·  "
+        f"Updates {counts['Software Updates']}"
+    )
 
 
 def build(session) -> ResourceSpec:
@@ -68,14 +85,14 @@ def build(session) -> ResourceSpec:
 
     return ResourceSpec(
         kind="link",
-        title="Endpoint",
-        title_plural="Endpoints",
+        title="Linked resource",
+        title_plural="Linked resources",
         aliases=("ep", "endpoint"),
         parent="namespace",
         # Endpoint names are unique only within their section, so identity includes type.
         guide=Guide(
             about=(
-                "Resources linked to this namespace: the provisioning service that assigns devices, the IoT Hubs they "
+                "Resources linked to this namespace: the DPS that assigns devices, the IoT Hubs they "
                 "are assigned to, and any update instances."
             ),
             runs="az iot adr ns link dps|hub|su list --ns <namespace> -g <resource-group>  ·  read-only",
@@ -117,4 +134,5 @@ def build(session) -> ResourceSpec:
         sort=("type", False),
         requires=("namespace_name", "resource_group_name"),
         scope_key="endpoint_name",
+        summarize=_overview,
     )

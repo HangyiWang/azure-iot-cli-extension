@@ -30,6 +30,10 @@ STYLE_ACTIVE = "active"
 #: Provisioning states that mean "still settling" rather than a terminal outcome.
 TRANSITIONAL_STATES = frozenset({"Accepted", "Provisioning", "Updating", "Deleting", "Creating"})
 FAILED_STATES = frozenset({"Failed", "Canceled"})
+_TRANSITIONAL_STATES_NORMALIZED = frozenset(
+    state.casefold() for state in TRANSITIONAL_STATES
+)
+_FAILED_STATES_NORMALIZED = frozenset(state.casefold() for state in FAILED_STATES)
 
 
 def _identity(value: Any) -> str:
@@ -65,9 +69,9 @@ class Guide:
     """The short orientation shown at the top of a page.
 
     Answers the three questions a customer asks on arriving somewhere unfamiliar: what am
-    I looking at, what does this actually run against Azure, and what will it not do.
-    Keys are deliberately absent - the hint bar already lists them, and repeating them
-    here would guarantee the two drift apart.
+    I looking at, what is the main next action, what does this actually run against Azure,
+    and what will it not do. The action may name the few workflow keys that matter; the
+    full shortcut inventory remains generated from bindings in the hint bar.
 
     Kept on the spec rather than in a screen so a new kind arrives with its own guidance
     instead of inheriting a generic sentence that explains nothing.
@@ -75,6 +79,9 @@ class Guide:
 
     #: What this page shows, in one sentence.
     about: str
+    #: The most useful next action on this page. Kept separate so the presentation can
+    #: give it more visual weight than explanatory prose.
+    action: str = ""
     #: The command or API this page runs behind the scenes, plus read/write character.
     runs: str = ""
     #: A limitation or caveat worth knowing before acting.
@@ -84,7 +91,12 @@ class Guide:
         """Label/value pairs, omitting the parts that were not filled in."""
         return [
             (label, value)
-            for label, value in (("about", self.about), ("runs", self.runs), ("note", self.note))
+            for label, value in (
+                ("about", self.about),
+                ("action", self.action),
+                ("runs", self.runs),
+                ("note", self.note),
+            )
             if value
         ]
 
@@ -96,6 +108,8 @@ class ChildRef:
     kind: str
     label: str
     key: Optional[str] = None
+    #: Short customer-facing explanation used by hierarchy overviews.
+    description: str = ""
 
 
 @dataclass(frozen=True)
@@ -155,6 +169,9 @@ class ResourceSpec:
     #: Orientation shown above the table. Optional, but every registered kind should have
     #: one; a page that cannot explain itself is a page the customer has to guess at.
     guide: Optional[Guide] = None
+    #: Compact description of a loaded collection for a parent's hierarchy overview.
+    #: Defaults to a few row names; kinds with a more useful aggregate may override it.
+    summarize: Optional[Callable[[Sequence[Payload]], str]] = None
 
     def missing_scope(self, scope: Dict[str, Any]) -> List[str]:
         """Required scope keys that are absent or empty."""
@@ -180,6 +197,22 @@ class ResourceSpec:
 
     def default_sort(self) -> Tuple[str, bool]:
         return self.sort if self.sort else (self.columns[0].key, False)
+
+    def summarize_rows(self, payloads: Sequence[Payload]) -> str:
+        """A compact, useful preview of a child collection."""
+        rows = list(payloads)
+        if self.summarize is not None:
+            return self.summarize(rows)
+        if not rows:
+            return (
+                "None in this namespace"
+                if "namespace_name" in self.requires
+                else "None in the current scope"
+            )
+        names = [str(self.row_id(payload)) for payload in rows[:3]]
+        if len(rows) > 3:
+            names.append(f"+{len(rows) - 3} more")
+        return ", ".join(names)
 
     def action(self, name: str) -> Optional[Action]:
         for action in self.actions:
@@ -279,10 +312,11 @@ def state_style(payload: Payload, *keys: str) -> Optional[str]:
         value = payload.get(key) or properties.get(key)
         if not value:
             continue
-        if value in FAILED_STATES:
+        normalized = str(value).casefold()
+        if normalized in _FAILED_STATES_NORMALIZED:
             return STYLE_ERROR
-        if value in TRANSITIONAL_STATES:
+        if normalized in _TRANSITIONAL_STATES_NORMALIZED:
             return STYLE_WARN
-        if value == "Succeeded":
+        if normalized == "succeeded":
             return STYLE_OK
     return None

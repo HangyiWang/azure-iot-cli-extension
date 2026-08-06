@@ -7,7 +7,8 @@
 """Creation form used by every "create a new one" step."""
 
 import re
-from typing import Optional
+import shlex
+from typing import Dict, Optional, Tuple
 
 from rich.text import Text
 from textual.app import ComposeResult
@@ -16,7 +17,9 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, Static
 
+from azext_iot.adr.ui.core.spec import STYLE_ERROR
 from azext_iot.adr.ui.screens.onboard.create import CreateRequest
+from azext_iot.adr.ui.theme import style_for
 
 #: Azure resource names: letters, digits and hyphens, not starting or ending with one.
 _NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9-]{1,48}[A-Za-z0-9]$")
@@ -30,6 +33,26 @@ def validate_name(name: str) -> Optional[str]:
     if not _NAME_PATTERN.match(text):
         return "3-50 characters: letters, digits and hyphens, not starting or ending with '-'"
     return None
+
+
+def parse_tags(value: str) -> Tuple[Dict[str, str], Optional[str]]:
+    """Parse optional `key=value` tags from the compact namespace form."""
+    text = (value or "").strip()
+    if not text:
+        return {}, None
+    try:
+        items = shlex.split(text)
+    except ValueError as error:
+        return {}, f"invalid tags: {error}"
+    tags = {}
+    for item in items:
+        if "=" not in item:
+            return {}, f"tag '{item}' must use key=value"
+        key, tag_value = item.split("=", 1)
+        if not key:
+            return {}, "tag keys cannot be empty"
+        tags[key] = tag_value
+    return tags, None
 
 
 class CreateResourceDialog(ModalScreen[Optional[CreateRequest]]):
@@ -81,7 +104,13 @@ class CreateResourceDialog(ModalScreen[Optional[CreateRequest]]):
         if problem is None and not location:
             problem = "a region is required"
         if problem:
-            self.query_one("#create-error", Static).update(Text(problem, style="bold red"))
+            error = style_for(
+                STYLE_ERROR,
+                getattr(self.app, "theme_tokens", None),
+            )
+            self.query_one("#create-error", Static).update(
+                Text(problem, style=f"bold {error}")
+            )
             return None
         return CreateRequest(
             kind=self.kind,

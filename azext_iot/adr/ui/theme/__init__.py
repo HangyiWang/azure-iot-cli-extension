@@ -15,6 +15,8 @@ and the high-contrast theme is provided for low-colour or low-vision use.
 
 from typing import Dict
 
+from textual.theme import Theme
+
 from azext_iot.adr.ui.core.spec import (
     STYLE_ACTIVE,
     STYLE_ERROR,
@@ -23,30 +25,149 @@ from azext_iot.adr.ui.core.spec import (
     STYLE_WARN,
 )
 
-DEFAULT_THEME = "default"
+DEFAULT_THEME = "dark"
+LIGHT_THEME = "light"
 HIGH_CONTRAST_THEME = "high-contrast"
 
-#: Textual theme whose variables the stylesheet builds on.
-BASE_THEME = "nord"
+#: Exact visual roles supplied for radr. Rich-rendered widgets use these directly; the
+#: Textual themes below map the same roles onto standard CSS variables.
+_DARK_PALETTE = {
+    "background": "#1C2128",
+    "panel": "#22272E",
+    "panel_border": "#373E47",
+    "title_bg": "#3B4655",
+    "title_fg": "#F0F3F6",
+    "text": "#DADFE7",
+    "dim": "#768390",
+    "accent": "#78A9C8",
+    "column": "#7294AE",
+    "do_bg": "#2D333B",
+    "do_fg": "#E6EDF3",
+    "selected_bg": "#343B44",
+    "selected_fg": "#F0F3F6",
+    "success": "#8FAF8B",
+    "warning": "#C7A56A",
+    "error": "#C46F79",
+}
+
+_LIGHT_PALETTE = {
+    "background": "#ECEFF4",
+    "panel": "#F7F9FB",
+    "panel_border": "#D6DCE5",
+    "title_bg": "#5E81AC",
+    "title_fg": "#ECEFF4",
+    "text": "#2E3440",
+    "dim": "#7A869A",
+    "accent": "#5E81AC",
+    "column": "#4C6E96",
+    "do_bg": "#D8DEE9",
+    "do_fg": "#2E3440",
+    "selected_bg": "#CBD5E1",
+    "selected_fg": "#2E3440",
+    "success": "#5E7A45",
+    "warning": "#96702A",
+    "error": "#A6474F",
+}
+
+PALETTES = {
+    DEFAULT_THEME: _DARK_PALETTE,
+    LIGHT_THEME: _LIGHT_PALETTE,
+}
+
+DARK_BASE_THEME = "radr-night"
+LIGHT_BASE_THEME = "radr-daylight"
 HIGH_CONTRAST_BASE_THEME = "textual-ansi"
+
+RADR_DARK_THEME = Theme(
+    name=DARK_BASE_THEME,
+    primary=_DARK_PALETTE["accent"],
+    secondary=_DARK_PALETTE["column"],
+    accent=_DARK_PALETTE["accent"],
+    warning=_DARK_PALETTE["warning"],
+    error=_DARK_PALETTE["error"],
+    success=_DARK_PALETTE["success"],
+    foreground=_DARK_PALETTE["text"],
+    background=_DARK_PALETTE["background"],
+    surface=_DARK_PALETTE["panel"],
+    panel=_DARK_PALETTE["panel_border"],
+    boost=_DARK_PALETTE["selected_bg"],
+    dark=True,
+    luminosity_spread=0.10,
+    variables={
+        "success": _DARK_PALETTE["success"],
+        "warning": _DARK_PALETTE["warning"],
+        "error": _DARK_PALETTE["error"],
+        "text": _DARK_PALETTE["text"],
+        "text-muted": _DARK_PALETTE["dim"],
+        "primary-darken-1": _DARK_PALETTE["title_bg"],
+        "primary-background": _DARK_PALETTE["title_fg"],
+        "secondary-background": _DARK_PALETTE["do_bg"],
+        "foreground-lighten-1": _DARK_PALETTE["do_fg"],
+    },
+)
+
+RADR_LIGHT_THEME = Theme(
+    name=LIGHT_BASE_THEME,
+    primary=_LIGHT_PALETTE["accent"],
+    secondary=_LIGHT_PALETTE["column"],
+    accent=_LIGHT_PALETTE["accent"],
+    warning=_LIGHT_PALETTE["warning"],
+    error=_LIGHT_PALETTE["error"],
+    success=_LIGHT_PALETTE["success"],
+    foreground=_LIGHT_PALETTE["text"],
+    background=_LIGHT_PALETTE["background"],
+    surface=_LIGHT_PALETTE["panel"],
+    panel=_LIGHT_PALETTE["panel_border"],
+    boost=_LIGHT_PALETTE["selected_bg"],
+    dark=False,
+    luminosity_spread=0.10,
+    variables={
+        "success": _LIGHT_PALETTE["success"],
+        "warning": _LIGHT_PALETTE["warning"],
+        "error": _LIGHT_PALETTE["error"],
+        "text": _LIGHT_PALETTE["text"],
+        "text-muted": _LIGHT_PALETTE["dim"],
+        "primary-darken-1": _LIGHT_PALETTE["title_bg"],
+        "primary-background": _LIGHT_PALETTE["title_fg"],
+        "secondary-background": _LIGHT_PALETTE["do_bg"],
+        "foreground-lighten-1": _LIGHT_PALETTE["do_fg"],
+    },
+)
+
+RADR_THEMES = (RADR_DARK_THEME, RADR_LIGHT_THEME)
+
+
+def normalize_theme(name: str = None) -> str:
+    value = (name or DEFAULT_THEME).strip().lower()
+    if value == "default":
+        return DEFAULT_THEME
+    return value if value in THEMES else DEFAULT_THEME
 
 
 def base_theme_for(name: str = None) -> str:
-    return (
-        HIGH_CONTRAST_BASE_THEME
-        if (name or "").strip().lower() == HIGH_CONTRAST_THEME
-        else BASE_THEME
-    )
+    return {
+        DEFAULT_THEME: DARK_BASE_THEME,
+        LIGHT_THEME: LIGHT_BASE_THEME,
+        HIGH_CONTRAST_THEME: HIGH_CONTRAST_BASE_THEME,
+    }[normalize_theme(name)]
 
 
 # Drawn from the same palette as the base theme, so status colours sit beside the
 # chrome rather than fighting it. Muted on purpose: status should be legible, not loud.
-_DEFAULT_TOKENS: Dict[str, str] = {
-    STYLE_OK: "#a3be8c",      # sage
-    STYLE_WARN: "#ebcb8b",    # soft amber
-    STYLE_ERROR: "#bf616a",   # muted rose
-    STYLE_MUTED: "#6b7280",   # slate
-    STYLE_ACTIVE: "#88c0d0",  # frost
+_DARK_TOKENS: Dict[str, str] = {
+    STYLE_OK: _DARK_PALETTE["success"],
+    STYLE_WARN: _DARK_PALETTE["warning"],
+    STYLE_ERROR: _DARK_PALETTE["error"],
+    STYLE_MUTED: _DARK_PALETTE["dim"],
+    STYLE_ACTIVE: _DARK_PALETTE["accent"],
+}
+
+_LIGHT_TOKENS: Dict[str, str] = {
+    STYLE_OK: _LIGHT_PALETTE["success"],
+    STYLE_WARN: _LIGHT_PALETTE["warning"],
+    STYLE_ERROR: _LIGHT_PALETTE["error"],
+    STYLE_MUTED: _LIGHT_PALETTE["dim"],
+    STYLE_ACTIVE: _LIGHT_PALETTE["accent"],
 }
 
 _HIGH_CONTRAST_TOKENS: Dict[str, str] = {
@@ -58,21 +179,47 @@ _HIGH_CONTRAST_TOKENS: Dict[str, str] = {
 }
 
 THEMES: Dict[str, Dict[str, str]] = {
-    DEFAULT_THEME: _DEFAULT_TOKENS,
+    DEFAULT_THEME: _DARK_TOKENS,
+    LIGHT_THEME: _LIGHT_TOKENS,
     HIGH_CONTRAST_THEME: _HIGH_CONTRAST_TOKENS,
 }
 
 
 def resolve_theme(name: str = None) -> Dict[str, str]:
     """Return a token map, falling back to the default for an unknown name."""
-    return THEMES.get((name or DEFAULT_THEME).strip().lower(), _DEFAULT_TOKENS)
+    return THEMES[normalize_theme(name)]
+
+
+def resolve_palette(name: str = None) -> Dict[str, str]:
+    """Return non-semantic presentation roles for Rich-rendered widgets."""
+    normalized = normalize_theme(name)
+    if normalized == HIGH_CONTRAST_THEME:
+        return {
+            "background": "default",
+            "panel": "default",
+            "panel_border": "white",
+            "title_bg": "blue",
+            "title_fg": "bright_white",
+            "text": "white",
+            "dim": "bright_black",
+            "accent": "bright_cyan",
+            "column": "bright_blue",
+            "do_bg": "blue",
+            "do_fg": "bright_white",
+            "selected_bg": "blue",
+            "selected_fg": "bright_white",
+            "success": "bright_green",
+            "warning": "bright_yellow",
+            "error": "bright_red",
+        }
+    return PALETTES[normalized]
 
 
 def style_for(token: str, theme: Dict[str, str] = None) -> str:
     """Resolve a style token to a rich style string; unknown tokens render unstyled."""
     if not token:
         return ""
-    return (theme or _DEFAULT_TOKENS).get(token, "")
+    return (theme or _DARK_TOKENS).get(token, "")
 
 
 APP_CSS = """
@@ -93,8 +240,8 @@ Screen {
 ContextBar {
     height: 1;
     padding: 0 2;
-    background: $primary-darken-3;
-    color: $text;
+    background: $primary-darken-1;
+    color: $primary-background;
 }
 
 InfoPanel {
@@ -108,16 +255,16 @@ InfoPanel {
    apart from the bars above and below without spending a border on it. */
 PageGuide {
     height: auto;
-    max-height: 8;
-    padding: 0 2;
+    max-height: 14;
+    padding: 1 2;
     margin: 1 2 0 2;
-    border-left: outer $primary-darken-1;
-    color: $text-muted;
-    background: $boost;
+    color: $text;
+    background: $surface;
 }
 
 HintBar {
-    height: 1;
+    height: auto;
+    max-height: 2;
     padding: 0 2;
     margin: 1 0 0 0;
     color: $text-muted;
@@ -146,7 +293,7 @@ OperationsTray {
 DataTable {
     height: 1fr;
     border: round $panel;
-    background: $background;
+    background: $surface;
     padding: 0 1;
 }
 
@@ -161,25 +308,25 @@ DataTable {
 
 DataTable > .datatable--header {
     text-style: bold;
-    color: $primary;
-    background: $background;
+    color: $secondary;
+    background: $surface;
 }
 
 DataTable > .datatable--cursor {
-    background: $primary-darken-2;
-    color: $text;
+    background: $boost;
+    color: $primary-background;
     text-style: bold;
 }
 
 DataTable > .datatable--hover {
-    background: $boost;
+    background: $boost 60%;
 }
 
 /* Striping alternated two greys that read as noise against this palette. Rows are
    separated by the cursor and hover instead. */
 DataTable > .datatable--odd-row,
 DataTable > .datatable--even-row {
-    background: $background;
+    background: $surface;
 }
 
 #status-line {
@@ -188,11 +335,17 @@ DataTable > .datatable--even-row {
     color: $text-muted;
 }
 
+#rows-loading {
+    height: 1;
+    margin: 0 2;
+    color: $primary;
+}
+
 /* ---------- inputs ---------- */
 
 Input {
     border: round $panel;
-    background: transparent;
+    background: $surface;
     padding: 0 1;
 }
 
@@ -208,35 +361,35 @@ Button {
 
 /* ---------- guided setup: rail and working pane ---------- */
 
-.rail {
-    width: 1fr;
-    min-width: 28;
-    max-width: 46;
-    padding: 0 1;
-    border: round $panel;
+#setup-layout {
+    height: 1fr;
+    margin: 0 1;
+    background: $background;
 }
 
-.rail:focus-within {
-    border: round $primary;
+.rail {
+    width: 1fr;
+    min-width: 34;
+    max-width: 50;
+    padding: 0 1 0 0;
+    background: transparent;
+    border: none;
+    border-right: solid $panel;
 }
 
 .pane {
     width: 3fr;
-    padding: 0 1;
-    border: round $panel;
+    padding: 0 0 0 1;
+    border: none;
+    background: $surface;
 }
 
-.pane:focus-within {
-    border: round $primary;
-}
-
-.pane {
-    border-title-color: $primary;
-    border-title-style: bold;
-}
-
-.rail {
-    border-title-color: $text-muted;
+#rail-title {
+    height: 2;
+    padding: 0 2;
+    content-align: left middle;
+    color: $primary;
+    text-style: bold;
 }
 
 #step-list {
@@ -246,23 +399,60 @@ Button {
 }
 
 #step-list > ListItem {
-    padding: 0 1;
+    height: auto;
+    layout: vertical;
+    padding: 1 1;
     background: transparent;
 }
 
-#step-list > ListItem.--highlight {
-    background: $primary-darken-2;
+#step-list .step-title {
+    width: 100%;
+    height: 1;
+    padding: 0 1;
     text-style: bold;
 }
 
-#step-list:focus > ListItem.--highlight {
-    background: $primary;
+#step-list .step-title.step-muted {
+    color: $text-muted;
+    text-style: none;
+}
+
+#step-list .step-resources {
+    width: 100%;
+    height: auto;
+    padding: 0 2;
     color: $text;
+}
+
+#step-list > ListItem.-highlight {
+    background: transparent;
+    text-style: bold;
+    color: $text;
+}
+
+#step-list > ListItem.selected-step > .step-title {
+    background: $primary-darken-1;
+    color: $primary-background;
+    text-style: bold;
+}
+
+#step-list:focus > ListItem.-highlight {
+    background: transparent;
+    color: $text;
+}
+
+#step-heading {
+    height: auto;
+    min-height: 3;
+    padding: 1 2;
+    background: $primary-darken-1;
+    color: $primary-background;
+    text-style: bold;
 }
 
 #step-body {
     height: auto;
-    padding: 1 1 0 1;
+    padding: 1 2 0 2;
 }
 
 #candidate-status {
@@ -271,29 +461,126 @@ Button {
     color: $text-muted;
 }
 
+#candidate-loading {
+    height: 3;
+    margin: 1 2;
+    color: $primary;
+}
+
 #candidates {
     height: 1fr;
     min-height: 8;
     /* The pane already draws a border; a second one inside it reads as clutter. */
     border: none;
+    background: transparent;
     padding: 0;
+}
+
+#candidates > .datatable--header,
+#candidates > .datatable--odd-row,
+#candidates > .datatable--even-row {
+    background: $surface;
+}
+
+#candidates > .datatable--cursor {
+    background: transparent;
+    color: $text;
+}
+
+#candidates:focus > .datatable--cursor {
+    background: $boost;
+    color: $primary-background;
 }
 
 #create-form {
     height: auto;
-    border: round $accent;
+    width: 100%;
+    max-width: 96;
+    border: none;
+    background: transparent;
     padding: 1 2;
-    margin: 1 0;
+    margin: 0;
 }
 
-#create-form Input {
+#create-kicker {
+    height: 1;
+    color: $primary;
+    text-style: bold;
+}
+
+#create-title {
+    height: auto;
+    text-style: bold;
+    margin-top: 1;
+}
+
+#create-subtitle {
+    height: auto;
+    color: $text-muted;
     margin-bottom: 1;
 }
 
-#create-form .modal-buttons {
+#create-form .form-field {
+    height: 3;
+    width: 100%;
+}
+
+#create-form .form-label {
+    width: 18;
+    content-align: left middle;
+    text-style: bold;
+    color: $text-muted;
+}
+
+#create-form .form-field Input {
+    width: 1fr;
+}
+
+#create-form-hint {
     height: auto;
+    margin: 1 0 0 18;
+    padding: 0 1;
+    color: $text-muted;
+}
+
+#create-error {
+    height: auto;
+    margin-left: 18;
+}
+
+#create-form .modal-buttons {
+    height: 2;
     align-horizontal: right;
-    padding-top: 1;
+    padding: 1 0 0 0;
+}
+
+#create-cancel,
+#create-plan,
+#create-confirm {
+    width: auto;
+    min-width: 8;
+    height: 1;
+    margin: 0 0 0 2;
+    padding: 0 1;
+    border: none;
+    background: transparent;
+    color: $text-muted;
+}
+
+#create-confirm {
+    color: $primary;
+    text-style: bold;
+}
+
+#create-cancel:hover,
+#create-cancel:focus,
+#create-plan:hover,
+#create-plan:focus,
+#create-confirm:hover,
+#create-confirm:focus {
+    background: $boost;
+    color: $primary-background;
+    text-style: bold;
 }
 
 #command-hint {
@@ -317,9 +604,14 @@ ModalBox.danger {
     border: round $error;
 }
 
-ModalBox > .modal-title {
+.modal-title {
+    width: 100%;
+    height: auto;
+    background: $primary-darken-1;
+    color: $primary-background;
     text-style: bold;
-    padding-bottom: 1;
+    padding: 0 1;
+    margin-bottom: 1;
 }
 
 /* Applies to every dialog, not only ModalBox: the operations and plan dialogs use

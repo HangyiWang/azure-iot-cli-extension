@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
-from azext_iot.adr.ui.core.spec import Column, Payload, ResourceSpec
+from azext_iot.adr.ui.core.spec import Column, Payload, ResourceSpec, state_style
 
 
 class LoadState(Enum):
@@ -44,6 +44,7 @@ class Row:
     cells: Tuple[str, ...]
     styles: Tuple[Optional[str], ...]
     payload: Payload
+    status_style: Optional[str] = None
 
     def cell(self, index: int) -> str:
         return self.cells[index] if 0 <= index < len(self.cells) else ""
@@ -153,7 +154,11 @@ class TableModel:
         for row_id, row in self._rows.items():
             if row_id not in previous_rows:
                 diff.added.append(row)
-            elif previous_rows[row_id].cells != row.cells or previous_rows[row_id].styles != row.styles:
+            elif (
+                previous_rows[row_id].cells != row.cells
+                or previous_rows[row_id].styles != row.styles
+                or previous_rows[row_id].status_style != row.status_style
+            ):
                 diff.updated.append(row)
         diff.removed = [row_id for row_id in previous_rows if row_id not in self._rows]
         diff.reordered = previous_order != self._order and not (diff.added or diff.removed)
@@ -223,6 +228,12 @@ class TableModel:
                     column.style(payload) if column.style else None for column in columns
                 ),
                 payload=payload,
+                status_style=state_style(
+                    payload,
+                    "provisioningState",
+                    "status",
+                    "linkingState",
+                ),
             )
             for row_id, payload in self._payloads.items()
         }
@@ -269,7 +280,9 @@ class TableModel:
         if self.state is LoadState.FAILED:
             return f"Could not load {self.spec.title_plural.lower()}: {self.error}"
         if self.state is LoadState.EMPTY:
-            return f"No {self.spec.title_plural.lower()} found."
+            if "namespace_name" in self.spec.requires:
+                return f"This namespace has no {self.spec.title_plural.lower()}."
+            return f"No {self.spec.title_plural.lower()} in the current scope."
         if self.state is LoadState.STALE:
             return f"Showing last known data. Refresh failed: {self.error}"
         if self.filter_text and self.row_count != self.total_count:

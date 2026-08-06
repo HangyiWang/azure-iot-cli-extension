@@ -11,8 +11,8 @@ provision and communicate with devices. Certificates, software updates, the firs
 and the first group are later steps that plug into this same engine.
 
 Ordering here is not a UI preference. Each rule mirrors one the service enforces:
-a provisioning endpoint must exist before a messaging endpoint is accepted, at most one
-provisioning endpoint may be linked, and both the namespace and each linked resource must
+a DPS endpoint must exist before a messaging endpoint is accepted, at most one
+DPS endpoint may be linked, and both the namespace and each linked resource must
 present an identity.
 
 This module is deliberately free of any UI framework import.
@@ -20,7 +20,7 @@ This module is deliberately free of any UI framework import.
 
 from typing import Any, Dict, List
 
-from azext_iot.adr.ui.core.commands import render
+from azext_iot.adr.ui.core.commands import quote, render
 from azext_iot.adr.ui.screens.onboard.create import (
     create_dps,
     create_hub,
@@ -198,15 +198,25 @@ def plan_namespace(context: Dict[str, Any]) -> List[PlanItem]:
     def make(session, _ctx, _request=request):
         return create_namespace(session, _request)
 
+    command = render(
+        "iot adr ns create",
+        name=request.name,
+        scope={"resource_group_name": request.resource_group_name},
+        options={"location": request.location},
+        flags=("--outbound-mi-system-assigned",),
+    )
+    if request.tags:
+        tag_args = " ".join(
+            quote(f"{key}={value}") for key, value in request.tags.items()
+        )
+        command += f" --tags {tag_args}"
+
     return [
         PlanItem(
             key="namespace",
             description=f"Create namespace '{request.name}' in {request.location}",
             phase=PHASE_PREREQUISITE,
-            command=render("iot adr ns create", name=request.name,
-                           scope={"resource_group_name": request.resource_group_name},
-                           options={"location": request.location},
-                           flags=("--mi-system-assigned",)),
+            command=command,
             invoke=make,
         )
     ]
@@ -258,8 +268,8 @@ def plan_provisioning(context: Dict[str, Any]) -> List[PlanItem]:
 
     if dps is None and request is None:
         return [
-            PlanItem(key="dps", description="Select or create a provisioning service",
-                     action="blocked", blocked_reason="no provisioning service chosen yet",
+            PlanItem(key="dps", description="Select or create a DPS",
+                     action="blocked", blocked_reason="no DPS chosen yet",
                      phase=0, long_running=False)
         ]
 
@@ -271,13 +281,14 @@ def plan_provisioning(context: Dict[str, Any]) -> List[PlanItem]:
             PlanItem(
                 key="dps-create",
                 description=(
-                    f"Create provisioning service '{request.name}' in {request.location} "
-                    "with a system-assigned identity"
+                    f"Create DPS '{request.name}' in {request.location} "
+                    f"with {request.capacity} S1 unit(s)"
                 ),
                 phase=PHASE_PREREQUISITE,
                 command=(
                     f"az iot dps create -n {request.name} -g {request.resource_group_name} "
-                    f"-l {request.location} --mi-system-assigned"
+                    f"-l {request.location} --sku {request.sku or 'S1'} "
+                    f"--unit {request.capacity} --mi-system-assigned"
                 ),
                 invoke=make,
             )
@@ -300,7 +311,7 @@ def plan_provisioning(context: Dict[str, Any]) -> List[PlanItem]:
     items.append(
         PlanItem(
             key="dps",
-            description=f"Link provisioning service '{dps.name}' as endpoint '{endpoint}'",
+            description=f"Link DPS '{dps.name}' as endpoint '{endpoint}'",
             phase=PHASE_LINK,
             command=render("iot adr ns link dps add", scope=_scope_of(context),
                            options={"endpoint_name": endpoint, "dps_id": dps.resource_id},
@@ -332,12 +343,13 @@ def plan_messaging(context: Dict[str, Any]) -> List[PlanItem]:
                 key="hub-create",
                 description=(
                     f"Create IoT Hub '{request.name}' in {request.location} "
-                    "with a system-assigned identity"
+                    f"with {request.capacity} {request.sku or 'S1'} unit(s)"
                 ),
                 phase=PHASE_PREREQUISITE,
                 command=(
                     f"az iot hub create -n {request.name} -g {request.resource_group_name} "
-                    f"-l {request.location} --mi-system-assigned"
+                    f"-l {request.location} --sku {request.sku or 'S1'} "
+                    f"--unit {request.capacity} --mi-system-assigned"
                 ),
                 invoke=make,
             )
@@ -626,33 +638,58 @@ def build_flow(context: Dict[str, Any]) -> Flow:
         Step(id="subscription", title="Subscription", detect=has_subscription),
         Step(id="scope", title="Resource group", after=("subscription",), detect=has_scope,
              planned=scope_planned, plan=plan_resource_group,
-             blocked_reason="choose a subscription first"),
+             blocked_reason="Choose a subscription first."),
         Step(id="namespace", title="Namespace", after=("scope",), detect=has_namespace,
              planned=namespace_planned, plan=plan_namespace),
         # Never a decision: `ns create` always assigns one, and adopting a namespace
         # without one simply adds an assign to the plan.
-        Step(id="identity", title="Namespace identity", after=("namespace",),
-             detect=has_identity, planned=identity_planned, plan=plan_identity,
-             hidden=True,
-             blocked_reason="the namespace must exist before an identity can be assigned"),
-        Step(id="dps", title="Link DPS",
-             after=("identity",), detect=has_provisioning, planned=provisioning_planned,
-             plan=plan_provisioning,
-             blocked_reason="the namespace must present an identity before linking"),
-        Step(id="hub", title="Link Hub", after=("dps",), detect=has_messaging,
-             planned=messaging_planned, plan=plan_messaging,
-             blocked_reason="a provisioning service must be linked before any hub"),
+        Step(
+            id="identity",
+            title="Namespace identity",
+            after=("namespace",),
+            detect=has_identity,
+            planned=identity_planned,
+            plan=plan_identity,
+            hidden=True,
+            blocked_reason=(
+                "Choose a namespace first. radr will enable its managed identity "
+                "automatically when setup runs."
+            ),
+        ),
+        Step(
+            id="dps",
+            title="Link DPS",
+            after=("identity",),
+            detect=has_provisioning,
+            planned=provisioning_planned,
+            plan=plan_provisioning,
+            blocked_reason=(
+                "The namespace needs a managed identity so Azure can authorize access "
+                "to DPS and IoT Hub. radr adds it automatically when setup runs."
+            ),
+        ),
+        Step(
+            id="hub",
+            title="Link Hub",
+            after=("dps",),
+            detect=has_messaging,
+            planned=messaging_planned,
+            plan=plan_messaging,
+            blocked_reason=(
+                "Choose a DPS first. Azure requires the DPS link before any IoT Hub link."
+            ),
+        ),
         Step(id="su", title="Link Software Updates", after=("dps",),
              detect=software_updates_linked, planned=software_updates_chosen,
              plan=plan_software_updates, optional=True,
-             blocked_reason="link a provisioning service first"),
+             blocked_reason="Choose a DPS first."),
         Step(id="permissions", title="Grant role assignments",
              after=("dps",), detect=permissions_confirmed, plan=plan_permissions,
              hidden=True,
-             blocked_reason="select the resources to link first"),
+             blocked_reason="Choose the DPS, hubs, or update instances to link first."),
         # The commit point, named so the rail shows where changes happen.
         Step(id="review", title="Review and run", after=("namespace",),
              detect=lambda ctx: False, optional=True,
-             blocked_reason="choose a namespace first"),
+             blocked_reason="Choose or create a namespace first."),
     ]
     return Flow(steps=steps, context=context)

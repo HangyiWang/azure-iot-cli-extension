@@ -31,7 +31,7 @@ def test_empty_result_is_reported_as_empty(spec):
     model = TableModel(spec)
     model.apply([])
     assert model.state is LoadState.EMPTY
-    assert "No widgets found" in model.status_text()
+    assert "No widgets in the current scope" in model.status_text()
 
 
 def test_failure_before_any_load_is_failed(spec):
@@ -78,6 +78,11 @@ def test_changed_row_is_updated_not_re_added(spec):
     diff = model.apply([make_payload("a", state="Failed"), make_payload("b")])
     assert [row.id for row in diff.updated] == ["a"]
     assert not diff.added and not diff.removed
+
+
+def test_failed_resource_marks_the_whole_row_as_failed(spec):
+    model = model_with(spec, "broken", state="Failed")
+    assert model.rows[0].status_style == STYLE_ERROR
 
 
 def test_added_and_removed_rows_are_detected(spec):

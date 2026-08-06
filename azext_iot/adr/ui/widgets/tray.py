@@ -17,12 +17,27 @@ from textual.widgets import Button, Label, Static
 
 from azext_iot.adr.ui.core.commands import wrap
 from azext_iot.adr.ui.core.ops import OperationTracker, OpState
+from azext_iot.adr.ui.core.spec import (
+    STYLE_ACTIVE,
+    STYLE_ERROR,
+    STYLE_OK,
+    STYLE_WARN,
+)
+from azext_iot.adr.ui.theme import style_for
 
-_STATE_STYLES = {
-    OpState.RUNNING: "yellow",
-    OpState.SUCCEEDED: "green",
-    OpState.FAILED: "bold red",
+_STATE_TOKENS = {
+    OpState.RUNNING: STYLE_WARN,
+    OpState.SUCCEEDED: STYLE_OK,
+    OpState.FAILED: STYLE_ERROR,
 }
+
+
+def _state_style(widget, state: OpState) -> str:
+    style = style_for(
+        _STATE_TOKENS.get(state, ""),
+        getattr(widget.app, "theme_tokens", None),
+    )
+    return f"bold {style}" if state is OpState.FAILED and style else style
 
 
 class OperationsTray(Static):
@@ -50,11 +65,17 @@ class OperationsTray(Static):
 
         text = Text()
         if running:
-            text.append(f"{len(running)} running  ", style="yellow")
+            text.append(
+                f"{len(running)} running  ",
+                style=_state_style(self, OpState.RUNNING),
+            )
         if failed:
-            text.append(f"{len(failed)} failed  ", style="bold red")
+            text.append(
+                f"{len(failed)} failed  ",
+                style=_state_style(self, OpState.FAILED),
+            )
         head = operations[0]
-        text.append(head.describe(), style=_STATE_STYLES.get(head.state, ""))
+        text.append(head.describe(), style=_state_style(self, head.state))
         if failed:
             text.append("   <o> details", style="dim")
         self.text = text.plain
@@ -75,7 +96,7 @@ class OperationsDialog(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="help-body"):
-            yield Label(Text("operations", style="bold"))
+            yield Label(Text("operations", style="bold"), classes="modal-title")
             yield Static(self._format())
             with Horizontal(classes="modal-buttons"):
                 yield Button("Dismiss finished", id="ack")
@@ -87,9 +108,18 @@ class OperationsDialog(ModalScreen[None]):
         if not operations:
             return Text("no operations yet", style="dim")
         for operation in operations:
-            text.append(f"{operation.describe()}\n", style=_STATE_STYLES.get(operation.state, ""))
+            text.append(
+                f"{operation.describe()}\n",
+                style=_state_style(self, operation.state),
+            )
             if operation.command:
-                text.append(f"    {operation.command}\n", style="cyan")
+                text.append(
+                    f"    {operation.command}\n",
+                    style=style_for(
+                        STYLE_ACTIVE,
+                        getattr(self.app, "theme_tokens", None),
+                    ),
+                )
             if operation.detail:
                 text.append(f"    {operation.detail}\n", style="dim")
         return text
@@ -125,12 +155,18 @@ class CommandPreviewDialog(ModalScreen[bool]):
         self._danger = danger
 
     def compose(self) -> ComposeResult:
+        palette = getattr(self.app, "theme_palette", {})
+        accent = palette.get("accent", "cyan")
+        warning = palette.get("warning", "yellow")
         with Vertical(id="help-body"):
-            yield Label(Text(self._title, style="bold"))
+            yield Label(Text(self._title, style="bold"), classes="modal-title")
             yield Static(Text("this will run:", style="dim"))
-            yield Static(Text(wrap(self._command), style="bold cyan"), id="command-text")
+            yield Static(
+                Text(wrap(self._command), style=f"bold {accent}"),
+                id="command-text",
+            )
             if self._note:
-                yield Static(Text(self._note, style="yellow"))
+                yield Static(Text(self._note, style=warning))
             yield Static(Text("ctrl+y copies the command", style="dim"))
             with Horizontal(classes="modal-buttons"):
                 yield Button("Cancel", id="cancel")

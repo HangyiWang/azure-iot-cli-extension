@@ -18,9 +18,9 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
-from textual.widgets import DataTable, Input, Static
+from textual.widgets import DataTable, Input, LoadingIndicator, Static
 
-from azext_iot.adr.ui.core.spec import ResourceSpec
+from azext_iot.adr.ui.core.spec import STYLE_ERROR, ResourceSpec
 from azext_iot.adr.ui.screens.base import ChromeScreen
 from azext_iot.adr.ui.core.table import TableModel
 from azext_iot.adr.ui.theme import style_for
@@ -36,7 +36,6 @@ class BrowseScreen(ChromeScreen):
         Binding("r", "refresh", "Refresh", show=True),
         Binding("s", "sort", "Sort", show=True),
         Binding("ctrl+w", "toggle_wide", "Wide", show=True),
-        Binding("space", "toggle_mark", "Mark", show=False),
         Binding("y", "show_json", "JSON", show=True),
     ]
 
@@ -60,12 +59,14 @@ class BrowseScreen(ChromeScreen):
 
     def compose_content(self) -> ComposeResult:
         with Vertical():
+            yield LoadingIndicator(id="rows-loading")
             yield DataTable(id="rows", cursor_type="row")
             yield Input(placeholder="filter...", id="filter-input")
             yield Static("", id="status-line")
 
     def on_mount(self) -> None:
         self.query_one("#rows", DataTable).border_title = self.spec.title_plural.lower()
+        self.query_one("#rows-loading", LoadingIndicator).display = False
         self.query_one("#filter-input", Input).display = False
         self._build_columns()
         self.refresh_rows()
@@ -85,6 +86,7 @@ class BrowseScreen(ChromeScreen):
         """
         missing = self.spec.missing_scope(self.scope)
         if missing:
+            self.query_one("#rows-loading", LoadingIndicator).display = False
             self.model.fail(self._missing_scope_message(missing))
             self._repaint()
             return
@@ -93,6 +95,7 @@ class BrowseScreen(ChromeScreen):
             # already in flight, which on a slow collection could starve it forever.
             return
         self._loading = True
+        self.query_one("#rows-loading", LoadingIndicator).display = True
         self.model.begin_load()
         self._repaint()
         self.run_worker(
@@ -131,11 +134,18 @@ class BrowseScreen(ChromeScreen):
 
     def _on_loaded(self, payloads) -> None:
         self._loading = False
+        self.query_one("#rows-loading", LoadingIndicator).display = False
         self.model.apply(payloads)
         self._repaint()
 
     def _on_load_failed(self, message: str) -> None:
         self._loading = False
+        self.query_one("#rows-loading", LoadingIndicator).display = False
+        if self.spec.parent and "not found" in message.lower():
+            message = (
+                f"Could not open {self.spec.title_plural.lower()}: the parent resource "
+                "is no longer available. Return and refresh the parent list."
+            )
         self.model.fail(message)
         self._repaint()
         self.flash(message, "error")
@@ -156,9 +166,16 @@ class BrowseScreen(ChromeScreen):
         for row in self.model.rows:
             cells = []
             for index, value in enumerate(row.cells):
-                style = style_for(row.styles[index], theme)
-                mark = "* " if row.id in self.model.marks and index == 0 else ""
-                cells.append(Text(f"{mark}{value}", style=style) if style else Text(f"{mark}{value}"))
+                token = row.styles[index]
+                if row.status_style == STYLE_ERROR and index == 0:
+                    token = STYLE_ERROR
+                style = style_for(token, theme)
+                if row.status_style == STYLE_ERROR and index == 0 and style:
+                    style = f"bold {style}"
+                cells.append(
+                    Text(value, style=style)
+                    if style else Text(value)
+                )
             table.add_row(*cells, key=row.id)
 
         if selected is not None:
@@ -204,11 +221,12 @@ class BrowseScreen(ChromeScreen):
 
     def hint_bindings(self) -> List[tuple]:
         """Hints derived from real bindings plus the spec's own children and actions."""
-        hints = [
+        hints = super().hint_bindings()
+        hints.extend(
             (binding.key_display or binding.key, binding.description)
-            for binding in self.BINDINGS
-            if getattr(binding, "show", True)
-        ]
+            for binding in self.app.BINDINGS
+            if binding.action in ("new_setup", "onboard")
+        )
         for child in self.spec.children:
             if child.key:
                 hints.append((child.key, child.label.lower()))
@@ -234,12 +252,6 @@ class BrowseScreen(ChromeScreen):
         index = table.cursor_coordinate.column if table.row_count else 0
         if 0 <= index < len(columns):
             self.model.set_sort(columns[index].key)
-            self._repaint()
-
-    def action_toggle_mark(self) -> None:
-        row_id = self.selected_row_id()
-        if row_id:
-            self.model.toggle_mark(row_id)
             self._repaint()
 
     def action_start_filter(self) -> None:
@@ -283,8 +295,12 @@ class BrowseScreen(ChromeScreen):
         self.app.pop_screen_safely()
 
     def action_drill_down(self) -> None:
-        """Enter opens the primary child; a child's own key opens it directly."""
-        if self.spec.children:
+        """Enter shows the hierarchy when there is a choice, else opens the only child."""
+        if len(self.spec.children) > 1:
+            payload = self.selected_payload()
+            if payload is not None:
+                self.app.open_overview(self.spec, payload, list(self.spec.children))
+        elif self.spec.children:
             self._open_child(self.spec.children[0])
 
     def _open_child(self, child) -> None:

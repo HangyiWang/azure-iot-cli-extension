@@ -321,6 +321,31 @@ def test_hub_list_empty_is_list(fixture_link_provider):
     assert isinstance(result, list)
 
 
+@pytest.mark.parametrize(
+    "kind,section,expected_type,resource_id",
+    [
+        ("hub", "hubs", IOT_HUB_ENDPOINT_TYPE, HUB_ID),
+        ("dps", "dps", DPS_ENDPOINT_TYPE, DPS_ID),
+        ("su", "su", SU_ENDPOINT_TYPE, SU_ID),
+    ],
+)
+def test_list_keeps_legacy_endpoint_without_type(
+    fixture_link_provider, kind, section, expected_type, resource_id
+):
+    """The section identifies the type; older records did not always repeat it."""
+    fixture_link_provider.client.namespaces.get.return_value = _namespace(
+        **{section: {"legacy": {"resourceId": resource_id}}}
+    )
+
+    assert getattr(fixture_link_provider, f"{kind}_list")("namespace", "rg") == [
+        {
+            "name": "legacy",
+            "resourceId": resource_id,
+            "endpointType": expected_type,
+        }
+    ]
+
+
 def test_dps_add_uses_update_body(fixture_link_provider, mock_poller):
     fixture_link_provider.client.namespaces.get.return_value = _namespace()
     fixture_link_provider.client.namespaces.begin_update.return_value = mock_poller(

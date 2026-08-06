@@ -95,7 +95,7 @@ def test_failures_persist_until_acknowledged():
     assert failing.failed, "a failure must not vanish before the user has seen it"
     failing.acknowledge(operation.id)
     failing.prune(keep_seconds=0)
-    assert failing.operations == []
+    assert not failing.operations
 
 
 def test_tracking_is_bounded(tracker):

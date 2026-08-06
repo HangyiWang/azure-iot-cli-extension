@@ -42,9 +42,14 @@ class Candidate:
         return self.verdict != INELIGIBLE
 
     def describe(self) -> str:
+        label = {
+            ELIGIBLE: "ready",
+            WARNING: "check",
+            INELIGIBLE: "blocked",
+        }.get(self.verdict, self.verdict)
         if self.reason:
-            return f"{self.verdict}: {self.reason}"
-        return "recommended" if self.recommended else self.verdict
+            return f"{label}  {self.reason}"
+        return "recommended" if self.recommended else label
 
 
 NO_IDENTITY = "none"
@@ -85,27 +90,43 @@ def evaluate(resource: Dict[str, Any], namespace_location: Optional[str] = None,
         raw=resource,
     )
 
+    properties = resource.get("properties") or {}
+    provisioning_state = str(
+        resource.get("provisioningState")
+        or properties.get("provisioningState")
+        or ""
+    )
+    if provisioning_state.lower() in ("failed", "canceled"):
+        candidate.verdict = INELIGIBLE
+        candidate.reason = "provisioning failed"
+        return candidate
+
     if require_identity and identity == NO_IDENTITY:
         # The service requires the linked resource to present an identity to the namespace.
         candidate.verdict = INELIGIBLE
-        candidate.reason = "no managed identity - it cannot present a caller identity"
+        candidate.reason = "identity missing"
         return candidate
 
+    warnings = []
     if namespace_location and location and location.lower() != namespace_location.lower():
-        candidate.verdict = WARNING
-        candidate.reason = f"different region from the namespace ({location})"
-        return candidate
+        warnings.append("other region")
 
     if registered_hub_names is not None:
-        # The provisioning service records hub host names; compare on the leading segment.
-        registered = {str(value).split(".")[0].lower() for value in registered_hub_names}
+        # DPS records Hub host names; compare on the leading segment.
+        registered = {
+            str(value).split(".", maxsplit=1)[0].lower()
+            for value in registered_hub_names
+        }
         if candidate.name.lower() in registered:
             candidate.recommended = True
         else:
-            # A hub the provisioning service cannot allocate to produces a namespace that
+            # A Hub the DPS cannot allocate to produces a namespace that
             # looks correctly linked but silently provisions nothing.
-            candidate.verdict = WARNING
-            candidate.reason = "not registered on the selected provisioning service"
+            warnings.append("not in DPS")
+
+    if warnings:
+        candidate.verdict = WARNING
+        candidate.reason = " + ".join(warnings)
 
     return candidate
 
@@ -177,7 +198,7 @@ class ResourceCatalog:
         return self._listed("hub", load)
 
     def registered_hub_names(self, dps_resource: Dict[str, Any]) -> List[str]:
-        """Hubs the selected provisioning service may allocate devices to.
+        """Hubs the selected DPS may allocate devices to.
 
         A hub outside this set produces a namespace that looks correctly linked but
         silently provisions nothing, so it is surfaced as a warning rather than hidden.

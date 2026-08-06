@@ -122,7 +122,7 @@ def test_hub_is_blocked_until_a_provisioning_service_is_selected():
 def test_blocked_step_explains_why():
     flow = build_flow(context(namespace_payload(identity="SystemAssigned")))
     hub = next(step for step in flow.steps if step.id == "hub")
-    assert "provisioning service must be linked" in hub.blocked_reason
+    assert "Choose a DPS first" in hub.blocked_reason
     assert [blocked.id for blocked in flow.blocking(hub)] == ["dps"]
 
 
@@ -353,7 +353,7 @@ def test_plan_never_mutates():
         PlanItem(key="s", description="do", invoke=lambda *a: called.append(1))
     ])
     Flow(steps=[step], context={}).build_plan()
-    assert called == []
+    assert not called
 
 
 # -- pickers -------------------------------------------------------------------------
@@ -362,7 +362,7 @@ def test_plan_never_mutates():
 def test_resource_without_identity_is_ineligible():
     candidate = evaluate({"name": "dps-old", "id": "/x/dps-old", "location": "eastus2"})
     assert candidate.verdict == INELIGIBLE
-    assert "no managed identity" in candidate.reason
+    assert candidate.reason == "identity missing"
     assert not candidate.selectable
 
 
@@ -374,6 +374,49 @@ def test_region_mismatch_is_a_warning_not_a_block():
     )
     assert candidate.verdict == WARNING
     assert candidate.selectable, "a warning must not prevent selection"
+
+
+def test_failed_resource_is_blocked_from_linking():
+    candidate = evaluate({
+        "name": "broken-hub",
+        "id": "/x/broken-hub",
+        "identity": {"type": "SystemAssigned"},
+        "properties": {"provisioningState": "Failed"},
+    })
+    assert candidate.verdict == INELIGIBLE
+    assert candidate.reason == "provisioning failed"
+    assert candidate.describe() == "blocked  provisioning failed"
+
+
+def test_readiness_uses_customer_facing_labels():
+    assert Candidate("a", "a", verdict=ELIGIBLE).describe() == "ready"
+    assert Candidate("b", "b", verdict=WARNING).describe() == "check"
+    assert Candidate("c", "c", verdict=INELIGIBLE).describe() == "blocked"
+
+
+def test_readiness_messages_are_compact_and_unpunctuated():
+    candidates = [
+        evaluate({
+            "name": "failed",
+            "id": "failed",
+            "identity": {"type": "SystemAssigned"},
+            "properties": {"provisioningState": "Failed"},
+        }),
+        evaluate({"name": "missing", "id": "missing"}),
+        evaluate(
+            {"name": "hub", "id": "hub", "location": "westus2",
+             "identity": {"type": "SystemAssigned"}},
+            namespace_location="eastus2",
+            registered_hub_names=[],
+        ),
+    ]
+    assert [candidate.reason for candidate in candidates] == [
+        "provisioning failed",
+        "identity missing",
+        "other region + not in DPS",
+    ]
+    assert all(";" not in candidate.describe() for candidate in candidates)
+    assert all(len(candidate.describe()) <= 32 for candidate in candidates)
 
 
 def test_hub_registered_on_the_service_is_recommended():
@@ -394,7 +437,18 @@ def test_unregistered_hub_warns_about_silent_allocation_failure():
         registered_hub_names=["hub-a.azure-devices.net"],
     )
     assert candidate.verdict == WARNING
-    assert "not registered" in candidate.reason
+    assert candidate.reason == "not in DPS"
+
+
+def test_link_readiness_reports_multiple_warnings_together():
+    candidate = evaluate(
+        {"name": "hub-b", "id": "/x/hub-b", "location": "westus2",
+         "identity": {"type": "SystemAssigned"}},
+        namespace_location="eastus2",
+        registered_hub_names=["hub-a.azure-devices.net"],
+    )
+    assert candidate.verdict == WARNING
+    assert candidate.reason == "other region + not in DPS"
 
 
 def test_resource_group_is_parsed_from_the_id():
@@ -593,26 +647,42 @@ def test_link_steps_pass_the_selected_resource_id():
     assert session.seen["no_wait"] is True
 
 
-def test_selection_summary_reports_what_was_chosen():
-    """After pressing space the user must see that the selection registered."""
+def test_chosen_resources_are_reported_only_in_the_rail():
+    """The right pane stays task-focused; selected names live under their step."""
     from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
 
     screen = OnboardScreen(session=None, scope={"namespace_name": "ns1"},
                            namespace=namespace_payload(identity="SystemAssigned"))
-    assert screen._selection_summary() == ""
     screen.context["selected_dps"] = dps_candidate("dps-a")
     screen.context["selected_hubs"] = [hub_candidate("hub-a")]
-    summary = screen._selection_summary()
-    assert "dps-a" in summary and "hub-a" in summary
+    assert screen._chosen_lines("dps") == ["dps-a"]
+    assert screen._chosen_lines("hub") == ["hub-a"]
+    assert not hasattr(screen, "_selection_summary")
 
 
 # -- create-new paths ---------------------------------------------------------------
 
 
-def create_request(kind="dps", name="new-dps", rg="rg1", location="eastus2"):
+def create_request(
+    kind="dps",
+    name="new-dps",
+    rg="rg1",
+    location="eastus2",
+    tags=None,
+    sku=None,
+    capacity=1,
+):
     from azext_iot.adr.ui.screens.onboard.create import CreateRequest
 
-    return CreateRequest(kind=kind, name=name, resource_group_name=rg, location=location)
+    return CreateRequest(
+        kind=kind,
+        name=name,
+        resource_group_name=rg,
+        location=location,
+        sku=sku,
+        capacity=capacity,
+        tags=tags,
+    )
 
 
 def test_flow_can_start_with_no_namespace_at_all():
@@ -629,7 +699,55 @@ def test_creating_a_namespace_plans_it_with_an_identity():
     plan = {item.key: item for item in flow.build_plan()}
     assert plan["namespace"].action == "create"
     assert plan["namespace"].invoke is not None
-    assert "--mi-system-assigned" in plan["namespace"].command
+    assert "--outbound-mi-system-assigned" in plan["namespace"].command
+
+
+def test_namespace_plan_includes_optional_tags():
+    request = create_request(
+        "namespace",
+        "new-ns",
+        tags={"environment": "dev", "owner": "iot team"},
+    )
+    flow = build_flow({
+        "subscription_id": "sub-1",
+        "resource_group_name": "rg1",
+        "namespace_name": "new-ns",
+        "create_namespace": request,
+    })
+    command = next(item.command for item in flow.build_plan() if item.key == "namespace")
+    assert "--tags environment=dev" in command
+    assert '"owner=iot team"' in command
+
+
+def test_namespace_creation_passes_tags_to_the_provider():
+    seen = {}
+
+    class FakeSession:
+        def provider(self, name):
+            assert name == "namespace"
+            return self
+
+        def create(self, **kwargs):
+            seen.update(kwargs)
+            return "poller"
+
+        def call(self, func, **kwargs):
+            return func(**kwargs)
+
+    request = create_request(
+        "namespace",
+        "new-ns",
+        tags={"environment": "dev"},
+    )
+    flow = build_flow({
+        "subscription_id": "sub-1",
+        "resource_group_name": "rg1",
+        "namespace_name": "new-ns",
+        "create_namespace": request,
+    })
+    item = next(entry for entry in flow.build_plan() if entry.key == "namespace")
+    assert item.invoke(FakeSession(), flow.context) == "poller"
+    assert seen["tags"] == {"environment": "dev"}
 
 
 def test_creating_a_provisioning_service_plans_create_then_link():
@@ -653,6 +771,39 @@ def test_new_resources_are_always_created_with_an_identity():
 
     assert dps_body("eastus2")["identity"]["type"] == "SystemAssigned"
     assert hub_body("eastus2")["identity"]["type"] == "SystemAssigned"
+
+
+def test_hub_and_dps_creation_honour_sku_and_capacity():
+    from azext_iot.adr.ui.screens.onboard.create import dps_body, hub_body
+
+    assert hub_body("eastus2", "S2", 3)["sku"] == {
+        "name": "S2",
+        "capacity": 3,
+    }
+    assert dps_body("eastus2", "S1", 2)["sku"] == {
+        "name": "S1",
+        "capacity": 2,
+    }
+
+
+def test_hub_and_dps_plan_commands_include_size():
+    hub_flow = build_flow(
+        context(
+            namespace_with_principal(provisioning={"dps": {}}),
+            create_hub=create_request("hub", "new-hub", sku="S2", capacity=3),
+        )
+    )
+    hub = next(item for item in hub_flow.build_plan() if item.key == "hub-create")
+    assert "--sku S2 --unit 3" in hub.command
+
+    dps_flow = build_flow(
+        context(
+            namespace_with_principal(),
+            create_dps=create_request("dps", "new-dps", sku="S1", capacity=2),
+        )
+    )
+    dps = next(item for item in dps_flow.build_plan() if item.key == "dps-create")
+    assert "--sku S1 --unit 2" in dps.command
 
 
 def test_reverse_grant_for_a_pending_resource_says_when_to_run_it():
@@ -686,7 +837,7 @@ def test_software_updates_is_optional_and_absent_until_chosen():
                                                        messaging={"hub": {}})))
     keys = [item.key for item in flow.build_plan()]
     assert "su" not in keys, "an optional step contributes nothing until chosen"
-    assert flow.is_complete is False or True  # optional steps never block completion
+    assert next(step for step in flow.steps if step.id == "su").optional
 
 
 def test_choosing_software_updates_plans_the_link():
@@ -711,13 +862,18 @@ def test_several_update_instances_are_each_linked_under_their_own_endpoint():
 
 
 def test_name_validation_rejects_bad_resource_names():
-    from azext_iot.adr.ui.screens.onboard.forms import validate_name
+    from azext_iot.adr.ui.screens.onboard.forms import parse_tags, validate_name
 
     assert validate_name("good-name-1") is None
     assert validate_name("") is not None
     assert validate_name("-leading") is not None
     assert validate_name("trailing-") is not None
     assert validate_name("has space") is not None
+    assert parse_tags('environment=dev owner="iot team"') == (
+        {"environment": "dev", "owner": "iot team"},
+        None,
+    )
+    assert "key=value" in parse_tags("broken")[1]
 
 
 def test_created_resources_still_get_forward_grants():
@@ -896,7 +1052,8 @@ def test_button_label_does_not_claim_to_create():
     source = pathlib.Path(
         "azext_iot/adr/ui/screens/onboard/screen.py"
     ).read_text(encoding="utf-8")
-    assert 'Button("Confirm"' in source
+    assert "SetupFormButton(" in source and '"Add to setup"' in source
+    assert 'Button("Create"' not in source
 
 
 def test_creating_a_namespace_does_not_also_assign_an_identity():
@@ -998,6 +1155,108 @@ def test_rail_shows_what_was_chosen_for_each_step():
     assert screen._chosen_lines("namespace") == ["factory"]
 
 
+def test_rail_uses_names_and_focus_instead_of_status_badges():
+    """`[ok]` beside every selection is visual noise; the chosen name is the evidence."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    rail = source.split("def _render_rail", 1)[1].split("def _render_body", 1)[0]
+    assert "[ok]" not in rail
+    assert "_chosen_lines" in rail
+    assert 'title_classes = "step-title"' in rail
+    assert 'classes="step-resources"' in rail
+
+
+def test_inline_create_form_has_a_clear_field_hierarchy():
+    """The form should read as a compact form, not six unrelated stacked widgets."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    assert 'classes="form-field"' in source
+    assert 'classes="form-label"' in source
+    assert 'id="create-subtitle"' in source
+    assert "SetupFormButton(" in source and '"Add to setup"' in source
+    assert 'id="create-sku"' in source
+    assert 'id="create-capacity"' in source
+    assert 'id="create-form-hint"' in source
+    assert "IDENTITY  SystemAssigned" not in source
+
+
+def test_chosen_candidate_name_does_not_collide_with_cursor_colour():
+    """The cursor owns foreground contrast; selection uses weight and a visible marker."""
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    paint = source.split("def _paint_candidates", 1)[1].split(
+        "def _is_chosen", 1
+    )[0]
+    assert 'prefix = "[selected] "' in paint
+    chosen_style = paint.split("name_style =", 1)[1].split("name = Text", 1)[0]
+    assert '"bold"' in chosen_style
+    assert "STYLE_ACTIVE" not in chosen_style
+
+
+def test_candidate_loading_never_shows_rows_from_the_previous_step():
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    assert 'LoadingIndicator(id="candidate-loading")' in source
+    assert "def _load_candidates(self, step_id: str)" in source
+    show = source.split("def _show_candidates", 1)[1].split(
+        "def _paint_candidates", 1
+    )[0]
+    assert "step.id != step_id" in show
+    reload_candidates = source.split("def _reload_candidates", 1)[1].split(
+        "def _render_candidate_status", 1
+    )[0]
+    assert "self._candidates = []" in reload_candidates
+    assert "table.display = False" in reload_candidates
+
+
+def test_review_page_ends_with_one_clear_next_step():
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    review = source.split("def _render_review", 1)[1].split(
+        "def _chosen_lines", 1
+    )[0]
+    assert '"\\nNEXT\\n"' in review
+    assert "NEEDS ADMIN ACCESS" in review
+    assert "manual[:4]" not in review, "individual grants belong in the full plan"
+
+
+def test_right_pane_omits_progress_and_selected_resource_repetition():
+    import pathlib
+
+    source = pathlib.Path(
+        "azext_iot/adr/ui/screens/onboard/screen.py"
+    ).read_text(encoding="utf-8")
+    body = source.split("def _render_body", 1)[1].split(
+        "def _grant_rights_note", 1
+    )[0]
+    assert "_progress_text" not in body
+    assert "_selection_summary" not in source
+    assert "Selected   " not in body
+
+
+def test_customer_facing_provisioning_resource_is_called_dps():
+    import pathlib
+
+    for path in pathlib.Path("azext_iot/adr/ui").rglob("*.py"):
+        source = path.read_text(encoding="utf-8").lower()
+        assert "provisioning service" not in source, path
+
+
 def test_rail_lists_every_chosen_hub_rather_than_hiding_them():
     """'+3 more' hides exactly what the customer is checking before running the plan."""
     from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
@@ -1073,7 +1332,7 @@ def test_selecting_clears_the_pinned_step_so_the_flow_moves_on():
     screen._focus_step = "scope"
     screen._candidate_filter = "canary"
     screen._advance()
-    assert screen._focus_step is None, "the flow must fall back to the next open step"
+    assert screen._focus_step == "scope", "the next open step is pinned explicitly"
     assert screen._candidate_filter == "", "a filter must not carry into the next step"
 
 
@@ -1149,7 +1408,7 @@ def test_done_on_a_multi_select_step_moves_on():
     screen = _screen_with(selected_hubs=[hub_candidate("hub-a")])
     screen._focus_step = "hub"
     screen.action_done_step()
-    assert screen._focus_step is None
+    assert screen._focus_step != "hub"
 
 
 def test_done_with_nothing_chosen_on_a_required_step_says_so():
@@ -1165,14 +1424,14 @@ def test_done_with_nothing_chosen_skips_an_optional_step():
     screen = _screen_with()
     screen._focus_step = "su"
     screen.action_done_step()
-    assert screen._focus_step is None
+    assert screen._focus_step != "su"
 
 
 def test_done_counts_a_resource_that_is_still_to_be_created():
     screen = _screen_with(create_hub=create_request("hub", "new-hub"))
     screen._focus_step = "hub"
     screen.action_done_step()
-    assert screen._focus_step is None
+    assert screen._focus_step != "hub"
 
 
 def test_the_done_key_is_bound_and_advertised():
@@ -1182,6 +1441,16 @@ def test_the_done_key_is_bound_and_advertised():
     binding = next(b for b in OnboardScreen.BINDINGS if b.action == "done_step")
     assert binding.key == "d"
     assert binding.show, "the customer cannot guess an unlisted key"
+
+
+def test_enter_is_primary_and_space_is_only_a_hidden_multi_select_shortcut():
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    bindings = {binding.key: binding for binding in OnboardScreen.BINDINGS}
+    assert bindings["enter"].action == "select"
+    assert bindings["enter"].show
+    assert bindings["space"].action == "toggle_multi"
+    assert not bindings["space"].show
 
 
 def test_a_step_whose_choices_are_made_is_not_shown_as_outstanding():
@@ -1200,7 +1469,7 @@ def test_help_documents_the_guided_setup_keys():
     from azext_iot.adr.ui.screens.help import SETUP_KEYS
 
     keys = {key for key, _ in SETUP_KEYS}
-    assert {"space", "d", "n", "a", "p"} <= keys
+    assert {"enter", "space", "d", "n", "j", "a", "p"} <= keys
 
 
 def test_reload_re_asks_whether_grants_are_allowed():

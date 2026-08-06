@@ -47,6 +47,11 @@ def test_registry_tracks_roots_and_children(registry):
     assert registry.children_of("widget")[0].kind == "gadget"
 
 
+def test_collection_summary_lists_a_few_names_then_the_remainder():
+    rows = [{"name": name} for name in ("one", "two", "three", "four", "five")]
+    assert widget_spec().summarize_rows(rows) == "one, two, three, +2 more"
+
+
 def test_unknown_kind_raises(registry):
     with pytest.raises(SpecError, match="unknown kind"):
         registry.get("missing")
@@ -111,6 +116,7 @@ def test_action_applicability(spec):
 def test_state_style_maps_provisioning_states():
     assert state_style(make_payload("a", state="Succeeded")) == STYLE_OK
     assert state_style(make_payload("a", state="Failed")) == STYLE_ERROR
+    assert state_style(make_payload("a", state="failed")) == STYLE_ERROR
     assert state_style(make_payload("a", state="Canceled")) == STYLE_ERROR
     assert state_style(make_payload("a", state="Accepted")) == STYLE_WARN
     assert state_style(make_payload("a", state="")) is None

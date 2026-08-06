@@ -7,7 +7,7 @@
 """Detail view: the full resource payload as formatted JSON."""
 
 import json
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from rich.syntax import Syntax
 from textual.app import ComposeResult
@@ -25,12 +25,22 @@ class DetailScreen(ChromeScreen):
     BINDINGS = [
         Binding("escape", "back", "Back", show=True),
         Binding("y", "back", "Close", show=False),
+        Binding("j", "back", "Close", show=False),
     ]
 
-    def __init__(self, spec: ResourceSpec, payload: Dict[str, Any], **kwargs):
+    def __init__(
+        self,
+        spec: Optional[ResourceSpec],
+        payload: Dict[str, Any],
+        title: Optional[str] = None,
+        name: Optional[str] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.spec = spec
         self.payload = payload
+        self._title = title or (spec.title if spec is not None else "Resource")
+        self._name = name
 
     def compose_content(self) -> ComposeResult:
         with VerticalScroll():
@@ -41,22 +51,31 @@ class DetailScreen(ChromeScreen):
             body = json.dumps(self.payload, indent=2, sort_keys=True, default=str)
         except (TypeError, ValueError):  # pragma: no cover - payloads are JSON already
             body = str(self.payload)
+        syntax_theme = (
+            "ansi_light"
+            if getattr(self.app, "_theme_name", "dark") == "light"
+            else "ansi_dark"
+        )
         self.query_one("#json-body", Static).update(
-            Syntax(body, "json", theme="ansi_dark", word_wrap=True)
+            Syntax(body, "json", theme=syntax_theme, word_wrap=True)
         )
         if hasattr(self.app, "sync_chrome"):
             self.app.sync_chrome(self)
 
     def resource_name(self) -> str:
-        return str(self.spec.row_id(self.payload))
+        if self._name is not None:
+            return self._name
+        if self.spec is not None:
+            return str(self.spec.row_id(self.payload))
+        return str(self.payload.get("name") or "")
 
     def breadcrumb(self) -> str:
-        return f"{self.spec.title.lower()} {self.resource_name()}"
+        return f"{self._title.lower()} {self.resource_name()}"
 
     def guide(self) -> Guide:
         return Guide(
             about=(
-                f"The complete record for this {self.spec.title.lower()}, exactly as the service "
+                f"The complete record for this {self._title.lower()}, exactly as the service "
                 "returns it - including fields the table has no room for."
             ),
             runs="Already loaded  ·  no further call is made to open this view",

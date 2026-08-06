@@ -110,7 +110,10 @@ class ErrorDialog(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         with ModalBox(classes="danger"):
-            yield Label(Text(self._title, style="bold red"), classes="modal-title")
+            yield Label(
+                Text(self._title, style="bold"),
+                classes="modal-title",
+            )
             yield Static(self._message)
             if self._detail:
                 yield Static(Text(self._detail, style="dim"))

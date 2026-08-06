@@ -20,12 +20,12 @@ GLOBAL_KEYS: Sequence[Tuple[str, str]] = (
     ("/", "filter the current table"),
     ("?", "this help"),
     ("w", "guided setup for the highlighted namespace"),
-    (":new", "guided setup from scratch - creates a new namespace too"),
+    ("n", "new guided setup - starts by choosing or creating a namespace"),
     ("o", "operations - long-running work"),
     ("ctrl+g", "show or hide the guide at the top of each page"),
+    ("ctrl+t", "switch between daylight and night themes"),
     ("esc", "clear filter, then go back"),
     ("enter", "open the selected row"),
-    ("space", "mark a row"),
     ("y", "show JSON for the selected row"),
     ("r", "refresh now"),
     ("s", "sort by the column under the cursor"),
@@ -36,14 +36,16 @@ GLOBAL_KEYS: Sequence[Tuple[str, str]] = (
 #: Guided setup has its own keys. Listing them only in the footer means a customer who
 #: opens help while stuck on a multi-select step is told nothing useful.
 SETUP_KEYS: Sequence[Tuple[str, str]] = (
-    ("space", "choose the highlighted resource"),
+    ("enter", "choose the highlighted resource"),
+    ("space", "also toggles a Hub or update-instance selection"),
     ("d", "done with this step - move to the next one"),
     ("n", "create a new resource for this step"),
+    ("j", "show JSON for the highlighted candidate"),
     ("/", "filter the candidate list"),
     ("1-9", "jump straight to a step"),
     ("p", "show the full plan"),
     ("a", "run the plan"),
-    ("x", "export the plan as a shell script"),
+    ("x", "copy the runnable setup script to the clipboard"),
     ("r", "re-read live state and permissions"),
 )
 
@@ -63,7 +65,10 @@ class HelpScreen(ModalScreen[None]):
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="help-body"):
-            yield Label(Text("radr - key reference", style="bold"))
+            yield Label(
+                Text("radr - key reference", style="bold"),
+                classes="modal-title",
+            )
             yield Static("")
             yield Static(self._format(GLOBAL_KEYS))
             yield Static("")
@@ -76,12 +81,13 @@ class HelpScreen(ModalScreen[None]):
             yield Static("")
             yield Static(Text("press escape to close", style="dim"))
 
-    @staticmethod
-    def _format(rows: Sequence[Tuple[str, str]]) -> Text:
+    def _format(self, rows: Sequence[Tuple[str, str]]) -> Text:
         text = Text()
+        palette = getattr(self.app, "theme_palette", {})
+        accent = palette.get("accent", "cyan")
         width = max((len(key) for key, _ in rows), default=0)
         for key, description in rows:
-            text.append(f"  {key.ljust(width)}  ", style="bold cyan")
+            text.append(f"  {key.ljust(width)}  ", style=f"bold {accent}")
             text.append(f"{description}\n")
         return text
 
@@ -100,7 +106,7 @@ class CommandBar(ModalScreen[str]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="help-body"):
-            yield Label(Text("command", style="bold"))
+            yield Label(Text("command", style="bold"), classes="modal-title")
             yield Input(placeholder="resource alias, or 'q' to quit", id="command-input")
             if self._known:
                 yield Static(Text("  ".join(self._known), style="dim"))

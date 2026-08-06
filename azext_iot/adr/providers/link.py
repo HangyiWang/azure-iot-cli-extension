@@ -181,6 +181,26 @@ def _get_updating_endpoints(namespace: dict) -> dict:
     return _get_endpoints(namespace, "updating")
 
 
+def _project_endpoint_section(endpoints: dict, expected_type: str) -> list:
+    """Project one endpoint section without hiding older records.
+
+    The section itself is authoritative (messaging means Hub, provisioning means DPS,
+    updating means Software Updates). Older records may omit ``endpointType``; strict
+    filtering made namespace counts non-zero while the corresponding list looked empty.
+    Preserve filtering for an explicitly different future type, but infer the type when
+    it is absent.
+    """
+    projected = []
+    for name, endpoint in endpoints.items():
+        body = dict(endpoint or {})
+        endpoint_type = body.get("endpointType")
+        if endpoint_type and str(endpoint_type).casefold() != expected_type.casefold():
+            continue
+        body.setdefault("endpointType", expected_type)
+        projected.append({"name": name, **body})
+    return projected
+
+
 def _build_hub_endpoint_body(
     hub_resource_id: str,
     mi_system_assigned: bool,
@@ -382,13 +402,9 @@ class LinkProvider(ADRProvider):
     def hub_list(self, namespace_name: str, resource_group_name: str):
         """List all Hub messaging endpoints on the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
-        endpoints = _get_messaging_endpoints(ns)
-        # Filter to only Hub-typed entries (defensively; other endpointTypes may exist later)
-        return [
-            {"name": name, **(ep or {})}
-            for name, ep in endpoints.items()
-            if (ep or {}).get("endpointType") == IOT_HUB_ENDPOINT_TYPE
-        ]
+        return _project_endpoint_section(
+            _get_messaging_endpoints(ns), IOT_HUB_ENDPOINT_TYPE
+        )
 
     # DPS commands
 
@@ -533,12 +549,9 @@ class LinkProvider(ADRProvider):
     def dps_list(self, namespace_name: str, resource_group_name: str):
         """List all DPS provisioning endpoints on the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
-        endpoints = _get_provisioning_endpoints(ns)
-        return [
-            {"name": name, **(ep or {})}
-            for name, ep in endpoints.items()
-            if (ep or {}).get("endpointType") == DPS_ENDPOINT_TYPE
-        ]
+        return _project_endpoint_section(
+            _get_provisioning_endpoints(ns), DPS_ENDPOINT_TYPE
+        )
 
     # Software Updates commands
 
@@ -647,12 +660,9 @@ class LinkProvider(ADRProvider):
     def su_list(self, namespace_name: str, resource_group_name: str):
         """List all Software Updates updating endpoints on the namespace."""
         ns = self._get_namespace(namespace_name, resource_group_name)
-        endpoints = _get_updating_endpoints(ns)
-        return [
-            {"name": name, **(ep or {})}
-            for name, ep in endpoints.items()
-            if (ep or {}).get("endpointType") == SU_ENDPOINT_TYPE
-        ]
+        return _project_endpoint_section(
+            _get_updating_endpoints(ns), SU_ENDPOINT_TYPE
+        )
 
     # Bundled link add
 

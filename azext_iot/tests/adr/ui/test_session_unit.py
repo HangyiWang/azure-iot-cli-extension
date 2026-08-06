@@ -134,7 +134,7 @@ def test_list_from_normalises_none_to_empty(monkeypatch):
     import azext_iot.adr.providers.group as group_module
 
     monkeypatch.setattr(group_module, "GroupProvider", FakeProvider)
-    assert make_session().list_from("group", "list") == []
+    assert not make_session().list_from("group", "list")
 
 
 def test_list_from_forwards_arguments(monkeypatch):

@@ -29,7 +29,18 @@ from azext_iot.adr.ui.screens.detail import DetailScreen
 from azext_iot.adr.ui.screens.help import CommandBar, HelpScreen
 from azext_iot.adr.ui.screens.onboard.pickers import ResourceCatalog
 from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
-from azext_iot.adr.ui.theme import APP_CSS, base_theme_for, resolve_theme
+from azext_iot.adr.ui.screens.overview import OverviewScreen
+from azext_iot.adr.ui.theme import (
+    APP_CSS,
+    DEFAULT_THEME,
+    HIGH_CONTRAST_THEME,
+    LIGHT_THEME,
+    RADR_THEMES,
+    base_theme_for,
+    normalize_theme,
+    resolve_palette,
+    resolve_theme,
+)
 from azext_iot.adr.ui.widgets.chrome import (
     Breadcrumbs,
     ContextBar,
@@ -50,11 +61,13 @@ class RadrApp(App):
     BINDINGS = [
         Binding("colon", "command_bar", "Command", show=True, key_display=":"),
         Binding("question_mark", "help", "Help", show=True, key_display="?"),
-        Binding("w", "onboard", "Guided setup", show=True),
+        Binding("w", "onboard", "Connect selected", show=True),
+        Binding("n", "new_setup", "New setup", show=True),
         Binding("o", "operations", "Operations", show=True),
         # Single letters are claimed by drill-down children (d devices, g groups, ...),
         # so the guide toggle takes a modifier rather than shadowing one of them.
         Binding("ctrl+g", "toggle_guide", "Guide", show=True),
+        Binding("ctrl+t", "toggle_theme", "Theme", show=True),
         Binding("q", "quit", "Quit", show=True),
     ]
 
@@ -73,11 +86,15 @@ class RadrApp(App):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        for ui_theme in RADR_THEMES:
+            self.register_theme(ui_theme)
         self.cmd = cmd
         self.read_only = read_only
         self.refresh_interval = refresh_interval
-        self.theme_tokens = resolve_theme(theme_name)
-        self._base_theme = base_theme_for(theme_name)
+        self._theme_name = normalize_theme(theme_name)
+        self.theme_tokens = resolve_theme(self._theme_name)
+        self.theme_palette = resolve_palette(self._theme_name)
+        self._base_theme = base_theme_for(self._theme_name)
         self.session = session
         self.store = store or Store(default_interval=refresh_interval)
         self.tracker = OperationTracker()
@@ -164,15 +181,37 @@ class RadrApp(App):
 
     def open_child(self, parent: ResourceSpec, child: ChildRef, payload: Dict[str, Any]) -> None:
         """Drill from a parent row into one of its declared child kinds."""
+        scope = dict(self._active_scope())
+        # The parent spec declares what it contributes; the app needs no kind knowledge.
+        scope.update(parent.child_scope(payload))
+        self.open_scoped_child(child, scope)
+
+    def open_scoped_child(self, child: ChildRef, scope: Dict[str, Any]) -> None:
+        """Open a declared child when its parent scope has already been established."""
         try:
             child_spec = self.registry.get(child.kind)
         except Exception:  # noqa: BLE001 - a child pointing at an unregistered kind
             self.flash(f"'{child.kind}' is not available yet", "warning")
             return
-        scope = dict(self._active_scope())
-        # The parent spec declares what it contributes; the app needs no kind knowledge.
-        scope.update(parent.child_scope(payload))
         self.push_kind(child_spec, scope)
+
+    def open_overview(
+        self, parent: ResourceSpec, payload: Dict[str, Any], children: List[ChildRef]
+    ) -> None:
+        """Show every related child collection before choosing one."""
+        scope = dict(self._active_scope())
+        scope.update(parent.child_scope(payload))
+        available = []
+        for child in children:
+            try:
+                spec = self.registry.get(child.kind)
+            except Exception:  # noqa: BLE001 - omit an unavailable optional child
+                continue
+            available.append((child, spec, self._source_for(spec)))
+        if not available:
+            self.flash("no related resource collections are available", "warning")
+            return
+        self.push_screen(OverviewScreen(parent, payload, scope, available))
 
     def open_detail(self, spec: ResourceSpec, payload: Dict[str, Any]) -> None:
         self.push_screen(DetailScreen(spec, payload))
@@ -319,6 +358,10 @@ class RadrApp(App):
             OnboardScreen(self.session, scope, catalog=ResourceCatalog(self.cmd))
         )
 
+    def action_new_setup(self) -> None:
+        """Start guided setup without inheriting the highlighted namespace."""
+        self.action_onboard(fresh=True)
+
     def action_operations(self) -> None:
         self.push_screen(OperationsDialog(self.tracker))
 
@@ -339,6 +382,38 @@ class RadrApp(App):
         self.flash(
             "page guide hidden - press ctrl+g to bring it back" if self.guides_collapsed
             else "page guide shown",
+            "info",
+        )
+
+    def action_toggle_theme(self) -> None:
+        """Switch between the daylight and night palettes."""
+        if self._theme_name == HIGH_CONTRAST_THEME:
+            self.flash(
+                "high-contrast theme remains enabled; restart with --theme dark or light "
+                "to use the palette toggle",
+                "info",
+            )
+            return
+        self._theme_name = (
+            DEFAULT_THEME if self._theme_name == LIGHT_THEME else LIGHT_THEME
+        )
+        self.theme_tokens = resolve_theme(self._theme_name)
+        self.theme_palette = resolve_palette(self._theme_name)
+        self._base_theme = base_theme_for(self._theme_name)
+        self.theme = self._base_theme
+        screen = self.screen
+        if hasattr(screen, "refresh_view"):
+            screen.refresh_view()
+        elif hasattr(screen, "_repaint"):
+            screen._repaint()
+        elif hasattr(screen, "_paint"):
+            screen._paint()
+        elif hasattr(screen, "repaint_theme"):
+            screen.repaint_theme()
+        self.sync_chrome(screen)
+        screen.refresh(layout=True)
+        self.flash(
+            "daylight theme" if self._theme_name == LIGHT_THEME else "night theme",
             "info",
         )
 
@@ -413,7 +488,7 @@ class RadrApp(App):
         self.push_screen(HelpScreen(aliases))
 
     def action_command_bar(self) -> None:
-        known = sorted({alias for alias in self.registry.aliases()})
+        known = sorted(set(self.registry.aliases()))
         self.push_screen(CommandBar(known), self._run_command)
 
     def _run_command(self, token: Optional[str]) -> None:

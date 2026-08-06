@@ -593,7 +593,8 @@ def load_adr_arguments(self, _):
             options_list=["--file"],
             nargs="+",
             action="append",
-            help="Update file metadata as filename=<name> url=<read-accessible-url>. "
+            help="Update file metadata as filename=`<name>` "
+            "url=`<read-accessible-url>`. "
             "--file can be used more than once.",
         )
         context.argument(
@@ -864,7 +865,8 @@ def load_adr_arguments(self, _):
             "update_provider",
             arg_group="Update",
             options_list=["--update-id-provider", "--update-provider", "--up"],
-            help="Software Update updateId.provider (e.g. 'Contoso'). The update identity is a {provider, name, version} triple.",
+            help="Software Update updateId.provider (e.g. 'Contoso'). The update identity "
+                 "is a {provider, name, version} triple.",
         )
         context.argument(
             "update_name",
@@ -993,7 +995,8 @@ def load_adr_arguments(self, _):
         context.argument(
             "theme",
             options_list=["--theme"],
-            help="UI theme name. Use 'high-contrast' for maximum legibility.",
+            help="UI theme: dark, light, or high-contrast. Press Ctrl+T inside the UI "
+                 "to switch between dark and light.",
         )
         context.argument(
             "log_file",

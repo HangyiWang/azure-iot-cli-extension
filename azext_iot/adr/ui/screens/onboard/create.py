@@ -36,12 +36,14 @@ class CreateRequest:
     resource_group_name: str
     location: str
     sku: Optional[str] = None
+    capacity: int = DEFAULT_CAPACITY
+    tags: Optional[Dict[str, str]] = None
 
     @property
     def label(self) -> str:
         return {
             "namespace": "namespace",
-            "dps": "provisioning service",
+            "dps": "DPS",
             "hub": "IoT Hub",
             "su": "update instance",
         }.get(self.kind, self.kind)
@@ -59,20 +61,28 @@ class CreateRequest:
         )
 
 
-def hub_body(location: str, sku: str = DEFAULT_HUB_SKU) -> Dict[str, Any]:
+def hub_body(
+    location: str,
+    sku: str = DEFAULT_HUB_SKU,
+    capacity: int = DEFAULT_CAPACITY,
+) -> Dict[str, Any]:
     return {
         "location": location,
-        "sku": {"name": sku, "capacity": DEFAULT_CAPACITY},
+        "sku": {"name": sku, "capacity": capacity},
         # Required so the hub can present a caller identity to the namespace.
         "identity": {"type": "SystemAssigned"},
         "properties": {},
     }
 
 
-def dps_body(location: str, sku: str = DEFAULT_DPS_SKU) -> Dict[str, Any]:
+def dps_body(
+    location: str,
+    sku: str = DEFAULT_DPS_SKU,
+    capacity: int = DEFAULT_CAPACITY,
+) -> Dict[str, Any]:
     return {
         "location": location,
-        "sku": {"name": sku, "capacity": DEFAULT_CAPACITY},
+        "sku": {"name": sku, "capacity": capacity},
         "identity": {"type": "SystemAssigned"},
         "properties": {},
     }
@@ -86,19 +96,27 @@ def create_hub(catalog, request: CreateRequest):
     return client.begin_create_or_update(
         resource_group_name=request.resource_group_name,
         resource_name=request.name,
-        iot_hub_description=hub_body(request.location, request.sku or DEFAULT_HUB_SKU),
+        iot_hub_description=hub_body(
+            request.location,
+            request.sku or DEFAULT_HUB_SKU,
+            request.capacity,
+        ),
     )
 
 
 def create_dps(catalog, request: CreateRequest):
-    """Start provisioning service creation. Returns a poller for the operations tray."""
+    """Start DPS creation. Returns a poller for the operations tray."""
     from azext_iot._factory import iot_service_provisioning_factory
 
     client = iot_service_provisioning_factory(catalog.cmd.cli_ctx).iot_dps_resource
     return client.begin_create_or_update(
         resource_group_name=request.resource_group_name,
         provisioning_service_name=request.name,
-        iot_dps_description=dps_body(request.location, request.sku or DEFAULT_DPS_SKU),
+        iot_dps_description=dps_body(
+            request.location,
+            request.sku or DEFAULT_DPS_SKU,
+            request.capacity,
+        ),
     )
 
 
@@ -109,6 +127,7 @@ def create_namespace(session, request: CreateRequest):
         namespace_name=request.name,
         resource_group_name=request.resource_group_name,
         location=request.location,
+        tags=request.tags,
         outbound_mi_system_assigned=True,
         no_wait=True,
     )

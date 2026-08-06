@@ -91,6 +91,13 @@ def test_child_relationships_are_declared(registry):
     assert children("ca") == {"policy"}
 
 
+def test_namespace_hierarchy_explains_every_related_collection(registry):
+    children = registry.get("namespace").children
+    assert [child.kind for child in children] == ["link", "device", "group", "job", "ca"]
+    assert all(child.description for child in children)
+    assert children[0].label == "Linked resources"
+
+
 # -- provider wiring -----------------------------------------------------------------
 
 
@@ -181,12 +188,18 @@ def test_namespace_row_renders_from_a_realistic_payload(registry):
             "updating": {"endpoints": {}},
         },
         "identity": {"type": "SystemAssigned"},
+        "tags": {"environment": "prod", "owner": "iot"},
     }
     model = TableModel(registry.get("namespace"))
     model.apply([payload])
     row = model.rows[0]
     assert row.cells[0] == "factory"
-    assert "H2 D1 S0" in row.cells, "endpoint counts summarise readiness at a glance"
+    cells = dict(zip(model.headers, row.cells))
+    assert cells["HUBS"] == "2"
+    assert cells["DPS"] == "1"
+    assert cells["UPDATES"] == "0"
+    assert cells["LINK READINESS"] == "ready"
+    assert cells["TAGS"] == "environment=prod owner=iot"
     assert STYLE_OK in row.styles
 
 
@@ -210,7 +223,7 @@ def test_link_rows_sort_provisioning_before_messaging(registry):
     ]
     model = TableModel(registry.get("link"))
     model.apply(payloads)
-    assert [row.cells[1] for row in model.rows] == ["provisioning", "hub"]
+    assert [row.cells[1] for row in model.rows] == ["DPS", "IoT Hub"]
 
 
 def test_link_row_ids_are_unique_across_sections(registry):
