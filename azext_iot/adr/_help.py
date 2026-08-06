@@ -33,6 +33,8 @@ def load_adr_help():
   short-summary: Create a Device Registry namespace.
   long-summary: |
     By default, a namespace is created with a system-assigned managed identity.
+    When replacing an existing namespace, its observability configuration is
+    preserved because this command does not expose observability input.
   examples:
     - name: Create a basic Device Registry namespace
       text: az iot adr ns create -n myNamespace -g myResourceGroup
@@ -76,6 +78,21 @@ def load_adr_help():
       text: az iot adr ns delete -n myNamespace -g myResourceGroup
     - name: Delete a namespace with no confirmation prompt
       text: az iot adr ns delete -n myNamespace -g myResourceGroup --yes
+  """
+
+    helps[
+        "iot adr ns migrate"
+    ] = """
+  type: command
+  short-summary: Migrate legacy assets into a Device Registry namespace.
+  long-summary: |
+    Migrates existing Microsoft.DeviceRegistry/assets resources into the
+    namespace. The response reports success or failure for each resource ID.
+  examples:
+    - name: Migrate legacy assets into a namespace
+      text: |
+        az iot adr ns migrate -n myNamespace -g myResourceGroup \\
+          --resource-ids /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceRegistry/assets/asset1
   """
 
     helps[
@@ -252,6 +269,8 @@ def load_adr_help():
   examples:
     - name: Update certificate policy tags
       text: az iot adr ns ca policy update -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup --tags env=prod
+    - name: Update leaf certificate validity
+      text: az iot adr ns ca policy update -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup --validity-days 15
   """
 
     helps[
@@ -640,22 +659,6 @@ def load_adr_help():
   examples:
     - name: Wait until provisioning succeeds
       text: az iot adr ns su instance wait -n myUpdateInstance -g myResourceGroup --custom "properties.provisioningState=='Succeeded'"
-  """
-
-    helps["iot adr ns device"] = """
-  type: group
-  short-summary: View Device Registry device identity information.
-  """
-
-    helps["iot adr ns device show"] = """
-  type: command
-  short-summary: Show a device identity in a Device Registry namespace.
-  long-summary: |
-    This Software Updates workflow alias returns the same Registry Device
-    resource as 'az iot adr ns registry-device show'.
-  examples:
-    - name: Show a device identity
-      text: az iot adr ns device show -n myDevice --ns myNamespace -g myResourceGroup
   """
 
     helps["iot adr ns su update"] = """
@@ -1130,6 +1133,8 @@ def load_adr_help():
       text: az iot adr ns job run list --job-name myJob --ns myNamespace -g myResourceGroup
     - name: List active runs across the namespace
       text: az iot adr ns job run list --ns myNamespace -g myResourceGroup --filter "status eq 'Active'"
+    - name: List runs ordered by status
+      text: az iot adr ns job run list --ns myNamespace -g myResourceGroup --order-by "status asc"
   """
 
     helps[

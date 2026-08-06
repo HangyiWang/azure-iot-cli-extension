@@ -44,7 +44,9 @@ class RegistryDeviceEnablementState(Enum):
 
 
 class RegistryDeviceAuthenticationType(Enum):
-    certificate_authority = "CertificateAuthority"
+    certificate_authority_signed_x509_certificate = (
+        "CertificateAuthoritySignedX509Certificate"
+    )
     self_signed_x509_certificate = "SelfSignedX509Certificate"
     symmetric_key = "SymmetricKey"
 

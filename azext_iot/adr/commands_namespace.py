@@ -60,6 +60,22 @@ def adr_namespace_delete(cmd, namespace_name: str, resource_group_name: str, no_
     )
 
 
+def adr_namespace_migrate(
+    cmd,
+    namespace_name: str,
+    resource_group_name: str,
+    resource_ids: List[str],
+    no_wait: bool = False,
+):
+    provider = NamespaceProvider(cmd)
+    return provider.migrate(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        resource_ids=resource_ids,
+        no_wait=no_wait,
+    )
+
+
 def adr_namespace_update(
     cmd,
     namespace_name: str,

@@ -16,6 +16,8 @@ from azext_iot.tests.adr.conftest import (
     generate_adr_namespace_name,
 )
 
+ADR_API_VERSION = "2026-11-02-preview"
+
 
 @pytest.mark.usefixtures("set_cwd")
 class TestADRNamespaceCrud(CaptureOutputLiveScenarioTest):
@@ -43,6 +45,25 @@ class TestADRNamespaceCrud(CaptureOutputLiveScenarioTest):
             assert created["name"] == namespace_name
             assert created["location"] == TEST_LOCATION
             assert created["properties"]["provisioningState"] == "Succeeded"
+
+            resource_url = (
+                f"https://management.azure.com{created['id']}"
+                f"?api-version={ADR_API_VERSION}"
+            )
+            self.cmd(
+                f"rest --method patch --url {resource_url} "
+                "--body '{\"properties\":{\"observability\":{\"enabled\":false}}}'"
+            )
+            self.cmd(
+                f"iot adr ns wait -n {namespace_name} -g {TEST_RG} "
+                "--custom \"properties.observability.enabled==`false`\""
+            )
+            replaced = self.cmd(
+                f"iot adr ns create -n {namespace_name} -g {TEST_RG} "
+                f"--location {TEST_LOCATION} --tags phase=replaced"
+            ).get_output_in_json()
+            assert replaced["properties"]["observability"]["enabled"] is False
+
             self.cmd(
                 f"iot adr ns wait -n {namespace_name} -g {TEST_RG} "
                 "--custom \"name=='condition-that-never-matches'\" "
@@ -66,11 +87,11 @@ class TestADRNamespaceCrud(CaptureOutputLiveScenarioTest):
             ).get_output_in_json()
             assert updated["tags"] == {"env": "test", "purpose": "ci"}
 
-            replaced = self.cmd(
+            replaced_tags = self.cmd(
                 f"iot adr ns update -n {namespace_name} -g {TEST_RG} "
                 "--tags owner=adr-tests"
             ).get_output_in_json()
-            assert replaced["tags"] == {"owner": "adr-tests"}
+            assert replaced_tags["tags"] == {"owner": "adr-tests"}
 
             self.cmd(
                 f"iot adr ns update -n {namespace_name} -g {TEST_RG}",

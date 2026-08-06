@@ -260,11 +260,12 @@ class RegistryDeviceProvider(ADRProvider):
         )
         if (
             authentication_type
-            != RegistryDeviceAuthenticationType.certificate_authority.value
+            != RegistryDeviceAuthenticationType.certificate_authority_signed_x509_certificate.value
         ):
             raise InvalidArgumentValueError(
                 "Certificates can only be revoked for a Microsoft-managed X.509 profile "
-                "with authentication type 'CertificateAuthority'."
+                "with authentication type "
+                "'CertificateAuthoritySignedX509Certificate'."
             )
 
         poller = (

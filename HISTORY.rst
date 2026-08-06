@@ -19,7 +19,7 @@ Release History
 * **Registry Devices and child resources**
 
   - Added ``az iot adr ns registry-device create / show / list / update / delete``.
-  - Added ``registry-device auth list / show / show-keys / revoke-certs``. Plaintext key responses disable SDK HTTP logging; certificate revocation requires confirmation.
+  - Added ``registry-device auth list / show / show-keys / revoke-certs``. Plaintext key responses disable SDK HTTP logging; certificate revocation requires confirmation and accepts the service's ``CertificateAuthoritySignedX509Certificate`` authentication profile type.
   - Added ``registry-device attribute create / list / show / delete`` and read-only ``registry-device capability list / show`` commands. Attribute create is a synchronous full replace with ``--reported-by`` (``User`` or ``Microsoft.DeviceUpdate``), ``--schema``, and an open ``--properties`` JSON bag.
   - ``registry-device attribute show`` accepts ``software-update`` as an alias for the Azure Device Update attribute, whose canonical resource name is ``update``. The literal name is always resolved first, so a customer-authored attribute of the same name still wins, and the alias is scoped to ``show`` only. Responses always report the canonical ``name`` and ``id``.
   - Authentication Profiles and Capabilities remain service-materialized children; create, update, and delete operations are not exposed by this API.
@@ -30,13 +30,14 @@ Release History
   - Update Instance create and update support tags plus complete system- and user-assigned managed identity configuration. List supports resource-group and subscription scopes.
   - Namespace updating endpoints remain under ``az iot adr ns link su add / show / list / update / wait``, consistent with the existing Hub and DPS link groups.
   - Added ``az iot adr ns su update import / list / show / delete``, ``su update file list / show``, local ``su update calculate-hash`` and ``su update init v5``, and ``su device-class list / show / delete`` using the linked namespace's Software Updates data-plane endpoint.
-  - Added ``az iot adr ns device show`` as the Software Updates workflow alias for ``registry-device show``.
   - Device-class update remains unavailable because ``2026-11-02-preview`` exposes no update route or writable friendly-name property. The service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions remain intentionally hidden.
 
 * **Namespace parity**
 
   - Added ``az iot adr ns identity show / assign / remove`` for complete system- and user-assigned namespace identity management.
   - Added direct namespace messaging, provisioning, and updating endpoint JSON configuration on ``ns create`` and ``ns update``.
+  - Added ``az iot adr ns migrate --resource-ids`` for migrating legacy ``Microsoft.DeviceRegistry/assets`` resources into a namespace.
+  - Namespace ``create`` now preserves an existing observability configuration during its CreateOrReplace PUT, preventing an upsert from silently removing Live Data settings that the command does not expose.
   - Added namespace and group update-compliance ``report generate / latest`` commands.
 
 * **Namespace links**
@@ -47,10 +48,11 @@ Release History
 * **Groups, jobs, runs, and CMS**
 
   - Added paged ``group list-members``, member count, refresh, and service-managed delete behavior. ``group create`` and ``group update`` are synchronous, ``--group-type`` accepts only ``RegistryDevice``, and the create-only query filter is sent as ``properties.queryFilter``.
-  - Added ``SoftwareUpdate`` and ``OnboardingUpdate`` jobs with a ``displayName``, namespace-wide job-run listing, filtered/ordered/paged results, and cancellation. Job definitions now carry a flattened ``definition.updateResourceId``.
+  - Added ``SoftwareUpdate`` and ``OnboardingUpdate`` jobs with a ``displayName``, namespace-wide job-run listing, filtered/ordered/paged results, and cancellation. Job-run list supports ``--order-by``, and results pagination follows the service's POST ``skipToken`` contract. Job definitions now carry a flattened ``definition.updateResourceId``.
   - Re-pointed ``az iot adr ns job schedule`` at ``JobRuns_CreateOrReplace``. ``Jobs_Schedule`` has no backing operation in ``2026-11-02-preview``: a job defines what to roll out and to whom, while each run carries when it executes, and ``scheduledTime`` is a run's only writable field. ``job schedule`` therefore creates a run, gained an optional ``--run-name`` that defaults to a UTC-timestamped name, and dropped ``--timeout``, which has no field on either resource. A single job can be scheduled repeatedly.
   - Added ``az iot adr ns job run delete`` and ``az iot adr ns job run summary``.
   - Certificate authority and CA-policy commands remain under ``az iot adr ns ca`` and ``az iot adr ns ca policy`` with parent-namespace location inheritance and consistent LRO behavior.
+  - ``az iot adr ns ca policy update`` can update leaf certificate validity with ``--validity-days``.
   - Removed the unsupported ``--cert-subject`` input; certificate subjects are service-generated.
   - Renamed the intermediate CA issuer type from ``Internal`` to ``Microsoft`` and replaced ``--issuer-ca-uuid`` with ``--issuer-ca-name``, which is composed into ``issuer.certificateAuthorityResourceId``.
   - ``az iot adr ns ca revoke`` now calls ``CertificateAuthorities_RevokeAndRotate``.
@@ -68,8 +70,6 @@ Release History
   - The ``az iot adr ns asset``, ``discovered-asset``, and ``discovered-device`` groups are not registered. These resources require an ``extendedLocation`` pointing at an AIO custom location; use ``az iot ops ns asset`` and ``az iot ops ns discovered-*`` from the ``azure-iot-ops`` extension instead.
   - The ``az iot adr ns device`` group is not registered. ``Microsoft.DeviceRegistry/namespaces/devices`` is an edge/connector resource owned by ``az iot ops ns device``. Use ``az iot adr ns registry-device`` for cloud-managed devices.
   - The ``az iot adr ns management-endpoint`` group and the ``--management-endpoints`` argument are not registered. ``properties.management.endpoints`` is keyed by AIO custom-location resource ID and is written by ``az iot ops mgmt-actions enable``.
-  - ``az iot adr ns migrate`` is not registered. It migrates legacy AIO assets and asset endpoint profiles, which ``az iot ops migrate-assets`` handles with the required AIO context.
-
 * Authentication Profile create/update/delete and Capability mutation are not available in the management API. Attributes reported by ``Microsoft.DeviceUpdate`` are service-materialized and should be treated as read-only.
 * Group system-assigned identity configuration was removed. ``Microsoft.DeviceRegistry/namespaces/groups`` is a plain tracked resource in ``2026-11-02-preview`` with no identity envelope.
 * ``az iot adr ns job schedule`` was removed; ``Jobs_Schedule`` no longer exists in the API.

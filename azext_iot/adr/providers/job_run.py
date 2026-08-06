@@ -8,8 +8,7 @@ import re
 from datetime import datetime, timezone
 from typing import Iterator, Optional
 
-from azure.cli.core.azclierror import InvalidArgumentValueError
-from azure.core.rest import HttpRequest
+from azure.cli.core.azclierror import AzureResponseError, InvalidArgumentValueError
 
 from azext_iot.adr.common import validate_iso8601_datetime
 from azext_iot.adr.providers.base import ADRProvider
@@ -170,9 +169,15 @@ class JobRunProvider(ADRProvider):
         resource_group_name: str,
         job_name: Optional[str] = None,
         status_filter: Optional[str] = None,
+        order_by: Optional[str] = None,
     ) -> list:
         _validate_status_filter(status_filter, _JOB_RUN_STATUSES, allow_multiple=True)
-        kwargs = {"filter": status_filter} if status_filter else {}
+        _validate_order_by(order_by)
+        kwargs = {}
+        if status_filter:
+            kwargs["filter"] = status_filter
+        if order_by:
+            kwargs["order_by"] = order_by
         if job_name:
             result = self.client.job_runs.list_by_job(
                 resource_group_name=resource_group_name,
@@ -224,21 +229,27 @@ class JobRunProvider(ADRProvider):
             body["filter"] = status_filter
         if order_by:
             body["orderBy"] = order_by
-        response = self.client.job_runs.list_results(
-            resource_group_name=resource_group_name,
-            namespace_name=namespace_name,
-            job_name=job_name,
-            run_name=run_name,
-            body=body,
-        )
-        while response:
-            yield from response.get("value") or []
-            next_link = response.get("nextLink")
-            if not next_link:
-                return
-            response = self._fetch_next_page(next_link)
 
-    def _fetch_next_page(self, next_link: str) -> dict:
-        response = self.client.send_request(HttpRequest("GET", next_link))
-        response.raise_for_status()
-        return response.json()
+        skip_token = None
+        seen_tokens = set()
+        while True:
+            request_body = dict(body)
+            if skip_token:
+                request_body["skipToken"] = skip_token
+            response = self.client.job_runs.list_results(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+                job_name=job_name,
+                run_name=run_name,
+                body=request_body,
+            )
+            yield from (response or {}).get("value") or []
+            next_token = (response or {}).get("skipToken")
+            if not next_token:
+                return
+            if next_token in seen_tokens:
+                raise AzureResponseError(
+                    "The job run results returned a repeated skip token."
+                )
+            seen_tokens.add(next_token)
+            skip_token = next_token

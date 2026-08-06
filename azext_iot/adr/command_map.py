@@ -77,6 +77,7 @@ def load_adr_commands(self, _):
         cmd_group.show_command("show", "adr_namespace_show")
         cmd_group.command("list", "adr_namespace_list")
         cmd_group.command("delete", "adr_namespace_delete", confirmation=True, supports_no_wait=True)
+        cmd_group.command("migrate", "adr_namespace_migrate", supports_no_wait=True)
         cmd_group.command("update", "adr_namespace_update", supports_no_wait=True)
         cmd_group.wait_command("wait", "adr_namespace_show")
 
@@ -121,13 +122,6 @@ def load_adr_commands(self, _):
             supports_no_wait=True,
         )
         cmd_group.wait_command("wait", "adr_registry_device_show")
-
-    with self.command_group(
-        "iot adr ns device",
-        command_type=adr_registry_device_ops,
-        is_preview=True,
-    ) as cmd_group:
-        cmd_group.show_command("show", "adr_registry_device_show")
 
     with self.command_group(
         "iot adr ns registry-device auth",

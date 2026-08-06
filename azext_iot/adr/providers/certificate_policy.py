@@ -107,14 +107,24 @@ class CertificatePolicyProvider(ADRProvider):
         namespace_name: str,
         resource_group_name: str,
         tags: Optional[Dict[str, str]] = None,
+        validity_days: Optional[int] = None,
         **kwargs,
     ):
-        if tags is None:
+        if tags is None and validity_days is None:
             raise RequiredArgumentMissingError(
-                "Nothing to update. Provide --tags to update the certificate policy."
+                "Nothing to update. Provide --tags or --validity-days "
+                "to update the certificate policy."
             )
 
-        properties = {"tags": tags}
+        properties = {}
+        if tags is not None:
+            properties["tags"] = tags
+        if validity_days is not None:
+            properties["properties"] = {
+                "certificate": {
+                    "validityPeriodInDays": validity_days,
+                }
+            }
 
         no_wait = kwargs.pop("no_wait", False)
         try:

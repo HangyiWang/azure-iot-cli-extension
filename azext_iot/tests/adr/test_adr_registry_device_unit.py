@@ -293,7 +293,9 @@ def test_mutations_honor_no_wait(registry_device_provider, operation):
             registry_device_provider.client.registry_device_authentication_profiles
         )
         auth_operations.get.return_value = {
-            "properties": {"authenticationType": "CertificateAuthority"}
+            "properties": {
+                "authenticationType": "CertificateAuthoritySignedX509Certificate"
+            }
         }
         auth_operations.begin_revoke_certificates.return_value = poller
         result = registry_device_provider.auth_revoke_certs(
@@ -417,7 +419,10 @@ def test_revoke_certificates_requires_managed_x509_and_waits(
     operations = registry_device_provider.client.registry_device_authentication_profiles
     operations.get.return_value = {
         "properties": {
-            "authenticationType": RegistryDeviceAuthenticationType.certificate_authority.value
+            "authenticationType": (
+                RegistryDeviceAuthenticationType
+                .certificate_authority_signed_x509_certificate.value
+            )
         }
     }
     poller = _completed_poller(None)
@@ -449,7 +454,12 @@ def test_revoke_certificates_requires_managed_x509_and_waits(
 
 @pytest.mark.parametrize(
     "authentication_type",
-    ["SymmetricKey", "SelfSignedX509Certificate", None],
+    [
+        "CertificateAuthority",
+        "SymmetricKey",
+        "SelfSignedX509Certificate",
+        None,
+    ],
 )
 def test_revoke_certificates_rejects_ineligible_profiles(
     registry_device_provider, authentication_type
@@ -459,7 +469,10 @@ def test_revoke_certificates_rejects_ineligible_profiles(
         "properties": {"authenticationType": authentication_type}
     }
 
-    with pytest.raises(InvalidArgumentValueError, match="CertificateAuthority"):
+    with pytest.raises(
+        InvalidArgumentValueError,
+        match="CertificateAuthoritySignedX509Certificate",
+    ):
         registry_device_provider.auth_revoke_certs(
             PROFILE,
             DEVICE,

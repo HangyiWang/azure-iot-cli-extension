@@ -141,7 +141,8 @@ class TestADRJobRunSurface(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
             with timed_step("Step 2 ❯ job run list returns a list (likely empty)"):
                 runs = self.cmd(
-                    f"iot adr ns job run list --ns {namespace_name} -g {rg} --jn {job_name}"
+                    f"iot adr ns job run list --ns {namespace_name} -g {rg} "
+                    f"--jn {job_name} --order-by \"status asc\""
                 ).get_output_in_json()
                 assert isinstance(runs, list), (
                     f"job run list should return list, got {type(runs)}"

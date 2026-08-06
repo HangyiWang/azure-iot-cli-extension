@@ -109,7 +109,7 @@ def test_2026_command_surface_is_registered():
         "iot adr ns registry-device update",
         "iot adr ns registry-device delete",
         "iot adr ns registry-device wait",
-        "iot adr ns device show",
+        "iot adr ns migrate",
         "iot adr ns registry-device auth list",
         "iot adr ns registry-device auth show",
         "iot adr ns registry-device auth show-keys",
@@ -173,6 +173,11 @@ def test_2026_command_surface_is_registered():
     assert commands[
         "iot adr ns registry-device auth revoke-certs"
     ][2] == {"confirmation": True, "supports_no_wait": True}
+    assert commands["iot adr ns migrate"] == (
+        "command",
+        "adr_namespace_migrate",
+        {"supports_no_wait": True},
+    )
     assert commands["iot adr ns link wait"][:2] == (
         "wait",
         "adr_namespace_show",
@@ -199,7 +204,7 @@ def test_unsupported_command_surfaces_are_not_registered():
                 "iot adr ns asset",
                 "iot adr ns discovered-",
                 "iot adr ns management-endpoint",
-                "iot adr ns migrate",
+                "iot adr ns device",
             )
         )
         for command in commands
@@ -288,6 +293,8 @@ def test_load_adr_arguments():
     assert "scheduled_time" in arguments["iot adr ns job schedule"]
     assert "run_name" in arguments["iot adr ns job schedule"]
     assert "order_by" in arguments["iot adr ns job run results"]
+    assert "order_by" in arguments["iot adr ns job run list"]
+    assert "validity_days" in arguments["iot adr ns ca policy update"]
     for name in ("reported_by", "schema", "properties"):
         assert name in arguments["iot adr ns registry-device attribute create"]
     assert {
@@ -330,10 +337,8 @@ def test_load_adr_arguments():
         "no_validation",
     } <= set(arguments["iot adr ns su update init"])
     assert "device_class_id" in arguments["iot adr ns su device-class"]
-    assert {
-        "namespace_name",
-        "registry_device_name",
-    } <= set(arguments["iot adr ns device"])
+    assert "resource_ids" in arguments["iot adr ns migrate"]
+    assert arguments["iot adr ns migrate"]["resource_ids"]["required"] is True
 
     assert not any(
         command.startswith(("iot adr ns credential", "iot adr ns policy"))
@@ -355,7 +360,7 @@ def test_load_adr_arguments():
                 "iot adr ns asset",
                 "iot adr ns discovered-",
                 "iot adr ns management-endpoint",
-                "iot adr ns migrate",
+                "iot adr ns device",
             )
         )
         for command in arguments
@@ -375,7 +380,7 @@ def test_help_surface_matches_2026_commands_and_su_type():
         "iot adr ns report generate",
         "iot adr ns report latest",
         "iot adr ns registry-device create",
-        "iot adr ns device show",
+        "iot adr ns migrate",
         "iot adr ns registry-device auth show-keys",
         "iot adr ns registry-device attribute list",
         "iot adr ns registry-device capability show",
@@ -413,7 +418,7 @@ def test_help_surface_matches_2026_commands_and_su_type():
                 "iot adr ns asset",
                 "iot adr ns discovered-",
                 "iot adr ns management-endpoint",
-                "iot adr ns migrate",
+                "iot adr ns device",
             )
         )
         for command in helps

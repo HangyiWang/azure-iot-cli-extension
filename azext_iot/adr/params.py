@@ -68,6 +68,16 @@ def load_adr_arguments(self, _):
                 help="Software Updates endpoint dictionary as inline JSON or a JSON file path.",
             )
 
+    with self.argument_context("iot adr ns migrate") as context:
+        context.argument(
+            "resource_ids",
+            options_list=["--resource-ids", "--ids"],
+            nargs="+",
+            required=True,
+            help="Space-separated resource IDs of legacy "
+                 "Microsoft.DeviceRegistry/assets resources to migrate.",
+        )
+
     # Certificate Authority arguments
     with self.argument_context("iot adr ns ca") as context:
         context.argument(
@@ -148,20 +158,16 @@ def load_adr_arguments(self, _):
             arg_type=get_location_type(self.cli_ctx),
         )
 
-    # Registry Device arguments
-    with self.argument_context("iot adr ns registry-device") as context:
+    with self.argument_context("iot adr ns ca policy update") as context:
         context.argument(
-            "namespace_name",
-            options_list=["--namespace", "--ns"],
-            help="Name of the Device Registry namespace.",
-        )
-        context.argument(
-            "registry_device_name",
-            options_list=["--device-name", "--dn", "--name", "-n"],
-            help="Name of the Registry Device.",
+            "validity_days",
+            options_list=["--validity-days", "--vd"],
+            type=int,
+            help="Updated leaf certificate validity period in days.",
         )
 
-    with self.argument_context("iot adr ns device") as context:
+    # Registry Device arguments
+    with self.argument_context("iot adr ns registry-device") as context:
         context.argument(
             "namespace_name",
             options_list=["--namespace", "--ns"],
@@ -938,6 +944,12 @@ def load_adr_arguments(self, _):
             options_list=["--filter"],
             help="Status equality clauses joined by 'or', for example: "
                  "status eq 'Active' or status eq 'Scheduled'.",
+        )
+        context.argument(
+            "order_by",
+            options_list=["--order-by", "--ob"],
+            help="Sort expression for job runs, for example: \"status asc\" or "
+                 "\"status desc\".",
         )
 
     with self.argument_context("iot adr ns job run results") as context:

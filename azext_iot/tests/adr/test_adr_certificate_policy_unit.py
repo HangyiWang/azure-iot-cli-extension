@@ -10,6 +10,8 @@ import pytest
 from azure.cli.core.azclierror import ResourceNotFoundError
 from azure.core.exceptions import HttpResponseError
 
+from azext_iot.adr import commands_certificate_policy
+
 
 def _parent_not_found_error():
     e = HttpResponseError(message="ParentResourceNotFound: certificate authority not found")
@@ -115,6 +117,74 @@ def test_update_ca_policy(fixture_ca_policy_provider, mock_poller):
     assert result["name"] == "cp"
     properties = fixture_ca_policy_provider.client.certificate_policies.begin_update.call_args[1]["properties"]
     assert properties == {"tags": {"env": "test"}}
+
+
+def test_update_ca_policy_validity_only(fixture_ca_policy_provider, mock_poller):
+    fixture_ca_policy_provider.client.certificate_policies.begin_update.return_value = mock_poller(Mock())
+    fixture_ca_policy_provider.client.certificate_policies.get.return_value = {"name": "cp"}
+
+    fixture_ca_policy_provider.update(
+        certificate_policy_name="cp", certificate_authority_name="ca",
+        namespace_name="ns", resource_group_name="rg",
+        validity_days=60,
+    )
+
+    properties = fixture_ca_policy_provider.client.certificate_policies.begin_update.call_args[1]["properties"]
+    assert properties == {
+        "properties": {
+            "certificate": {
+                "validityPeriodInDays": 60,
+            }
+        }
+    }
+
+
+def test_update_ca_policy_tags_and_validity(fixture_ca_policy_provider, mock_poller):
+    fixture_ca_policy_provider.client.certificate_policies.begin_update.return_value = mock_poller(Mock())
+    fixture_ca_policy_provider.client.certificate_policies.get.return_value = {"name": "cp"}
+
+    fixture_ca_policy_provider.update(
+        certificate_policy_name="cp", certificate_authority_name="ca",
+        namespace_name="ns", resource_group_name="rg",
+        tags={"env": "test"}, validity_days=90,
+    )
+
+    properties = fixture_ca_policy_provider.client.certificate_policies.begin_update.call_args[1]["properties"]
+    assert properties == {
+        "tags": {"env": "test"},
+        "properties": {
+            "certificate": {
+                "validityPeriodInDays": 90,
+            }
+        },
+    }
+
+
+def test_update_ca_policy_wrapper_forwards_validity_days(mocker):
+    provider = mocker.patch.object(
+        commands_certificate_policy, "CertificatePolicyProvider"
+    ).return_value
+
+    commands_certificate_policy.adr_ca_policy_update(
+        Mock(),
+        certificate_policy_name="cp",
+        certificate_authority_name="ca",
+        namespace_name="ns",
+        resource_group_name="rg",
+        tags={"env": "test"},
+        validity_days=60,
+        no_wait=True,
+    )
+
+    provider.update.assert_called_once_with(
+        certificate_policy_name="cp",
+        certificate_authority_name="ca",
+        namespace_name="ns",
+        resource_group_name="rg",
+        tags={"env": "test"},
+        validity_days=60,
+        no_wait=True,
+    )
 
 
 # ==================== Delete ====================
