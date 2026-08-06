@@ -290,6 +290,25 @@ OperationsTray {
 
 /* ---------- content: bordered, focus-aware ---------- */
 
+#browse-body {
+    height: 1fr;
+}
+
+#rows-pane {
+    height: 1fr;
+    border: round $primary;
+    border-title-color: $primary;
+    border-title-style: bold;
+    background: $surface;
+    padding: 0 1;
+}
+
+#rows-pane > DataTable,
+#rows-pane > DataTable:focus {
+    border: none;
+    padding: 0;
+}
+
 DataTable {
     height: 1fr;
     border: round $panel;
@@ -333,12 +352,6 @@ DataTable > .datatable--even-row {
     height: auto;
     padding: 0 2;
     color: $text-muted;
-}
-
-#rows-loading {
-    height: 1;
-    margin: 0 2;
-    color: $primary;
 }
 
 /* ---------- inputs ---------- */

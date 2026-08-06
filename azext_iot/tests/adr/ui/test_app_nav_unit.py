@@ -401,7 +401,7 @@ def test_refresh_keeps_the_screen_usable():
 def test_main_page_shows_loading_animation_during_refresh():
     import threading
 
-    from textual.widgets import LoadingIndicator
+    from textual.containers import Vertical
 
     started = threading.Event()
     release = threading.Event()
@@ -422,17 +422,33 @@ def test_main_page_shows_loading_animation_during_refresh():
             screen.refresh_rows(force=True)
             await asyncio.to_thread(started.wait, 2)
             await pilot.pause()
-            loading = screen.query_one("#rows-loading", LoadingIndicator)
             table = screen.query_one("#rows", DataTable)
-            during = (loading.display, table.display, table.row_count)
+            pane = screen.query_one("#rows-pane", Vertical)
+            first_frame = str(table.get_row_at(0)[0])
+            await pilot.pause(0.25)
+            second_frame = str(table.get_row_at(0)[0])
+            during = (
+                table.display,
+                table.row_count,
+                first_frame,
+                second_frame,
+                pane.border_title,
+            )
             release.set()
             await app.workers.wait_for_complete()
             await pilot.pause()
-            return during, loading.display
+            return during, table.row_count
 
-    during, loading_after = asyncio.run(runner())
-    assert during == (True, True, 3), "refresh keeps known rows visible beneath progress"
-    assert not loading_after
+    during, rows_after = asyncio.run(runner())
+    assert during[:2] == (
+        True,
+        4,
+    ), "the loading row appears above three known resources"
+    assert during[2] != during[3], "the loading row must animate"
+    assert during[2].endswith("Loading resources...")
+    assert during[3].endswith("Loading resources...")
+    assert during[4] == "namespaces"
+    assert rows_after == 3, "the temporary loading row is removed after refresh"
 
 
 def test_browse_hint_bar_surfaces_both_onboarding_entries():

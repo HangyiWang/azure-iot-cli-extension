@@ -18,12 +18,16 @@ from rich.text import Text
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Vertical
-from textual.widgets import DataTable, Input, LoadingIndicator, Static
+from textual.widgets import DataTable, Input, Static
+from textual.widgets.data_table import RowDoesNotExist
 
-from azext_iot.adr.ui.core.spec import STYLE_ERROR, ResourceSpec
+from azext_iot.adr.ui.core.spec import STYLE_ACTIVE, STYLE_ERROR, ResourceSpec
 from azext_iot.adr.ui.screens.base import ChromeScreen
 from azext_iot.adr.ui.core.table import TableModel
 from azext_iot.adr.ui.theme import style_for
+
+_LOADING_ROW_ID = "__loading__"
+_LOADING_FRAMES = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
 
 
 class BrowseScreen(ChromeScreen):
@@ -54,21 +58,24 @@ class BrowseScreen(ChromeScreen):
         self.model = TableModel(spec)
         self._filtering = False
         self._loading = False
+        self._loading_frame = 0
 
     # -- composition -------------------------------------------------------
 
     def compose_content(self) -> ComposeResult:
-        with Vertical():
-            yield LoadingIndicator(id="rows-loading")
-            yield DataTable(id="rows", cursor_type="row")
+        with Vertical(id="browse-body"):
+            with Vertical(id="rows-pane"):
+                yield DataTable(id="rows", cursor_type="row")
             yield Input(placeholder="filter...", id="filter-input")
             yield Static("", id="status-line")
 
     def on_mount(self) -> None:
-        self.query_one("#rows", DataTable).border_title = self.spec.title_plural.lower()
-        self.query_one("#rows-loading", LoadingIndicator).display = False
+        self.query_one("#rows-pane", Vertical).border_title = (
+            self.spec.title_plural.lower()
+        )
         self.query_one("#filter-input", Input).display = False
         self._build_columns()
+        self.set_interval(0.1, self._animate_loading_row)
         self.refresh_rows()
         if self.refresh_interval:
             # Polling keeps the table current; the cache decides whether a tick costs a
@@ -86,7 +93,6 @@ class BrowseScreen(ChromeScreen):
         """
         missing = self.spec.missing_scope(self.scope)
         if missing:
-            self.query_one("#rows-loading", LoadingIndicator).display = False
             self.model.fail(self._missing_scope_message(missing))
             self._repaint()
             return
@@ -95,7 +101,7 @@ class BrowseScreen(ChromeScreen):
             # already in flight, which on a slow collection could starve it forever.
             return
         self._loading = True
-        self.query_one("#rows-loading", LoadingIndicator).display = True
+        self._loading_frame = 0
         self.model.begin_load()
         self._repaint()
         self.run_worker(
@@ -140,7 +146,6 @@ class BrowseScreen(ChromeScreen):
 
     def _on_loaded(self, payloads, error=None, loaded_at=None) -> None:
         self._loading = False
-        self.query_one("#rows-loading", LoadingIndicator).display = False
         self.model.apply(payloads, loaded_at=loaded_at)
         if error:
             self.model.fail(error)
@@ -154,7 +159,6 @@ class BrowseScreen(ChromeScreen):
 
     def _on_load_failed(self, message: str) -> None:
         self._loading = False
-        self.query_one("#rows-loading", LoadingIndicator).display = False
         if self.spec.parent and "not found" in message.lower():
             message = (
                 f"Could not open {self.spec.title_plural.lower()}: the parent resource "
@@ -177,6 +181,12 @@ class BrowseScreen(ChromeScreen):
 
         table.clear()
         theme = getattr(self.app, "theme_tokens", None)
+        loading_offset = 0
+        if self._loading and self.model.columns:
+            loading_cells = [self._loading_text(theme)]
+            loading_cells.extend("" for _ in self.model.columns[1:])
+            table.add_row(*loading_cells, key=_LOADING_ROW_ID)
+            loading_offset = 1
         for row in self.model.rows:
             cells = []
             for index, value in enumerate(row.cells):
@@ -195,10 +205,32 @@ class BrowseScreen(ChromeScreen):
         if selected is not None:
             index = self.model.index_of(selected)
             if index is not None:
-                table.move_cursor(row=index)
+                table.move_cursor(row=index + loading_offset)
 
         self.query_one("#status-line", Static).update(self.model.status_text())
         self._sync_chrome()
+
+    def _loading_text(self, theme=None) -> Text:
+        frame = _LOADING_FRAMES[self._loading_frame]
+        return Text(
+            f"{frame} Loading resources...",
+            style=f"bold {style_for(STYLE_ACTIVE, theme)}",
+        )
+
+    def _animate_loading_row(self) -> None:
+        if not self._loading or not self.model.columns:
+            return
+        self._loading_frame = (self._loading_frame + 1) % len(_LOADING_FRAMES)
+        table = self.query_one("#rows", DataTable)
+        try:
+            table.get_row(_LOADING_ROW_ID)
+        except RowDoesNotExist:
+            return
+        table.update_cell(
+            _LOADING_ROW_ID,
+            self.model.columns[0].key,
+            self._loading_text(getattr(self.app, "theme_tokens", None)),
+        )
 
     def _sync_chrome(self) -> None:
         app = self.app
@@ -213,7 +245,11 @@ class BrowseScreen(ChromeScreen):
             return None
         try:
             row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-            return row_key.value
+            return (
+                None
+                if row_key.value == _LOADING_ROW_ID
+                else row_key.value
+            )
         except Exception:  # noqa: BLE001 - cursor can be transiently invalid mid-repaint
             return None
 
