@@ -137,6 +137,7 @@ def load_adr_commands(self, _):
             confirmation=True,
             supports_no_wait=True,
         )
+        cmd_group.wait_command("wait", "adr_registry_device_auth_show")
 
     with self.command_group(
         "iot adr ns registry-device attribute",
@@ -256,6 +257,7 @@ def load_adr_commands(self, _):
         cmd_group.show_command(
             "calculate-hash", "adr_su_update_calculate_hash"
         )
+        cmd_group.wait_command("wait", "adr_su_update_show")
 
     with self.command_group(
         "iot adr ns su software-update file",

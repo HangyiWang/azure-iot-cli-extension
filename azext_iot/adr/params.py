@@ -599,7 +599,7 @@ def load_adr_arguments(self, _):
             options_list=["--file"],
             nargs="+",
             action="append",
-            help="Update file metadata as filename=<name> url=<read-accessible-url>. "
+            help="Update file metadata as filename=FILE_NAME url=READ_ACCESSIBLE_URL. "
             "--file can be used more than once.",
         )
         context.argument(

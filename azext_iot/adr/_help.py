@@ -703,6 +703,16 @@ def load_adr_help():
           --update-provider Contoso --update-name Thermostat --update-version 1.0
   """
 
+    helps["iot adr ns su software-update wait"] = """
+  type: command
+  short-summary: Wait for an imported Software Update condition.
+  examples:
+    - name: Wait until an imported update exists
+      text: |
+        az iot adr ns su software-update wait --ns myNamespace -g myResourceGroup \\
+          --update-provider Contoso --update-name Thermostat --update-version 1.0 --exists
+  """
+
     helps["iot adr ns su software-update delete"] = """
   type: command
   short-summary: Delete an imported update.
@@ -1305,10 +1315,17 @@ def load_adr_help():
             "iot adr ns registry-device auth revoke-certs": """
   type: command
   short-summary: Revoke Microsoft-managed certificates for an authentication profile.
-  long-summary: This destructive action applies only to CertificateAuthority profiles and requires confirmation unless --yes is supplied.
+  long-summary: This destructive action applies only to CertificateAuthoritySignedX509Certificate profiles and requires confirmation unless --yes is supplied.
   examples:
     - name: Revoke certificates without prompting
       text: az iot adr ns registry-device auth revoke-certs -n default --registry-device-name myDevice --ns myNamespace -g myResourceGroup --yes
+  """,
+            "iot adr ns registry-device auth wait": """
+  type: command
+  short-summary: Wait for a Registry Device authentication profile condition.
+  examples:
+    - name: Wait until an authentication profile exists
+      text: az iot adr ns registry-device auth wait -n default --registry-device-name myDevice --ns myNamespace -g myResourceGroup --exists
   """,
             "iot adr ns registry-device attribute": """
   type: group

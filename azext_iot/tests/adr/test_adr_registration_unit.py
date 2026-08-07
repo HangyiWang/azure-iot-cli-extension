@@ -114,6 +114,7 @@ def test_2026_command_surface_is_registered():
         "iot adr ns registry-device auth show",
         "iot adr ns registry-device auth show-keys",
         "iot adr ns registry-device auth revoke-certs",
+        "iot adr ns registry-device auth wait",
         "iot adr ns registry-device attribute list",
         "iot adr ns registry-device attribute show",
         "iot adr ns registry-device capability list",
@@ -144,6 +145,7 @@ def test_2026_command_surface_is_registered():
         "iot adr ns su software-update file list",
         "iot adr ns su software-update file show",
         "iot adr ns su software-update init v5",
+        "iot adr ns su software-update wait",
         "iot adr ns su device-class list",
         "iot adr ns su device-class show",
         "iot adr ns su device-class delete",
@@ -169,7 +171,7 @@ def test_2026_command_surface_is_registered():
         "adr_job_run_delete",
         {"confirmation": True, "supports_no_wait": True},
     )
-    assert len(commands) == 101
+    assert len(commands) == 103
     assert commands[
         "iot adr ns registry-device auth revoke-certs"
     ][2] == {"confirmation": True, "supports_no_wait": True}
@@ -388,6 +390,7 @@ def test_help_surface_matches_2026_commands_and_su_type():
         "iot adr ns registry-device create",
         "iot adr ns migrate",
         "iot adr ns registry-device auth show-keys",
+        "iot adr ns registry-device auth wait",
         "iot adr ns registry-device attribute list",
         "iot adr ns registry-device capability show",
         "iot adr ns identity assign",
@@ -401,6 +404,7 @@ def test_help_surface_matches_2026_commands_and_su_type():
         "iot adr ns su software-update file list",
         "iot adr ns su software-update file show",
         "iot adr ns su software-update init v5",
+        "iot adr ns su software-update wait",
         "iot adr ns su device-class list",
         "iot adr ns su device-class show",
         "iot adr ns su device-class delete",
