@@ -529,7 +529,7 @@ def load_adr_arguments(self, _):
             )
 
     for command in (
-        "iot adr ns su update",
+        "iot adr ns su software-update",
         "iot adr ns su device-class",
     ):
         with self.argument_context(command) as context:
@@ -539,7 +539,7 @@ def load_adr_arguments(self, _):
                 help="Name of the Device Registry namespace.",
             )
 
-    with self.argument_context("iot adr ns su update") as context:
+    with self.argument_context("iot adr ns su software-update") as context:
         context.argument(
             "update_name",
             options_list=["--update-name", "--un"],
@@ -556,7 +556,7 @@ def load_adr_arguments(self, _):
             help="Update version.",
         )
 
-    with self.argument_context("iot adr ns su update list") as context:
+    with self.argument_context("iot adr ns su software-update list") as context:
         context.argument(
             "search",
             options_list=["--search"],
@@ -570,7 +570,7 @@ def load_adr_arguments(self, _):
             arg_group="Filter",
         )
 
-    with self.argument_context("iot adr ns su update import") as context:
+    with self.argument_context("iot adr ns su software-update import") as context:
         context.argument(
             "url",
             options_list=["--url"],
@@ -609,14 +609,14 @@ def load_adr_arguments(self, _):
             help="Request malware scanning for the imported update.",
         )
 
-    with self.argument_context("iot adr ns su update file") as context:
+    with self.argument_context("iot adr ns su software-update file") as context:
         context.argument(
             "update_file_id",
             options_list=["--update-file-id", "--ufid"],
             help="Update file identifier.",
         )
 
-    with self.argument_context("iot adr ns su update calculate-hash") as context:
+    with self.argument_context("iot adr ns su software-update calculate-hash") as context:
         context.argument(
             "file_paths",
             options_list=["--file-path", "-f"],
@@ -631,7 +631,7 @@ def load_adr_arguments(self, _):
             help="Cryptographic hash algorithm.",
         )
 
-    with self.argument_context("iot adr ns su update init") as context:
+    with self.argument_context("iot adr ns su software-update init") as context:
         context.argument(
             "description",
             options_list=["--description"],

@@ -779,7 +779,7 @@ class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
             with timed_step("Step 3 > Software Updates data-plane discovery"):
                 updates = self.cmd(
-                    f"iot adr ns su update list --ns {namespace_name} -g {rg}"
+                    f"iot adr ns su software-update list --ns {namespace_name} -g {rg}"
                 ).get_output_in_json()
                 classes = self.cmd(
                     f"iot adr ns su device-class list --ns {namespace_name} -g {rg}"

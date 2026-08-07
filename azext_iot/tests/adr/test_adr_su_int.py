@@ -176,14 +176,14 @@ class TestADRSULocalUpdateCommands(CaptureOutputLiveScenarioTest):
             payload_path.write_bytes(b"#!/bin/sh\necho updated\n")
 
             hashes = self.cmd(
-                "iot adr ns su update calculate-hash "
+                "iot adr ns su software-update calculate-hash "
                 f"--file-path {payload_path}"
             ).get_output_in_json()
             assert hashes[0]["bytes"] == payload_path.stat().st_size
             assert hashes[0]["hashAlgorithm"] == "sha256"
 
             manifest = self.cmd(
-                "iot adr ns su update init v5 "
+                "iot adr ns su software-update init v5 "
                 "--update-provider Contoso --update-name integration "
                 "--update-version 1.0 --compat manufacturer=Contoso model=T1000 "
                 "--step handler=microsoft/script:1 "

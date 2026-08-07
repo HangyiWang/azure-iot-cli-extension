@@ -661,7 +661,7 @@ def load_adr_help():
       text: az iot adr ns su instance wait -n myUpdateInstance -g myResourceGroup --custom "properties.provisioningState=='Succeeded'"
   """
 
-    helps["iot adr ns su update"] = """
+    helps["iot adr ns su software-update"] = """
   type: group
   short-summary: Import and manage Software Updates content.
   long-summary: |
@@ -669,7 +669,7 @@ def load_adr_help():
     Updates link. The link must finish provisioning before these commands can run.
   """
 
-    helps["iot adr ns su update import"] = """
+    helps["iot adr ns su software-update import"] = """
   type: command
   short-summary: Import an update into Software Updates.
   long-summary: |
@@ -678,87 +678,87 @@ def load_adr_help():
   examples:
     - name: Import a manifest and one payload file
       text: |
-        az iot adr ns su update import --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update import --ns myNamespace -g myResourceGroup \\
           --url "https://storage.example/manifest.json?<sas>" \\
           --file filename=payload.bin url="https://storage.example/payload.bin?<sas>"
   """
 
-    helps["iot adr ns su update list"] = """
+    helps["iot adr ns su software-update list"] = """
   type: command
   short-summary: List updates imported into Software Updates.
   examples:
     - name: List all imported updates
-      text: az iot adr ns su update list --ns myNamespace -g myResourceGroup
+      text: az iot adr ns su software-update list --ns myNamespace -g myResourceGroup
     - name: List deployable updates
-      text: az iot adr ns su update list --ns myNamespace -g myResourceGroup --filter "isDeployable eq true"
+      text: az iot adr ns su software-update list --ns myNamespace -g myResourceGroup --filter "isDeployable eq true"
   """
 
-    helps["iot adr ns su update show"] = """
+    helps["iot adr ns su software-update show"] = """
   type: command
   short-summary: Show an imported update.
   examples:
     - name: Show an update version
       text: |
-        az iot adr ns su update show --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update show --ns myNamespace -g myResourceGroup \\
           --update-provider Contoso --update-name Thermostat --update-version 1.0
   """
 
-    helps["iot adr ns su update delete"] = """
+    helps["iot adr ns su software-update delete"] = """
   type: command
   short-summary: Delete an imported update.
   examples:
     - name: Delete an update version without prompting
       text: |
-        az iot adr ns su update delete --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update delete --ns myNamespace -g myResourceGroup \\
           --update-provider Contoso --update-name Thermostat --update-version 1.0 --yes
   """
 
-    helps["iot adr ns su update calculate-hash"] = """
+    helps["iot adr ns su software-update calculate-hash"] = """
   type: command
   short-summary: Calculate update-file hashes locally.
   examples:
     - name: Calculate a SHA-256 hash
-      text: az iot adr ns su update calculate-hash --file-path ./payload.bin
+      text: az iot adr ns su software-update calculate-hash --file-path ./payload.bin
   """
 
-    helps["iot adr ns su update file"] = """
+    helps["iot adr ns su software-update file"] = """
   type: group
   short-summary: Inspect files belonging to an imported update.
   """
 
-    helps["iot adr ns su update file list"] = """
+    helps["iot adr ns su software-update file list"] = """
   type: command
   short-summary: List file identifiers for an imported update.
   examples:
     - name: List files
       text: |
-        az iot adr ns su update file list --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update file list --ns myNamespace -g myResourceGroup \\
           --update-provider Contoso --update-name Thermostat --update-version 1.0
   """
 
-    helps["iot adr ns su update file show"] = """
+    helps["iot adr ns su software-update file show"] = """
   type: command
   short-summary: Show an imported update file.
   examples:
     - name: Show a file
       text: |
-        az iot adr ns su update file show --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update file show --ns myNamespace -g myResourceGroup \\
           --update-provider Contoso --update-name Thermostat --update-version 1.0 \\
           --update-file-id payload
   """
 
-    helps["iot adr ns su update init"] = """
+    helps["iot adr ns su software-update init"] = """
   type: group
   short-summary: Create Software Updates import manifests locally.
   """
 
-    helps["iot adr ns su update init v5"] = """
+    helps["iot adr ns su software-update init v5"] = """
   type: command
   short-summary: Create a version 5 import manifest.
   examples:
     - name: Create a simple manifest
       text: |
-        az iot adr ns su update init v5 --update-provider Contoso \\
+        az iot adr ns su software-update init v5 --update-provider Contoso \\
           --update-name Thermostat --update-version 1.0 \\
           --compat manufacturer=Contoso model=T1000 \\
           --step handler=microsoft/script:1 --file path=./install.sh

@@ -231,7 +231,7 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_su_instance_show")
 
     with self.command_group(
-        "iot adr ns su update", command_type=adr_su_data_ops, is_preview=True
+        "iot adr ns su software-update", command_type=adr_su_data_ops, is_preview=True
     ) as cmd_group:
         cmd_group.command(
             "import", "adr_su_update_import", supports_no_wait=True
@@ -258,7 +258,7 @@ def load_adr_commands(self, _):
         )
 
     with self.command_group(
-        "iot adr ns su update file",
+        "iot adr ns su software-update file",
         command_type=adr_su_data_ops,
         is_preview=True,
     ) as cmd_group:
@@ -266,7 +266,7 @@ def load_adr_commands(self, _):
         cmd_group.show_command("show", "adr_su_update_file_show")
 
     with self.command_group(
-        "iot adr ns su update init",
+        "iot adr ns su software-update init",
         command_type=adr_su_data_ops,
         is_preview=True,
     ) as cmd_group:

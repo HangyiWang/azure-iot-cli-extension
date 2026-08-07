@@ -12478,7 +12478,7 @@ class NamespaceAssetsOperations:
         content_type: str = "application/json",
         **kwargs: Any
     ) -> AsyncLROPoller[JSON]:
-        """A long-running resource action.
+        """Execute a management action on the asset.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -12541,7 +12541,7 @@ class NamespaceAssetsOperations:
         content_type: str = "application/json",
         **kwargs: Any
     ) -> AsyncLROPoller[JSON]:
-        """A long-running resource action.
+        """Execute a management action on the asset.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -12593,7 +12593,7 @@ class NamespaceAssetsOperations:
         body: Union[JSON, IO[bytes]],
         **kwargs: Any
     ) -> AsyncLROPoller[JSON]:
-        """A long-running resource action.
+        """Execute a management action on the asset.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -16512,7 +16512,7 @@ class CredentialsOperations:
     async def begin_synchronize(
         self, resource_group_name: str, namespace_name: str, **kwargs: Any
     ) -> AsyncLROPoller[None]:
-        """A long-running resource action.
+        """Synchronize the credential.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
          Required.
@@ -25297,6 +25297,18 @@ class JobRunsOperations:
                     "properties": {
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
+                        "error": {
+                            "code": "str",
+                            "details": [
+                                {
+                                    "code": "str",
+                                    "correlationId": "str",
+                                    "info": "str",
+                                    "message": "str"
+                                }
+                            ],
+                            "message": "str"
+                        },
                         "provisioningState": "str",
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
@@ -25426,6 +25438,18 @@ class JobRunsOperations:
                     "properties": {
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
+                        "error": {
+                            "code": "str",
+                            "details": [
+                                {
+                                    "code": "str",
+                                    "correlationId": "str",
+                                    "info": "str",
+                                    "message": "str"
+                                }
+                            ],
+                            "message": "str"
+                        },
                         "provisioningState": "str",
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
@@ -25542,6 +25566,18 @@ class JobRunsOperations:
                     "properties": {
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
+                        "error": {
+                            "code": "str",
+                            "details": [
+                                {
+                                    "code": "str",
+                                    "correlationId": "str",
+                                    "info": "str",
+                                    "message": "str"
+                                }
+                            ],
+                            "message": "str"
+                        },
                         "provisioningState": "str",
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
@@ -25722,6 +25758,18 @@ class JobRunsOperations:
                     "properties": {
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
+                        "error": {
+                            "code": "str",
+                            "details": [
+                                {
+                                    "code": "str",
+                                    "correlationId": "str",
+                                    "info": "str",
+                                    "message": "str"
+                                }
+                            ],
+                            "message": "str"
+                        },
                         "provisioningState": "str",
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
@@ -25746,6 +25794,18 @@ class JobRunsOperations:
                     "properties": {
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
+                        "error": {
+                            "code": "str",
+                            "details": [
+                                {
+                                    "code": "str",
+                                    "correlationId": "str",
+                                    "info": "str",
+                                    "message": "str"
+                                }
+                            ],
+                            "message": "str"
+                        },
                         "provisioningState": "str",
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
@@ -25806,6 +25866,18 @@ class JobRunsOperations:
                     "properties": {
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
+                        "error": {
+                            "code": "str",
+                            "details": [
+                                {
+                                    "code": "str",
+                                    "correlationId": "str",
+                                    "info": "str",
+                                    "message": "str"
+                                }
+                            ],
+                            "message": "str"
+                        },
                         "provisioningState": "str",
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
@@ -25862,6 +25934,18 @@ class JobRunsOperations:
                     "properties": {
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
+                        "error": {
+                            "code": "str",
+                            "details": [
+                                {
+                                    "code": "str",
+                                    "correlationId": "str",
+                                    "info": "str",
+                                    "message": "str"
+                                }
+                            ],
+                            "message": "str"
+                        },
                         "provisioningState": "str",
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
@@ -25886,6 +25970,18 @@ class JobRunsOperations:
                     "properties": {
                         "cancellationReason": "str",
                         "endTime": "2020-02-20 00:00:00",
+                        "error": {
+                            "code": "str",
+                            "details": [
+                                {
+                                    "code": "str",
+                                    "correlationId": "str",
+                                    "info": "str",
+                                    "message": "str"
+                                }
+                            ],
+                            "message": "str"
+                        },
                         "provisioningState": "str",
                         "scheduledTime": "2020-02-20 00:00:00",
                         "startTime": "2020-02-20 00:00:00",
