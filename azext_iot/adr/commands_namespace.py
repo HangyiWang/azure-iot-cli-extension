@@ -24,6 +24,7 @@ def adr_namespace_create(
     messaging_endpoints: Any = None,
     provisioning_endpoints: Any = None,
     updating_endpoints: Any = None,
+    observability_enabled: Optional[bool] = None,
     no_wait: bool = False,
 ):
     provider = NamespaceProvider(cmd)
@@ -32,6 +33,7 @@ def adr_namespace_create(
         resource_group_name=resource_group_name,
         location=location,
         tags=tags,
+        observability_enabled=observability_enabled,
         outbound_mi_system_assigned=outbound_mi_system_assigned,
         outbound_mi_user_assigned=outbound_mi_user_assigned,
         messaging_endpoints=messaging_endpoints,
@@ -86,6 +88,7 @@ def adr_namespace_update(
     messaging_endpoints: Any = None,
     provisioning_endpoints: Any = None,
     updating_endpoints: Any = None,
+    observability_enabled: Optional[bool] = None,
     no_wait: bool = False,
 ):
     provider = NamespaceProvider(cmd)
@@ -93,6 +96,7 @@ def adr_namespace_update(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         tags=tags,
+        observability_enabled=observability_enabled,
         outbound_mi_system_assigned=outbound_mi_system_assigned,
         outbound_mi_user_assigned=outbound_mi_user_assigned,
         messaging_endpoints=messaging_endpoints,

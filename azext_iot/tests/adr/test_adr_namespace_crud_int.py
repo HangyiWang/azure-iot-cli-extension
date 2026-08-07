@@ -16,8 +16,6 @@ from azext_iot.tests.adr.conftest import (
     generate_adr_namespace_name,
 )
 
-ADR_API_VERSION = "2026-11-02-preview"
-
 
 @pytest.mark.usefixtures("set_cwd")
 class TestADRNamespaceCrud(CaptureOutputLiveScenarioTest):
@@ -27,7 +25,8 @@ class TestADRNamespaceCrud(CaptureOutputLiveScenarioTest):
         with CleanupLedger() as cleanup:
             self.cmd(
                 f"iot adr ns create -n {namespace_name} -g {TEST_RG} "
-                f"--location {TEST_LOCATION} --no-wait"
+                f"--location {TEST_LOCATION} --observability-enabled true "
+                "--no-wait"
             )
             cleanup.register(
                 "namespace",
@@ -45,14 +44,15 @@ class TestADRNamespaceCrud(CaptureOutputLiveScenarioTest):
             assert created["name"] == namespace_name
             assert created["location"] == TEST_LOCATION
             assert created["properties"]["provisioningState"] == "Succeeded"
+            assert created["properties"]["observability"]["enabled"] is True
 
-            resource_url = (
-                f"https://management.azure.com{created['id']}"
-                f"?api-version={ADR_API_VERSION}"
-            )
-            self.cmd(
-                f"rest --method patch --url {resource_url} "
-                "--body '{\"properties\":{\"observability\":{\"enabled\":false}}}'"
+            updated_observability = self.cmd(
+                f"iot adr ns update -n {namespace_name} -g {TEST_RG} "
+                "--observability-enabled false"
+            ).get_output_in_json()
+            assert (
+                updated_observability["properties"]["observability"]["enabled"]
+                is False
             )
             self.cmd(
                 f"iot adr ns wait -n {namespace_name} -g {TEST_RG} "

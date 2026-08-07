@@ -33,13 +33,15 @@ def load_adr_help():
   short-summary: Create a Device Registry namespace.
   long-summary: |
     By default, a namespace is created with a system-assigned managed identity.
-    When replacing an existing namespace, its observability configuration is
-    preserved because this command does not expose observability input.
+    When replacing an existing namespace, omit --observability-enabled to preserve
+    its observability configuration.
   examples:
     - name: Create a basic Device Registry namespace
       text: az iot adr ns create -n myNamespace -g myResourceGroup
     - name: Create a Device Registry namespace with system-assigned outbound identity
       text: az iot adr ns create -n myNamespace -g myResourceGroup --outbound-mi-system-assigned
+    - name: Create a namespace with observability enabled
+      text: az iot adr ns create -n myNamespace -g myResourceGroup --observability-enabled true
     - name: Create a namespace with a user-assigned outbound identity
       text: |
         az iot adr ns create -n myNamespace -g myResourceGroup \\
@@ -103,6 +105,8 @@ def load_adr_help():
   examples:
     - name: Update namespace tags
       text: az iot adr ns update -n myNamespace -g myResourceGroup --tags key=value
+    - name: Disable namespace observability
+      text: az iot adr ns update -n myNamespace -g myResourceGroup --observability-enabled false
     - name: Switch outbound identity to system-assigned managed identity
       text: az iot adr ns update -n myNamespace -g myResourceGroup --outbound-mi-system-assigned
     - name: Switch outbound identity to a user-assigned managed identity

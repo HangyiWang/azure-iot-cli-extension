@@ -47,6 +47,7 @@ class TestNamespaceCommands:
             resource_group_name=RG,
             location="westus",
             tags={"a": "b"},
+            observability_enabled=False,
             outbound_mi_system_assigned=True,
             no_wait=True,
         )
@@ -55,6 +56,7 @@ class TestNamespaceCommands:
             resource_group_name=RG,
             location="westus",
             tags={"a": "b"},
+            observability_enabled=False,
             outbound_mi_system_assigned=True,
             outbound_mi_user_assigned=None,
             messaging_endpoints=None,
@@ -70,12 +72,14 @@ class TestNamespaceCommands:
             namespace_name=NS,
             resource_group_name=RG,
             tags={"a": "b"},
+            observability_enabled=True,
             no_wait=True,
         )
         provider.update.assert_called_once_with(
             namespace_name=NS,
             resource_group_name=RG,
             tags={"a": "b"},
+            observability_enabled=True,
             outbound_mi_system_assigned=None,
             outbound_mi_user_assigned=None,
             messaging_endpoints=None,

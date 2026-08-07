@@ -236,6 +236,45 @@ def test_namespace_update_tags(fixture_namespace_provider, mock_poller):
     )
 
 
+@pytest.mark.parametrize("enabled", [True, False])
+def test_namespace_update_observability_preserves_endpoints(
+    fixture_namespace_provider, mock_poller, enabled
+):
+    endpoint = {
+        "endpointType": "Microsoft.EventGrid/namespaces",
+        "resourceId": "/subscriptions/sub/resourceGroups/rg/providers/"
+                      "Microsoft.EventGrid/namespaces/eg",
+    }
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "properties": {
+            "observability": {
+                "enabled": not enabled,
+                "endpoints": {"event-grid": endpoint},
+            }
+        }
+    }
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "namespace"}
+    )
+
+    fixture_namespace_provider.update(
+        "namespace", "rg", observability_enabled=enabled
+    )
+
+    fixture_namespace_provider.client.namespaces.begin_update.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        properties={
+            "properties": {
+                "observability": {
+                    "enabled": enabled,
+                    "endpoints": {"event-grid": endpoint},
+                }
+            }
+        },
+    )
+
+
 def test_namespace_update_outbound_uami_preserves_identity_assignments(
     fixture_namespace_provider, mock_poller
 ):
@@ -391,6 +430,43 @@ def test_namespace_create_preserves_existing_observability(
         "resource"
     ]
     assert resource["properties"]["observability"] == observability
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_namespace_create_observability_overrides_enabled_and_preserves_endpoints(
+    fixture_namespace_provider, mock_poller, enabled
+):
+    endpoint = {
+        "endpointType": "Microsoft.EventGrid/namespaces",
+        "resourceId": "/subscriptions/sub/resourceGroups/rg/providers/"
+                      "Microsoft.EventGrid/namespaces/eg",
+    }
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "properties": {
+            "observability": {
+                "enabled": not enabled,
+                "endpoints": {"event-grid": endpoint},
+            }
+        }
+    }
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace", "resourceGroup": "rg"})
+    )
+
+    fixture_namespace_provider.create(
+        "namespace",
+        "rg",
+        location="eastus",
+        observability_enabled=enabled,
+    )
+
+    resource = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]
+    assert resource["properties"]["observability"] == {
+        "enabled": enabled,
+        "endpoints": {"event-grid": endpoint},
+    }
 
 
 def test_namespace_create_propagates_existing_namespace_lookup_error(

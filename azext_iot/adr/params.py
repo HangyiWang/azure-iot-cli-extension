@@ -53,6 +53,13 @@ def load_adr_arguments(self, _):
     for cmd in ["iot adr ns create", "iot adr ns update"]:
         with self.argument_context(cmd) as context:
             context.argument(
+                "observability_enabled",
+                options_list=["--observability-enabled"],
+                arg_type=get_three_state_flag(),
+                help="Enable or disable namespace observability. When omitted, create "
+                     "preserves the existing setting and update leaves it unchanged.",
+            )
+            context.argument(
                 "messaging_endpoints",
                 options_list=["--messaging-endpoints"],
                 help="Messaging endpoint dictionary as inline JSON or a JSON file path.",

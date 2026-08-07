@@ -113,6 +113,14 @@ def _build_endpoint_properties(
     return properties
 
 
+def _build_observability(
+    existing_observability: Optional[dict], enabled: bool
+) -> dict:
+    observability = dict(existing_observability or {})
+    observability["enabled"] = enabled
+    return observability
+
+
 def _managed_identity_type(has_system_assigned: bool, user_identity_ids) -> str:
     if has_system_assigned and user_identity_ids:
         return ManagedServiceIdentityType.system_assigned_user_assigned.value
@@ -185,6 +193,7 @@ class NamespaceProvider(ADRProvider):
         messaging_endpoints: Any = None,
         provisioning_endpoints: Any = None,
         updating_endpoints: Any = None,
+        observability_enabled: Optional[bool] = None,
         **kwargs,
     ):
         if not location:
@@ -213,9 +222,8 @@ class NamespaceProvider(ADRProvider):
             ensure_system_assigned=True,
         )
 
-        # CreateOrReplace is a PUT. The service explicitly removes observability
-        # when an existing namespace is replaced without that property, while the
-        # CLI does not expose observability input. Preserve it across an upsert.
+        # CreateOrReplace is a PUT. Preserve the complete observability configuration
+        # across an upsert, changing only enabled when the caller explicitly requests it.
         try:
             existing_namespace = self.client.namespaces.get(
                 resource_group_name=resource_group_name,
@@ -226,8 +234,13 @@ class NamespaceProvider(ADRProvider):
                 raise
             existing_namespace = None
         existing_properties = (existing_namespace or {}).get("properties") or {}
-        if "observability" in existing_properties:
-            properties["observability"] = existing_properties["observability"]
+        existing_observability = existing_properties.get("observability")
+        if observability_enabled is not None:
+            properties["observability"] = _build_observability(
+                existing_observability, observability_enabled
+            )
+        elif existing_observability is not None:
+            properties["observability"] = existing_observability
 
         if properties:
             namespace_resource["properties"] = properties
@@ -325,6 +338,7 @@ class NamespaceProvider(ADRProvider):
         messaging_endpoints: Any = None,
         provisioning_endpoints: Any = None,
         updating_endpoints: Any = None,
+        observability_enabled: Optional[bool] = None,
         **kwargs,
     ):
         # NamespaceUpdate body: tags at top, substantive fields nested under "properties".
@@ -337,16 +351,29 @@ class NamespaceProvider(ADRProvider):
             provisioning_endpoints=provisioning_endpoints,
             updating_endpoints=updating_endpoints,
         )
+        namespace = None
+        if observability_enabled is not None:
+            namespace = self.client.namespaces.get(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+            )
+            existing_observability = (
+                ((namespace or {}).get("properties") or {}).get("observability") or {}
+            )
+            properties["observability"] = _build_observability(
+                existing_observability, observability_enabled
+            )
 
         outbound_identity = _resolve_outbound_identity(
             outbound_mi_system_assigned, outbound_mi_user_assigned
         )
         if outbound_identity is not None:
             properties["outboundIdentity"] = outbound_identity
-            namespace = self.client.namespaces.get(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-            )
+            if namespace is None:
+                namespace = self.client.namespaces.get(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                )
             body["identity"] = _build_namespace_identity(
                 existing_identity=(namespace or {}).get("identity"),
                 user_assigned_identity=outbound_identity.get("userAssignedIdentity"),
@@ -358,8 +385,8 @@ class NamespaceProvider(ADRProvider):
             body["properties"] = properties
         if not body:
             raise RequiredArgumentMissingError(
-                "Nothing to update. Provide --tags, endpoint configuration, or an "
-                "outbound managed identity."
+                "Nothing to update. Provide --tags, --observability-enabled, endpoint "
+                "configuration, or an outbound managed identity."
             )
 
         poller = self.client.namespaces.begin_update(
