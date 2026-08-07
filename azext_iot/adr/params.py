@@ -924,7 +924,7 @@ def load_adr_arguments(self, _):
             "run_name",
             options_list=["--run-name", "--rn"],
             help="Name of the job run to create. Defaults to a generated "
-                 "UTC-timestamped name such as 'run-20251201T080000'.",
+                 "UTC-timestamped name such as 'run-20251201080000'.",
         )
         context.argument(
             "scheduled_time",

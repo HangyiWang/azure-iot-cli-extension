@@ -805,6 +805,20 @@ def test_attribute_create_rejects_non_object_properties(
         )
 
 
+@pytest.mark.parametrize("properties", ["{bad", '{"a":}', '{"a": 1'])
+def test_attribute_create_rejects_malformed_json(
+    registry_device_provider, properties
+):
+    with pytest.raises(InvalidArgumentValueError):
+        registry_device_provider.attribute_create(
+            attribute_name="siteInfo",
+            registry_device_name=DEVICE,
+            namespace_name=NS,
+            resource_group_name=RG,
+            properties=properties,
+        )
+
+
 def test_attribute_delete_is_synchronous(registry_device_provider):
     operations = registry_device_provider.client.registry_device_attributes
     operations.delete.return_value = None

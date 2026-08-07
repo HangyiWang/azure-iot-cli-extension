@@ -261,6 +261,8 @@ _SPECCED_OPERATION_GROUPS = (
     "job_runs",
     "registry_devices",
     "registry_device_attributes",
+    "registry_device_authentication_profiles",
+    "registry_device_capabilities",
 )
 
 _REAL_ADR_CLIENT = None
