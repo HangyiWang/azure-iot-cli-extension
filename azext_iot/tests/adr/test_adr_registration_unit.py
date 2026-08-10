@@ -138,6 +138,7 @@ def test_2026_command_surface_is_registered():
         "iot adr ns su instance delete",
         "iot adr ns su instance wait",
         "iot adr ns su software-update import",
+        "iot adr ns su software-update stage",
         "iot adr ns su software-update list",
         "iot adr ns su software-update show",
         "iot adr ns su software-update delete",
@@ -171,7 +172,7 @@ def test_2026_command_surface_is_registered():
         "adr_job_run_delete",
         {"confirmation": True, "supports_no_wait": True},
     )
-    assert len(commands) == 103
+    assert len(commands) == 104
     assert commands[
         "iot adr ns registry-device auth revoke-certs"
     ][2] == {"confirmation": True, "supports_no_wait": True}
@@ -236,7 +237,6 @@ def test_unsupported_command_surfaces_are_not_registered():
         assert f"iot adr ns su instance {operation}" not in commands
     for command in (
         "iot adr ns su enable",
-        "iot adr ns su software-update stage",
         "iot adr ns su device-class update",
     ):
         assert command not in commands
@@ -330,6 +330,18 @@ def test_load_adr_arguments():
     assert {"url", "size", "hashes", "files", "enable_scan"} <= set(
         arguments["iot adr ns su software-update import"]
     )
+    assert {
+        "manifest_paths",
+        "storage_account",
+        "storage_container_name",
+        "storage_account_subscription",
+        "storage_prefix",
+        "friendly_name",
+        "enable_scan",
+        "overwrite",
+        "then_import",
+        "sas_expiry_hours",
+    } <= set(arguments["iot adr ns su software-update stage"])
     assert {"search", "filter"} <= set(
         arguments["iot adr ns su software-update list"]
     )
@@ -397,6 +409,7 @@ def test_help_surface_matches_2026_commands_and_su_type():
         "iot adr ns su instance create",
         "iot adr ns su instance check-name",
         "iot adr ns su software-update import",
+        "iot adr ns su software-update stage",
         "iot adr ns su software-update list",
         "iot adr ns su software-update show",
         "iot adr ns su software-update delete",
@@ -439,7 +452,6 @@ def test_help_surface_matches_2026_commands_and_su_type():
     assert not any(
         command.startswith("iot adr ns su update") for command in helps
     )
-    assert "iot adr ns su software-update stage" not in helps
     assert "iot adr ns su device-class update" not in helps
 
 

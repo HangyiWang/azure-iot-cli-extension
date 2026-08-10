@@ -34,7 +34,7 @@ _ORDER_BY_CLAUSE = re.compile(r"(?P<field>[A-Za-z][A-Za-z0-9_.]*)(?:\s+(?P<dir>a
 _ORDER_BY_FIELDS = {"status"}
 
 
-def generate_job_run_name() -> str:
+def _generate_job_run_name() -> str:
     """Generate a default job run name.
 
     ``runName`` is a required path segment, but the common case is "run this job
@@ -96,7 +96,7 @@ class JobRunProvider(ADRProvider):
         """
         if scheduled_time is not None:
             validate_iso8601_datetime(scheduled_time)
-        run_name = run_name or generate_job_run_name()
+        run_name = run_name or _generate_job_run_name()
 
         resource = {"properties": {}}
         if scheduled_time is not None:

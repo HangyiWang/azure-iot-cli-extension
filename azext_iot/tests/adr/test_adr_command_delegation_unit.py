@@ -4,7 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-"""Command-layer tests for ADR provider delegation."""
+"""Command-layer delegation tests for ADR providers."""
 
 import inspect
 from unittest.mock import Mock

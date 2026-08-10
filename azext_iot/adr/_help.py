@@ -687,6 +687,29 @@ def load_adr_help():
           --file filename=payload.bin url="https://storage.example/payload.bin?<sas>"
   """
 
+    helps["iot adr ns su software-update stage"] = """
+  type: command
+  short-summary: Stage local update artifacts and optionally import them.
+  long-summary: |
+    Validates local manifest payload sizes and SHA-256 hashes, uploads each manifest
+    and its files to Azure Storage, and reuses matching staged blobs. File references
+    must name files in the same directory as their manifest. Without --then-import,
+    no SAS URLs are generated or returned. With --then-import, fresh read-only SAS
+    URLs are generated and all manifests are submitted in one import request.
+  examples:
+    - name: Stage a single update without importing it
+      text: |
+        az iot adr ns su software-update stage --ns myNamespace -g myResourceGroup \\
+          --manifest-path ./manifest.json --storage-account mystorage \\
+          --storage-container updates
+    - name: Stage and import a multi-reference update
+      text: |
+        az iot adr ns su software-update stage --ns myNamespace -g myResourceGroup \\
+          --manifest-path ./root.json --manifest-path ./leaf.json \\
+          --storage-account /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/mystorage \\
+          --storage-container updates --then-import --enable-scan
+  """
+
     helps["iot adr ns su software-update list"] = """
   type: command
   short-summary: List updates imported into Software Updates.

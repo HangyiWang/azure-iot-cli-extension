@@ -616,6 +616,71 @@ def load_adr_arguments(self, _):
             help="Request malware scanning for the imported update.",
         )
 
+    with self.argument_context("iot adr ns su software-update stage") as context:
+        context.argument(
+            "manifest_paths",
+            options_list=["--manifest-path"],
+            action="append",
+            help="Local import manifest path. Use --manifest-path more than once "
+            "for a multi-reference update, with the root manifest first.",
+        )
+        context.argument(
+            "storage_account",
+            options_list=["--storage-account"],
+            help="Storage account name or ARM resource ID used to stage artifacts.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "storage_container_name",
+            options_list=["--storage-container"],
+            help="Blob container used to stage artifacts.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "storage_account_subscription",
+            options_list=["--storage-subscription"],
+            help="Storage account subscription. Use when the storage account is "
+            "in a different subscription and is specified by name.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "storage_prefix",
+            options_list=["--storage-prefix"],
+            help="Blob name prefix. Defaults to 'deviceupdate'.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "friendly_name",
+            options_list=["--friendly-name"],
+            help="Friendly name applied to the first, root manifest.",
+        )
+        context.argument(
+            "enable_scan",
+            options_list=["--enable-scan"],
+            arg_type=get_three_state_flag(),
+            help="Request malware scanning when --then-import is used.",
+        )
+        context.argument(
+            "overwrite",
+            options_list=["--overwrite"],
+            arg_type=get_three_state_flag(),
+            help="Replace staged blobs whose content differs from local artifacts.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "then_import",
+            options_list=["--then-import"],
+            arg_type=get_three_state_flag(),
+            help="Import all staged manifests in one request after uploading.",
+        )
+        context.argument(
+            "sas_expiry_hours",
+            options_list=["--sas-expiry-hours"],
+            type=int,
+            help="Read-only SAS lifetime used by --then-import. Defaults to 4 hours.",
+            arg_group="Storage",
+        )
+
     with self.argument_context("iot adr ns su software-update file") as context:
         context.argument(
             "update_file_id",

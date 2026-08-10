@@ -20,7 +20,7 @@ Validates the namespace-linking surface exposed as ``iot adr ns link ...``:
   resource ID to enable this test.
 
 These tests require real Hub and DPS resources to be linked to a real ADR
-namespace, so they re-use :class:`ADRHubInfraHelper` to provision the full
+namespace, so they re-use :class:`ADRFullInfraHelper` to provision the full
 infrastructure once per test class and exercise the link CLI surface against
 it. The Hub created by ``setup_full_infra`` already links itself to the ADR
 namespace via the ``--ns-resource-id`` / ``--ns-identity-id`` flags during
@@ -43,7 +43,7 @@ from msrestazure.tools import parse_resource_id
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._helpers import (
-    ADRHubInfraHelper,
+    ADRFullInfraHelper,
     wait_for_condition,
 )
 from azext_iot.tests.adr._log import LogKind, _log, timed_step
@@ -121,7 +121,7 @@ def _wait_for_linking_succeeded(
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+class TestADRLinkLifecycle(ADRFullInfraHelper, CaptureOutputLiveScenarioTest):
     """End-to-end lifecycle of namespace-side Hub and DPS link entries.
 
     The flow follows the design's enforced DPS-first ordering and exercises
@@ -479,7 +479,7 @@ class TestADRLinkLifecycle(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+class TestADRLinkBundledAdd(ADRFullInfraHelper, CaptureOutputLiveScenarioTest):
     """``iot adr ns link add`` bundled Hub+DPS in one PATCH (P4).
 
     Tests the single round-trip variant that links both a Hub messaging endpoint
@@ -598,7 +598,7 @@ class TestADRLinkBundledAdd(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
     ),
 )
 @pytest.mark.usefixtures("set_cwd")
-class TestADRLinkDU(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+class TestADRLinkSU(ADRFullInfraHelper, CaptureOutputLiveScenarioTest):
     """End-to-end lifecycle of namespace-side Software Updates link entries.
 
     Mirrors the Hub/DPS link lifecycle for the ``iot adr ns link su`` surface:

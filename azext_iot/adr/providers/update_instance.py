@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from azure.cli.core.azclierror import RequiredArgumentMissingError
 
-from azext_iot._factory import adr_su_service_factory
+from azext_iot._factory import adr_update_instance_service_factory
 from azext_iot.adr.common import (
     SU_ENDPOINT_TYPE,
     build_managed_service_identity,
@@ -20,7 +20,7 @@ from azext_iot.adr.providers.base import ADRProvider
 class UpdateInstanceProvider(ADRProvider):
     def __init__(self, cmd):
         self.cmd = cmd
-        self.client = adr_su_service_factory(cmd.cli_ctx)
+        self.client = adr_update_instance_service_factory(cmd.cli_ctx)
 
     def _await_terminal(self, poller, **kwargs):
         return provider_base.wait_for_terminal_state(poller, **kwargs)

@@ -30,6 +30,7 @@ Release History
   - Update Instance create and update support tags plus complete system- and user-assigned managed identity configuration. List supports resource-group and subscription scopes.
   - Namespace updating endpoints remain under ``az iot adr ns link su add / show / list / update / wait``, consistent with the existing Hub and DPS link groups.
   - Added ``az iot adr ns su software-update import / list / show / delete``, ``su software-update file list / show``, local ``su software-update calculate-hash`` and ``su software-update init v5``, and ``su device-class list / show / delete`` using the linked namespace's Software Updates data-plane endpoint.
+  - Added ``az iot adr ns su software-update stage`` to validate local manifest artifacts, stage them idempotently in Azure Storage, and optionally import single- or multi-manifest updates in one request.
   - Device-class update remains unavailable because ``2026-11-02-preview`` exposes no update route or writable friendly-name property. The service-internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions remain intentionally hidden.
 
 * **Namespace parity**

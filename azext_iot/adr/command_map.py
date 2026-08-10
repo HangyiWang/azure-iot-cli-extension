@@ -8,8 +8,8 @@ from azure.cli.core.commands import CliCommandType
 
 from azext_iot._factory import (
     adr_service_factory,
-    adr_su_data_service_factory,
-    adr_su_service_factory,
+    adr_software_update_data_service_factory,
+    adr_update_instance_service_factory,
 )
 
 adr_namespace_ops = CliCommandType(
@@ -57,14 +57,14 @@ adr_report_ops = CliCommandType(
     client_factory=adr_service_factory,
 )
 
-adr_su_ops = CliCommandType(
+adr_update_instance_ops = CliCommandType(
     operations_tmpl="azext_iot.adr.commands_su#{}",
-    client_factory=adr_su_service_factory,
+    client_factory=adr_update_instance_service_factory,
 )
 
-adr_su_data_ops = CliCommandType(
+adr_software_update_ops = CliCommandType(
     operations_tmpl="azext_iot.adr.commands_su#{}",
-    client_factory=adr_su_data_service_factory,
+    client_factory=adr_software_update_data_service_factory,
 )
 
 
@@ -212,7 +212,9 @@ def load_adr_commands(self, _):
         )
 
     with self.command_group(
-        "iot adr ns su instance", command_type=adr_su_ops, is_preview=True
+        "iot adr ns su instance",
+        command_type=adr_update_instance_ops,
+        is_preview=True,
     ) as cmd_group:
         cmd_group.command("check-name", "adr_su_instance_check_name")
         cmd_group.command(
@@ -232,14 +234,23 @@ def load_adr_commands(self, _):
         cmd_group.wait_command("wait", "adr_su_instance_show")
 
     with self.command_group(
-        "iot adr ns su software-update", command_type=adr_su_data_ops, is_preview=True
+        "iot adr ns su software-update",
+        command_type=adr_software_update_ops,
+        is_preview=True,
     ) as cmd_group:
         cmd_group.command(
-            "import", "adr_su_update_import", supports_no_wait=True
+            "import",
+            "adr_su_software_update_import",
+            supports_no_wait=True,
+        )
+        cmd_group.command(
+            "stage",
+            "adr_su_software_update_stage",
+            supports_no_wait=True,
         )
         cmd_group.command(
             "list",
-            "adr_su_update_list",
+            "adr_su_software_update_list",
             table_transformer=(
                 "[*].{UpdateProvider:updateId.provider,UpdateName:updateId.name,"
                 "UpdateVersion:updateId.version,FriendlyName:friendlyName,"
@@ -247,36 +258,36 @@ def load_adr_commands(self, _):
                 "ImportedDateTime:importedDateTime}"
             ),
         )
-        cmd_group.show_command("show", "adr_su_update_show")
+        cmd_group.show_command("show", "adr_su_software_update_show")
         cmd_group.command(
             "delete",
-            "adr_su_update_delete",
+            "adr_su_software_update_delete",
             confirmation=True,
             supports_no_wait=True,
         )
         cmd_group.show_command(
-            "calculate-hash", "adr_su_update_calculate_hash"
+            "calculate-hash", "adr_su_software_update_calculate_hash"
         )
-        cmd_group.wait_command("wait", "adr_su_update_show")
+        cmd_group.wait_command("wait", "adr_su_software_update_show")
 
     with self.command_group(
         "iot adr ns su software-update file",
-        command_type=adr_su_data_ops,
+        command_type=adr_software_update_ops,
         is_preview=True,
     ) as cmd_group:
-        cmd_group.command("list", "adr_su_update_file_list")
-        cmd_group.show_command("show", "adr_su_update_file_show")
+        cmd_group.command("list", "adr_su_software_update_file_list")
+        cmd_group.show_command("show", "adr_su_software_update_file_show")
 
     with self.command_group(
         "iot adr ns su software-update init",
-        command_type=adr_su_data_ops,
+        command_type=adr_software_update_ops,
         is_preview=True,
     ) as cmd_group:
-        cmd_group.command("v5", "adr_su_update_manifest_init_v5")
+        cmd_group.command("v5", "adr_su_software_update_manifest_init_v5")
 
     with self.command_group(
         "iot adr ns su device-class",
-        command_type=adr_su_data_ops,
+        command_type=adr_software_update_ops,
         is_preview=True,
     ) as cmd_group:
         cmd_group.command("list", "adr_su_device_class_list")

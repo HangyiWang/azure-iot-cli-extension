@@ -212,7 +212,7 @@ def wait_for_materialized_resources(
     )
 
 
-class ADRHubInfraHelper(RoleAssignmentHelper):
+class ADRFullInfraHelper(RoleAssignmentHelper):
     """Setup and teardown for tests linking an ADR namespace to an IoT Hub."""
 
     def setup_full_infra(

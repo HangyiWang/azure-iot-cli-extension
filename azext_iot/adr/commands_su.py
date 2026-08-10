@@ -6,6 +6,7 @@
 
 from typing import Dict, List, Optional
 
+from azext_iot.adr.providers.device_class import DeviceClassProvider
 from azext_iot.adr.providers.software_update import SoftwareUpdateProvider
 from azext_iot.adr.providers.update_instance import UpdateInstanceProvider
 from azext_iot.deviceupdate.commands_update import (
@@ -83,7 +84,7 @@ def adr_su_instance_delete(
     )
 
 
-def adr_su_update_list(
+def adr_su_software_update_list(
     cmd,
     namespace_name: str,
     resource_group_name: str,
@@ -98,7 +99,7 @@ def adr_su_update_list(
     )
 
 
-def adr_su_update_show(
+def adr_su_software_update_show(
     cmd,
     namespace_name: str,
     resource_group_name: str,
@@ -115,7 +116,7 @@ def adr_su_update_show(
     )
 
 
-def adr_su_update_delete(
+def adr_su_software_update_delete(
     cmd,
     namespace_name: str,
     resource_group_name: str,
@@ -134,7 +135,7 @@ def adr_su_update_delete(
     )
 
 
-def adr_su_update_import(
+def adr_su_software_update_import(
     cmd,
     namespace_name: str,
     resource_group_name: str,
@@ -159,7 +160,40 @@ def adr_su_update_import(
     )
 
 
-def adr_su_update_file_list(
+def adr_su_software_update_stage(
+    cmd,
+    namespace_name: str,
+    resource_group_name: str,
+    manifest_paths: List[str],
+    storage_account: str,
+    storage_container_name: str,
+    storage_account_subscription: Optional[str] = None,
+    storage_prefix: Optional[str] = None,
+    friendly_name: Optional[str] = None,
+    enable_scan: Optional[bool] = None,
+    overwrite: bool = False,
+    then_import: bool = False,
+    sas_expiry_hours: int = 4,
+    no_wait: bool = False,
+):
+    return SoftwareUpdateProvider(cmd).stage_update(
+        namespace_name=namespace_name,
+        resource_group_name=resource_group_name,
+        manifest_paths=manifest_paths,
+        storage_account=storage_account,
+        storage_container_name=storage_container_name,
+        storage_account_subscription=storage_account_subscription,
+        storage_prefix=storage_prefix,
+        friendly_name=friendly_name,
+        enable_scan=enable_scan,
+        overwrite=overwrite,
+        then_import=then_import,
+        sas_expiry_hours=sas_expiry_hours,
+        no_wait=no_wait,
+    )
+
+
+def adr_su_software_update_file_list(
     cmd,
     namespace_name: str,
     resource_group_name: str,
@@ -176,7 +210,7 @@ def adr_su_update_file_list(
     )
 
 
-def adr_su_update_file_show(
+def adr_su_software_update_file_show(
     cmd,
     namespace_name: str,
     resource_group_name: str,
@@ -195,14 +229,14 @@ def adr_su_update_file_show(
     )
 
 
-def adr_su_update_calculate_hash(
+def adr_su_software_update_calculate_hash(
     file_paths: List[str],
     hash_algo: str = ADUValidHashAlgorithmType.SHA256.value,
 ):
     return calculate_update_hash(file_paths=file_paths, hash_algo=hash_algo)
 
 
-def adr_su_update_manifest_init_v5(
+def adr_su_software_update_manifest_init_v5(
     cmd,
     update_name: str,
     update_provider: str,
@@ -233,7 +267,7 @@ def adr_su_update_manifest_init_v5(
 def adr_su_device_class_list(
     cmd, namespace_name: str, resource_group_name: str
 ):
-    return SoftwareUpdateProvider(cmd).list_device_classes(
+    return DeviceClassProvider(cmd).list(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
     )
@@ -245,7 +279,7 @@ def adr_su_device_class_show(
     resource_group_name: str,
     device_class_id: str,
 ):
-    return SoftwareUpdateProvider(cmd).show_device_class(
+    return DeviceClassProvider(cmd).show(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         device_class_id=device_class_id,
@@ -258,7 +292,7 @@ def adr_su_device_class_delete(
     resource_group_name: str,
     device_class_id: str,
 ):
-    return SoftwareUpdateProvider(cmd).delete_device_class(
+    return DeviceClassProvider(cmd).delete(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         device_class_id=device_class_id,

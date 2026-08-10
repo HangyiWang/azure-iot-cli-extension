@@ -17,7 +17,7 @@ import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
 from azext_iot.tests.adr._helpers import (
-    ADRHubInfraHelper,
+    ADRFullInfraHelper,
     wait_for_condition,
 )
 from azext_iot.tests.adr.conftest import (
@@ -41,7 +41,7 @@ _REPORT_POLL_INTERVAL_SECONDS = 10
     reason="Set azext_iot_adr_reports_enabled=true when the report backend is deployed.",
 )
 @pytest.mark.usefixtures("set_cwd")
-class TestADRReports(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+class TestADRReports(ADRFullInfraHelper, CaptureOutputLiveScenarioTest):
     def test_adr_namespace_and_group_reports(self):
         namespace_name = generate_adr_namespace_name()
         group_name = f"testgrp{generate_generic_id()[:8]}"

@@ -19,23 +19,24 @@ from azure.cli.core.azclierror import (
 
 from azext_iot._factory import (
     adr_service_factory,
-    adr_su_data_service_factory,
+    adr_software_update_data_service_factory,
 )
 from azext_iot.adr.common import SU_ENDPOINT_TYPE
 from azext_iot.adr.providers import base as provider_base
 from azext_iot.adr.providers.base import ADRProvider
+from azext_iot.adr.providers.software_update_staging import SoftwareUpdateStager
 
 _READ_CHUNK_SIZE = 4 * 1024 * 1024
 _URL_READ_TIMEOUT_SECONDS = 60
 
 
-class SoftwareUpdateProvider(ADRProvider):
-    """Operate on the ADU v2 data plane linked to an ADR namespace."""
+class SoftwareUpdateDataProvider(ADRProvider):
+    """Resolve and access the ADU v2 data plane linked to an ADR namespace."""
 
     def __init__(self, cmd):
         self.cmd = cmd
         self.registry_client = adr_service_factory(cmd.cli_ctx)
-        self.client = adr_su_data_service_factory(cmd.cli_ctx)
+        self.client = adr_software_update_data_service_factory(cmd.cli_ctx)
 
     def _await_terminal(self, poller, **kwargs):
         return provider_base.wait_for_terminal_state(poller, **kwargs)
@@ -120,6 +121,10 @@ class SoftwareUpdateProvider(ADRProvider):
                 "The Software Updates link returned an invalid serviceAddress."
             )
         return parsed.netloc
+
+
+class SoftwareUpdateProvider(SoftwareUpdateDataProvider):
+    """Manage Software Update content through the linked ADU v2 data plane."""
 
     @staticmethod
     def _parse_key_value_pairs(
@@ -279,17 +284,88 @@ class SoftwareUpdateProvider(ADRProvider):
         if friendly_name is not None:
             import_item["friendlyName"] = friendly_name
 
-        request = {"importUpdateInput": [import_item]}
+        return self._import_updates(
+            namespace_name=namespace_name,
+            resource_group_name=resource_group_name,
+            import_items=[import_item],
+            enable_scan=enable_scan,
+            **kwargs,
+        )
+
+    def _import_updates(
+        self,
+        namespace_name: str,
+        resource_group_name: str,
+        import_items: List[Dict],
+        enable_scan: Optional[bool] = None,
+        endpoint: Optional[str] = None,
+        **kwargs,
+    ):
+        request = {"importUpdateInput": import_items}
         if enable_scan is not None:
             request["enableScan"] = enable_scan
 
-        endpoint = self._resolve_endpoint(namespace_name, resource_group_name)
+        endpoint = endpoint or self._resolve_endpoint(
+            namespace_name, resource_group_name
+        )
         poller = self.client.device_update.begin_import_update(
             endpoint=endpoint,
             import_update_request=request,
             logging_enable=False,
         )
         return self._wait(poller, "Importing software update...", **kwargs)
+
+    def stage_update(
+        self,
+        namespace_name: str,
+        resource_group_name: str,
+        manifest_paths: List[str],
+        storage_account: str,
+        storage_container_name: str,
+        storage_account_subscription: Optional[str] = None,
+        storage_prefix: Optional[str] = None,
+        friendly_name: Optional[str] = None,
+        enable_scan: Optional[bool] = None,
+        overwrite: bool = False,
+        then_import: bool = False,
+        sas_expiry_hours: int = 4,
+        **kwargs,
+    ):
+        if kwargs.get("no_wait") and not then_import:
+            raise InvalidArgumentValueError(
+                "--no-wait can only be used together with --then-import."
+            )
+        if enable_scan is not None and not then_import:
+            raise InvalidArgumentValueError(
+                "--enable-scan can only be used together with --then-import."
+            )
+
+        endpoint = self._resolve_endpoint(namespace_name, resource_group_name)
+        stager = SoftwareUpdateStager(
+            cmd=self.cmd,
+            storage_account=storage_account,
+            storage_account_subscription=storage_account_subscription,
+        )
+        summary, import_items = stager.stage(
+            manifest_paths=manifest_paths,
+            storage_container_name=storage_container_name,
+            storage_prefix=storage_prefix,
+            overwrite=overwrite,
+            include_sas=then_import,
+            sas_expiry_hours=sas_expiry_hours,
+            friendly_name=friendly_name,
+        )
+        if not then_import:
+            return summary
+
+        return self._import_updates(
+            namespace_name=namespace_name,
+            resource_group_name=resource_group_name,
+            import_items=import_items,
+            enable_scan=enable_scan,
+            endpoint=endpoint,
+            **kwargs,
+        )
 
     def list_update_files(
         self,
@@ -323,34 +399,4 @@ class SoftwareUpdateProvider(ADRProvider):
             name=update_name,
             version=update_version,
             file_id=update_file_id,
-        )
-
-    def list_device_classes(
-        self, namespace_name: str, resource_group_name: str
-    ):
-        endpoint = self._resolve_endpoint(namespace_name, resource_group_name)
-        return self.client.device_classes.list(endpoint=endpoint)
-
-    def show_device_class(
-        self,
-        namespace_name: str,
-        resource_group_name: str,
-        device_class_id: str,
-    ):
-        endpoint = self._resolve_endpoint(namespace_name, resource_group_name)
-        return self.client.device_classes.get_device_class(
-            endpoint=endpoint,
-            device_class_id=device_class_id,
-        )
-
-    def delete_device_class(
-        self,
-        namespace_name: str,
-        resource_group_name: str,
-        device_class_id: str,
-    ):
-        endpoint = self._resolve_endpoint(namespace_name, resource_group_name)
-        return self.client.device_classes.delete(
-            endpoint=endpoint,
-            device_class_id=device_class_id,
         )

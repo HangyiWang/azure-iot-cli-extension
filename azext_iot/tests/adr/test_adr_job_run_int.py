@@ -40,7 +40,7 @@ import os
 import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
-from azext_iot.tests.adr._helpers import ADRHubInfraHelper
+from azext_iot.tests.adr._helpers import ADRFullInfraHelper
 from azext_iot.tests.adr._log import LogKind, _log, timed_step
 from azext_iot.tests.adr.conftest import (
     TEST_LOCATION,
@@ -71,7 +71,7 @@ _PREPROVISIONED_RUN = {
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRJobRunSurface(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+class TestADRJobRunSurface(ADRFullInfraHelper, CaptureOutputLiveScenarioTest):
 
     def test_adr_job_run_surface_smoke(self):
         _log(LogKind.TEST, "test_adr_job_run_surface_smoke")

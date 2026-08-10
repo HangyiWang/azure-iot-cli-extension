@@ -14,6 +14,7 @@ from azure.cli.core.azclierror import (
     ResourceNotFoundError,
 )
 
+from azext_iot import _factory
 from azext_iot.adr.providers.software_update import SoftwareUpdateProvider
 
 NAMESPACE = "test-namespace"
@@ -22,7 +23,6 @@ ENDPOINT = "updates.example.test"
 PROVIDER = "Contoso"
 UPDATE = "Thermostat"
 VERSION = "1.0"
-CLASS_ID = "class-id"
 
 
 def _namespace(service_address=f"https://{ENDPOINT}"):
@@ -50,7 +50,8 @@ def provider():
     with patch(
         "azext_iot.adr.providers.software_update.adr_service_factory"
     ) as registry_factory, patch(
-        "azext_iot.adr.providers.software_update.adr_su_data_service_factory"
+        "azext_iot.adr.providers.software_update."
+        "adr_software_update_data_service_factory"
     ) as data_factory:
         registry_client = MagicMock()
         data_client = MagicMock()
@@ -66,7 +67,8 @@ def test_provider_uses_registry_and_data_factories():
     with patch(
         "azext_iot.adr.providers.software_update.adr_service_factory"
     ) as registry_factory, patch(
-        "azext_iot.adr.providers.software_update.adr_su_data_service_factory"
+        "azext_iot.adr.providers.software_update."
+        "adr_software_update_data_service_factory"
     ) as data_factory:
         value = SoftwareUpdateProvider(cmd)
 
@@ -457,6 +459,101 @@ def test_import_update_requires_positive_size(provider, size):
     provider.client.device_update.begin_import_update.assert_not_called()
 
 
+def test_stage_update_returns_summary_without_import(provider):
+    summary = {"readyToImport": True}
+    with patch(
+        "azext_iot.adr.providers.software_update.SoftwareUpdateStager"
+    ) as stager_type:
+        stager_type.return_value.stage.return_value = (summary, [])
+
+        assert provider.stage_update(
+            NAMESPACE,
+            RG,
+            ["manifest.json"],
+            "storage",
+            "updates",
+        ) == summary
+
+    stager_type.assert_called_once_with(
+        cmd=provider.cmd,
+        storage_account="storage",
+        storage_account_subscription=None,
+    )
+    stager_type.return_value.stage.assert_called_once_with(
+        manifest_paths=["manifest.json"],
+        storage_container_name="updates",
+        storage_prefix=None,
+        overwrite=False,
+        include_sas=False,
+        sas_expiry_hours=4,
+        friendly_name=None,
+    )
+    provider.client.device_update.begin_import_update.assert_not_called()
+
+
+def test_stage_update_imports_batch(provider):
+    items = [{"importManifest": {"url": "https://example.test/one?sig=secret"}}]
+    poller = MagicMock()
+    provider.client.device_update.begin_import_update.return_value = poller
+    provider._wait = MagicMock(return_value={"status": "Succeeded"})
+    with patch(
+        "azext_iot.adr.providers.software_update.SoftwareUpdateStager"
+    ) as stager_type:
+        stager_type.return_value.stage.return_value = ({}, items)
+
+        result = provider.stage_update(
+            NAMESPACE,
+            RG,
+            ["root.json", "leaf.json"],
+            "storage",
+            "updates",
+            enable_scan=False,
+            then_import=True,
+            no_wait=True,
+        )
+
+    assert result == {"status": "Succeeded"}
+    provider.client.device_update.begin_import_update.assert_called_once_with(
+        endpoint=ENDPOINT,
+        import_update_request={
+            "importUpdateInput": items,
+            "enableScan": False,
+        },
+        logging_enable=False,
+    )
+    provider._wait.assert_called_once_with(
+        poller,
+        "Importing software update...",
+        no_wait=True,
+    )
+
+
+def test_stage_update_rejects_no_wait_without_import(provider):
+    with pytest.raises(InvalidArgumentValueError, match="--then-import"):
+        provider.stage_update(
+            NAMESPACE,
+            RG,
+            ["manifest.json"],
+            "storage",
+            "updates",
+            no_wait=True,
+        )
+    provider.registry_client.namespaces.get.assert_not_called()
+
+
+def test_stage_update_rejects_enable_scan_without_import(provider):
+    with pytest.raises(InvalidArgumentValueError, match="--then-import"):
+        provider.stage_update(
+            NAMESPACE,
+            RG,
+            ["manifest.json"],
+            "storage",
+            "updates",
+            enable_scan=True,
+        )
+    provider.registry_client.namespaces.get.assert_not_called()
+
+
 def test_list_update_files(provider):
     expected = MagicMock()
     provider.client.device_update.list_files.return_value = expected
@@ -497,30 +594,17 @@ def test_show_update_file(provider):
     )
 
 
-def test_list_device_classes(provider):
-    expected = MagicMock()
-    provider.client.device_classes.list.return_value = expected
-
-    assert provider.list_device_classes(NAMESPACE, RG) is expected
-    provider.client.device_classes.list.assert_called_once_with(endpoint=ENDPOINT)
-
-
-def test_show_device_class(provider):
-    expected = {"deviceClassId": CLASS_ID}
-    provider.client.device_classes.get_device_class.return_value = expected
-
-    assert provider.show_device_class(NAMESPACE, RG, CLASS_ID) == expected
-    provider.client.device_classes.get_device_class.assert_called_once_with(
-        endpoint=ENDPOINT,
-        device_class_id=CLASS_ID,
+def test_software_update_data_factory_uses_generated_sdk():
+    cli_ctx = MagicMock()
+    client_path = (
+        "azext_iot.sdk.deviceupdate.duregistrydata.DeviceRegistryUpdateClient"
     )
+    with patch(client_path) as client_type:
+        assert (
+            _factory.adr_software_update_data_service_factory(cli_ctx)
+            is client_type.return_value
+        )
 
-
-def test_delete_device_class(provider):
-    assert provider.delete_device_class(NAMESPACE, RG, CLASS_ID) is (
-        provider.client.device_classes.delete.return_value
-    )
-    provider.client.device_classes.delete.assert_called_once_with(
-        endpoint=ENDPOINT,
-        device_class_id=CLASS_ID,
-    )
+    assert client_type.call_args.kwargs["credential"] is _factory.AZURE_CLI_CREDENTIAL
+    assert "user_agent_policy" in client_type.call_args.kwargs
+    assert "http_logging_policy" in client_type.call_args.kwargs
