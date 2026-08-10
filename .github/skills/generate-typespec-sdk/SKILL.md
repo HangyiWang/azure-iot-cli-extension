@@ -97,7 +97,8 @@ An existing workspace is compatible only when:
 - it has the required Python emitter version;
 - `node_modules` is complete;
 - `uv` is available;
-- its Node version is supported by the selected compiler and is at least Node 22.
+- its Node version satisfies the selected compiler's `engines.node` requirement. TypeSpec compiler 1.12.0 and later
+  requires Node 22 or newer.
 
 If a workspace has `.nvmrc`, load `nvm` and run `nvm use`. Never trust the caller's active Node version.
 
@@ -114,7 +115,8 @@ The hash must be derived from the exact package names and versions.
 Bootstrap it as follows:
 
 1. If `nvm` is missing, inform the user and install it from the official `nvm-sh/nvm` installer.
-2. Install/use the Node version required by the selected toolchain, with Node 22 as the minimum, and write `.nvmrc`.
+2. Inspect the selected compiler's `engines.node` requirement, install/use a satisfying Node version, and write
+   `.nvmrc`. TypeSpec compiler 1.12.0 and later requires Node 22 or newer.
 3. If `uv` is missing, inform the user and install it from Astral's official installer.
 4. Create a minimal private `package.json` containing exact package versions.
 5. Run:
@@ -239,4 +241,3 @@ Namespace: azext_iot.sdk.iothub.mgmt
 Client: IotHubClient
 Destination: azext_iot/sdk/iothub/mgmt
 ```
-
