@@ -63,8 +63,17 @@ For a GitHub repository/ref:
 
 For a GitHub pull request:
 
-1. Use `gh pr view` to resolve the PR's head repository, head ref, and exact head commit.
-2. Clone/export that exact commit into temporary storage. Do not rely on the PR base branch.
+1. Run `gh auth status` and confirm the authenticated account can access the source repository. Private repositories,
+   including `azure-rest-api-specs-pr`, require prior authentication.
+2. Parse the owner, repository, and pull-request number from the URL, then use the REST API to resolve the head
+   repository, head ref, and exact head commit:
+
+   ```shell
+   gh api repos/<owner>/<repo>/pulls/<number> \
+     --jq '{repository: .head.repo.full_name, ref: .head.ref, commit: .head.sha}'
+   ```
+
+3. Clone/export that exact commit into temporary storage. Do not rely on the PR base branch.
 
 Verify the TypeSpec directory and entrypoint exist in the exported source. Prefer `client.tsp`, because it commonly
 contains client naming and operation overrides. If only `main.tsp` is selected while `client.tsp` exists, stop and ask
@@ -112,12 +121,14 @@ If no compatible workspace exists, create:
 
 The hash must be derived from the exact package names and versions.
 
-Bootstrap it as follows:
+Bootstrap it as follows. Installing either tool changes the user's machine and requires explicit approval:
 
-1. If `nvm` is missing, inform the user and install it from the official `nvm-sh/nvm` installer.
+1. If `nvm` is missing, stop and ask for approval before installing it. Use an official installer URL pinned to an
+   explicit `nvm-sh/nvm` release tag, record the version, and never fetch a moving `install.sh`.
 2. Inspect the selected compiler's `engines.node` requirement, install/use a satisfying Node version, and write
    `.nvmrc`. TypeSpec compiler 1.12.0 and later requires Node 22 or newer.
-3. If `uv` is missing, inform the user and install it from Astral's official installer.
+3. If `uv` is missing, stop and ask for approval before installing it. Use Astral's official installer pinned to an
+   explicit `uv` release version and record the version.
 4. Create a minimal private `package.json` containing exact package versions.
 5. Run:
 
@@ -202,7 +213,8 @@ After all generation checks pass:
 3. Remove any `Zone.Identifier` files from the staged copy.
 4. Replace only the declared destination.
 5. If replacement or any validation step fails, restore the original destination exactly.
-6. Always remove temporary source, output, staging, and rollback storage.
+6. Remove temporary source, output, and staging storage when no longer needed, but retain rollback storage until all
+   integrated validation in section 8 succeeds.
 
 Do not modify another SDK directory.
 
@@ -214,12 +226,14 @@ Do not modify another SDK directory.
 4. Run:
 
    ```shell
-   python -m pytest -q azext_iot/tests/test_factory_unit.py
+   python -m pytest -q azext_iot/tests/utility/test_iot_utility_unit.py
    git diff --check
    ```
 
 5. Run focused service unit tests when they are discoverable and do not require live Azure resources.
 6. Show the final diff summary, toolchain/source provenance, API comparison, and compatibility warnings.
+7. After every validation step succeeds, remove rollback storage. If any validation step fails, restore the original
+   destination exactly before removing temporary storage and report the failure.
 
 Generated SDK files are excluded by the repository's Flake8 configuration. Run existing lint only for non-generated
 files if they were explicitly changed in a separate compatibility task.
@@ -236,7 +250,7 @@ TypeSpec directory:
 specification/iothub/resource-manager/Microsoft.Devices/IoTHub
 
 Entrypoint: client.tsp
-Workspace: /home/yuelinzhao/iothub-tsp
+Workspace: <path-to-typespec-workspace>
 Namespace: azext_iot.sdk.iothub.mgmt
 Client: IotHubClient
 Destination: azext_iot/sdk/iothub/mgmt

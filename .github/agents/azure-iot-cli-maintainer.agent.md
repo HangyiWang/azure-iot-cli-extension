@@ -1,6 +1,7 @@
 ---
 name: azure-iot-cli-maintainer
 description: Maintain the Azure IoT CLI extension, including commands, tests, packaging, and generated control-plane and data-plane SDKs.
+tools: ["bash", "edit", "view"]
 ---
 
 # Azure IoT CLI maintainer
@@ -31,4 +32,3 @@ Work only in the `azure-iot-cli-extension` repository.
 
 Use `generate-typespec-sdk` when the user asks to generate, regenerate, upgrade, or replace a Python SDK from an Azure
 TypeSpec specification.
-
