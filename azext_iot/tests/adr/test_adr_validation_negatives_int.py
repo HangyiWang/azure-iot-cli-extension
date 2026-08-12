@@ -131,7 +131,7 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 f"--scheduled-time 2026-11-02T12:00:00",
                 expect_failure=True,
             )
-        with timed_step("job run results ❯ unsupported --order-by field rejected"):
+        with timed_step("job run results ❯ unsupported --order-by option rejected"):
             self.cmd(
                 f"iot adr ns job run results --job-name myjob --run-name myrun "
                 f"--ns {ns} -g {rg} --order-by \"name asc\"",

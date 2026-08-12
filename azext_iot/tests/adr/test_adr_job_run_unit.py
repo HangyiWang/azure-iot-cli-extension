@@ -265,7 +265,6 @@ def test_job_run_results_posts_each_page_with_skip_token(
             "namespace",
             "rg",
             status_filter="status eq 'Failed'",
-            order_by="status desc",
         )
     )
 
@@ -274,15 +273,13 @@ def test_job_run_results_posts_each_page_with_skip_token(
         call.kwargs["body"]
         for call in fixture_job_run_provider.client.job_runs.list_results.call_args_list
     ] == [
-        {"filter": "status eq 'Failed'", "orderBy": "status desc"},
+        {"filter": "status eq 'Failed'"},
         {
             "filter": "status eq 'Failed'",
-            "orderBy": "status desc",
             "skipToken": "token-1",
         },
         {
             "filter": "status eq 'Failed'",
-            "orderBy": "status desc",
             "skipToken": "token-2",
         },
     ]
@@ -516,42 +513,3 @@ def test_job_run_summary(fixture_job_run_provider):
         job_name="job",
         run_name="run",
     )
-
-
-def test_job_run_results_forwards_order_by(fixture_job_run_provider):
-    fixture_job_run_provider.client.job_runs.list_results.return_value = {
-        "value": [{"deviceId": "one"}]
-    }
-
-    results = list(
-        fixture_job_run_provider.results(
-            job_name="job",
-            run_name="run",
-            namespace_name="namespace",
-            resource_group_name="rg",
-            status_filter="status eq 'Failed'",
-            order_by="status desc",
-        )
-    )
-
-    assert results == [{"deviceId": "one"}]
-    assert fixture_job_run_provider.client.job_runs.list_results.call_args.kwargs[
-        "body"
-    ] == {"filter": "status eq 'Failed'", "orderBy": "status desc"}
-
-
-@pytest.mark.parametrize(
-    "order_by", ["bogus asc", "status sideways", "status asc extra", "'status' asc"]
-)
-def test_job_run_results_rejects_invalid_order_by(fixture_job_run_provider, order_by):
-    with pytest.raises(InvalidArgumentValueError, match="order by expression"):
-        list(
-            fixture_job_run_provider.results(
-                job_name="job",
-                run_name="run",
-                namespace_name="namespace",
-                resource_group_name="rg",
-                order_by=order_by,
-            )
-        )
-    fixture_job_run_provider.client.job_runs.list_results.assert_not_called()

@@ -9,7 +9,7 @@ The **Azure IoT extension for Azure CLI** aims to accelerate the development, ma
 
 - ❗ When upgrading your Azure CLI core version, for the best experience and to avoid breaking changes, we recommend updating your `azure-iot` extension to the [latest available](https://github.com/Azure/azure-iot-cli-extension/releases).
 
-- 🆕 **`0.33.0b7` Preview** updates `az iot adr ns` to the namespace-scoped `2026-11-02-preview` Device Registry contract and adds `az iot adr ns su instance` control-plane commands for Update Instance lifecycle plus `az iot adr ns su software-update` for Software Update content. It also includes Registry Device CRUD with child Authentication Profile/Attribute/Capability commands, namespace identity management, legacy asset migration, groups, jobs, job runs, update-compliance reporting, certificate authorities and CA policies, and Hub/DPS/Software Updates links. `az iot adr ns` is cloud-only: asset, discovered-*, and management-endpoint resources require Azure IoT Operations and live under `az iot ops ns`; Namespace Device commands are not exposed, so use `registry-device` for cloud-managed devices. Legacy namespace credential and policy groups are removed. See [HISTORY.rst](HISTORY.rst) for details. Install with `az extension add --name azure-iot --allow-preview`.
+- 🆕 **`0.33.0b8` Preview** expands `az iot adr ns` to 104 commands using the `2026-11-02-preview` Device Registry and Device Update APIs. It adds Update Instance lifecycle and Software Update content commands, Registry Device CRUD and child resources, namespace identity and migration, groups, jobs and runs, reports, certificate authorities and policies, and Hub/DPS/Software Updates links. This is a cloud-only surface; resources that require an Azure IoT Operations custom location remain under `az iot ops ns`. See [HISTORY.rst](HISTORY.rst) for details. Install with `az extension add --name azure-iot --allow-preview`.
 
 - Azure CLI `2.24.0` requires an `azure-iot` extension update to `0.10.11` or later for IoT Hub commands to work properly. However **we recommend** at least `azure-iot` `0.10.14`. Updating the extension can be done with `az extension update --name azure-iot`.
 
@@ -43,15 +43,21 @@ Please refer to the official `az iot` reference on [Microsoft Docs](https://lear
 1. Install the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
     - You must have at least `v2.59.0` for the latest versions of `azure-iot`, which you can verify with `az --version`
 1. Add, Update or Remove the IoT extension with the following commands:
-    - Add: `az extension add --name azure-iot`
-    - Update: `az extension update --name azure-iot`
+    - Add preview: `az extension add --name azure-iot --allow-preview`
+    - Update preview: `az extension update --name azure-iot --allow-preview`
     - Remove: `az extension remove --name azure-iot`
+
+The extension installer resolves native dependencies for the Python runtime used by
+that `az` executable. If multiple Azure CLI installations are present, install and run
+the extension with the same executable, or give each installation a separate
+`AZURE_EXTENSION_DIR`. Do not share one extension directory between Azure CLI
+installations that use different Python versions.
 
 Please refer to the [Installation Troubleshooting Guide](docs/install-help.md) if you run into any issues or the [Alternative Installation Methods](docs/alt-install-methods.md) if you'd like to install from a GitHub release or local source.
 
 ## Usage
 
-After installing the Azure IoT extension your CLI environment is augmented with the addition of `hub`, `central`, `dps`, `dt`, `edge` and `device` commands.
+After installing the Azure IoT extension, your CLI environment includes `adr`, `hub`, `central`, `dps`, `dt`, `edge`, and `device` commands.
 
 For usage and help content of any command or command group, pass in the `-h` parameter. Root command group details are shown for the following IoT services.
 

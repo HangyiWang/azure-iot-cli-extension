@@ -220,15 +220,11 @@ class JobRunProvider(ADRProvider):
         namespace_name: str,
         resource_group_name: str,
         status_filter: Optional[str] = None,
-        order_by: Optional[str] = None,
     ) -> Iterator[dict]:
         _validate_status_filter(status_filter, _RESULT_STATUSES, allow_multiple=False)
-        _validate_order_by(order_by)
         body = {}
         if status_filter:
             body["filter"] = status_filter
-        if order_by:
-            body["orderBy"] = order_by
 
         skip_token = None
         seen_tokens = set()

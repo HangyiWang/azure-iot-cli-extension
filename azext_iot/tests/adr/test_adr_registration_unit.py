@@ -297,7 +297,7 @@ def test_load_adr_arguments():
     assert "mi_system_assigned" not in arguments["iot adr ns group update"]
     assert "scheduled_time" in arguments["iot adr ns job schedule"]
     assert "run_name" in arguments["iot adr ns job schedule"]
-    assert "order_by" in arguments["iot adr ns job run results"]
+    assert "order_by" not in arguments["iot adr ns job run results"]
     assert "order_by" in arguments["iot adr ns job run list"]
     assert "validity_days" in arguments["iot adr ns ca policy update"]
     for name in ("reported_by", "schema", "properties"):

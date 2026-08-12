@@ -1030,12 +1030,6 @@ def load_adr_arguments(self, _):
             options_list=["--filter"],
             help="One result status equality clause, for example: status eq 'Failed'.",
         )
-        context.argument(
-            "order_by",
-            options_list=["--order-by", "--ob"],
-            help="Sort expression for the results, for example: \"status asc\" or "
-                 "\"status desc\".",
-        )
 
     with self.argument_context("iot adr ns report") as context:
         context.argument(
