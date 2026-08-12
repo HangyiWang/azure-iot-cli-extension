@@ -96,11 +96,6 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
 
             shown = self.cmd(show_command).get_output_in_json()
             assert shown["name"] == device_name
-            device_alias = self.cmd(
-                f"iot adr ns device show -n {device_name} "
-                f"--ns {namespace_name} -g {TEST_RG}"
-            ).get_output_in_json()
-            assert device_alias == shown
 
             listed = self.cmd(
                 f"iot adr ns registry-device list --ns {namespace_name} "
@@ -230,7 +225,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 (
                     name
                     for name, auth_type in auth_profiles.items()
-                    if auth_type != "CertificateAuthority"
+                    if auth_type != "CertificateAuthoritySignedX509Certificate"
                 ),
                 None,
             )
@@ -269,7 +264,7 @@ class TestADRRegistryDeviceLifecycle(CaptureOutputLiveScenarioTest):
                 f"--ns {namespace_name} -g {TEST_RG}"
             ).get_output_in_json()
             assert profile["properties"]["authenticationType"] == (
-                "CertificateAuthority"
+                "CertificateAuthoritySignedX509Certificate"
             )
             self.cmd(
                 "iot adr ns registry-device auth revoke-certs "

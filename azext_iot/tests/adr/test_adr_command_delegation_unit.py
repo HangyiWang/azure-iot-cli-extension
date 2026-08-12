@@ -4,7 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
-"""Command-layer tests for ADR provider delegation."""
+"""Command-layer delegation tests for ADR providers."""
 
 import inspect
 from unittest.mock import Mock
@@ -47,6 +47,7 @@ class TestNamespaceCommands:
             resource_group_name=RG,
             location="westus",
             tags={"a": "b"},
+            observability_enabled=False,
             outbound_mi_system_assigned=True,
             no_wait=True,
         )
@@ -55,6 +56,7 @@ class TestNamespaceCommands:
             resource_group_name=RG,
             location="westus",
             tags={"a": "b"},
+            observability_enabled=False,
             outbound_mi_system_assigned=True,
             outbound_mi_user_assigned=None,
             messaging_endpoints=None,
@@ -70,17 +72,39 @@ class TestNamespaceCommands:
             namespace_name=NS,
             resource_group_name=RG,
             tags={"a": "b"},
+            observability_enabled=True,
             no_wait=True,
         )
         provider.update.assert_called_once_with(
             namespace_name=NS,
             resource_group_name=RG,
             tags={"a": "b"},
+            observability_enabled=True,
             outbound_mi_system_assigned=None,
             outbound_mi_user_assigned=None,
             messaging_endpoints=None,
             provisioning_endpoints=None,
             updating_endpoints=None,
+            no_wait=True,
+        )
+
+    def test_migrate(self, mocker, cmd):
+        provider = _patch_provider(mocker, commands_namespace, "NamespaceProvider")
+        resource_ids = ["/subscriptions/sub/resourceGroups/rg/providers/"
+                        "Microsoft.DeviceRegistry/assets/asset"]
+
+        commands_namespace.adr_namespace_migrate(
+            cmd,
+            namespace_name=NS,
+            resource_group_name=RG,
+            resource_ids=resource_ids,
+            no_wait=True,
+        )
+
+        provider.migrate.assert_called_once_with(
+            namespace_name=NS,
+            resource_group_name=RG,
+            resource_ids=resource_ids,
             no_wait=True,
         )
 
@@ -322,6 +346,7 @@ class TestJobRunCommands:
             namespace_name=NS,
             resource_group_name=RG,
             status_filter="status eq 'Active'",
+            order_by=None,
         )
 
     def test_results_flattens_provider_iterator(self, mocker, cmd):
@@ -491,8 +516,16 @@ def test_certificate_policy_command_still_delegates(mocker, cmd):
         namespace_name=NS,
         resource_group_name=RG,
         tags={"env": "test"},
+        validity_days=15,
     )
-    provider.update.assert_called_once()
+    provider.update.assert_called_once_with(
+        certificate_policy_name="policy",
+        certificate_authority_name="ca",
+        namespace_name=NS,
+        resource_group_name=RG,
+        tags={"env": "test"},
+        validity_days=15,
+    )
 
 
 _SIMPLE_COMMAND_CASES = [

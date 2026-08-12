@@ -36,7 +36,7 @@ _NOTHING_TO_UPDATE_MSG = (
 _JOB_TYPES = {item.value for item in JobType}
 
 
-def compose_update_resource_id(
+def _compose_update_resource_id(
     update_provider: str, update_name: str, update_version: str
 ) -> str:
     """Compose the Device Update relative resource path identifying an update.
@@ -88,7 +88,7 @@ class JobProvider(ADRProvider):
             "jobType": job_type,
             "definition": {
                 "schedulingType": JobSchedulingType.continuous.value,
-                "updateResourceId": compose_update_resource_id(
+                "updateResourceId": _compose_update_resource_id(
                     update_provider=update_provider,
                     update_name=update_name,
                     update_version=update_version,

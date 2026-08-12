@@ -50,6 +50,17 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 f"--omi-sa --omi-ua {_UAMI_ID}",
                 expect_failure=True,
             )
+        with timed_step("ns migrate ❯ non-asset resource ID rejected"):
+            self.cmd(
+                f"iot adr ns migrate -n {ns} -g {rg} "
+                f"--resource-ids {_UAMI_ID}",
+                expect_failure=True,
+            )
+        with timed_step("ns device ❯ removed alias is not registered"):
+            self.cmd(
+                f"iot adr ns device show -n mydev --ns {ns} -g {rg}",
+                expect_failure=True,
+            )
 
         # --- Certificate authority: update requires --tags ---
         with timed_step("ca update ❯ nothing-to-update rejected"):
@@ -58,7 +69,7 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 expect_failure=True,
             )
 
-        # --- Certificate policy: update requires --tags ---
+        # --- Certificate policy: update requires tags or certificate validity ---
         with timed_step("ca policy update ❯ nothing-to-update rejected"):
             self.cmd(
                 f"iot adr ns ca policy update -n mypolicy --ca myca --ns {ns} -g {rg}",
@@ -120,7 +131,7 @@ class TestADRValidationNegatives(CaptureOutputLiveScenarioTest):
                 f"--scheduled-time 2026-11-02T12:00:00",
                 expect_failure=True,
             )
-        with timed_step("job run results ❯ unsupported --order-by field rejected"):
+        with timed_step("job run results ❯ unsupported --order-by option rejected"):
             self.cmd(
                 f"iot adr ns job run results --job-name myjob --run-name myrun "
                 f"--ns {ns} -g {rg} --order-by \"name asc\"",

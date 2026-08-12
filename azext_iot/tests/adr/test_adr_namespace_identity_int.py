@@ -40,7 +40,7 @@ def _cleanup_namespace(test, namespace_name: str) -> None:
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRNamespaceIdentityParity(CaptureOutputLiveScenarioTest):
+class TestADRNamespaceIdentity(CaptureOutputLiveScenarioTest):
     def test_namespace_identity_assign_remove_show(self):
         namespace_name = generate_adr_namespace_name()
         missing_namespace = f"missing{generate_generic_id()[:8]}"
@@ -95,7 +95,7 @@ class TestADRNamespaceIdentityParity(CaptureOutputLiveScenarioTest):
     ),
 )
 @pytest.mark.usefixtures("set_cwd")
-class TestADRNamespaceUAMIParity(CaptureOutputLiveScenarioTest):
+class TestADRNamespaceUAMI(CaptureOutputLiveScenarioTest):
     def test_namespace_uami_idempotent_assign_and_partial_remove(self):
         namespace_name = generate_adr_namespace_name()
 

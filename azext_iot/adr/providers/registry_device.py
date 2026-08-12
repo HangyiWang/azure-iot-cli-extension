@@ -20,14 +20,9 @@ from azext_iot.adr.common import (
     RegistryDeviceEnablementState,
     is_adu_attribute_alias,
 )
-from azext_iot.adr.providers.base import ADRProvider
-from azext_iot.common.utility import process_json_arg
+from azext_iot.adr.providers.base import ADRProvider, parse_json_object
 
 logger = get_logger(__name__)
-
-INVALID_ATTRIBUTE_PROPERTIES_MSG = (
-    "--properties must be a JSON object (inline JSON or @/path/to/file.json)."
-)
 
 
 def _validate_enablement_state(enablement_state: Optional[str]) -> None:
@@ -260,11 +255,12 @@ class RegistryDeviceProvider(ADRProvider):
         )
         if (
             authentication_type
-            != RegistryDeviceAuthenticationType.certificate_authority.value
+            != RegistryDeviceAuthenticationType.certificate_authority_signed_x509_certificate.value
         ):
             raise InvalidArgumentValueError(
                 "Certificates can only be revoked for a Microsoft-managed X.509 profile "
-                "with authentication type 'CertificateAuthority'."
+                "with authentication type "
+                "'CertificateAuthoritySignedX509Certificate'."
             )
 
         poller = (
@@ -349,10 +345,9 @@ class RegistryDeviceProvider(ADRProvider):
 
         attribute_properties: Dict[str, object] = {}
         if properties is not None:
-            parsed = process_json_arg(properties, argument_name="properties")
-            if not isinstance(parsed, dict):
-                raise InvalidArgumentValueError(INVALID_ATTRIBUTE_PROPERTIES_MSG)
-            attribute_properties.update(parsed)
+            attribute_properties.update(
+                parse_json_object(properties, "--properties")
+            )
 
         attribute_properties["reportedBy"] = reported_by
         if schema is not None:

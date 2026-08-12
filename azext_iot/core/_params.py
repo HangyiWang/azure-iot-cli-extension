@@ -137,18 +137,21 @@ def load_arguments(self, _):  # pylint: disable=too-many-statements
         c.argument('authentication_type',
                    options_list=['--authentication-type', '--auth-type'],
                    arg_type=get_enum_type(IotHubAuthenticationType),
+                   is_preview=True,
                    help='Authentication type for the linked IoT Hub. '
                    "'KeyBased' uses a connection string. "
                    "'SystemAssigned' uses the DPS system-assigned managed identity. "
                    "'UserAssigned' uses a user-assigned managed identity.")
         c.argument('user_assigned_identity',
                    options_list=['--user-assigned-identity', '--uai'],
+                   is_preview=True,
                    help='User-assigned managed identity resource ID. '
                    'Required when authentication type is UserAssigned.')
         c.argument('hostname_type',
                    options_list=['--hostname-type', '--ht'],
                    arg_type=get_enum_type(["auto", "device", "classic"]),
                    default="auto",
+                   is_preview=True,
                    help="Type of IoT Hub hostname to use when linking. "
                    "'auto' uses the TLS 1.3 device hostname if available, classic otherwise. "
                    "'device' uses the TLS 1.3 device hostname (errors if not GWv2). "
@@ -167,12 +170,14 @@ def load_arguments(self, _):  # pylint: disable=too-many-statements
                    arg_group='Linked Hub Identifier')
         c.argument('hub_name',
                    options_list=['--hub-name', '--hn'],
+                   is_preview=True,
                    help='IoT Hub short name. Preferred over --linked-hub; resolves to the correct '
                    'entry regardless of classic/device hostname.',
                    arg_group='Linked Hub Identifier')
         c.argument('authentication_type',
                    options_list=['--authentication-type', '--auth-type'],
                    arg_type=get_enum_type(IotHubAuthenticationType),
+                   is_preview=True,
                    help='Switch the linked hub to a different authentication type. '
                    "'KeyBased' uses a connection string (supplied via --connection-string, "
                    "otherwise auto-fetched from the identified hub). "
@@ -180,10 +185,12 @@ def load_arguments(self, _):  # pylint: disable=too-many-statements
                    "'UserAssigned' uses a user-assigned managed identity.")
         c.argument('user_assigned_identity',
                    options_list=['--user-assigned-identity', '--uai'],
+                   is_preview=True,
                    help='User-assigned managed identity resource ID. '
                    'Required when --authentication-type is UserAssigned.')
         c.argument('connection_string',
                    options_list=['--connection-string', '--cs'],
+                   is_preview=True,
                    help='IoT Hub connection string to use when switching to KeyBased authentication. '
                    'If omitted, the key is auto-fetched from the identified hub.')
         c.argument('apply_allocation_policy',

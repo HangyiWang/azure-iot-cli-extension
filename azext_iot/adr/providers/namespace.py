@@ -14,6 +14,7 @@ from azure.cli.core.azclierror import (
 )
 from azure.core.exceptions import HttpResponseError
 from knack.log import get_logger
+from msrestazure.tools import is_valid_resource_id, parse_resource_id
 
 from azext_iot.adr.common import (
     IdentityType,
@@ -112,6 +113,14 @@ def _build_endpoint_properties(
     return properties
 
 
+def _build_observability(
+    existing_observability: Optional[dict], enabled: bool
+) -> dict:
+    observability = dict(existing_observability or {})
+    observability["enabled"] = enabled
+    return observability
+
+
 def _managed_identity_type(has_system_assigned: bool, user_identity_ids) -> str:
     if has_system_assigned and user_identity_ids:
         return ManagedServiceIdentityType.system_assigned_user_assigned.value
@@ -141,6 +150,34 @@ def _clean_identity_ids(identity_ids: Optional[List[str]]) -> Optional[List[str]
     return list(unique_ids.values())
 
 
+def _clean_migrate_resource_ids(resource_ids: Optional[List[str]]) -> List[str]:
+    if not resource_ids:
+        raise RequiredArgumentMissingError(
+            "Specify at least one legacy asset resource ID with --resource-ids."
+        )
+
+    unique_ids = {}
+    for resource_id in resource_ids:
+        cleaned_id = resource_id.strip() if isinstance(resource_id, str) else ""
+        if not cleaned_id or not is_valid_resource_id(cleaned_id):
+            raise InvalidArgumentValueError(
+                f"'{resource_id}' is not a valid Azure resource ID."
+            )
+        parsed = parse_resource_id(cleaned_id)
+        if (
+            (parsed.get("namespace") or "").casefold()
+            != "microsoft.deviceregistry"
+            or (parsed.get("type") or "").casefold() != "assets"
+            or "child_name_1" in parsed
+        ):
+            raise InvalidArgumentValueError(
+                f"'{resource_id}' is not a Microsoft.DeviceRegistry/assets "
+                "resource ID."
+            )
+        unique_ids.setdefault(_normalize_resource_id(cleaned_id), cleaned_id)
+    return list(unique_ids.values())
+
+
 class NamespaceProvider(ADRProvider):
     def __init__(self, cmd):
         super(NamespaceProvider, self).__init__(cmd)
@@ -156,6 +193,7 @@ class NamespaceProvider(ADRProvider):
         messaging_endpoints: Any = None,
         provisioning_endpoints: Any = None,
         updating_endpoints: Any = None,
+        observability_enabled: Optional[bool] = None,
         **kwargs,
     ):
         if not location:
@@ -183,6 +221,27 @@ class NamespaceProvider(ADRProvider):
             ),
             ensure_system_assigned=True,
         )
+
+        # CreateOrReplace is a PUT. Preserve the complete observability configuration
+        # across an upsert, changing only enabled when the caller explicitly requests it.
+        try:
+            existing_namespace = self.client.namespaces.get(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+            )
+        except HttpResponseError as error:
+            if error.status_code != 404:
+                raise
+            existing_namespace = None
+        existing_properties = (existing_namespace or {}).get("properties") or {}
+        existing_observability = existing_properties.get("observability")
+        if observability_enabled is not None:
+            properties["observability"] = _build_observability(
+                existing_observability, observability_enabled
+            )
+        elif existing_observability is not None:
+            properties["observability"] = existing_observability
+
         if properties:
             namespace_resource["properties"] = properties
 
@@ -226,6 +285,28 @@ class NamespaceProvider(ADRProvider):
             self._raise_if_namespace_not_empty(error, namespace_name)
             raise
 
+    def migrate(
+        self,
+        namespace_name: str,
+        resource_group_name: str,
+        resource_ids: List[str],
+        **kwargs,
+    ):
+        body = {
+            "scope": "Resources",
+            "resourceIds": _clean_migrate_resource_ids(resource_ids),
+        }
+        poller = self.client.namespaces.begin_migrate(
+            resource_group_name=resource_group_name,
+            namespace_name=namespace_name,
+            body=body,
+        )
+        return self._wait(
+            poller,
+            f"Migrating assets into namespace {namespace_name}...",
+            **kwargs,
+        )
+
     @staticmethod
     def _raise_if_namespace_not_empty(error: HttpResponseError, namespace_name: str):
         """Translate the backend 'NamespaceNotEmpty' rejection into actionable guidance.
@@ -257,6 +338,7 @@ class NamespaceProvider(ADRProvider):
         messaging_endpoints: Any = None,
         provisioning_endpoints: Any = None,
         updating_endpoints: Any = None,
+        observability_enabled: Optional[bool] = None,
         **kwargs,
     ):
         # NamespaceUpdate body: tags at top, substantive fields nested under "properties".
@@ -269,16 +351,29 @@ class NamespaceProvider(ADRProvider):
             provisioning_endpoints=provisioning_endpoints,
             updating_endpoints=updating_endpoints,
         )
+        namespace = None
+        if observability_enabled is not None:
+            namespace = self.client.namespaces.get(
+                resource_group_name=resource_group_name,
+                namespace_name=namespace_name,
+            )
+            existing_observability = (
+                ((namespace or {}).get("properties") or {}).get("observability") or {}
+            )
+            properties["observability"] = _build_observability(
+                existing_observability, observability_enabled
+            )
 
         outbound_identity = _resolve_outbound_identity(
             outbound_mi_system_assigned, outbound_mi_user_assigned
         )
         if outbound_identity is not None:
             properties["outboundIdentity"] = outbound_identity
-            namespace = self.client.namespaces.get(
-                resource_group_name=resource_group_name,
-                namespace_name=namespace_name,
-            )
+            if namespace is None:
+                namespace = self.client.namespaces.get(
+                    resource_group_name=resource_group_name,
+                    namespace_name=namespace_name,
+                )
             body["identity"] = _build_namespace_identity(
                 existing_identity=(namespace or {}).get("identity"),
                 user_assigned_identity=outbound_identity.get("userAssignedIdentity"),
@@ -290,8 +385,8 @@ class NamespaceProvider(ADRProvider):
             body["properties"] = properties
         if not body:
             raise RequiredArgumentMissingError(
-                "Nothing to update. Provide --tags, endpoint configuration, or an "
-                "outbound managed identity."
+                "Nothing to update. Provide --tags, --observability-enabled, endpoint "
+                "configuration, or an outbound managed identity."
             )
 
         poller = self.client.namespaces.begin_update(

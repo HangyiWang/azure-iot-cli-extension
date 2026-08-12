@@ -33,11 +33,15 @@ def load_adr_help():
   short-summary: Create a Device Registry namespace.
   long-summary: |
     By default, a namespace is created with a system-assigned managed identity.
+    When replacing an existing namespace, omit --observability-enabled to preserve
+    its observability configuration.
   examples:
     - name: Create a basic Device Registry namespace
       text: az iot adr ns create -n myNamespace -g myResourceGroup
     - name: Create a Device Registry namespace with system-assigned outbound identity
       text: az iot adr ns create -n myNamespace -g myResourceGroup --outbound-mi-system-assigned
+    - name: Create a namespace with observability enabled
+      text: az iot adr ns create -n myNamespace -g myResourceGroup --observability-enabled true
     - name: Create a namespace with a user-assigned outbound identity
       text: |
         az iot adr ns create -n myNamespace -g myResourceGroup \\
@@ -79,6 +83,21 @@ def load_adr_help():
   """
 
     helps[
+        "iot adr ns migrate"
+    ] = """
+  type: command
+  short-summary: Migrate legacy assets into a Device Registry namespace.
+  long-summary: |
+    Migrates existing Microsoft.DeviceRegistry/assets resources into the
+    namespace. The response reports success or failure for each resource ID.
+  examples:
+    - name: Migrate legacy assets into a namespace
+      text: |
+        az iot adr ns migrate -n myNamespace -g myResourceGroup \\
+          --resource-ids /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.DeviceRegistry/assets/asset1
+  """
+
+    helps[
         "iot adr ns update"
     ] = """
   type: command
@@ -86,6 +105,8 @@ def load_adr_help():
   examples:
     - name: Update namespace tags
       text: az iot adr ns update -n myNamespace -g myResourceGroup --tags key=value
+    - name: Disable namespace observability
+      text: az iot adr ns update -n myNamespace -g myResourceGroup --observability-enabled false
     - name: Switch outbound identity to system-assigned managed identity
       text: az iot adr ns update -n myNamespace -g myResourceGroup --outbound-mi-system-assigned
     - name: Switch outbound identity to a user-assigned managed identity
@@ -252,6 +273,8 @@ def load_adr_help():
   examples:
     - name: Update certificate policy tags
       text: az iot adr ns ca policy update -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup --tags env=prod
+    - name: Update leaf certificate validity
+      text: az iot adr ns ca policy update -n myPolicy --ca-name myCA --ns myNamespace -g myResourceGroup --validity-days 15
   """
 
     helps[
@@ -642,23 +665,7 @@ def load_adr_help():
       text: az iot adr ns su instance wait -n myUpdateInstance -g myResourceGroup --custom "properties.provisioningState=='Succeeded'"
   """
 
-    helps["iot adr ns device"] = """
-  type: group
-  short-summary: View Device Registry device identity information.
-  """
-
-    helps["iot adr ns device show"] = """
-  type: command
-  short-summary: Show a device identity in a Device Registry namespace.
-  long-summary: |
-    This Software Updates workflow alias returns the same Registry Device
-    resource as 'az iot adr ns registry-device show'.
-  examples:
-    - name: Show a device identity
-      text: az iot adr ns device show -n myDevice --ns myNamespace -g myResourceGroup
-  """
-
-    helps["iot adr ns su update"] = """
+    helps["iot adr ns su software-update"] = """
   type: group
   short-summary: Import and manage Software Updates content.
   long-summary: |
@@ -666,7 +673,7 @@ def load_adr_help():
     Updates link. The link must finish provisioning before these commands can run.
   """
 
-    helps["iot adr ns su update import"] = """
+    helps["iot adr ns su software-update import"] = """
   type: command
   short-summary: Import an update into Software Updates.
   long-summary: |
@@ -675,87 +682,120 @@ def load_adr_help():
   examples:
     - name: Import a manifest and one payload file
       text: |
-        az iot adr ns su update import --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update import --ns myNamespace -g myResourceGroup \\
           --url "https://storage.example/manifest.json?<sas>" \\
           --file filename=payload.bin url="https://storage.example/payload.bin?<sas>"
   """
 
-    helps["iot adr ns su update list"] = """
+    helps["iot adr ns su software-update stage"] = """
+  type: command
+  short-summary: Stage local update artifacts and optionally import them.
+  long-summary: |
+    Validates local manifest payload sizes and SHA-256 hashes, uploads each manifest
+    and its files to Azure Storage, and reuses matching staged blobs. File references
+    must name files in the same directory as their manifest. Without --then-import,
+    no SAS URLs are generated or returned. With --then-import, fresh read-only SAS
+    URLs are generated and all manifests are submitted in one import request.
+  examples:
+    - name: Stage a single update without importing it
+      text: |
+        az iot adr ns su software-update stage --ns myNamespace -g myResourceGroup \\
+          --manifest-path ./manifest.json --storage-account mystorage \\
+          --storage-container updates
+    - name: Stage and import a multi-reference update
+      text: |
+        az iot adr ns su software-update stage --ns myNamespace -g myResourceGroup \\
+          --manifest-path ./root.json --manifest-path ./leaf.json \\
+          --storage-account /subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.Storage/storageAccounts/mystorage \\
+          --storage-container updates --then-import --enable-scan
+  """
+
+    helps["iot adr ns su software-update list"] = """
   type: command
   short-summary: List updates imported into Software Updates.
   examples:
     - name: List all imported updates
-      text: az iot adr ns su update list --ns myNamespace -g myResourceGroup
+      text: az iot adr ns su software-update list --ns myNamespace -g myResourceGroup
     - name: List deployable updates
-      text: az iot adr ns su update list --ns myNamespace -g myResourceGroup --filter "isDeployable eq true"
+      text: az iot adr ns su software-update list --ns myNamespace -g myResourceGroup --filter "isDeployable eq true"
   """
 
-    helps["iot adr ns su update show"] = """
+    helps["iot adr ns su software-update show"] = """
   type: command
   short-summary: Show an imported update.
   examples:
     - name: Show an update version
       text: |
-        az iot adr ns su update show --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update show --ns myNamespace -g myResourceGroup \\
           --update-provider Contoso --update-name Thermostat --update-version 1.0
   """
 
-    helps["iot adr ns su update delete"] = """
+    helps["iot adr ns su software-update wait"] = """
+  type: command
+  short-summary: Wait for an imported Software Update condition.
+  examples:
+    - name: Wait until an imported update exists
+      text: |
+        az iot adr ns su software-update wait --ns myNamespace -g myResourceGroup \\
+          --update-provider Contoso --update-name Thermostat --update-version 1.0 --exists
+  """
+
+    helps["iot adr ns su software-update delete"] = """
   type: command
   short-summary: Delete an imported update.
   examples:
     - name: Delete an update version without prompting
       text: |
-        az iot adr ns su update delete --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update delete --ns myNamespace -g myResourceGroup \\
           --update-provider Contoso --update-name Thermostat --update-version 1.0 --yes
   """
 
-    helps["iot adr ns su update calculate-hash"] = """
+    helps["iot adr ns su software-update calculate-hash"] = """
   type: command
   short-summary: Calculate update-file hashes locally.
   examples:
     - name: Calculate a SHA-256 hash
-      text: az iot adr ns su update calculate-hash --file-path ./payload.bin
+      text: az iot adr ns su software-update calculate-hash --file-path ./payload.bin
   """
 
-    helps["iot adr ns su update file"] = """
+    helps["iot adr ns su software-update file"] = """
   type: group
   short-summary: Inspect files belonging to an imported update.
   """
 
-    helps["iot adr ns su update file list"] = """
+    helps["iot adr ns su software-update file list"] = """
   type: command
   short-summary: List file identifiers for an imported update.
   examples:
     - name: List files
       text: |
-        az iot adr ns su update file list --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update file list --ns myNamespace -g myResourceGroup \\
           --update-provider Contoso --update-name Thermostat --update-version 1.0
   """
 
-    helps["iot adr ns su update file show"] = """
+    helps["iot adr ns su software-update file show"] = """
   type: command
   short-summary: Show an imported update file.
   examples:
     - name: Show a file
       text: |
-        az iot adr ns su update file show --ns myNamespace -g myResourceGroup \\
+        az iot adr ns su software-update file show --ns myNamespace -g myResourceGroup \\
           --update-provider Contoso --update-name Thermostat --update-version 1.0 \\
           --update-file-id payload
   """
 
-    helps["iot adr ns su update init"] = """
+    helps["iot adr ns su software-update init"] = """
   type: group
   short-summary: Create Software Updates import manifests locally.
   """
 
-    helps["iot adr ns su update init v5"] = """
+    helps["iot adr ns su software-update init v5"] = """
   type: command
   short-summary: Create a version 5 import manifest.
   examples:
     - name: Create a simple manifest
       text: |
-        az iot adr ns su update init v5 --update-provider Contoso \\
+        az iot adr ns su software-update init v5 --update-provider Contoso \\
           --update-name Thermostat --update-version 1.0 \\
           --compat manufacturer=Contoso model=T1000 \\
           --step handler=microsoft/script:1 --file path=./install.sh
@@ -1130,6 +1170,8 @@ def load_adr_help():
       text: az iot adr ns job run list --job-name myJob --ns myNamespace -g myResourceGroup
     - name: List active runs across the namespace
       text: az iot adr ns job run list --ns myNamespace -g myResourceGroup --filter "status eq 'Active'"
+    - name: List runs ordered by status
+      text: az iot adr ns job run list --ns myNamespace -g myResourceGroup --order-by "status asc"
   """
 
     helps[
@@ -1300,10 +1342,17 @@ def load_adr_help():
             "iot adr ns registry-device auth revoke-certs": """
   type: command
   short-summary: Revoke Microsoft-managed certificates for an authentication profile.
-  long-summary: This destructive action applies only to CertificateAuthority profiles and requires confirmation unless --yes is supplied.
+  long-summary: This destructive action applies only to CertificateAuthoritySignedX509Certificate profiles and requires confirmation unless --yes is supplied.
   examples:
     - name: Revoke certificates without prompting
       text: az iot adr ns registry-device auth revoke-certs -n default --registry-device-name myDevice --ns myNamespace -g myResourceGroup --yes
+  """,
+            "iot adr ns registry-device auth wait": """
+  type: command
+  short-summary: Wait for a Registry Device authentication profile condition.
+  examples:
+    - name: Wait until an authentication profile exists
+      text: az iot adr ns registry-device auth wait -n default --registry-device-name myDevice --ns myNamespace -g myResourceGroup --exists
   """,
             "iot adr ns registry-device attribute": """
   type: group

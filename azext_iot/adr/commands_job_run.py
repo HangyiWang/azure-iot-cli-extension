@@ -65,6 +65,7 @@ def adr_job_run_list(
     resource_group_name: str,
     job_name: Optional[str] = None,
     status_filter: Optional[str] = None,
+    order_by: Optional[str] = None,
 ):
     provider = JobRunProvider(cmd)
     return provider.list(
@@ -72,6 +73,7 @@ def adr_job_run_list(
         namespace_name=namespace_name,
         resource_group_name=resource_group_name,
         status_filter=status_filter,
+        order_by=order_by,
     )
 
 
@@ -82,7 +84,6 @@ def adr_job_run_results(
     namespace_name: str,
     resource_group_name: str,
     status_filter: Optional[str] = None,
-    order_by: Optional[str] = None,
 ):
     provider = JobRunProvider(cmd)
     return list(
@@ -92,7 +93,6 @@ def adr_job_run_results(
             namespace_name=namespace_name,
             resource_group_name=resource_group_name,
             status_filter=status_filter,
-            order_by=order_by,
         )
     )
 

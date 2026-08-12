@@ -12,9 +12,11 @@ from azure.cli.core.azclierror import (
     MutuallyExclusiveArgumentError,
     RequiredArgumentMissingError,
 )
+from azure.core.exceptions import HttpResponseError
 
 from azext_iot.adr.providers.namespace import (
     _build_namespace_identity,
+    _clean_migrate_resource_ids,
     _managed_identity_type,
 )
 
@@ -25,7 +27,16 @@ UAMI_ID = (
 )
 
 
+def _namespace_not_found():
+    error = HttpResponseError(message="Namespace not found")
+    error.status_code = 404
+    return error
+
+
 def test_namespace_create_basic(fixture_namespace_provider, mock_poller):
+    fixture_namespace_provider.client.namespaces.get.side_effect = (
+        _namespace_not_found()
+    )
     fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
         mock_poller({"name": "namespace"})
     )
@@ -52,6 +63,9 @@ def test_namespace_create_basic(fixture_namespace_provider, mock_poller):
 def test_namespace_create_resolves_resource_group_location(
     fixture_namespace_provider, mock_poller
 ):
+    fixture_namespace_provider.client.namespaces.get.side_effect = (
+        _namespace_not_found()
+    )
     fixture_namespace_provider._ensure_location = Mock(return_value="westus2")
     fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
         mock_poller({"name": "namespace", "resourceGroup": "rg"})
@@ -67,6 +81,9 @@ def test_namespace_create_resolves_resource_group_location(
 def test_namespace_create_no_wait_handles_whitespace_uami(
     fixture_namespace_provider, mock_poller
 ):
+    fixture_namespace_provider.client.namespaces.get.side_effect = (
+        _namespace_not_found()
+    )
     poller = mock_poller({"name": "namespace"})
     fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
         poller
@@ -115,6 +132,9 @@ def test_managed_identity_type(
 
 
 def test_namespace_create_outbound_uami(fixture_namespace_provider, mock_poller):
+    fixture_namespace_provider.client.namespaces.get.side_effect = (
+        _namespace_not_found()
+    )
     fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
         mock_poller({"name": "namespace", "resourceGroup": "rg"})
     )
@@ -216,6 +236,45 @@ def test_namespace_update_tags(fixture_namespace_provider, mock_poller):
     )
 
 
+@pytest.mark.parametrize("enabled", [True, False])
+def test_namespace_update_observability_preserves_endpoints(
+    fixture_namespace_provider, mock_poller, enabled
+):
+    endpoint = {
+        "endpointType": "Microsoft.EventGrid/namespaces",
+        "resourceId": "/subscriptions/sub/resourceGroups/rg/providers/"
+                      "Microsoft.EventGrid/namespaces/eg",
+    }
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "properties": {
+            "observability": {
+                "enabled": not enabled,
+                "endpoints": {"event-grid": endpoint},
+            }
+        }
+    }
+    fixture_namespace_provider.client.namespaces.begin_update.return_value = mock_poller(
+        {"name": "namespace"}
+    )
+
+    fixture_namespace_provider.update(
+        "namespace", "rg", observability_enabled=enabled
+    )
+
+    fixture_namespace_provider.client.namespaces.begin_update.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        properties={
+            "properties": {
+                "observability": {
+                    "enabled": enabled,
+                    "endpoints": {"event-grid": endpoint},
+                }
+            }
+        },
+    )
+
+
 def test_namespace_update_outbound_uami_preserves_identity_assignments(
     fixture_namespace_provider, mock_poller
 ):
@@ -303,6 +362,9 @@ def test_namespace_update_no_wait(fixture_namespace_provider, mock_poller):
 def test_namespace_create_accepts_direct_endpoint_configuration(
     fixture_namespace_provider, mock_poller
 ):
+    fixture_namespace_provider.client.namespaces.get.side_effect = (
+        _namespace_not_found()
+    )
     fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
         mock_poller({"name": "namespace", "resourceGroup": "rg"})
     )
@@ -330,6 +392,151 @@ def test_namespace_create_accepts_direct_endpoint_configuration(
             }
         },
     }
+
+
+def test_namespace_create_preserves_existing_observability(
+    fixture_namespace_provider, mock_poller
+):
+    observability = {
+        "enabled": True,
+        "endpoints": {
+            "/subscriptions/sub/resourceGroups/rg/providers/"
+            "Microsoft.ExtendedLocation/customLocations/site": {
+                "endpointType": "Microsoft.EventGrid/namespaces",
+                "address": "eventgrid.example",
+                "scopeId": "scope",
+                "resourceId": (
+                    "/subscriptions/sub/resourceGroups/rg/providers/"
+                    "Microsoft.EventGrid/namespaces/eg"
+                ),
+            }
+        },
+    }
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "properties": {"observability": observability}
+    }
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace", "resourceGroup": "rg"})
+    )
+
+    fixture_namespace_provider.create(
+        "namespace",
+        "rg",
+        location="eastus",
+        tags={"phase": "replaced"},
+    )
+
+    resource = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]
+    assert resource["properties"]["observability"] == observability
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_namespace_create_observability_overrides_enabled_and_preserves_endpoints(
+    fixture_namespace_provider, mock_poller, enabled
+):
+    endpoint = {
+        "endpointType": "Microsoft.EventGrid/namespaces",
+        "resourceId": "/subscriptions/sub/resourceGroups/rg/providers/"
+                      "Microsoft.EventGrid/namespaces/eg",
+    }
+    fixture_namespace_provider.client.namespaces.get.return_value = {
+        "properties": {
+            "observability": {
+                "enabled": not enabled,
+                "endpoints": {"event-grid": endpoint},
+            }
+        }
+    }
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.return_value = (
+        mock_poller({"name": "namespace", "resourceGroup": "rg"})
+    )
+
+    fixture_namespace_provider.create(
+        "namespace",
+        "rg",
+        location="eastus",
+        observability_enabled=enabled,
+    )
+
+    resource = fixture_namespace_provider.client.namespaces.begin_create_or_replace.call_args.kwargs[
+        "resource"
+    ]
+    assert resource["properties"]["observability"] == {
+        "enabled": enabled,
+        "endpoints": {"event-grid": endpoint},
+    }
+
+
+def test_namespace_create_propagates_existing_namespace_lookup_error(
+    fixture_namespace_provider,
+):
+    error = HttpResponseError(message="Service unavailable")
+    error.status_code = 503
+    fixture_namespace_provider.client.namespaces.get.side_effect = error
+
+    with pytest.raises(HttpResponseError, match="Service unavailable"):
+        fixture_namespace_provider.create(
+            "namespace",
+            "rg",
+            location="eastus",
+        )
+    fixture_namespace_provider.client.namespaces.begin_create_or_replace.assert_not_called()
+
+
+def test_namespace_migrate_no_wait(fixture_namespace_provider, mock_poller):
+    asset_id = (
+        "/subscriptions/sub/resourceGroups/rg/providers/"
+        "Microsoft.DeviceRegistry/assets/asset"
+    )
+    poller = mock_poller({"migrateResults": []})
+    fixture_namespace_provider.client.namespaces.begin_migrate.return_value = poller
+
+    result = fixture_namespace_provider.migrate(
+        "namespace",
+        "rg",
+        [asset_id, asset_id.upper()],
+        no_wait=True,
+    )
+
+    assert result is poller
+    fixture_namespace_provider.client.namespaces.begin_migrate.assert_called_once_with(
+        resource_group_name="rg",
+        namespace_name="namespace",
+        body={"scope": "Resources", "resourceIds": [asset_id]},
+    )
+
+
+@pytest.mark.parametrize(
+    "resource_ids",
+    [
+        None,
+        [],
+        [""],
+        ["/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/a"],
+        [
+            "/subscriptions/sub/resourceGroups/rg/providers/"
+            "Microsoft.DeviceRegistry/assets/a/children/b"
+        ],
+    ],
+)
+def test_namespace_migrate_rejects_invalid_resource_ids(
+    fixture_namespace_provider, resource_ids
+):
+    with pytest.raises((InvalidArgumentValueError, RequiredArgumentMissingError)):
+        fixture_namespace_provider.migrate("namespace", "rg", resource_ids)
+    fixture_namespace_provider.client.namespaces.begin_migrate.assert_not_called()
+
+
+def test_clean_migrate_resource_ids_preserves_first_casing():
+    resource_id = (
+        "/subscriptions/sub/resourceGroups/rg/providers/"
+        "Microsoft.DeviceRegistry/assets/asset"
+    )
+    assert _clean_migrate_resource_ids([resource_id, resource_id.upper()]) == [
+        resource_id
+    ]
 
 
 def test_namespace_update_accepts_direct_endpoint_configuration(

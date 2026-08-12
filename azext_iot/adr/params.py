@@ -53,6 +53,13 @@ def load_adr_arguments(self, _):
     for cmd in ["iot adr ns create", "iot adr ns update"]:
         with self.argument_context(cmd) as context:
             context.argument(
+                "observability_enabled",
+                options_list=["--observability-enabled"],
+                arg_type=get_three_state_flag(),
+                help="Enable or disable namespace observability. When omitted, create "
+                     "preserves the existing setting and update leaves it unchanged.",
+            )
+            context.argument(
                 "messaging_endpoints",
                 options_list=["--messaging-endpoints"],
                 help="Messaging endpoint dictionary as inline JSON or a JSON file path.",
@@ -67,6 +74,16 @@ def load_adr_arguments(self, _):
                 options_list=["--updating-endpoints"],
                 help="Software Updates endpoint dictionary as inline JSON or a JSON file path.",
             )
+
+    with self.argument_context("iot adr ns migrate") as context:
+        context.argument(
+            "resource_ids",
+            options_list=["--resource-ids", "--ids"],
+            nargs="+",
+            required=True,
+            help="Space-separated resource IDs of legacy "
+                 "Microsoft.DeviceRegistry/assets resources to migrate.",
+        )
 
     # Certificate Authority arguments
     with self.argument_context("iot adr ns ca") as context:
@@ -148,20 +165,16 @@ def load_adr_arguments(self, _):
             arg_type=get_location_type(self.cli_ctx),
         )
 
-    # Registry Device arguments
-    with self.argument_context("iot adr ns registry-device") as context:
+    with self.argument_context("iot adr ns ca policy update") as context:
         context.argument(
-            "namespace_name",
-            options_list=["--namespace", "--ns"],
-            help="Name of the Device Registry namespace.",
-        )
-        context.argument(
-            "registry_device_name",
-            options_list=["--device-name", "--dn", "--name", "-n"],
-            help="Name of the Registry Device.",
+            "validity_days",
+            options_list=["--validity-days", "--vd"],
+            type=int,
+            help="Updated leaf certificate validity period in days.",
         )
 
-    with self.argument_context("iot adr ns device") as context:
+    # Registry Device arguments
+    with self.argument_context("iot adr ns registry-device") as context:
         context.argument(
             "namespace_name",
             options_list=["--namespace", "--ns"],
@@ -523,7 +536,7 @@ def load_adr_arguments(self, _):
             )
 
     for command in (
-        "iot adr ns su update",
+        "iot adr ns su software-update",
         "iot adr ns su device-class",
     ):
         with self.argument_context(command) as context:
@@ -533,7 +546,7 @@ def load_adr_arguments(self, _):
                 help="Name of the Device Registry namespace.",
             )
 
-    with self.argument_context("iot adr ns su update") as context:
+    with self.argument_context("iot adr ns su software-update") as context:
         context.argument(
             "update_name",
             options_list=["--update-name", "--un"],
@@ -550,7 +563,7 @@ def load_adr_arguments(self, _):
             help="Update version.",
         )
 
-    with self.argument_context("iot adr ns su update list") as context:
+    with self.argument_context("iot adr ns su software-update list") as context:
         context.argument(
             "search",
             options_list=["--search"],
@@ -564,7 +577,7 @@ def load_adr_arguments(self, _):
             arg_group="Filter",
         )
 
-    with self.argument_context("iot adr ns su update import") as context:
+    with self.argument_context("iot adr ns su software-update import") as context:
         context.argument(
             "url",
             options_list=["--url"],
@@ -593,8 +606,7 @@ def load_adr_arguments(self, _):
             options_list=["--file"],
             nargs="+",
             action="append",
-            help="Update file metadata as filename=`<name>` "
-            "url=`<read-accessible-url>`. "
+            help="Update file metadata as filename=FILE_NAME url=READ_ACCESSIBLE_URL. "
             "--file can be used more than once.",
         )
         context.argument(
@@ -604,14 +616,79 @@ def load_adr_arguments(self, _):
             help="Request malware scanning for the imported update.",
         )
 
-    with self.argument_context("iot adr ns su update file") as context:
+    with self.argument_context("iot adr ns su software-update stage") as context:
+        context.argument(
+            "manifest_paths",
+            options_list=["--manifest-path"],
+            action="append",
+            help="Local import manifest path. Use --manifest-path more than once "
+            "for a multi-reference update, with the root manifest first.",
+        )
+        context.argument(
+            "storage_account",
+            options_list=["--storage-account"],
+            help="Storage account name or ARM resource ID used to stage artifacts.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "storage_container_name",
+            options_list=["--storage-container"],
+            help="Blob container used to stage artifacts.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "storage_account_subscription",
+            options_list=["--storage-subscription"],
+            help="Storage account subscription. Use when the storage account is "
+            "in a different subscription and is specified by name.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "storage_prefix",
+            options_list=["--storage-prefix"],
+            help="Blob name prefix. Defaults to 'deviceupdate'.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "friendly_name",
+            options_list=["--friendly-name"],
+            help="Friendly name applied to the first, root manifest.",
+        )
+        context.argument(
+            "enable_scan",
+            options_list=["--enable-scan"],
+            arg_type=get_three_state_flag(),
+            help="Request malware scanning when --then-import is used.",
+        )
+        context.argument(
+            "overwrite",
+            options_list=["--overwrite"],
+            arg_type=get_three_state_flag(),
+            help="Replace staged blobs whose content differs from local artifacts.",
+            arg_group="Storage",
+        )
+        context.argument(
+            "then_import",
+            options_list=["--then-import"],
+            arg_type=get_three_state_flag(),
+            help="Import all staged manifests in one request after uploading.",
+        )
+        context.argument(
+            "sas_expiry_hours",
+            options_list=["--sas-expiry-hours"],
+            type=int,
+            help="Read-only SAS lifetime used by --then-import. Defaults to 4 hours.",
+            arg_group="Storage",
+        )
+
+    with self.argument_context("iot adr ns su software-update file") as context:
         context.argument(
             "update_file_id",
             options_list=["--update-file-id", "--ufid"],
             help="Update file identifier.",
         )
 
-    with self.argument_context("iot adr ns su update calculate-hash") as context:
+    with self.argument_context("iot adr ns su software-update calculate-hash") as context:
         context.argument(
             "file_paths",
             options_list=["--file-path", "-f"],
@@ -626,7 +703,7 @@ def load_adr_arguments(self, _):
             help="Cryptographic hash algorithm.",
         )
 
-    with self.argument_context("iot adr ns su update init") as context:
+    with self.argument_context("iot adr ns su software-update init") as context:
         context.argument(
             "description",
             options_list=["--description"],
@@ -920,7 +997,7 @@ def load_adr_arguments(self, _):
             "run_name",
             options_list=["--run-name", "--rn"],
             help="Name of the job run to create. Defaults to a generated "
-                 "UTC-timestamped name such as 'run-20251201T080000'.",
+                 "UTC-timestamped name such as 'run-20251201080000'.",
         )
         context.argument(
             "scheduled_time",
@@ -941,18 +1018,18 @@ def load_adr_arguments(self, _):
             help="Status equality clauses joined by 'or', for example: "
                  "status eq 'Active' or status eq 'Scheduled'.",
         )
+        context.argument(
+            "order_by",
+            options_list=["--order-by", "--ob"],
+            help="Sort expression for job runs, for example: \"status asc\" or "
+                 "\"status desc\".",
+        )
 
     with self.argument_context("iot adr ns job run results") as context:
         context.argument(
             "status_filter",
             options_list=["--filter"],
             help="One result status equality clause, for example: status eq 'Failed'.",
-        )
-        context.argument(
-            "order_by",
-            options_list=["--order-by", "--ob"],
-            help="Sort expression for the results, for example: \"status asc\" or "
-                 "\"status desc\".",
         )
 
     with self.argument_context("iot adr ns report") as context:

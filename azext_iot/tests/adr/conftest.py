@@ -22,7 +22,7 @@ from azext_iot.adr.providers.job import JobProvider
 from azext_iot.adr.providers.job_run import JobRunProvider
 from azext_iot.tests.generators import generate_generic_id
 
-# ADR integration defaults mirror scripts/smoke_tests/adr_11_02_full_e2e.sh.
+# ADR integration defaults mirror scripts/smoke_tests/adr_2026_11_02_full_e2e.sh.
 TEST_SUBSCRIPTION = os.getenv(
     "azext_iot_adr_subscription",
     "efb15086-3322-405d-a9d0-c35715a9b722",
@@ -59,6 +59,9 @@ OPTIONAL_FIXTURE_ENV_VARS = (
     "azext_iot_adr_job_run_job",
     "azext_iot_adr_job_run_name",
     "azext_iot_adr_uami_resource_id",
+    "azext_iot_adr_su_namespace",
+    "azext_iot_adr_su_storage_account",
+    "azext_iot_adr_su_storage_subscription",
 )
 
 
@@ -261,6 +264,8 @@ _SPECCED_OPERATION_GROUPS = (
     "job_runs",
     "registry_devices",
     "registry_device_attributes",
+    "registry_device_authentication_profiles",
+    "registry_device_capabilities",
 )
 
 _REAL_ADR_CLIENT = None

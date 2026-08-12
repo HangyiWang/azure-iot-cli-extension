@@ -7,7 +7,7 @@
 import pytest
 
 from azext_iot.tests import CaptureOutputLiveScenarioTest
-from azext_iot.tests.adr._helpers import ADRHubInfraHelper
+from azext_iot.tests.adr._helpers import ADRFullInfraHelper
 from azext_iot.tests.adr.conftest import (
     TEST_LOCATION,
     TEST_RG,
@@ -16,7 +16,9 @@ from azext_iot.tests.adr.conftest import (
 
 
 @pytest.mark.usefixtures("set_cwd")
-class TestADRServiceNegatives(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
+class TestADRReportServiceNegatives(
+    ADRFullInfraHelper, CaptureOutputLiveScenarioTest
+):
     def test_report_service_negatives(self):
         namespace_name = generate_adr_namespace_name()
         rg = TEST_RG
@@ -37,7 +39,8 @@ class TestADRServiceNegatives(ADRHubInfraHelper, CaptureOutputLiveScenarioTest):
                 "during client-side command processing."
             )
             process_error = getattr(report_failure, "process_error", None)
-            if process_error is not None and hasattr(process_error, "status_code"):
-                assert process_error.status_code == 404
+            status_code = getattr(process_error, "status_code", None)
+            if status_code is not None:
+                assert status_code == 404
         finally:
             self.cleanup_namespace(namespace_name, rg)
