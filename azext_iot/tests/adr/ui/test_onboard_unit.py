@@ -18,10 +18,25 @@ from azext_iot.adr.ui.screens.onboard.pickers import (
     rank,
 )
 from azext_iot.adr.ui.screens.onboard.steps import build_flow
+from azext_iot.adr.ui.screens.onboard.identity import (
+    IdentityChoice,
+    USER_ASSIGNED,
+    attach_identity,
+    set_choice,
+    system_choice,
+)
 
 
-def namespace_payload(identity=None, provisioning=None, messaging=None, location="eastus2"):
+def namespace_payload(
+    identity=None,
+    provisioning=None,
+    messaging=None,
+    location="eastus2",
+    outbound=True,
+):
     properties = {}
+    if identity and outbound:
+        properties["outboundIdentity"] = {"type": identity}
     if provisioning is not None:
         properties["provisioning"] = {"endpoints": provisioning}
     if messaging is not None:
@@ -239,26 +254,25 @@ def test_reverse_grant_uses_the_targets_own_principal():
     assert "/providers/Microsoft.DeviceRegistry/namespaces/ns1" in reverse.command
 
 
-def test_missing_namespace_principal_blocks_rather_than_guesses():
+def test_missing_namespace_principal_is_resolved_after_identity_setup():
     flow = build_flow(
         context(namespace_payload(identity="SystemAssigned", provisioning={"dps": {}}),
                 selected_dps=identified(dps_candidate()))
     )
     forward = next(item for item in flow.build_plan() if item.key.startswith("grant-ns-to"))
-    assert forward.action == "blocked"
-    assert "no system-assigned identity" in forward.blocked_reason
+    assert forward.action == "manual"
+    assert "az resource show" in forward.command
 
 
-def test_target_without_identity_blocks_the_reverse_grant():
-    """This is exactly what the e2e reports as 'recreate the resource with an identity'."""
+def test_target_without_identity_is_enabled_before_the_reverse_grant():
     candidate = dps_candidate()
     candidate.raw = {"identity": {}}
     flow = build_flow(
         context(namespace_with_principal(provisioning={"dps": {}}), selected_dps=candidate)
     )
     reverse = next(item for item in flow.build_plan() if item.key.startswith("grant-dps-to-ns"))
-    assert reverse.action == "blocked"
-    assert "recreate it with an identity" in reverse.blocked_reason
+    assert reverse.action == "manual"
+    assert "az resource show" in reverse.command
 
 
 def test_plan_includes_a_propagation_wait():
@@ -359,11 +373,11 @@ def test_plan_never_mutates():
 # -- pickers -------------------------------------------------------------------------
 
 
-def test_resource_without_identity_is_ineligible():
+def test_resource_without_identity_is_selectable_for_identity_setup():
     candidate = evaluate({"name": "dps-old", "id": "/x/dps-old", "location": "eastus2"})
-    assert candidate.verdict == INELIGIBLE
-    assert candidate.reason == "identity missing"
-    assert not candidate.selectable
+    assert candidate.verdict == WARNING
+    assert candidate.reason == "identity setup required"
+    assert candidate.selectable
 
 
 def test_region_mismatch_is_a_warning_not_a_block():
@@ -412,7 +426,7 @@ def test_readiness_messages_are_compact_and_unpunctuated():
     ]
     assert [candidate.reason for candidate in candidates] == [
         "provisioning failed",
-        "identity missing",
+        "identity setup required",
         "other region + not in DPS",
     ]
     assert all(";" not in candidate.describe() for candidate in candidates)
@@ -605,7 +619,7 @@ def test_arm_none_identity_is_treated_as_missing():
     """ARM renders an absent identity as the string 'None', not an empty value."""
     for shape in ({"type": "None"}, {"type": "none"}, {"type": ""}, {}):
         candidate = evaluate({"name": "dps", "id": "/x/dps", "identity": shape})
-        assert candidate.verdict == INELIGIBLE, f"identity {shape} must be ineligible"
+        assert candidate.verdict == WARNING, f"identity {shape} must require setup"
 
 
 def test_real_identity_shapes_remain_eligible():
@@ -682,7 +696,7 @@ def test_identity_step_calls_the_provider_with_no_wait():
             calls["provider"] = name
             return self
 
-        def identity_assign(self, **kwargs):
+        def update(self, **kwargs):
             calls.update(kwargs)
             return "poller"
 
@@ -694,9 +708,450 @@ def test_identity_step_calls_the_provider_with_no_wait():
     identity = next(item for item in flow.build_plan() if item.key == "identity")
     assert identity.invoke(FakeSession(), flow.context) == "poller"
     assert calls["provider"] == "namespace"
-    assert calls["system_assigned"] is True
+    assert calls["outbound_mi_system_assigned"] is True
     assert calls["no_wait"] is True
     assert calls["namespace_name"] == "ns1"
+
+
+def test_existing_namespace_without_outbound_identity_plans_update():
+    flow = build_flow(
+        context(
+            namespace_payload(identity="SystemAssigned", outbound=False),
+            namespace_name="ns1",
+            resource_group_name="rg1",
+        )
+    )
+    identity = next(item for item in flow.build_plan() if item.key == "identity")
+    assert identity.action == "create"
+    assert "ns update" in identity.command
+    assert "--outbound-mi-system-assigned" in identity.command
+
+
+def test_existing_namespace_uami_is_preserved_by_default():
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    uami_id = (
+        "/subscriptions/sub-1/resourceGroups/rg1/providers/"
+        "Microsoft.ManagedIdentity/userAssignedIdentities/existing"
+    )
+    namespace = namespace_payload(identity="SystemAssigned")
+    namespace["properties"]["outboundIdentity"] = {
+        "type": "UserAssigned",
+        "userAssignedIdentity": uami_id,
+    }
+    namespace["identity"]["userAssignedIdentities"] = {
+        uami_id: {"principalId": "pid-uami"}
+    }
+    screen = OnboardScreen(
+        session=None,
+        scope={
+            "subscription_id": "sub-1",
+            "resource_group_name": "rg1",
+            "namespace_name": "ns1",
+        },
+        namespace=namespace,
+    )
+    choice = screen.context["identity_choices"]["namespace"]
+    assert choice.is_user_assigned
+    assert choice.uami_id == uami_id
+    assert next(
+        item for item in screen.flow.build_plan() if item.key == "identity"
+    ).action == "exists"
+
+
+def test_permission_requirements_use_exact_role_scopes():
+    from azext_iot.adr.ui.core.rbac import ROLE_WRITE_ACTION
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    dps = dps_candidate()
+    dps.resource_group = "rg-dps"
+    dps.resource_id = (
+        "/subscriptions/sub-1/resourceGroups/rg-dps/providers/"
+        "Microsoft.Devices/provisioningServices/dps-1"
+    )
+    choice = IdentityChoice(
+        mode=USER_ASSIGNED,
+        uami_id=(
+            "/subscriptions/sub-1/resourceGroups/rg-identities/providers/"
+            "Microsoft.ManagedIdentity/userAssignedIdentities/shared"
+        ),
+        uami_name="shared",
+    )
+    screen = OnboardScreen(
+        session=None,
+        scope={
+            "subscription_id": "sub-1",
+            "resource_group_name": "rg1",
+            "namespace_name": "ns1",
+        },
+        namespace=namespace_payload(identity="SystemAssigned"),
+    )
+    screen.context["selected_dps"] = dps
+    set_choice(screen.context, "dps", choice, dps.resource_id)
+    requirements = screen._permission_requirements()
+    assert ROLE_WRITE_ACTION in requirements[dps.resource_id]
+    assert ROLE_WRITE_ACTION not in requirements[choice.uami_id]
+
+
+def test_ready_target_only_requires_role_assignment_access():
+    from azext_iot.adr.ui.core.rbac import ROLE_WRITE_ACTION
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    dps = dps_candidate()
+    dps.resource_group = "rg-dps"
+    dps.resource_id = (
+        "/subscriptions/sub-1/resourceGroups/rg-dps/providers/"
+        "Microsoft.Devices/provisioningServices/dps-1"
+    )
+    dps.raw = {
+        "id": dps.resource_id,
+        "name": dps.name,
+        "identity": {"type": "SystemAssigned", "principalId": "pid-dps"},
+    }
+    screen = OnboardScreen(
+        session=None,
+        scope={
+            "subscription_id": "sub-1",
+            "resource_group_name": "rg1",
+            "namespace_name": "ns1",
+        },
+        namespace=namespace_payload(identity="SystemAssigned"),
+    )
+    screen.context["selected_dps"] = dps
+    requirements = screen._permission_requirements()
+    assert requirements[dps.resource_id] == {ROLE_WRITE_ACTION}
+
+
+def test_new_resource_group_checks_subscription_create_permission():
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(
+        session=None,
+        scope={"subscription_id": "sub-1"},
+    )
+    request = create_request("resource_group", "new-rg", rg="new-rg")
+    screen.context["create_resource_group"] = request
+    screen.context["resource_group_name"] = request.name
+    requirements = screen._permission_requirements()
+    assert (
+        "Microsoft.Resources/subscriptions/resourceGroups/write"
+        in requirements["/subscriptions/sub-1"]
+    )
+
+
+def test_new_uami_permissions_are_checked_at_parent_scope():
+    from azext_iot.adr.ui.screens.onboard.screen import OnboardScreen
+
+    screen = OnboardScreen(
+        session=None,
+        scope={
+            "subscription_id": "sub-1",
+            "resource_group_name": "rg1",
+            "namespace_name": "ns1",
+        },
+        namespace=namespace_payload(identity="SystemAssigned"),
+    )
+    choice = IdentityChoice(
+        mode=USER_ASSIGNED,
+        uami_id=(
+            "/subscriptions/sub-1/resourceGroups/rg-identities/providers/"
+            "Microsoft.ManagedIdentity/userAssignedIdentities/new-uami"
+        ),
+        uami_name="new-uami",
+        create_uami=True,
+        uami_resource_group="rg-identities",
+        uami_location="eastus2",
+    )
+    set_choice(screen.context, "namespace", choice)
+    requirements = screen._permission_requirements()
+    assert choice.uami_id not in requirements
+    parent = "/subscriptions/sub-1/resourceGroups/rg-identities"
+    assert "Microsoft.ManagedIdentity/userAssignedIdentities/write" in requirements[parent]
+    assert (
+        "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action"
+        in requirements[parent]
+    )
+
+
+def test_final_verification_honors_new_namespace_uami():
+    choice = IdentityChoice(
+        mode=USER_ASSIGNED,
+        uami_id=(
+            "/subscriptions/sub-1/resourceGroups/rg1/providers/"
+            "Microsoft.ManagedIdentity/userAssignedIdentities/outbound"
+        ),
+        uami_name="outbound",
+    )
+    namespace_request = create_request("namespace", "new-ns")
+    namespace_request.identity = choice
+    dps_request = create_request("dps", "new-dps")
+    ctx = {
+        "subscription_id": "sub-1",
+        "resource_group_name": "rg1",
+        "namespace_name": "new-ns",
+        "create_namespace": namespace_request,
+        "create_dps": dps_request,
+    }
+    verify = next(
+        item
+        for item in build_flow(ctx).build_plan()
+        if item.key == "verify-readiness"
+    )
+    namespace = {
+        "properties": {
+            "outboundIdentity": {
+                "type": "UserAssigned",
+                "userAssignedIdentity": choice.uami_id,
+            },
+            "provisioning": {
+                "endpoints": {
+                    "dps": {
+                        "resourceId": dps_request.arm_id("sub-1"),
+                        "linkingState": "Succeeded",
+                    }
+                }
+            },
+        }
+    }
+
+    class Session:
+        def provider(self, name):
+            assert name == "namespace"
+            return self
+
+        def show(self, **_):
+            return namespace
+
+        def call(self, func, **kwargs):
+            return func(**kwargs)
+
+    assert verify.verify(Session(), ctx) is namespace
+
+
+def test_update_instance_identity_attachment_uses_registered_factory(monkeypatch):
+    import azext_iot._factory as factories
+
+    seen = {}
+
+    class Operations:
+        def begin_update(self, **kwargs):
+            seen.update(kwargs)
+            return "poller"
+
+    class Catalog:
+        cmd = type("Cmd", (), {"cli_ctx": object()})()
+
+    monkeypatch.setattr(
+        factories,
+        "adr_update_instance_service_factory",
+        lambda _cli_ctx: type("Client", (), {"update_instances": Operations()})(),
+    )
+    result = attach_identity(
+        Catalog(),
+        "su",
+        {
+            "name": "updates",
+            "id": (
+                "/subscriptions/sub-1/resourceGroups/rg1/providers/"
+                "Microsoft.DeviceUpdate/updateInstances/updates"
+            ),
+            "identity": {},
+        },
+        system_choice(),
+    )
+    assert result == "poller"
+    assert seen["properties"]["identity"]["type"] == "SystemAssigned"
+
+
+def test_hub_identity_attachment_preserves_snake_case_uamis(monkeypatch):
+    import azext_iot._factory as factories
+
+    old_uami = (
+        "/subscriptions/sub-1/resourceGroups/rg1/providers/"
+        "Microsoft.ManagedIdentity/userAssignedIdentities/existing"
+    )
+    seen = {}
+
+    class Operations:
+        def begin_create_or_update(self, **kwargs):
+            seen.update(kwargs)
+            return "poller"
+
+    class Catalog:
+        cmd = type("Cmd", (), {"cli_ctx": object()})()
+
+    monkeypatch.setattr(
+        factories,
+        "iot_hub_service_factory",
+        lambda _cli_ctx: type("Client", (), {"iot_hub_resource": Operations()})(),
+    )
+    attach_identity(
+        Catalog(),
+        "hub",
+        {
+            "name": "hub",
+            "resourceGroup": "rg1",
+            "identity": {
+                "type": "UserAssigned",
+                "user_assigned_identities": {old_uami: {}},
+            },
+        },
+        system_choice(),
+    )
+    identity = seen["iot_hub_description"]["identity"]
+    assert old_uami in identity["userAssignedIdentities"]
+    assert identity["type"] == "SystemAssigned, UserAssigned"
+
+
+def test_selected_uami_flows_to_link_and_role_plans():
+    dps = identified(dps_candidate())
+    choice = IdentityChoice(
+        mode=USER_ASSIGNED,
+        uami_id=(
+            "/subscriptions/sub-1/resourceGroups/rg-identities/providers/"
+            "Microsoft.ManagedIdentity/userAssignedIdentities/connectivity"
+        ),
+        uami_name="connectivity",
+        principal_id="pid-uami",
+    )
+    ctx = context(
+        namespace_with_principal(),
+        selected_dps=dps,
+        can_grant_roles=True,
+    )
+    set_choice(ctx, "dps", choice, dps.resource_id)
+    flow = build_flow(ctx)
+    link = next(item for item in flow.build_plan() if item.key == "dps")
+    reverse = next(
+        item
+        for item in flow.build_plan()
+        if item.key.startswith("grant-dps-to-ns")
+    )
+    assert f"--mi-user-assigned {choice.uami_id}" in link.command
+    assert "--assignee-object-id pid-uami" in reverse.command
+
+
+def test_new_uami_is_created_before_identity_attachment():
+    dps = dps_candidate()
+    dps.raw = {
+        "name": dps.name,
+        "id": dps.resource_id,
+        "resourceGroup": "rg1",
+        "identity": {},
+    }
+    choice = IdentityChoice(
+        mode=USER_ASSIGNED,
+        uami_id=(
+            "/subscriptions/sub-1/resourceGroups/rg1/providers/"
+            "Microsoft.ManagedIdentity/userAssignedIdentities/new-uami"
+        ),
+        uami_name="new-uami",
+        create_uami=True,
+        uami_resource_group="rg1",
+        uami_location="eastus2",
+    )
+    ctx = context(namespace_with_principal(), selected_dps=dps)
+    set_choice(ctx, "dps", choice, dps.resource_id)
+    plan = build_flow(ctx).build_plan()
+    keys = [item.key for item in plan]
+    assert keys.index("uami-create-new-uami") < keys.index(
+        f"identity-dps:{dps.resource_id.casefold()}"
+    )
+
+
+def test_new_resource_group_precedes_uami_and_target_creation():
+    choice = IdentityChoice(
+        mode=USER_ASSIGNED,
+        uami_id=(
+            "/subscriptions/sub-1/resourceGroups/new-rg/providers/"
+            "Microsoft.ManagedIdentity/userAssignedIdentities/new-uami"
+        ),
+        uami_name="new-uami",
+        create_uami=True,
+        uami_resource_group="new-rg",
+        uami_location="eastus2",
+    )
+    dps_request = create_request("dps", "new-dps", rg="new-rg")
+    dps_request.identity = choice
+    ctx = {
+        "subscription_id": "sub-1",
+        "resource_group_name": "new-rg",
+        "create_resource_group": create_request(
+            "resource_group", "new-rg", rg="new-rg"
+        ),
+        "namespace_name": "new-ns",
+        "create_namespace": create_request(
+            "namespace", "new-ns", rg="new-rg"
+        ),
+        "create_dps": dps_request,
+    }
+    keys = [item.key for item in build_flow(ctx).build_plan()]
+    assert keys.index("resource-group") < keys.index("uami-create-new-uami")
+    assert keys.index("uami-create-new-uami") < keys.index("dps-create")
+
+
+def test_link_verifier_waits_for_endpoint_linking_state():
+    dps = identified(dps_candidate())
+    ctx = context(
+        namespace_payload(identity="SystemAssigned"),
+        selected_dps=dps,
+        _link_poll_interval=0,
+        _link_poll_attempts=3,
+    )
+    item = next(
+        entry for entry in build_flow(ctx).build_plan() if entry.key == "dps"
+    )
+    responses = iter(
+        [
+            {
+                "properties": {
+                    "provisioning": {
+                        "endpoints": {"dps": {"linkingState": "Updating"}}
+                    }
+                }
+            },
+            {
+                "properties": {
+                    "provisioning": {
+                        "endpoints": {"dps": {"linkingState": "Succeeded"}}
+                    }
+                }
+            },
+        ]
+    )
+    details = []
+
+    class Session:
+        def provider(self, name):
+            assert name == "namespace"
+            return self
+
+        def show(self, **_):
+            return next(responses)
+
+        def call(self, func, **kwargs):
+            return func(**kwargs)
+
+    assert item.verify(Session(), ctx, details.append)["linkingState"] == "Succeeded"
+    assert details == ["linkingState: Updating", "linkingState: Succeeded"]
+
+
+def test_adu_grant_resolves_tenant_local_service_principal():
+    update = identified(dps_candidate("su-1"), principal="pid-su")
+    flow = build_flow(
+        context(
+            namespace_with_principal(provisioning={"dps": {}}),
+            selected_sus=[update],
+            subscription_id="sub-1",
+            adu_fpa_confirmed=True,
+        )
+    )
+    grant = next(
+        item
+        for item in flow.build_plan()
+        if item.key.startswith("grant-adu-fpa-")
+    )
+    assert "az ad sp show --id 6ee392c4-d339-4083-b04d-6b7947c6cf78" in grant.command
 
 
 def test_link_steps_pass_the_selected_resource_id():
@@ -732,8 +1187,8 @@ def test_chosen_resources_are_reported_only_in_the_rail():
                            namespace=namespace_payload(identity="SystemAssigned"))
     screen.context["selected_dps"] = dps_candidate("dps-a")
     screen.context["selected_hubs"] = [hub_candidate("hub-a")]
-    assert screen._chosen_lines("dps") == ["dps-a"]
-    assert screen._chosen_lines("hub") == ["hub-a"]
+    assert screen._chosen_lines("dps") == ["dps-a · choose identity"]
+    assert screen._chosen_lines("hub") == ["hub-a · choose identity"]
     assert not hasattr(screen, "_selection_summary")
 
 
@@ -872,6 +1327,7 @@ def test_hub_and_dps_plan_commands_include_size():
     )
     hub = next(item for item in hub_flow.build_plan() if item.key == "hub-create")
     assert "--sku S2 --unit 3" in hub.command
+    assert "--mi-system-assigned" in hub.command
 
     dps_flow = build_flow(
         context(
@@ -881,6 +1337,7 @@ def test_hub_and_dps_plan_commands_include_size():
     )
     dps = next(item for item in dps_flow.build_plan() if item.key == "dps-create")
     assert "--sku S1 --unit 2" in dps.command
+    assert "--mi-system-assigned" in dps.command
 
 
 def test_reverse_grant_for_a_pending_resource_says_when_to_run_it():
@@ -894,12 +1351,11 @@ def test_reverse_grant_for_a_pending_resource_says_when_to_run_it():
     assert "<" not in reverse.command
 
 
-def test_a_resource_without_an_identity_cannot_receive_the_reverse_grant():
+def test_a_resource_without_an_identity_is_repaired_before_reverse_grant():
     flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
                               selected_dps=dps_candidate(), can_grant_roles=True))
     reverse = next(item for item in flow.build_plan() if item.key.startswith("grant-dps-to-ns"))
-    assert reverse.action == "blocked"
-    assert "no system-assigned identity" in reverse.blocked_reason
+    assert reverse.action == "create"
 
 
 def test_creating_a_hub_plans_create_then_link():
@@ -941,7 +1397,7 @@ def test_software_updates_gets_grants_in_both_directions():
         for item in flow.build_plan()
         if item.key.startswith("grant-") and "su-1" in item.key
     ]
-    assert len(grants) == 2
+    assert len(grants) == 3
     assert any("--assignee-object-id pid-ns" in item.command for item in grants)
     assert any("--assignee-object-id pid-su" in item.command for item in grants)
     link = next(item for item in flow.build_plan() if item.key == "su")
@@ -1219,13 +1675,44 @@ def test_each_hub_gets_its_own_endpoint_name():
 
 
 def test_every_selected_hub_gets_grants_in_both_directions():
-    hubs = [identified(hub_candidate("hub-a")), identified(hub_candidate("hub-b"))]
+    hubs = [
+        identified(hub_candidate("hub-a"), principal="pid-hub-a"),
+        identified(hub_candidate("hub-b"), principal="pid-hub-b"),
+    ]
     flow = build_flow(context(namespace_with_principal(provisioning={"dps": {}}),
                               selected_hubs=hubs, subscription_id="sub-1"))
     grants = [item.description for item in flow.build_plan() if item.key.startswith("grant-")]
     for hub in ("hub-a", "hub-b"):
         assert any(hub in text and "namespace identity" in text for text in grants)
         assert any(hub in text and "on the namespace" in text for text in grants)
+
+
+def test_shared_uami_reverse_grant_is_deduplicated():
+    hubs = [hub_candidate("hub-a"), hub_candidate("hub-b")]
+    for hub in hubs:
+        hub.raw = {"identity": {}}
+    choice = IdentityChoice(
+        mode=USER_ASSIGNED,
+        uami_id=(
+            "/subscriptions/sub-1/resourceGroups/rg1/providers/"
+            "Microsoft.ManagedIdentity/userAssignedIdentities/shared"
+        ),
+        uami_name="shared",
+        principal_id="pid-shared",
+    )
+    ctx = context(
+        namespace_with_principal(provisioning={"dps": {}}),
+        selected_hubs=hubs,
+        subscription_id="sub-1",
+    )
+    for hub in hubs:
+        set_choice(ctx, "hub", choice, hub.resource_id)
+    reverse = [
+        item
+        for item in build_flow(ctx).build_plan()
+        if item.key.startswith("grant-hub-to-ns")
+    ]
+    assert len(reverse) == 1
 
 
 def test_rail_lists_decisions_only():
@@ -1256,7 +1743,7 @@ def test_rail_shows_what_was_chosen_for_each_step():
     })
     assert screen._chosen_lines("subscription") == ["Contoso-Dev"]
     assert screen._chosen_lines("scope") == ["rg-one"]
-    assert screen._chosen_lines("namespace") == ["factory"]
+    assert screen._chosen_lines("namespace") == ["factory · choose identity"]
 
 
 def test_rail_uses_names_and_focus_instead_of_status_badges():
@@ -1367,7 +1854,12 @@ def test_rail_lists_every_chosen_hub_rather_than_hiding_them():
 
     screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
     screen.context["selected_hubs"] = [hub_candidate(f"hub-{i}") for i in range(4)]
-    assert screen._chosen_lines("hub") == ["hub-0", "hub-1", "hub-2", "hub-3"]
+    assert screen._chosen_lines("hub") == [
+        "hub-0 · choose identity",
+        "hub-1 · choose identity",
+        "hub-2 · choose identity",
+        "hub-3 · choose identity",
+    ]
 
 
 def test_rail_lists_chosen_update_instances_too():
@@ -1375,7 +1867,10 @@ def test_rail_lists_chosen_update_instances_too():
 
     screen = OnboardScreen(session=None, scope={"subscription_id": "sub-1"})
     screen.context["selected_sus"] = [hub_candidate("su-a"), hub_candidate("su-b")]
-    assert screen._chosen_lines("su") == ["su-a", "su-b"]
+    assert screen._chosen_lines("su") == [
+        "su-a · choose identity",
+        "su-b · choose identity",
+    ]
 
 
 def test_rail_stops_listing_choices_before_it_fills_the_pane():
@@ -1412,8 +1907,8 @@ def test_rail_positions_map_to_visible_steps_only():
     flow = build_flow(context())
     visible = flow.visible_steps()
     assert [s.id for s in visible][:4] == ["subscription", "scope", "namespace", "dps"]
-    # 'identity' is hidden and sits between 'namespace' and 'dps' in the full list.
-    assert [s.id for s in flow.steps][3] == "identity"
+    # Identity planning steps are hidden between scope/namespace and DPS.
+    assert [s.id for s in flow.steps][2:5] == ["uami", "namespace", "identity"]
     assert visible[3].id == "dps", "rail position 4 must be Link DPS, not the hidden step"
 
 
@@ -1509,10 +2004,47 @@ def test_update_instances_toggle_the_same_way_as_hubs():
 
 
 def test_done_on_a_multi_select_step_moves_on():
-    screen = _screen_with(selected_hubs=[hub_candidate("hub-a")])
+    hub = hub_candidate("hub-a")
+    screen = _screen_with(selected_hubs=[hub])
+    set_choice(screen.context, "hub", system_choice(), hub.resource_id)
     screen._focus_step = "hub"
     screen.action_done_step()
     assert screen._focus_step != "hub"
+
+
+def test_done_blocks_when_a_selected_resource_has_no_identity_choice():
+    screen = _screen_with(selected_hubs=[hub_candidate("hub-a")])
+    screen._focus_step = "hub"
+    screen.action_done_step()
+    assert screen._focus_step == "hub"
+    assert any(
+        "choose an identity" in message
+        for _level, message in screen.flashes
+    )
+
+
+def test_rail_identifies_sami_and_uami_choices():
+    sami_hub = hub_candidate("hub-sami")
+    uami_hub = hub_candidate("hub-uami")
+    screen = _screen_with(selected_hubs=[sami_hub, uami_hub])
+    set_choice(screen.context, "hub", system_choice(), sami_hub.resource_id)
+    set_choice(
+        screen.context,
+        "hub",
+        IdentityChoice(
+            mode=USER_ASSIGNED,
+            uami_id=(
+                "/subscriptions/sub-1/resourceGroups/rg1/providers/"
+                "Microsoft.ManagedIdentity/userAssignedIdentities/shared"
+            ),
+            uami_name="shared",
+        ),
+        uami_hub.resource_id,
+    )
+    assert screen._chosen_lines("hub") == [
+        "hub-sami · SAMI",
+        "hub-uami · UAMI shared",
+    ]
 
 
 def test_done_with_nothing_chosen_on_a_required_step_says_so():

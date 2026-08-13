@@ -17,8 +17,13 @@ operation.
 This module is deliberately free of any UI framework import.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
+
+from azext_iot.adr.ui.screens.onboard.identity import (
+    IdentityChoice,
+    system_choice,
+)
 
 #: Defaults for resources radr creates on the customer's behalf. Deliberately modest:
 #: onboarding should not silently provision expensive capacity.
@@ -38,6 +43,7 @@ class CreateRequest:
     sku: Optional[str] = None
     capacity: int = DEFAULT_CAPACITY
     tags: Optional[Dict[str, str]] = None
+    identity: IdentityChoice = field(default_factory=system_choice)
 
     @property
     def label(self) -> str:
@@ -65,12 +71,13 @@ def hub_body(
     location: str,
     sku: str = DEFAULT_HUB_SKU,
     capacity: int = DEFAULT_CAPACITY,
+    identity: Optional[IdentityChoice] = None,
 ) -> Dict[str, Any]:
+    choice = identity or system_choice()
     return {
         "location": location,
         "sku": {"name": sku, "capacity": capacity},
-        # Required so the hub can present a caller identity to the namespace.
-        "identity": {"type": "SystemAssigned"},
+        "identity": _identity_body(choice),
         "properties": {},
     }
 
@@ -79,13 +86,24 @@ def dps_body(
     location: str,
     sku: str = DEFAULT_DPS_SKU,
     capacity: int = DEFAULT_CAPACITY,
+    identity: Optional[IdentityChoice] = None,
 ) -> Dict[str, Any]:
+    choice = identity or system_choice()
     return {
         "location": location,
         "sku": {"name": sku, "capacity": capacity},
-        "identity": {"type": "SystemAssigned"},
+        "identity": _identity_body(choice),
         "properties": {},
     }
+
+
+def _identity_body(choice: IdentityChoice) -> Dict[str, Any]:
+    if choice.is_user_assigned:
+        return {
+            "type": "UserAssigned",
+            "userAssignedIdentities": {choice.uami_id: {}},
+        }
+    return {"type": "SystemAssigned"}
 
 
 def create_hub(catalog, request: CreateRequest):
@@ -100,6 +118,7 @@ def create_hub(catalog, request: CreateRequest):
             request.location,
             request.sku or DEFAULT_HUB_SKU,
             request.capacity,
+            request.identity,
         ),
     )
 
@@ -116,6 +135,7 @@ def create_dps(catalog, request: CreateRequest):
             request.location,
             request.sku or DEFAULT_DPS_SKU,
             request.capacity,
+            request.identity,
         ),
     )
 
@@ -128,7 +148,10 @@ def create_namespace(session, request: CreateRequest):
         resource_group_name=request.resource_group_name,
         location=request.location,
         tags=request.tags,
-        outbound_mi_system_assigned=True,
+        outbound_mi_system_assigned=not request.identity.is_user_assigned,
+        outbound_mi_user_assigned=(
+            request.identity.uami_id if request.identity.is_user_assigned else None
+        ),
         no_wait=True,
     )
 
@@ -139,6 +162,9 @@ def create_update_instance(session, request: CreateRequest):
         update_instance_name=request.name,
         resource_group_name=request.resource_group_name,
         location=request.location,
-        mi_system_assigned=True,
+        mi_system_assigned=not request.identity.is_user_assigned,
+        mi_user_assigned=(
+            [request.identity.uami_id] if request.identity.is_user_assigned else None
+        ),
         no_wait=True,
     )

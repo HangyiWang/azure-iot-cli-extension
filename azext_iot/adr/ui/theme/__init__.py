@@ -580,6 +580,197 @@ Button {
     color: $text-muted;
 }
 
+/* ---------- managed identity chooser ---------- */
+
+#identity-dialog {
+    width: 72%;
+    max-width: 100%;
+    height: 80%;
+    max-height: 100%;
+    border: none;
+    border-left: solid $panel;
+    background: $surface;
+    padding: 1 3;
+}
+
+#identity-dialog > Static,
+#identity-dialog > Label {
+    height: auto;
+}
+
+#identity-context {
+    margin-top: 1;
+    text-style: bold;
+}
+
+#identity-current {
+    height: auto;
+    color: $primary;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+#identity-explanation,
+#identity-status {
+    color: $text-muted;
+    margin-bottom: 1;
+}
+
+#identity-actions {
+    height: auto;
+    margin: 1 0;
+}
+
+#identity-actions Button {
+    width: 1fr;
+    min-width: 18;
+    height: 1;
+    margin-right: 1;
+    padding: 0 1;
+    border: none;
+    background: transparent;
+    color: $text-muted;
+}
+
+#identity-actions Button:focus {
+    border: none;
+    background: $primary-darken-1;
+    color: $primary-background;
+}
+
+#identity-loading {
+    height: 3;
+    color: $primary;
+}
+
+#identity-table {
+    height: 1fr;
+    min-height: 12;
+    border: none;
+    padding: 0;
+}
+
+#identity-filter {
+    height: 3;
+    margin-bottom: 1;
+    border: round $panel;
+}
+
+#identity-filter:focus {
+    border: round $primary;
+}
+
+#identity-new-form {
+    height: auto;
+    padding-top: 1;
+}
+
+#identity-new-form .section-title {
+    height: auto;
+    margin-bottom: 1;
+    text-style: bold;
+    color: $primary;
+}
+
+#identity-new-form .form-field {
+    height: 3;
+}
+
+#identity-new-form .form-label {
+    width: 18;
+    content-align: left middle;
+    color: $text-muted;
+    text-style: bold;
+}
+
+#identity-new-form .form-field Input {
+    width: 1fr;
+}
+
+#identity-error {
+    height: auto;
+    margin-left: 18;
+}
+
+#identity-new-form .modal-buttons {
+    height: 2;
+    padding: 1 0 0 0;
+}
+
+#identity-new-back,
+#identity-new-confirm,
+#identity-cancel {
+    width: auto;
+    min-width: 8;
+    height: 1;
+    margin-left: 1;
+    padding: 0 1;
+    border: none;
+    background: transparent;
+    color: $text-muted;
+}
+
+#identity-new-confirm {
+    color: $primary;
+    text-style: bold;
+}
+
+#identity-new-back:focus,
+#identity-new-confirm:focus,
+#identity-cancel:focus {
+    border: none;
+    background: $primary-darken-1;
+    color: $primary-background;
+}
+
+#identity-footer {
+    dock: bottom;
+    height: 2;
+    padding: 1 0 0 0;
+    align-horizontal: left;
+    border-top: solid $panel;
+}
+
+#identity-cancel {
+    margin-left: 0;
+}
+
+/* ---------- guided setup execution ---------- */
+
+#execution-layout {
+    height: 1fr;
+    margin: 0 1;
+    padding: 0 1;
+    background: $surface;
+}
+
+#execution-heading {
+    height: auto;
+    min-height: 2;
+    padding: 1 1 0 1;
+}
+
+#execution-summary {
+    height: auto;
+    padding: 0 1 1 1;
+    color: $text-muted;
+}
+
+#execution-table {
+    height: 2fr;
+    min-height: 10;
+    border: round $panel;
+}
+
+#execution-detail {
+    height: 1fr;
+    min-height: 6;
+    margin-top: 1;
+    padding: 1 2;
+    border: round $panel;
+    background: $background;
+}
+
 #create-confirm {
     color: $primary;
     text-style: bold;
@@ -640,6 +831,11 @@ ModalBox.danger {
 ModalScreen {
     align: center middle;
     background: $background 60%;
+}
+
+/* The identity workspace is a right-side sheet so the onboarding rail remains visible. */
+IdentityChoiceDialog {
+    align: right middle;
 }
 
 #help-body {

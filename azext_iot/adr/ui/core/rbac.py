@@ -111,6 +111,29 @@ def can_grant_roles(session, scope: str) -> Optional[bool]:
     return verdict
 
 
+def permissions_at_scope(
+    session,
+    scope: str,
+    actions: List[str],
+) -> Optional[Dict[str, bool]]:
+    """Resolve several effective ARM actions with one permissions request."""
+    if not scope:
+        return None
+    url = f"{_ARM}{scope}/providers/Microsoft.Authorization/permissions?api-version={_PERMISSIONS_API}"
+    try:
+        cli = _embedded_cli(session)
+        with _quiet():
+            cli.invoke(f"rest --method get --url {quote(url)}")
+        payload = cli.as_json()
+    except Exception as error:  # noqa: BLE001 - caller presents an unknown result
+        diagnostics.exception("permission probe failed for %s: %s", scope, error)
+        return None
+    entries = payload.get("value") if isinstance(payload, dict) else None
+    result = {action: permits(entries or [], action) for action in actions}
+    diagnostics.log("permission probe at %s: %s", scope, result)
+    return result
+
+
 def resolve_principal(session, resource_id: str) -> Optional[str]:
     """The system-assigned principal id of a resource, read at run time.
 
@@ -125,11 +148,32 @@ def resolve_principal(session, resource_id: str) -> Optional[str]:
         with _quiet():
             cli.invoke(
                 f"resource show --ids {quote(resource_id)} "
-                "--query identity.principalId"
+                "--query \"identity.principalId || properties.principalId\""
             )
         principal = cli.as_json()
     except Exception as error:  # noqa: BLE001 - reported by the caller as a blocked grant
         diagnostics.exception("could not read identity of %s: %s", resource_id, error)
+        return None
+    return principal if isinstance(principal, str) and principal else None
+
+
+def resolve_service_principal(session, application_id: str) -> Optional[str]:
+    """Resolve a tenant-local service-principal object id from its application id."""
+    if not application_id:
+        return None
+    try:
+        cli = _embedded_cli(session)
+        with _quiet():
+            cli.invoke(
+                f"ad sp show --id {quote(application_id)} --query id"
+            )
+        principal = cli.as_json()
+    except Exception as error:  # noqa: BLE001 - caller reports the blocked grant
+        diagnostics.exception(
+            "could not resolve service principal %s: %s",
+            application_id,
+            error,
+        )
         return None
     return principal if isinstance(principal, str) and principal else None
 

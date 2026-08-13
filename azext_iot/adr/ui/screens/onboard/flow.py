@@ -50,6 +50,10 @@ class PlanItem:
     phase: int = 50
     long_running: bool = True
     invoke: Optional[Callable[..., Any]] = None
+    #: Optional readiness check run after the mutation poller completes.
+    verify: Optional[Callable[..., Any]] = None
+    target: str = ""
+    category: str = "operation"
     blocked_reason: str = ""
 
     @property

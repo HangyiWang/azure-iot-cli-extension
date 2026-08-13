@@ -109,13 +109,10 @@ def evaluate(resource: Dict[str, Any], namespace_location: Optional[str] = None,
         candidate.reason = "provisioning failed"
         return candidate
 
-    if require_identity and identity == NO_IDENTITY:
-        # The service requires the linked resource to present an identity to the namespace.
-        candidate.verdict = INELIGIBLE
-        candidate.reason = "identity missing"
-        return candidate
-
     warnings = []
+    if require_identity and identity == NO_IDENTITY:
+        # Guided setup can enable a SAMI or attach a UAMI before linking.
+        warnings.append("identity setup required")
     if namespace_location and location and location.lower() != namespace_location.lower():
         warnings.append("other region")
 
@@ -306,12 +303,27 @@ class ResourceCatalog:
         """Software Update instances, which the product owns and can also create."""
 
         def load():
-            from azext_iot._factory import adr_su_service_factory
+            from azext_iot._factory import adr_update_instance_service_factory
 
-            client = adr_su_service_factory(self.cmd.cli_ctx)
+            client = adr_update_instance_service_factory(self.cmd.cli_ctx)
             return client.update_instances.list_by_subscription()
 
         return self._listed("su", load)
+
+    def user_assigned_identities(self) -> List[Dict[str, Any]]:
+        """User-assigned identities available in the active subscription."""
+
+        def load():
+            from azure.cli.command_modules.identity._client_factory import (
+                _msi_client_factory,
+            )
+
+            client = _msi_client_factory(
+                self.cmd.cli_ctx
+            ).user_assigned_identities
+            return client.list_by_subscription()
+
+        return self._listed("uami", load)
 
     def clear(self) -> None:
         with self._lock:

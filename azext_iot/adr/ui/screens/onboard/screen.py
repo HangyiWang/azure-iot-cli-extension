@@ -55,6 +55,19 @@ from azext_iot.adr.ui.screens.onboard.create import (
     CreateRequest,
 )
 from azext_iot.adr.ui.screens.onboard.forms import parse_tags, validate_name
+from azext_iot.adr.ui.screens.onboard.execution import ExecutionScreen
+from azext_iot.adr.ui.screens.onboard.identity import (
+    assignment_rows,
+    choice_from_namespace,
+    get_choice,
+    has_choice,
+    has_system_identity,
+    has_uami,
+    remove_choice,
+    set_choice,
+    system_choice,
+)
+from azext_iot.adr.ui.screens.onboard.identity_dialog import IdentityChoiceDialog
 from azext_iot.adr.ui.screens.onboard.steps import build_flow
 from azext_iot.adr.ui.theme import style_for
 from azext_iot.adr.ui.widgets.tray import CommandPreviewDialog
@@ -216,6 +229,7 @@ class OnboardScreen(ChromeScreen):
         Binding("n", "create_new", "Create new", show=True),
         Binding("d", "done_step", "Done, next", show=True),
         Binding("j", "show_json", "JSON", show=True),
+        Binding("i", "configure_identity", "Identity", show=True),
         Binding("slash", "start_filter", "Filter", show=True, key_display="/"),
         Binding("1,2,3,4,5,6,7,8,9", "goto_step", "Jump to step", show=False),
         Binding("x", "export", "Copy script", show=True),
@@ -230,6 +244,12 @@ class OnboardScreen(ChromeScreen):
         self.context: Dict[str, Any] = dict(self.scope)
         self.context["namespace"] = namespace or {}
         self.context["_catalog"] = catalog
+        if namespace:
+            set_choice(
+                self.context,
+                "namespace",
+                choice_from_namespace(namespace),
+            )
         self.flow = build_flow(self.context)
         self.catalog = catalog
         self._candidates: List = []
@@ -374,39 +394,197 @@ class OnboardScreen(ChromeScreen):
         controls[max(0, min(index + direction, len(controls) - 1))].focus()
 
     def _probe_grant_rights(self) -> None:
-        """Ask ARM, once per subscription, whether we may create role assignments.
-
-        The answer decides whether the linking grants become operations radr runs or
-        commands the customer has to hand to an administrator, so it is worth asking
-        rather than assuming the pessimistic case.
-        """
+        """Check the simple permission model at every involved resource group."""
         subscription = self.context.get("subscription_id")
         if self.session is None or not subscription:
             return
-        if self.context.get("_grant_probe_for") == subscription:
+        requirements = self._permission_requirements()
+        signature = tuple(
+            (scope, tuple(sorted(actions)))
+            for scope, actions in sorted(requirements.items())
+        )
+        if self.context.get("_grant_probe_for") == signature:
             return
-        self.context["_grant_probe_for"] = subscription
+        self.context["_grant_probe_for"] = signature
+        self.context["permission_checking"] = True
         self.run_worker(
-            lambda: self._read_grant_rights(subscription), thread=True, name="onboard-rbac"
+            lambda: self._read_grant_rights(signature, requirements),
+            thread=True,
+            name="onboard-rbac",
         )
 
-    def _read_grant_rights(self, subscription: str) -> None:
-        from azext_iot.adr.ui.core.rbac import can_grant_roles
+    def _permission_requirements(self):
+        from azext_iot.adr.ui.core.rbac import ROLE_WRITE_ACTION
 
-        verdict = can_grant_roles(self.session, f"/subscriptions/{subscription}")
-        self.app.call_from_thread(self._grant_rights_read, subscription, verdict)
+        subscription = self.context.get("subscription_id") or ""
+        subscription_scope = f"/subscriptions/{subscription}"
+        requirements = {}
 
-    def _grant_rights_read(self, subscription: str, verdict) -> None:
-        # A subscription switch during the probe would otherwise apply a stale answer.
-        if self.context.get("subscription_id") != subscription:
+        def group_scope(group):
+            return (
+                f"/subscriptions/{subscription}/resourceGroups/{group}"
+                if group
+                else ""
+            )
+
+        planned_group = self.context.get("create_resource_group")
+
+        def parent_scope(group):
+            if planned_group is not None and planned_group.name == group:
+                return subscription_scope
+            return group_scope(group)
+
+        def require(scope, *actions, role_write=False):
+            if not scope:
+                return
+            requirements.setdefault(scope, set()).update(actions)
+            if role_write:
+                requirements[scope].add(ROLE_WRITE_ACTION)
+
+        namespace_group = self.context.get("resource_group_name")
+        namespace_scope = (
+            f"{group_scope(namespace_group)}/providers/"
+            f"Microsoft.DeviceRegistry/namespaces/"
+            f"{self.context.get('namespace_name') or ''}"
+        )
+        namespace_exists = bool(self.context.get("namespace"))
+        require(
+            namespace_scope if namespace_exists else parent_scope(namespace_group),
+            "Microsoft.DeviceRegistry/namespaces/write",
+            role_write=not namespace_exists,
+        )
+        if namespace_exists:
+            require(namespace_scope, role_write=True)
+
+        for kind, key, action in (
+            ("dps", "selected_dps", "Microsoft.Devices/provisioningServices/write"),
+            ("hub", "selected_hubs", "Microsoft.Devices/IotHubs/write"),
+            ("su", "selected_sus", "Microsoft.DeviceUpdate/updateInstances/write"),
+        ):
+            selected = self.context.get(key)
+            resources = (
+                [selected]
+                if kind == "dps" and selected is not None
+                else list(selected or [])
+            )
+            for resource in resources:
+                choice = get_choice(
+                    self.context,
+                    kind,
+                    resource.resource_id,
+                )
+                raw = resource.raw or {}
+                identity_ready = (
+                    has_uami(raw, choice.uami_id)
+                    if choice.is_user_assigned
+                    else has_system_identity(raw)
+                )
+                require(
+                    resource.resource_id,
+                    *((action,) if not identity_ready else ()),
+                    role_write=True,
+                )
+            request = self.context.get(f"create_{kind}")
+            if request is not None:
+                require(
+                    parent_scope(request.resource_group_name),
+                    action,
+                    role_write=True,
+                )
+        identity_choices = list(
+            (self.context.get("identity_choices") or {}).values()
+        )
+        for key in ("create_namespace", "create_dps", "create_hub", "create_su"):
+            request = self.context.get(key)
+            if request is not None:
+                identity_choices.append(request.identity)
+        for choice in identity_choices:
+            if not choice.is_user_assigned:
+                continue
+            identity_scope = (
+                parent_scope(choice.uami_resource_group)
+                if choice.create_uami
+                else choice.uami_id
+            )
+            require(
+                identity_scope,
+                "Microsoft.ManagedIdentity/userAssignedIdentities/read",
+                "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action",
+            )
+            if choice.create_uami:
+                require(
+                    identity_scope,
+                    "Microsoft.ManagedIdentity/userAssignedIdentities/write",
+                )
+        if planned_group is not None:
+            require(
+                subscription_scope,
+                "Microsoft.Resources/subscriptions/resourceGroups/write",
+            )
+        return requirements
+
+    def _read_grant_rights(self, signature, requirements) -> None:
+        from azext_iot.adr.ui.core.rbac import (
+            ROLE_WRITE_ACTION,
+            permissions_at_scope,
+        )
+
+        matrix = {}
+        for scope, actions in requirements.items():
+            matrix[scope] = permissions_at_scope(
+                self.session, scope, sorted(actions)
+            )
+        role_ready = all(
+            matrix.get(scope) is not None
+            and matrix[scope].get(ROLE_WRITE_ACTION) is True
+            for scope, actions in requirements.items()
+            if ROLE_WRITE_ACTION in actions
+        )
+        write_ready = bool(matrix) and all(
+            result is not None
+            and all(allowed for action, allowed in result.items()
+                    if action != ROLE_WRITE_ACTION)
+            for result in matrix.values()
+        )
+        self.app.call_from_thread(
+            self._grant_rights_read,
+            signature,
+            matrix,
+            role_ready,
+            write_ready,
+        )
+
+    def _grant_rights_read(
+        self,
+        signature,
+        matrix,
+        role_ready: bool,
+        write_ready: bool,
+    ) -> None:
+        if self.context.get("_grant_probe_for") != signature:
             return
-        self.context["can_grant_roles"] = verdict
+        self.context["permission_checking"] = False
+        self.context["permission_matrix"] = matrix
+        self.context["can_grant_roles"] = role_ready
+        self.context["can_write_resources"] = write_ready
         self.refresh_view()
 
     # -- rendering ---------------------------------------------------------
 
     def _render_review(self, text: Text) -> None:
         """The commit point: what will run, what you must run, what is already done."""
+        missing_identity = self._missing_identity_choice()
+        if missing_identity is not None:
+            text.append(
+                "BLOCKED\n",
+                style=f"bold {self._style(STYLE_ERROR)}",
+            )
+            text.append(
+                f"Choose the managed identity for {missing_identity}. "
+                "Return to that resource, highlight it, and press i.\n",
+                style=self._style(STYLE_WARN),
+            )
+            return
         plan = self.flow.build_plan()
         runnable = [item for item in plan if item.invoke is not None]
         manual = [item for item in plan if item.action == "manual"]
@@ -485,17 +663,62 @@ class OnboardScreen(ChromeScreen):
         }
         if step_id in single:
             value = single[step_id]
+            if step_id == "namespace" and value:
+                return [
+                    f"{value} · {self._identity_indicator('namespace')}"
+                ]
             return [value] if value else []
         if step_id == "dps":
             chosen = self.context.get("selected_dps")
-            return [chosen.name] if chosen is not None else []
+            return [
+                f"{chosen.name} · "
+                f"{self._identity_indicator('dps', chosen.resource_id)}"
+            ] if chosen is not None else []
         if step_id in _MULTI_SELECT:
             chosen = self.context.get(_SELECTABLE[step_id]) or []
-            names = [item.name for item in chosen[:_RAIL_CHOICE_LIMIT]]
+            names = [
+                f"{item.name} · "
+                f"{self._identity_indicator(step_id, item.resource_id)}"
+                for item in chosen[:_RAIL_CHOICE_LIMIT]
+            ]
             if len(chosen) > _RAIL_CHOICE_LIMIT:
                 names.append(f"and {len(chosen) - _RAIL_CHOICE_LIMIT} more")
             return names
         return []
+
+    def _identity_indicator(self, kind: str, resource_id: str = "") -> str:
+        if not has_choice(self.context, kind, resource_id):
+            return "choose identity"
+        choice = get_choice(self.context, kind, resource_id)
+        if choice.is_user_assigned:
+            return f"UAMI {choice.uami_name or choice.uami_id.rsplit('/', 1)[-1]}"
+        return "SAMI"
+
+    def _missing_identity_choice(self) -> Optional[str]:
+        if (
+            self.context.get("namespace_name")
+            and self.context.get("create_namespace") is None
+            and not has_choice(self.context, "namespace")
+        ):
+            return f"namespace '{self.context.get('namespace_name')}'"
+        dps = self.context.get("selected_dps")
+        if (
+            dps is not None
+            and not has_choice(self.context, "dps", dps.resource_id)
+        ):
+            return f"DPS '{dps.name}'"
+        for kind, key, label in (
+            ("hub", "selected_hubs", "Hub"),
+            ("su", "selected_sus", "Update Instance"),
+        ):
+            for resource in self.context.get(key) or []:
+                if not has_choice(
+                    self.context,
+                    kind,
+                    resource.resource_id,
+                ):
+                    return f"{label} '{resource.name}'"
+        return None
 
     def _advance(self, message: str = "") -> None:
         """Move to the next unsatisfied step once a choice is made.
@@ -605,6 +828,8 @@ class OnboardScreen(ChromeScreen):
         self._render_candidate_status()
         if hasattr(self.app, "sync_chrome"):
             self.app.sync_chrome(self)
+        if self.is_mounted:
+            self._probe_grant_rights()
 
     def _style(self, token: str) -> str:
         return style_for(token, getattr(self.app, "theme_tokens", None))
@@ -636,11 +861,22 @@ class OnboardScreen(ChromeScreen):
             for chosen in self._chosen_lines(step.id):
                 if detail:
                     detail.append("\n")
-                detail.append(chosen)
+                detail.append(
+                    chosen,
+                    style=(
+                        self._style(STYLE_WARN)
+                        if "choose identity" in chosen
+                        else self._style(STYLE_ACTIVE)
+                    ),
+                )
             if pending is not None:
                 if detail:
                     detail.append("\n")
-                detail.append(f"create: {pending.name}", style="dim")
+                detail.append(
+                    f"create: {pending.name} · "
+                    f"{'UAMI ' + pending.identity.uami_name if pending.identity.is_user_assigned else 'SAMI'}",
+                    style=self._style(STYLE_ACTIVE),
+                )
             children = [title]
             if detail:
                 children.append(Label(detail, classes="step-resources"))
@@ -735,22 +971,21 @@ class OnboardScreen(ChromeScreen):
                         "one.\n", style="dim")
         elif step.id == "namespace":
             text.append("Press n to create a new namespace, or escape and pick an existing "
-                        "one from the namespace list.\n", style="dim")
+                        "one from the namespace list. Identity is chosen before continuing.\n",
+                        style="dim")
         elif step.id == "dps":
-            text.append("Links one DPS to the namespace before any IoT Hub. Readiness "
-                        "checks provisioning state, managed identity, and region. Press "
-                        "Enter to use an existing DPS, or n to create one.\n", style="dim")
+            text.append("Links one DPS to the namespace before any IoT Hub. Press Enter "
+                        "to choose the DPS and its caller identity, or n to create one. "
+                        "A missing identity can be enabled during setup.\n", style="dim")
         elif step.id == "hub":
-            text.append("Links IoT Hubs to the namespace. Readiness checks provisioning "
-                        "state, managed identity, region, and registration on the selected "
-                        "DPS. Press Enter to select as many as you need, n to create one, "
-                        "then d when you are done.\n",
+            text.append("Links IoT Hubs to the namespace. Enter selects as many as you "
+                        "need; i chooses SAMI or UAMI for the highlighted Hub; n creates "
+                        "one; d finishes. A missing identity can be enabled during setup.\n",
                         style="dim")
         elif step.id == "su":
             text.append("Optional. Links Software Updates instances so this namespace can "
-                        "run update jobs. Readiness checks provisioning state, managed "
-                        "identity, and region. Press Enter to select as many as you need, "
-                        "n to create one, then d when you are done - or d now to skip.\n",
+                        "run update jobs. Enter selects; i chooses SAMI or UAMI for the "
+                        "highlighted instance; n creates one; d finishes or skips.\n",
                         style="dim")
         elif step.id == "permissions":
             text.append(
@@ -779,10 +1014,21 @@ class OnboardScreen(ChromeScreen):
 
     def _grant_rights_note(self) -> str:
         """Say plainly whether radr will make the grants, and if not, why not."""
+        if self.context.get("permission_checking"):
+            return "radr is checking resource and role access at every involved scope...\n"
         verdict = self.context.get("can_grant_roles")
-        if verdict is True:
-            return ("Your account may create role assignments here, so radr will make "
-                    "these for you as part of the run.\n")
+        writes = self.context.get("can_write_resources")
+        if verdict is True and writes is True:
+            return (
+                "Permission preflight passed at every involved resource group. "
+                "radr can make resource changes and role assignments.\n"
+            )
+        if writes is False:
+            return (
+                "Resource-write access is missing at one or more involved resource "
+                "groups. Owner, or Contributor plus User Access Administrator, is "
+                "the simplest supported permission model.\n"
+            )
         if verdict is False:
             return ("Your account may not create role assignments here, so radr will list "
                     "them instead. Activate Owner or User Access Administrator (PIM) and "
@@ -889,7 +1135,7 @@ class OnboardScreen(ChromeScreen):
             total = len(self._candidates)
             summary = f"{shown} of {total}" if shown != total else f"{total}"
             hint = (
-                "Enter toggles selection, [selected] marks chosen, d moves on, / filters"
+                "Enter toggles selection, i sets identity, d moves on, / filters"
                 if step.id in _MULTI_SELECT
                 else "Enter chooses, / filters"
             )
@@ -1052,11 +1298,25 @@ class OnboardScreen(ChromeScreen):
                     tag_summary(raw),
                 )
             else:
+                identity = candidate.identity[:14]
+                if chosen and step_id in ("dps", "hub", "su"):
+                    identity = (
+                        get_choice(
+                            self.context, step_id, candidate.resource_id
+                        ).label
+                        if has_choice(
+                            self.context, step_id, candidate.resource_id
+                        )
+                        else Text(
+                            "choose identity",
+                            style=self._style(STYLE_WARN),
+                        )
+                    )
                 row = (
                     name,
                     candidate.resource_group,
                     candidate.location,
-                    candidate.identity[:14],
+                    identity,
                     Text(candidate.describe(), style=style),
                 )
             table.add_row(*row, key=candidate.resource_id or candidate.name)
@@ -1109,6 +1369,7 @@ class OnboardScreen(ChromeScreen):
             "selected_dps",
             "selected_hubs",
             "selected_sus",
+            "identity_choices",
         ):
             self.context.pop(key, None)
         self.context["namespace"] = {}
@@ -1228,6 +1489,7 @@ class OnboardScreen(ChromeScreen):
             self._close_form()
             return
         kind, _label, context_key = _CREATABLE[step.id]
+        pending = self.context.get(context_key)
 
         name = self.query_one("#create-name", Input).value.strip()
         location = self.query_one("#create-location", Input).value.strip()
@@ -1279,9 +1541,13 @@ class OnboardScreen(ChromeScreen):
             sku=sku,
             capacity=capacity,
             tags=tags or None,
+            identity=getattr(pending, "identity", system_choice()),
         )
         self._close_form()
-        self._accept_create(step.id, context_key, request)
+        if kind == "resource_group":
+            self._accept_create(step.id, context_key, request)
+            return
+        self._prompt_create_identity(step.id, context_key, request)
 
     def action_start_filter(self) -> None:
         field = self.query_one("#candidate-filter", Input)
@@ -1372,14 +1638,8 @@ class OnboardScreen(ChromeScreen):
             self._switch_subscription(candidate)
             return
         if step.id == "namespace":
-            self.context["namespace_name"] = candidate.name
-            self.context["resource_group_name"] = (
-                candidate.resource_group or self.context.get("resource_group_name")
-            )
-            self.context.pop("create_namespace", None)
-            self.context["namespace"] = candidate.raw or {}
-            self._state_loaded = True
-            self._advance(f"namespace {candidate.name}")
+            current = choice_from_namespace(candidate.raw or {})
+            self._prompt_candidate_identity(step.id, candidate, current)
             return
         if step.id == "scope":
             old_group = self.context.get("resource_group_name")
@@ -1394,12 +1654,20 @@ class OnboardScreen(ChromeScreen):
             self._advance(f"resource group {candidate.name}")
             return
         if step.id == "dps":
-            self.context["selected_dps"] = candidate
-            self.context.pop("create_dps", None)
-            self._advance(f"DPS {candidate.name}")
+            self._prompt_candidate_identity(
+                step.id,
+                candidate,
+                get_choice(self.context, "dps", candidate.resource_id),
+            )
             return
         if step.id in _MULTI_SELECT:
-            self._toggle_choice(step.id, candidate)
+            added = self._toggle_choice(step.id, candidate)
+            if added:
+                self._prompt_candidate_identity(
+                    step.id,
+                    candidate,
+                    system_choice(),
+                )
         self.refresh_view()
         self._paint_candidates()
 
@@ -1435,7 +1703,7 @@ class OnboardScreen(ChromeScreen):
             )
         )
 
-    def _toggle_choice(self, step_id: str, candidate) -> None:
+    def _toggle_choice(self, step_id: str, candidate) -> bool:
         """Add or remove one resource on a step that accepts several.
 
         Toggling rather than appending: pressing select twice on the same row used to
@@ -1446,16 +1714,151 @@ class OnboardScreen(ChromeScreen):
         chosen = list(self.context.get(key) or [])
         if any(item.resource_id == candidate.resource_id for item in chosen):
             chosen = [item for item in chosen if item.resource_id != candidate.resource_id]
+            remove_choice(self.context, step_id, candidate.resource_id)
             self.flash(f"removed {noun} {candidate.name} ({len(chosen)} selected)", "info")
+            added = False
         else:
             chosen.append(candidate)
             self.flash(
                 f"{noun} {candidate.name} selected ({len(chosen)} total) - "
-                "select more, or press d when done",
+                "choose its identity, then select more or press d",
                 "success",
             )
+            added = True
         self.context[key] = chosen
         self.context.pop({"hub": "create_hub", "su": "create_su"}[step_id], None)
+        return added
+
+    def action_configure_identity(self) -> None:
+        """Choose SAMI or UAMI for the highlighted or planned resource."""
+        step = self.active_step()
+        if step is None or step.id not in ("namespace", "dps", "hub", "su"):
+            self.flash("identity is configured on namespace and link resources", "info")
+            return
+        request = self._pending_creation(step.id)
+        if request is not None:
+            self._prompt_create_identity(
+                step.id,
+                _CREATABLE[step.id][2],
+                request,
+                editing=True,
+            )
+            return
+        candidate = self._selected_candidate()
+        if candidate is None:
+            self.flash("highlight a resource first", "warning")
+            return
+        current = (
+            choice_from_namespace(candidate.raw or {})
+            if step.id == "namespace"
+            else get_choice(self.context, step.id, candidate.resource_id)
+        )
+        self._prompt_candidate_identity(step.id, candidate, current)
+
+    def _identity_purpose(self, kind: str) -> str:
+        if kind == "namespace":
+            return "Identity the namespace uses to call linked resources"
+        labels = {"dps": "DPS", "hub": "Hub", "su": "Update Instance"}
+        return f"Identity this {labels[kind]} uses to call the namespace"
+
+    def _identity_dialog(
+        self,
+        kind: str,
+        label: str,
+        current,
+        callback,
+        resource=None,
+    ) -> None:
+        pane = self.query_one("#work-pane", SetupPane)
+        self.app.push_screen(
+            IdentityChoiceDialog(
+                catalog=self.catalog,
+                resource_label=label,
+                purpose=self._identity_purpose(kind),
+                subscription_id=self.context.get("subscription_id") or "",
+                resource_group_name=self.context.get("resource_group_name") or "",
+                location=self._namespace_location()
+                or self.context.get("location")
+                or "",
+                current=current,
+                resource=resource,
+                pane_left=pane.region.x,
+                pane_top=pane.region.y,
+                pane_height=pane.region.height,
+                pane_width=pane.region.width,
+            ),
+            callback,
+        )
+
+    def _prompt_candidate_identity(self, kind: str, candidate, current) -> None:
+        self._identity_dialog(
+            kind,
+            candidate.name,
+            current,
+            lambda choice: self._accept_candidate_identity(kind, candidate, choice),
+            resource=candidate.raw or {},
+        )
+
+    def _accept_candidate_identity(self, kind: str, candidate, choice) -> None:
+        if choice is None:
+            return
+        set_choice(self.context, kind, choice, candidate.resource_id)
+        if kind == "namespace":
+            self.context["namespace_name"] = candidate.name
+            self.context["resource_group_name"] = (
+                candidate.resource_group or self.context.get("resource_group_name")
+            )
+            self.context.pop("create_namespace", None)
+            self.context["namespace"] = candidate.raw or {}
+            self._state_loaded = True
+            self._advance(f"namespace {candidate.name} · {choice.label}")
+            return
+        if kind == "dps":
+            self.context["selected_dps"] = candidate
+            self.context.pop("create_dps", None)
+            self._advance(f"DPS {candidate.name} · {choice.label}")
+            return
+        key = _SELECTABLE[kind]
+        selected = list(self.context.get(key) or [])
+        if not any(item.resource_id == candidate.resource_id for item in selected):
+            selected.append(candidate)
+            self.context[key] = selected
+        self.context.pop({"hub": "create_hub", "su": "create_su"}[kind], None)
+        self.flash(f"{candidate.name} will use {choice.label}", "success")
+        self.refresh_view()
+        self._paint_candidates()
+
+    def _prompt_create_identity(
+        self,
+        step_id: str,
+        context_key: str,
+        request: CreateRequest,
+        editing: bool = False,
+    ) -> None:
+        self._identity_dialog(
+            step_id,
+            request.name,
+            request.identity,
+            lambda choice: self._accept_create_identity(
+                step_id, context_key, request, choice, editing
+            ),
+            resource={},
+        )
+
+    def _accept_create_identity(
+        self,
+        step_id: str,
+        context_key: str,
+        request: CreateRequest,
+        choice,
+        editing: bool,
+    ) -> None:
+        if choice is None:
+            return
+        request.identity = choice
+        self._accept_create(step_id, context_key, request)
+        if editing:
+            self.flash(f"{request.label} will use {choice.label}", "success")
 
     def action_done_step(self) -> None:
         """Finish a multi-select step and move on.
@@ -1481,6 +1884,24 @@ class OnboardScreen(ChromeScreen):
                     "warning",
                 )
             return
+        missing_identity = next(
+            (
+                resource
+                for resource in chosen
+                if not has_choice(
+                    self.context,
+                    step.id,
+                    resource.resource_id,
+                )
+            ),
+            None,
+        )
+        if missing_identity is not None:
+            self.flash(
+                f"choose an identity for {missing_identity.name}; highlight it and press i",
+                "warning",
+            )
+            return
         count = len(chosen) + (1 if pending is not None else 0)
         self._advance(f"{count} {_MULTI_SELECT[step.id]}(s) will be linked")
 
@@ -1492,10 +1913,49 @@ class OnboardScreen(ChromeScreen):
         if getattr(self.app, "read_only", False):
             self.flash("read-only session: apply is disabled", "warning")
             return
+        missing_identity = self._missing_identity_choice()
+        if missing_identity is not None:
+            self.flash(
+                f"choose the managed identity for {missing_identity} before running",
+                "warning",
+            )
+            return
+        if self.context.get("permission_checking"):
+            self.flash("permission preflight is still running", "warning")
+            return
+        if self.context.get("can_write_resources") is False:
+            self.flash(
+                "setup needs resource-write access at every involved resource group",
+                "warning",
+            )
+            return
         plan = self.flow.build_plan()
         runnable = [item for item in plan if item.invoke is not None]
         manual = [item for item in plan if item.action == "manual"]
         blocked = [item for item in plan if item.action == "blocked"]
+        adu_consent = next(
+            (
+                item
+                for item in blocked
+                if item.key.startswith("grant-adu-fpa-")
+                and self.context.get("adu_fpa_confirmed") is not True
+            ),
+            None,
+        )
+        if adu_consent is not None:
+            self.app.push_screen(
+                CommandPreviewDialog(
+                    "Approve Software Updates service access",
+                    adu_consent.command,
+                    note=(
+                        "Software Updates linking currently requires Contributor for "
+                        "the Azure Device Update first-party service on this Update "
+                        "Instance. This grant is shown separately for explicit approval."
+                    ),
+                ),
+                self._adu_consent_result,
+            )
+            return
         if blocked:
             self.flash(
                 f"setup is blocked: {blocked[0].blocked_reason or blocked[0].description}",
@@ -1528,40 +1988,23 @@ class OnboardScreen(ChromeScreen):
         )
 
     def _start_apply(self, items) -> None:
-        operation = self.app.tracker.start(
-            label="Guided setup",
-            target=self.context.get("namespace_name") or "namespace",
-            command=items[0].command,
-            refreshes=("namespace", "link"),
-        )
-        self.run_worker(
-            lambda: self._apply_items(items, operation), thread=True, name="onboard-apply"
+        self.app.push_screen(
+            ExecutionScreen(
+                session=self.session,
+                context=self.context,
+                items=items,
+                on_complete=self._execution_finished,
+            )
         )
 
-    def _apply_items(self, items, operation) -> None:
-        """Execute in order, stopping at the first failure: later items depend on earlier."""
-        tracker = self.app.tracker
-        current = None
-        try:
-            for item in items:
-                current = item
-                diagnostics.log("apply: %s | %s", item.key, item.command)
-                operation.command = item.command
-                poller = item.invoke(self.session, self.context)
-                diagnostics.log("apply started: %s", item.key)
-                if poller is not None and hasattr(poller, "result"):
-                    tracker._waiter(poller)
-                diagnostics.log("apply completed: %s", item.key)
-        except Exception as error:  # noqa: BLE001 - surfaced through the tray
-            step = current.description if current is not None else "apply"
-            diagnostics.exception("apply failed at '%s': %s", step, error)
-            tracker.fail(operation, RuntimeError(f"{step}: {error}"))
-        else:
-            diagnostics.log("apply finished successfully")
-            tracker.succeed(operation)
-        self.app.call_from_thread(self._apply_finished)
+    def _adu_consent_result(self, approved: bool) -> None:
+        if not approved:
+            return
+        self.context["adu_fpa_confirmed"] = True
+        self.refresh_view()
+        self.action_apply()
 
-    def _apply_finished(self) -> None:
+    def _execution_finished(self, _succeeded: bool) -> None:
         self.action_reload()
         if hasattr(self.app, "_refresh_tray"):
             self.app._refresh_tray()
@@ -1601,6 +2044,16 @@ class OnboardScreen(ChromeScreen):
 
     def _apply_namespace(self, namespace) -> None:
         self.context["namespace"] = namespace or {}
+        if (
+            namespace
+            and "namespace"
+            not in (self.context.get("identity_choices") or {})
+        ):
+            set_choice(
+                self.context,
+                "namespace",
+                choice_from_namespace(namespace),
+            )
         self._state_loaded = True
         self.refresh_view()
         # Which candidates matter depends on the current step, which is only known now.
@@ -1682,6 +2135,25 @@ class PlanDialog(ChromeScreen):
         text = Text()
         text.append("nothing has been applied yet\n\n", style="bold")
         theme = getattr(self.app, "theme_tokens", None)
+        text.append("IDENTITIES\n", style=f"bold {style_for(STYLE_ACTIVE, theme)}")
+        text.append(f"{'DIRECTION':<25}{'RESOURCE':<24}IDENTITY\n", style="dim")
+        for direction, resource, choice in assignment_rows(self.flow.context):
+            text.append(f"{direction:<25}{resource:<24}{choice.label}\n")
+        text.append("\nPERMISSIONS\n", style=f"bold {style_for(STYLE_ACTIVE, theme)}")
+        matrix = self.flow.context.get("permission_matrix") or {}
+        if self.flow.context.get("permission_checking"):
+            text.append("Checking every involved resource group...\n", style="dim")
+        elif matrix:
+            for scope, result in matrix.items():
+                group = scope.rsplit("/", 1)[-1]
+                ready = result is not None and all(result.values())
+                text.append(
+                    f"{'READY' if ready else 'BLOCKED':<9}{group}\n",
+                    style=style_for(STYLE_ACTIVE if ready else STYLE_ERROR, theme),
+                )
+        else:
+            text.append("Permission preflight has not completed.\n", style="dim")
+        text.append("\nOPERATIONS\n", style=f"bold {style_for(STYLE_ACTIVE, theme)}")
         for item in self.flow.build_plan():
             style = style_for(self._ACTION_TOKENS.get(item.action, ""), theme)
             text.append(f"{item.action.upper():<8}", style=style)

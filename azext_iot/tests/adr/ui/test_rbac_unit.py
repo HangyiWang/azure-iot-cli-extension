@@ -123,6 +123,36 @@ def test_probe_asks_arm_at_the_given_scope(fake_cli):
     assert "rest --method get" in command
 
 
+def test_scope_probe_resolves_every_required_action(fake_cli):
+    fake_cli(
+        payload={
+            "value": [
+                {
+                    "actions": [
+                        "Microsoft.Authorization/roleAssignments/write",
+                        "Microsoft.Devices/IotHubs/write",
+                    ],
+                    "notActions": [],
+                }
+            ]
+        }
+    )
+    result = rbac.permissions_at_scope(
+        object(),
+        "/subscriptions/sub-1/resourceGroups/rg1",
+        [
+            "Microsoft.Authorization/roleAssignments/write",
+            "Microsoft.Devices/IotHubs/write",
+            "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action",
+        ],
+    )
+    assert result == {
+        "Microsoft.Authorization/roleAssignments/write": True,
+        "Microsoft.Devices/IotHubs/write": True,
+        "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action": False,
+    }
+
+
 # -- making the grant -----------------------------------------------------------------
 
 
@@ -192,6 +222,7 @@ def test_a_principal_can_be_read_after_the_resource_exists(fake_cli):
     cli = fake_cli(payload="pid-new")
     assert rbac.resolve_principal(object(), "/subscriptions/s/rg/dps-a") == "pid-new"
     assert "--ids /subscriptions/s/rg/dps-a" in cli.commands[0]
+    assert "properties.principalId" in cli.commands[0]
 
 
 def test_a_resource_without_an_identity_resolves_to_nothing(fake_cli):

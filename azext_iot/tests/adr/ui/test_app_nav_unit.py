@@ -19,6 +19,14 @@ from azext_iot.adr.ui.screens.browse import BrowseScreen
 from azext_iot.adr.ui.screens.detail import DetailScreen
 from azext_iot.adr.ui.screens.help import HelpScreen
 from azext_iot.adr.ui.screens.overview import OverviewScreen
+from azext_iot.adr.ui.screens.onboard.execution import ExecutionScreen
+from azext_iot.adr.ui.screens.onboard.flow import PlanItem
+from azext_iot.adr.ui.screens.onboard.identity import (
+    SYSTEM_ASSIGNED,
+    set_choice,
+    system_choice,
+)
+from azext_iot.adr.ui.screens.onboard.identity_dialog import IdentityChoiceDialog
 from textual.widgets import DataTable
 from azext_iot.adr.ui.widgets.chrome import Breadcrumbs, ContextBar, HintBar
 
@@ -56,6 +64,241 @@ def test_app_boots_to_the_root_kind():
         return app.screen.model.total_count
 
     assert drive(scenario) == 3
+
+
+def test_identity_chooser_defaults_cleanly_to_sami():
+    async def scenario(app, pilot):
+        selected = []
+        await app.push_screen(
+            IdentityChoiceDialog(
+                catalog=None,
+                resource_label="hub-primary",
+                purpose="Identity this Hub uses to call the namespace",
+                subscription_id="sub-1",
+                resource_group_name="rg1",
+                location="eastus2",
+            ),
+            selected.append,
+        )
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        return selected[0].mode
+
+    assert drive(scenario) == SYSTEM_ASSIGNED
+
+
+def test_identity_chooser_fills_the_right_side_and_has_a_clear_back_path():
+    async def scenario(app, pilot):
+        await app.push_screen(
+            IdentityChoiceDialog(
+                catalog=None,
+                resource_label="hub-primary",
+                purpose="Identity this Hub uses to call the namespace",
+                subscription_id="sub-1",
+                resource_group_name="rg1",
+                location="eastus2",
+                pane_left=38,
+                pane_top=11,
+                pane_height=20,
+                pane_width=82,
+            )
+        )
+        await pilot.pause()
+        panel = app.screen.query_one("#identity-dialog")
+        label = str(app.screen.query_one("#identity-cancel").label)
+        dimensions = (
+            panel.region.x,
+            panel.region.y,
+            panel.region.width,
+            panel.region.height,
+            label,
+        )
+        await pilot.press("escape")
+        await pilot.pause()
+        return dimensions, isinstance(app.screen, IdentityChoiceDialog)
+
+    (left, top, width, height, label), still_open = drive(scenario)
+    assert (left, top, width, height) == (38, 11, 82, 20)
+    assert label == "Back to resources"
+    assert not still_open
+
+
+def test_identity_mode_buttons_support_left_and_right_arrows():
+    async def scenario(app, pilot):
+        await app.push_screen(
+            IdentityChoiceDialog(
+                catalog=None,
+                resource_label="hub-primary",
+                purpose="Identity this Hub uses to call the namespace",
+                subscription_id="sub-1",
+                resource_group_name="rg1",
+                location="eastus2",
+            )
+        )
+        await pilot.pause()
+        focused = [app.focused.id]
+        await pilot.press("right")
+        focused.append(app.focused.id)
+        await pilot.press("right")
+        focused.append(app.focused.id)
+        await pilot.press("left")
+        focused.append(app.focused.id)
+        return focused
+
+    assert drive(scenario) == [
+        "identity-sami",
+        "identity-uami",
+        "identity-new",
+        "identity-uami",
+    ]
+
+
+def test_uami_picker_filters_by_name():
+    class Catalog:
+        def user_assigned_identities(self):
+            return [
+                {
+                    "name": "alpha-connectivity",
+                    "id": (
+                        "/subscriptions/sub-1/resourceGroups/rg-alpha/providers/"
+                        "Microsoft.ManagedIdentity/userAssignedIdentities/alpha-connectivity"
+                    ),
+                    "location": "eastus2",
+                    "principalId": "pid-alpha",
+                },
+                {
+                    "name": "beta-connectivity",
+                    "id": (
+                        "/subscriptions/sub-1/resourceGroups/rg-beta/providers/"
+                        "Microsoft.ManagedIdentity/userAssignedIdentities/beta-connectivity"
+                    ),
+                    "location": "westus2",
+                    "principalId": "pid-beta",
+                },
+            ]
+
+    async def scenario(app, pilot):
+        await app.push_screen(
+            IdentityChoiceDialog(
+                catalog=Catalog(),
+                resource_label="hub-primary",
+                purpose="Identity this Hub uses to call the namespace",
+                subscription_id="sub-1",
+                resource_group_name="rg1",
+                location="eastus2",
+            )
+        )
+        await pilot.pause()
+        await pilot.press("right")
+        await pilot.press("enter")
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        await pilot.press("slash")
+        for character in "beta":
+            await pilot.press(character)
+        await pilot.pause()
+        table = app.screen.query_one("#identity-table", DataTable)
+        return table.row_count, table.get_row_at(0)[0]
+
+    assert drive(scenario) == (1, "beta-connectivity")
+
+
+def test_up_from_uami_list_returns_to_identity_mode_row():
+    class Catalog:
+        def user_assigned_identities(self):
+            return [
+                {
+                    "name": name,
+                    "id": (
+                        f"/subscriptions/sub-1/resourceGroups/rg/providers/"
+                        f"Microsoft.ManagedIdentity/userAssignedIdentities/{name}"
+                    ),
+                    "location": "eastus2",
+                    "principalId": f"pid-{name}",
+                }
+                for name in ("first", "second")
+            ]
+
+    async def scenario(app, pilot):
+        await app.push_screen(
+            IdentityChoiceDialog(
+                catalog=Catalog(),
+                resource_label="hub-primary",
+                purpose="Identity this Hub uses to call the namespace",
+                subscription_id="sub-1",
+                resource_group_name="rg1",
+                location="eastus2",
+            )
+        )
+        await pilot.pause()
+        await pilot.press("right")
+        await pilot.press("enter")
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        table = app.screen.query_one("#identity-table", DataTable)
+        await pilot.press("down")
+        after_down = table.cursor_coordinate.row
+        await pilot.press("up")
+        after_first_up = (app.focused.id, table.cursor_coordinate.row)
+        await pilot.press("up")
+        return after_down, after_first_up, app.focused.id
+
+    assert drive(scenario) == (
+        1,
+        ("identity-table", 0),
+        "identity-uami",
+    )
+
+
+def test_up_from_create_name_returns_to_create_mode():
+    async def scenario(app, pilot):
+        await app.push_screen(
+            IdentityChoiceDialog(
+                catalog=None,
+                resource_label="hub-primary",
+                purpose="Identity this Hub uses to call the namespace",
+                subscription_id="sub-1",
+                resource_group_name="rg1",
+                location="eastus2",
+            )
+        )
+        await pilot.pause()
+        await pilot.press("right")
+        await pilot.press("right")
+        await pilot.press("enter")
+        await pilot.pause()
+        before = app.focused.id
+        await pilot.press("up")
+        return before, app.focused.id
+
+    assert drive(scenario) == ("identity-name", "identity-new")
+
+
+def test_execution_page_retains_per_operation_success():
+    async def scenario(app, pilot):
+        await app.push_screen(
+            ExecutionScreen(
+                session=object(),
+                context={},
+                items=[
+                    PlanItem(
+                        key="identity",
+                        description="Configure outbound identity",
+                        target="ns1",
+                        category="identity",
+                        command="az iot adr ns update",
+                        invoke=lambda _session, _context: None,
+                    )
+                ],
+            )
+        )
+        await app.workers.wait_for_complete()
+        await pilot.pause()
+        table = app.screen.query_one("#execution-table", DataTable)
+        return table.row_count, table.get_row_at(0)[1].plain
+
+    assert drive(scenario) == (1, "Succeeded")
 
 
 def test_boot_screen_renders_rows_and_status():
@@ -1327,6 +1570,12 @@ def test_auto_advance_keeps_rail_highlight_and_detail_on_the_same_step():
             screen.refresh_view()
             screen._paint_candidates()
             screen.query_one("#candidates", DataTable).focus()
+            work_region = screen.query_one("#work-pane").region
+            await pilot.press("enter")
+            await pilot.pause()
+            identity_region = app.screen.query_one("#identity-dialog").region
+            assert identity_region == work_region
+            # Selecting a resource asks for its caller identity; SAMI is the default.
             await pilot.press("enter")
             await pilot.pause()
             active = screen.active_step()
@@ -1562,7 +1811,7 @@ def test_review_does_not_run_links_before_manual_role_grants():
             )
             await app.push_screen(screen)
             await pilot.pause()
-            screen.context["selected_dps"] = Candidate(
+            dps = Candidate(
                 name="dps",
                 resource_id="/subscriptions/sub-1/resourceGroups/rg/providers/dps/dps",
                 identity="SystemAssigned",
@@ -1573,22 +1822,24 @@ def test_review_does_not_run_links_before_manual_role_grants():
                     }
                 },
             )
-            screen.context["selected_hubs"] = [
-                Candidate(
-                    name="hub",
-                    resource_id=(
-                        "/subscriptions/sub-1/resourceGroups/rg/providers/"
-                        "Microsoft.Devices/IotHubs/hub"
-                    ),
-                    identity="SystemAssigned",
-                    raw={
-                        "identity": {
-                            "type": "SystemAssigned",
-                            "principalId": "pid-hub",
-                        }
-                    },
-                )
-            ]
+            hub = Candidate(
+                name="hub",
+                resource_id=(
+                    "/subscriptions/sub-1/resourceGroups/rg/providers/"
+                    "Microsoft.Devices/IotHubs/hub"
+                ),
+                identity="SystemAssigned",
+                raw={
+                    "identity": {
+                        "type": "SystemAssigned",
+                        "principalId": "pid-hub",
+                    }
+                },
+            )
+            screen.context["selected_dps"] = dps
+            screen.context["selected_hubs"] = [hub]
+            set_choice(screen.context, "dps", system_choice(), dps.resource_id)
+            set_choice(screen.context, "hub", system_choice(), hub.resource_id)
             screen.context["can_grant_roles"] = False
             screen.action_apply()
             await pilot.pause()
