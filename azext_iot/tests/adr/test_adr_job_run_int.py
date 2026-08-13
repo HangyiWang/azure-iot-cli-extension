@@ -122,11 +122,11 @@ class TestADRJobRunSurface(ADRFullInfraHelper, CaptureOutputLiveScenarioTest):
                 ).get_output_in_json()
                 assert isinstance(summary, dict)
 
-                ordered = self.cmd(
+                results = self.cmd(
                     f"iot adr ns job run results --jn {job_name} --rn {explicit_run} "
-                    f"--ns {namespace_name} -g {rg} --order-by \"status asc\""
+                    f"--ns {namespace_name} -g {rg}"
                 ).get_output_in_json()
-                assert isinstance(ordered, list)
+                assert isinstance(results, list)
 
                 self.cmd(
                     f"iot adr ns job run delete -n {explicit_run} --job-name {job_name} "

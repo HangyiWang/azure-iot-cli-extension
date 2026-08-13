@@ -1182,7 +1182,7 @@ def load_adr_help():
   long-summary: |
     Returns a flat list of per-device results aggregated across all pages of
     the service-side `POST .../listResults` response. Use --filter for
-    server-side status filtering and --order-by to sort.
+    server-side status filtering.
   examples:
     - name: List every per-device result for a run
       text: az iot adr ns job run results -n myRun --job-name myJob --ns myNamespace -g myResourceGroup
@@ -1190,10 +1190,6 @@ def load_adr_help():
       text: |
         az iot adr ns job run results -n myRun --job-name myJob --ns myNamespace -g myResourceGroup \\
           --filter "status eq 'Failed'"
-    - name: Sort the results by status
-      text: |
-        az iot adr ns job run results -n myRun --job-name myJob --ns myNamespace -g myResourceGroup \\
-          --order-by "status desc"
   """
 
     helps[

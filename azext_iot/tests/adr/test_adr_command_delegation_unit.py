@@ -367,7 +367,6 @@ class TestJobRunCommands:
             namespace_name=NS,
             resource_group_name=RG,
             status_filter="status eq 'Failed'",
-            order_by=None,
         )
 
     def test_cancel(self, mocker, cmd):
