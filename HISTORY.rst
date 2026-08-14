@@ -3,6 +3,15 @@
 Release History
 ===============
 
+0.32.0b2 (Preview)
+++++++++++++++++++
+
+**DPS bug fixes**
+
+* ``az iot dps linked-hub update`` no longer fails with ``(400309) hostName is required when connectionString is not provided`` when switching a pre-existing linked hub to ``SystemAssigned`` or ``UserAssigned`` authentication.
+
+* ``az iot dps linked-hub update --authentication-type KeyBased`` no longer raises ``KeyError: 'hostName'`` when refreshing the key of, or switching back to, one of those same links.
+
 0.32.0b1 (Preview)
 ++++++++++++++++++
 

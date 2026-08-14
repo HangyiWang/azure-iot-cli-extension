@@ -494,3 +494,72 @@ class TestLinkedHubUpdate:
             user_assigned_identity=uami_new,
         )
         assert ua_entries[0]["selectedUserAssignedIdentityResourceId"] == uami_new
+
+
+class TestLegacyLinkedHubHostNameBackfill:
+    @pytest.fixture
+    def legacy_entries(self):
+        return [
+            {
+                "name": "myhub.azure-devices.net",
+                "authenticationType": "KeyBased",
+                "connectionString": (
+                    "HostName=myhub.azure-devices.net;"
+                    "SharedAccessKeyName=iothubowner;SharedAccessKey=existing-key"
+                ),
+                "location": "eastus2euap",
+            }
+        ]
+
+    @pytest.fixture
+    def mock_deps(self, mocker, legacy_entries):
+        mocker.patch("azext_iot.core.custom.iot_hub_service_factory")
+        mocker.patch("azext_iot.core.custom.iot_hub_get", return_value={
+            "name": "myhub",
+            "properties": {
+                "deviceHostName": "myhub.device.azure-devices.net",
+                "hostName": "myhub.azure-devices.net",
+            },
+            "location": "eastus2euap",
+            "resourcegroup": "test-rg",
+        })
+        mocker.patch("azext_iot.core.custom.iot_hub_policy_get", return_value={
+            "keyName": "iothubowner", "primaryKey": "fresh-key"
+        })
+        mocker.patch("azext_iot.core.custom._ensure_dps_resource_group_name", return_value="test-rg")
+        mocker.patch("azext_iot.core.custom.iot_dps_get", return_value={
+            "identity": {"type": "SystemAssigned,UserAssigned"},
+            "properties": {"iotHubs": legacy_entries},
+        })
+        mocker.patch("azext_iot.core.custom.LongRunningOperation")
+        mocker.patch("azext_iot.core.custom.iot_dps_linked_hub_get", side_effect=lambda *a, **kw: legacy_entries[0])
+        mock_client = mocker.MagicMock()
+        mock_client.iot_dps_resource.begin_create_or_update.return_value = mocker.MagicMock()
+        return mock_client
+
+    def test_legacy_switch_to_managed_identity_sets_hostname(
+        self, fixture_cmd, mock_deps, legacy_entries
+    ):
+        """Switching to managed identity clears connectionString, so hostName must be
+        backfilled or the service rejects the PUT with 400309."""
+        from azext_iot.core.custom import iot_dps_linked_hub_update
+        iot_dps_linked_hub_update(
+            cmd=fixture_cmd, client=mock_deps, dps_name="dps",
+            hub_name="myhub", authentication_type="SystemAssigned",
+        )
+        entry = legacy_entries[0]
+        assert entry["connectionString"] == ""
+        assert entry["hostName"] == "myhub.azure-devices.net"
+
+    def test_legacy_key_refresh_does_not_raise_keyerror(
+        self, fixture_cmd, mock_deps, legacy_entries
+    ):
+        """The connection-string rebuild path reads hostName directly."""
+        from azext_iot.core.custom import iot_dps_linked_hub_update
+        iot_dps_linked_hub_update(
+            cmd=fixture_cmd, client=mock_deps, dps_name="dps",
+            hub_name="myhub", authentication_type="KeyBased",
+        )
+        entry = legacy_entries[0]
+        assert entry["hostName"] == "myhub.azure-devices.net"
+        assert "fresh-key" in entry["connectionString"]
