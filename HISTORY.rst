@@ -78,6 +78,15 @@ Release History
 * Direct customer invocation of the Update Instance internal ``linkPreflight``, ``linkInitiate``, ``linkNotify``, and ``linkUpdate`` actions is not registered. Supported Software Updates data-plane operations are exposed under ``az iot adr ns su software-update`` and ``su device-class``.
 * Removed the legacy ``az iot adr ns credential`` and ``az iot adr ns policy`` command groups.
 
+0.32.0b2 (Preview)
+++++++++++++++++++
+
+**DPS bug fixes**
+
+* ``az iot dps linked-hub update`` no longer fails with ``(400309) hostName is required when connectionString is not provided`` when switching a pre-existing linked hub to ``SystemAssigned`` or ``UserAssigned`` authentication.
+
+* ``az iot dps linked-hub update --authentication-type KeyBased`` no longer raises ``KeyError: 'hostName'`` when refreshing the key of, or switching back to, one of those same links.
+
 0.32.0b1 (Preview)
 ++++++++++++++++++
 

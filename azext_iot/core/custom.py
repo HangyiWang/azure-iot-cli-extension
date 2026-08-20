@@ -99,6 +99,13 @@ def _resolve_linked_hub_hostname(hub, hostname_type="auto"):
     return device_hostname or hub["properties"]["hostName"]
 
 
+def _ensure_linked_hub_hostnames(linked_hubs):
+    for entry in linked_hubs or []:
+        if not entry.get("hostName") and entry.get("name"):
+            entry["hostName"] = entry["name"]
+    return linked_hubs
+
+
 def _warn_mixed_endpoint_types(linked_hubs):
     """Warn if DPS dynamic allocation references hubs with mixed hostname types."""
     types = set()
@@ -600,6 +607,7 @@ def iot_dps_linked_hub_update(
     resource_group_name = _ensure_dps_resource_group_name(client, resource_group_name, dps_name)
     dps = iot_dps_get(client, dps_name, resource_group_name)
     linked_hubs = dps["properties"]["iotHubs"]
+    _ensure_linked_hub_hostnames(linked_hubs)
     target_entry = _find_linked_hub_entry(linked_hubs, hub_name=hub_name, linked_hub=linked_hub)
 
     if is_mi:
