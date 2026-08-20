@@ -143,8 +143,8 @@ def test_job_run_list_wrapper_forwards_order_by(mocker):
     )
 
 
-def test_job_run_list_accepts_status_equality_or(fixture_job_run_provider):
-    status_filter = "status eq 'Active' or status eq 'Scheduled'"
+def test_job_run_list_accepts_status_in(fixture_job_run_provider):
+    status_filter = "status in ('Active', 'Scheduled')"
     fixture_job_run_provider.client.job_runs.list_by_namespace.return_value = iter([])
 
     fixture_job_run_provider.list(
@@ -164,6 +164,10 @@ def test_job_run_list_accepts_status_equality_or(fixture_job_run_provider):
     [
         "status ne 'Canceled'",
         "status eq 'Unknown'",
+        "status eq 'Queued'",
+        "status eq 'Active' or status eq 'Scheduled'",
+        "status in ()",
+        "status in ('Active', Scheduled)",
         "name eq 'Active'",
     ],
 )
@@ -218,11 +222,49 @@ def test_job_run_results_posts_filter_body(fixture_job_run_provider):
     )
 
 
+def test_job_run_results_posts_order_by(fixture_job_run_provider):
+    fixture_job_run_provider.client.job_runs.list_results.return_value = {
+        "value": [],
+        "skipToken": None,
+    }
+
+    list(
+        fixture_job_run_provider.results(
+            "job",
+            "run",
+            "namespace",
+            "rg",
+            order_by="status desc",
+        )
+    )
+
+    assert (
+        fixture_job_run_provider.client.job_runs.list_results.call_args.kwargs["body"]
+        == {"orderBy": "status desc"}
+    )
+
+
+def test_job_run_results_rejects_unsupported_order_by(fixture_job_run_provider):
+    with pytest.raises(InvalidArgumentValueError):
+        list(
+            fixture_job_run_provider.results(
+                "job",
+                "run",
+                "namespace",
+                "rg",
+                order_by="createdTime desc",
+            )
+        )
+    fixture_job_run_provider.client.job_runs.list_results.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "status_filter",
     [
         "status ne 'Failed'",
         "status eq 'Unknown'",
+        "status eq 'NotApplied'",
+        "status in ('Failed', 'Canceled')",
         "status eq 'Failed' or status eq 'Canceled'",
     ],
 )
@@ -265,6 +307,7 @@ def test_job_run_results_posts_each_page_with_skip_token(
             "namespace",
             "rg",
             status_filter="status eq 'Failed'",
+            order_by="status asc",
         )
     )
 
@@ -273,13 +316,18 @@ def test_job_run_results_posts_each_page_with_skip_token(
         call.kwargs["body"]
         for call in fixture_job_run_provider.client.job_runs.list_results.call_args_list
     ] == [
-        {"filter": "status eq 'Failed'"},
         {
             "filter": "status eq 'Failed'",
+            "orderBy": "status asc",
+        },
+        {
+            "filter": "status eq 'Failed'",
+            "orderBy": "status asc",
             "skipToken": "token-1",
         },
         {
             "filter": "status eq 'Failed'",
+            "orderBy": "status asc",
             "skipToken": "token-2",
         },
     ]

@@ -359,6 +359,7 @@ class TestJobRunCommands:
             namespace_name=NS,
             resource_group_name=RG,
             status_filter="status eq 'Failed'",
+            order_by="status asc",
         )
         assert result == [{"device": "one"}, {"device": "two"}]
         provider.results.assert_called_once_with(
@@ -367,6 +368,7 @@ class TestJobRunCommands:
             namespace_name=NS,
             resource_group_name=RG,
             status_filter="status eq 'Failed'",
+            order_by="status asc",
         )
 
     def test_cancel(self, mocker, cmd):

@@ -1082,7 +1082,7 @@ def load_adr_help():
   short-summary: Delete a job from a Device Registry namespace.
   long-summary: |
     DELETE is a long-running operation. If any in-flight runs (status
-    'Scheduled', 'Queued', or 'Active') exist for this job, a warning is
+    'Scheduled' or 'Active') exist for this job, a warning is
     surfaced before deletion; the backend cancels affected runs with reason
     'CanceledByCustomer'.
   examples:
@@ -1170,6 +1170,8 @@ def load_adr_help():
       text: az iot adr ns job run list --job-name myJob --ns myNamespace -g myResourceGroup
     - name: List active runs across the namespace
       text: az iot adr ns job run list --ns myNamespace -g myResourceGroup --filter "status eq 'Active'"
+    - name: List active or scheduled runs
+      text: az iot adr ns job run list --ns myNamespace -g myResourceGroup --filter "status in ('Active', 'Scheduled')"
     - name: List runs ordered by status
       text: az iot adr ns job run list --ns myNamespace -g myResourceGroup --order-by "status asc"
   """
@@ -1190,6 +1192,10 @@ def load_adr_help():
       text: |
         az iot adr ns job run results -n myRun --job-name myJob --ns myNamespace -g myResourceGroup \\
           --filter "status eq 'Failed'"
+    - name: Order device results by status
+      text: |
+        az iot adr ns job run results -n myRun --job-name myJob --ns myNamespace -g myResourceGroup \\
+          --order-by "status asc"
   """
 
     helps[

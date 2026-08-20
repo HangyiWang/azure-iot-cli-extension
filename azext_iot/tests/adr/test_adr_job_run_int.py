@@ -151,7 +151,7 @@ class TestADRJobRunSurface(ADRFullInfraHelper, CaptureOutputLiveScenarioTest):
 
                 namespace_runs = self.cmd(
                     f"iot adr ns job run list --ns {namespace_name} -g {rg} "
-                    f"--filter \"status eq 'Active' or status eq 'Succeeded'\""
+                    f"--filter \"status in ('Active', 'Succeeded')\""
                 ).get_output_in_json()
                 assert isinstance(namespace_runs, list)
 

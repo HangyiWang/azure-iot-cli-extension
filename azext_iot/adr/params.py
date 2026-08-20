@@ -1014,8 +1014,8 @@ def load_adr_arguments(self, _):
         context.argument(
             "status_filter",
             options_list=["--filter"],
-            help="Status equality clauses joined by 'or', for example: "
-                 "status eq 'Active' or status eq 'Scheduled'.",
+            help="Status filter using 'eq' or 'in', for example: "
+                 "status in ('Active', 'Scheduled').",
         )
         context.argument(
             "order_by",
@@ -1029,6 +1029,11 @@ def load_adr_arguments(self, _):
             "status_filter",
             options_list=["--filter"],
             help="One result status equality clause, for example: status eq 'Failed'.",
+        )
+        context.argument(
+            "order_by",
+            options_list=["--order-by", "--ob"],
+            help="Sort results by status: \"status\", \"status asc\", or \"status desc\".",
         )
 
     with self.argument_context("iot adr ns report") as context:

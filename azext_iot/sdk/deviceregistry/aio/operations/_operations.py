@@ -92,22 +92,22 @@ from ...operations._operations import (
     build_namespace_assets_delete_request,
     build_namespace_assets_execute_action_request,
     build_namespace_assets_get_request,
-    build_namespace_assets_list_by_resource_group_request,
+    build_namespace_assets_list_by_namespace_request,
     build_namespace_assets_update_request,
     build_namespace_devices_create_or_replace_request,
     build_namespace_devices_delete_request,
     build_namespace_devices_get_request,
-    build_namespace_devices_list_by_resource_group_request,
+    build_namespace_devices_list_by_namespace_request,
     build_namespace_devices_update_request,
     build_namespace_discovered_assets_create_or_replace_request,
     build_namespace_discovered_assets_delete_request,
     build_namespace_discovered_assets_get_request,
-    build_namespace_discovered_assets_list_by_resource_group_request,
+    build_namespace_discovered_assets_list_by_namespace_request,
     build_namespace_discovered_assets_update_request,
     build_namespace_discovered_devices_create_or_replace_request,
     build_namespace_discovered_devices_delete_request,
     build_namespace_discovered_devices_get_request,
-    build_namespace_discovered_devices_list_by_resource_group_request,
+    build_namespace_discovered_devices_list_by_namespace_request,
     build_namespace_discovered_devices_update_request,
     build_namespaces_create_or_replace_request,
     build_namespaces_delete_request,
@@ -8759,9 +8759,7 @@ class NamespaceAssetsOperations:
         self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
 
     @distributed_trace
-    def list_by_resource_group(
-        self, resource_group_name: str, namespace_name: str, **kwargs: Any
-    ) -> AsyncIterable[JSON]:
+    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
         """List NamespaceAsset resources by Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -9064,7 +9062,7 @@ class NamespaceAssetsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                _request = build_namespace_assets_list_by_resource_group_request(
+                _request = build_namespace_assets_list_by_namespace_request(
                     resource_group_name=resource_group_name,
                     namespace_name=namespace_name,
                     subscription_id=self._config.subscription_id,
@@ -18082,9 +18080,7 @@ class NamespaceDevicesOperations:
         self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
 
     @distributed_trace
-    def list_by_resource_group(
-        self, resource_group_name: str, namespace_name: str, **kwargs: Any
-    ) -> AsyncIterable[JSON]:
+    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
         """List NamespaceDevice resources by Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -18244,7 +18240,7 @@ class NamespaceDevicesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                _request = build_namespace_devices_list_by_resource_group_request(
+                _request = build_namespace_devices_list_by_namespace_request(
                     resource_group_name=resource_group_name,
                     namespace_name=namespace_name,
                     subscription_id=self._config.subscription_id,
@@ -20199,9 +20195,7 @@ class NamespaceDiscoveredAssetsOperations:
         self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
 
     @distributed_trace
-    def list_by_resource_group(
-        self, resource_group_name: str, namespace_name: str, **kwargs: Any
-    ) -> AsyncIterable[JSON]:
+    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
         """List NamespaceDiscoveredAsset resources by Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -20375,7 +20369,7 @@ class NamespaceDiscoveredAssetsOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                _request = build_namespace_discovered_assets_list_by_resource_group_request(
+                _request = build_namespace_discovered_assets_list_by_namespace_request(
                     resource_group_name=resource_group_name,
                     namespace_name=namespace_name,
                     subscription_id=self._config.subscription_id,
@@ -22594,9 +22588,7 @@ class NamespaceDiscoveredDevicesOperations:
         self._deserialize: Deserializer = input_args.pop(0) if input_args else kwargs.pop("deserializer")
 
     @distributed_trace
-    def list_by_resource_group(
-        self, resource_group_name: str, namespace_name: str, **kwargs: Any
-    ) -> AsyncIterable[JSON]:
+    def list_by_namespace(self, resource_group_name: str, namespace_name: str, **kwargs: Any) -> AsyncIterable[JSON]:
         """List NamespaceDiscoveredDevice resources by Namespace.
 
         :param resource_group_name: The name of the resource group. The name is case insensitive.
@@ -22685,7 +22677,7 @@ class NamespaceDiscoveredDevicesOperations:
         def prepare_request(next_link=None):
             if not next_link:
 
-                _request = build_namespace_discovered_devices_list_by_resource_group_request(
+                _request = build_namespace_discovered_devices_list_by_namespace_request(
                     resource_group_name=resource_group_name,
                     namespace_name=namespace_name,
                     subscription_id=self._config.subscription_id,
@@ -25275,10 +25267,10 @@ class JobRunsOperations:
         :param namespace_name: The name of the namespace. Required.
         :type namespace_name: str
         :keyword filter: An OData filter expression to restrict results by job run status. Supports
-         equality on the status property, e.g. "status eq 'Active'", and logical OR for multiple
-         statuses, e.g. "status eq 'Active' or status eq 'Scheduled'". Accepted status values:
-         Scheduled, Queued, Active, Succeeded, Failed, TimedOut, Canceled. When omitted, all job runs
-         are returned. Default value is None.
+         equality on the status property, e.g. "status eq 'Active'", and the "in" operator for multiple
+         statuses, e.g. "status in ('Active', 'Scheduled')". Accepted status values: Scheduled, Active,
+         Succeeded, Failed, TimedOut, Canceled. When omitted, all job runs are returned. Default value
+         is None.
         :paramtype filter: str
         :keyword order_by: An OData order by expression to sort the results. For example, "status asc"
          or "status desc". Default value is None.
@@ -25416,10 +25408,10 @@ class JobRunsOperations:
         :param job_name: The name of the job. Required.
         :type job_name: str
         :keyword filter: An OData filter expression to restrict results by job run status. Supports
-         equality on the status property, e.g. "status eq 'Active'", and logical OR for multiple
-         statuses, e.g. "status eq 'Active' or status eq 'Scheduled'". Accepted status values:
-         Scheduled, Queued, Active, Succeeded, Failed, TimedOut, Canceled. When omitted, all job runs
-         are returned. Default value is None.
+         equality on the status property, e.g. "status eq 'Active'", and the "in" operator for multiple
+         statuses, e.g. "status in ('Active', 'Scheduled')". Accepted status values: Scheduled, Active,
+         Succeeded, Failed, TimedOut, Canceled. When omitted, all job runs are returned. Default value
+         is None.
         :paramtype filter: str
         :keyword order_by: An OData order by expression to sort the results. For example, "status asc"
          or "status desc". Default value is None.
