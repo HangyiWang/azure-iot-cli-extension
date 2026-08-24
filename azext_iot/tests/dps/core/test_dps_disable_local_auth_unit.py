@@ -52,6 +52,44 @@ class TestDPSCreate(object):
         )
 
     @patch("azext_iot.core.custom._ensure_location")
+    def test_dps_create_omits_unset_optionals(self, mock_ensure_location):
+        """The body is raw JSON with no serializer, so unset optionals must be omitted, not sent as null."""
+        mock_ensure_location.return_value = location
+        mock_client = Mock()
+        mock_client.iot_dps_resource.check_provisioning_service_name_availability.return_value = {
+            "nameAvailable": True
+        }
+
+        iot_dps_create(Mock(), mock_client, dps_name, resource_group)
+
+        description = _get_sent_description(mock_client)
+        assert description["properties"] == {}
+        assert "tags" not in description
+
+    @patch("azext_iot.core.custom._ensure_location")
+    def test_dps_create_sends_supplied_optionals(self, mock_ensure_location):
+        """Optionals the user does supply must reach the body."""
+        mock_ensure_location.return_value = location
+        mock_client = Mock()
+        mock_client.iot_dps_resource.check_provisioning_service_name_availability.return_value = {
+            "nameAvailable": True
+        }
+
+        iot_dps_create(
+            Mock(),
+            mock_client,
+            dps_name,
+            resource_group,
+            tags={"a": "b"},
+            enable_data_residency=True,
+            disable_local_auth=True,
+        )
+
+        description = _get_sent_description(mock_client)
+        assert description["properties"] == {"enableDataResidency": True, "disableLocalAuth": True}
+        assert description["tags"] == {"a": "b"}
+
+    @patch("azext_iot.core.custom._ensure_location")
     def test_dps_create_name_unavailable(self, mock_ensure_location):
         mock_ensure_location.return_value = location
         mock_client = Mock()
