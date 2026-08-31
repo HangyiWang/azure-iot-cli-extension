@@ -9,7 +9,7 @@ The **Azure IoT extension for Azure CLI** aims to accelerate the development, ma
 
 - ❗ When upgrading your Azure CLI core version, for the best experience and to avoid breaking changes, we recommend updating your `azure-iot` extension to the [latest available](https://github.com/Azure/azure-iot-cli-extension/releases).
 
-- 🆕 **`0.33.0b8` Preview** expands `az iot adr ns` to 104 commands using the `2026-11-02-preview` Device Registry and Device Update APIs. It adds Update Instance lifecycle and Software Update content commands, Registry Device CRUD and child resources, namespace identity and migration, groups, jobs and runs, reports, certificate authorities and policies, and Hub/DPS/Software Updates links. This is a cloud-only surface; resources that require an Azure IoT Operations custom location remain under `az iot ops ns`. See [HISTORY.rst](HISTORY.rst) for details. Install with `az extension add --name azure-iot --allow-preview`.
+- 🆕 **`0.33.0+workflow1` Preview** expands `az iot adr ns` to 106 commands: 104 atomic commands plus the `ns check` and `ns setup` workflows. It uses the `2026-11-02-preview` Device Registry and Device Update APIs and adds Update Instance lifecycle and Software Update content commands, Registry Device CRUD and child resources, namespace identity and migration, groups, jobs and runs, reports, certificate authorities and policies, and Hub/DPS/Software Updates links. This is a cloud-only surface; resources that require an Azure IoT Operations custom location remain under `az iot ops ns`. See [HISTORY.rst](HISTORY.rst) for details. Install with `az extension add --name azure-iot --allow-preview`.
 
 - Azure CLI `2.24.0` requires an `azure-iot` extension update to `0.10.11` or later for IoT Hub commands to work properly. However **we recommend** at least `azure-iot` `0.10.14`. Updating the extension can be done with `az extension update --name azure-iot`.
 
@@ -125,10 +125,12 @@ Subgroups:
     su                      : Manage Software Updates for Device Registry namespaces.
 
 Commands:
+    check                   : Check namespace connectivity readiness.
     create                  : Create a Device Registry namespace.
     delete                  : Delete a Device Registry namespace.
     list                    : List Device Registry namespaces.
     migrate                 : Migrate legacy assets into a Device Registry namespace.
+    setup                   : Configure namespace identity and endpoint connectivity.
     show                    : Show details of a Device Registry namespace.
     update                  : Update a Device Registry namespace.
     wait                    : Wait for a Device Registry namespace to reach a desired state.
