@@ -146,8 +146,32 @@ class NamespaceWorkflow:
         self.services = services
         self.progress = progress
 
-    def _run(self, label: str, operation, *args, **kwargs):
+    def _run(
+        self,
+        label: str,
+        operation,
+        *args,
+        workflow_scope=None,
+        mutation=False,
+        handled_error=None,
+        **kwargs,
+    ):
         if self.progress:
+            if workflow_scope:
+                progress_options = {
+                    "workflow_scope": workflow_scope,
+                }
+                if mutation:
+                    progress_options["mutation"] = True
+                if handled_error:
+                    progress_options["handled_error"] = handled_error
+                return self.progress.run(
+                    label,
+                    operation,
+                    *args,
+                    **progress_options,
+                    **kwargs,
+                )
             return self.progress.run(label, operation, *args, **kwargs)
         return operation(*args, **kwargs)
 
@@ -313,6 +337,16 @@ class NamespaceWorkflow:
             )
             if request.location:
                 create_command += f" --location {_quote(request.location)}"
+            if request.tags:
+                create_command += " --tags " + " ".join(
+                    _quote(f"{key}={value}")
+                    for key, value in sorted(request.tags.items())
+                )
+            details = {}
+            if request.location:
+                details["location"] = request.location
+            if request.tags:
+                details["tags"] = request.tags
             items.append(
                 PlanItem(
                     "namespace",
@@ -320,11 +354,7 @@ class NamespaceWorkflow:
                     request.namespace_name,
                     STATE_PLANNED,
                     command=create_command,
-                    details=(
-                        {"location": request.location}
-                        if request.location
-                        else {}
-                    ),
+                    details=details,
                 )
             )
         else:
@@ -349,6 +379,43 @@ class NamespaceWorkflow:
                         "reuse",
                         request.namespace_name,
                         STATE_SATISFIED,
+                    )
+                )
+            if request.tags is not None:
+                existing_tags = namespace.get("tags") or {}
+                mismatched = existing_tags != request.tags
+                items.append(
+                    PlanItem(
+                        "namespace-tags",
+                        "reuse",
+                        request.namespace_name,
+                        (
+                            STATE_WARNING
+                            if mismatched
+                            else STATE_SATISFIED
+                        ),
+                        (
+                            "Requested tags differ from the existing "
+                            "namespace. Tags are only applied when setup "
+                            "creates a namespace."
+                            if mismatched
+                            else "Requested tags already match."
+                        ),
+                        details={"tags": request.tags},
+                        command=(
+                            "az iot adr ns update "
+                            f"-n {_quote(request.namespace_name)} "
+                            f"-g {_quote(request.resource_group_name)} "
+                            "--tags "
+                            + " ".join(
+                                _quote(f"{key}={value}")
+                                for key, value in sorted(
+                                    request.tags.items()
+                                )
+                            )
+                            if mismatched and request.tags
+                            else ""
+                        ),
                     )
                 )
 
@@ -401,7 +468,18 @@ class NamespaceWorkflow:
         for endpoint in self._requested_endpoints(request):
             key = self._endpoint_key(endpoint)
             try:
-                resources[key] = self.services.resolve_resource(endpoint)
+                resources[key] = self._run(
+                    f"Validate {endpoint.kind} {endpoint.endpoint_name}",
+                    self.services.resolve_resource,
+                    endpoint,
+                    workflow_scope=endpoint.kind,
+                    handled_error=(
+                        is_not_found
+                        if endpoint.kind == "software-updates"
+                        and request.create_update_instance
+                        else None
+                    ),
+                )
                 resource_items.append(
                     PlanItem(
                         f"resource-{key}",
@@ -643,7 +721,11 @@ class NamespaceWorkflow:
             messages = "; ".join(item.message for item in blocked)
             raise ArgumentUsageError(f"Namespace setup is blocked: {messages}")
 
-        items: List[PlanItem] = []
+        items: List[PlanItem] = [
+            item
+            for item in plan
+            if item.action == "skip" or item.item_id == "namespace-tags"
+        ]
         try:
             return self._apply_setup(request, items)
         except KeyboardInterrupt as error:
@@ -690,6 +772,7 @@ class NamespaceWorkflow:
                 request.location,
                 request.outbound_identity_type,
                 request.outbound_user_assigned_identity,
+                tags=request.tags,
             )
             items.append(
                 PlanItem(
@@ -824,6 +907,7 @@ class NamespaceWorkflow:
                 f"Validate {endpoint.kind} {endpoint.endpoint_name}",
                 self.services.resolve_resource,
                 endpoint,
+                workflow_scope=endpoint.kind,
             )
             items.append(
                 PlanItem(
@@ -833,10 +917,13 @@ class NamespaceWorkflow:
                     STATE_SATISFIED,
                 )
             )
-            target_principal = self.services.principal_for_identity(
+            target_principal = self._run(
+                f"Resolve {endpoint.kind} identity",
+                self.services.principal_for_identity,
                 endpoint.identity_type,
                 endpoint.user_assigned_identity,
                 resource,
+                workflow_scope=endpoint.kind,
             )
         except Exception as error:  # noqa: BLE001 - readiness records the reason
             items.append(
@@ -865,6 +952,7 @@ class NamespaceWorkflow:
                     role["principalId"],
                     role["role"],
                     role["scope"],
+                    workflow_scope=endpoint.kind,
                 )
                 state = STATE_SATISFIED if exists else STATE_BLOCKED
                 message = "" if exists else "Required role assignment is missing."
@@ -900,6 +988,13 @@ class NamespaceWorkflow:
                     f"Validate {endpoint.kind} {endpoint.endpoint_name}",
                     self.services.resolve_resource,
                     endpoint,
+                    workflow_scope=endpoint.kind,
+                    handled_error=(
+                        is_not_found
+                        if endpoint.kind == "software-updates"
+                        and request.create_update_instance
+                        else None
+                    ),
                 )
                 state = STATE_SATISFIED
                 action = "reuse"
@@ -915,6 +1010,8 @@ class NamespaceWorkflow:
                     self.services.create_update_instance,
                     endpoint,
                     request.location or namespace.get("location"),
+                    workflow_scope=endpoint.kind,
+                    mutation=True,
                 )
                 state = STATE_SUCCEEDED
                 action = "create"
@@ -954,16 +1051,24 @@ class NamespaceWorkflow:
                     )
                 )
                 continue
-            target_principal = self.services.principal_for_identity(
+            target_principal = self._run(
+                f"Resolve {endpoint.kind} identity",
+                self.services.principal_for_identity,
                 endpoint.identity_type,
                 endpoint.user_assigned_identity,
                 resource,
+                workflow_scope=endpoint.kind,
             )
             for role in self._roles_for(
                 endpoint, namespace, outbound_principal, target_principal
             ):
-                exists = self.services.rbac.has_assignment(
-                    role["principalId"], role["role"], role["scope"]
+                exists = self._run(
+                    f"Check {role['role']} assignment",
+                    self.services.rbac.has_assignment,
+                    role["principalId"],
+                    role["role"],
+                    role["scope"],
+                    workflow_scope=endpoint.kind,
                 )
                 if exists:
                     state = STATE_SATISFIED
@@ -971,7 +1076,12 @@ class NamespaceWorkflow:
                 elif role.get("manual") or not request.assign_roles:
                     state = STATE_MANUAL
                     message = "Apply this role assignment, then rerun setup."
-                elif self.services.rbac.can_create_assignments(role["scope"]) is not True:
+                elif self._run(
+                    "Check role-assignment permission",
+                    self.services.rbac.can_create_assignments,
+                    role["scope"],
+                    workflow_scope=endpoint.kind,
+                ) is not True:
                     state = STATE_MANUAL
                     message = (
                         "The current caller cannot create this role assignment."
@@ -1007,10 +1117,13 @@ class NamespaceWorkflow:
         role_specs = []
         for endpoint in self._requested_endpoints(request):
             resource = resources[self._endpoint_key(endpoint)]
-            target_principal = self.services.principal_for_identity(
+            target_principal = self._run(
+                f"Resolve {endpoint.kind} identity",
+                self.services.principal_for_identity,
                 endpoint.identity_type,
                 endpoint.user_assigned_identity,
                 resource,
+                workflow_scope=endpoint.kind,
             )
             role_specs.extend(
                 self._roles_for(
@@ -1027,6 +1140,7 @@ class NamespaceWorkflow:
                 role["principalId"],
                 role["role"],
                 role["scope"],
+                workflow_scope=role.get("workflowScope"),
             ):
                 state = STATE_SATISFIED
                 message = ""
@@ -1034,7 +1148,12 @@ class NamespaceWorkflow:
                 state = STATE_MANUAL
                 message = "Apply this role assignment, then rerun setup."
                 ready = False
-            elif self.services.rbac.can_create_assignments(role["scope"]) is not True:
+            elif self._run(
+                "Check role-assignment permission",
+                self.services.rbac.can_create_assignments,
+                role["scope"],
+                workflow_scope=role.get("workflowScope"),
+            ) is not True:
                 state = STATE_MANUAL
                 message = "The current caller cannot create this role assignment."
                 ready = False
@@ -1045,6 +1164,8 @@ class NamespaceWorkflow:
                     role["principalId"],
                     role["role"],
                     role["scope"],
+                    workflow_scope=role.get("workflowScope"),
+                    mutation=True,
                 )
                 state = STATE_SUCCEEDED
                 message = ""
@@ -1145,8 +1266,12 @@ class NamespaceWorkflow:
             }
 
         if request.software_updates:
-            namespace = self.services.show_namespace(
-                request.namespace_name, request.resource_group_name
+            namespace = self._run(
+                "Refresh namespace for Software Updates",
+                self.services.show_namespace,
+                request.namespace_name,
+                request.resource_group_name,
+                workflow_scope="software-updates",
             )
             self._apply_one_link(
                 request,
@@ -1173,6 +1298,8 @@ class NamespaceWorkflow:
                     request.resource_group_name,
                     _SECTIONS[endpoint.kind],
                     endpoint.endpoint_name,
+                    workflow_scope=endpoint.kind,
+                    mutation=True,
                 )
             items.append(
                 PlanItem(
@@ -1189,6 +1316,8 @@ class NamespaceWorkflow:
                 self.services.add_dps,
                 request,
                 endpoint,
+                workflow_scope=endpoint.kind,
+                mutation=True,
             )
         elif endpoint.kind == "hub":
             self._run(
@@ -1196,6 +1325,8 @@ class NamespaceWorkflow:
                 self.services.add_hub,
                 request,
                 endpoint,
+                workflow_scope=endpoint.kind,
+                mutation=True,
             )
         else:
             self._run(
@@ -1203,6 +1334,8 @@ class NamespaceWorkflow:
                 self.services.add_su,
                 request,
                 endpoint,
+                workflow_scope=endpoint.kind,
+                mutation=True,
             )
         items.append(
             PlanItem(
@@ -1220,6 +1353,7 @@ class NamespaceWorkflow:
             request.resource_group_name,
             _SECTIONS[endpoint.kind],
             endpoint.endpoint_name,
+            workflow_scope=endpoint.kind,
         )
 
     def _roles_for(
@@ -1242,6 +1376,7 @@ class NamespaceWorkflow:
                     "principalId": outbound_principal,
                     "role": role,
                     "scope": endpoint.resource_id,
+                    "workflowScope": endpoint.kind,
                 }
             )
         roles.append(
@@ -1253,13 +1388,15 @@ class NamespaceWorkflow:
                 "principalId": target_principal,
                 "role": DEFAULT_ROLE,
                 "scope": namespace.get("id"),
+                "workflowScope": endpoint.kind,
             }
         )
         if endpoint.kind == "software-updates" and include_setup_only:
-            first_party_object_id = (
-                self.services.rbac.resolve_service_principal(
-                    ADU_FIRST_PARTY_APPLICATION_ID
-                )
+            first_party_object_id = self._run(
+                "Resolve Software Updates service principal",
+                self.services.rbac.resolve_service_principal,
+                ADU_FIRST_PARTY_APPLICATION_ID,
+                workflow_scope="software-updates",
             )
             roles.append(
                 {
@@ -1268,6 +1405,7 @@ class NamespaceWorkflow:
                     "role": DEFAULT_ROLE,
                     "scope": endpoint.resource_id,
                     "manual": True,
+                    "workflowScope": endpoint.kind,
                 }
             )
         return roles
@@ -1294,6 +1432,11 @@ class NamespaceWorkflow:
             )
         if request.location:
             command += f" --location {_quote(request.location)}"
+        if request.tags:
+            command += " --tags " + " ".join(
+                _quote(f"{key}={value}")
+                for key, value in sorted(request.tags.items())
+            )
         if request.outbound_identity_type == "SystemAssigned":
             command += " --outbound-identity system-assigned"
         elif request.outbound_user_assigned_identity:

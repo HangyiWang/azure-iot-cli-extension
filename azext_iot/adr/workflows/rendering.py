@@ -18,15 +18,12 @@ from prompt_toolkit.shortcuts import CompleteStyle
 from prompt_toolkit.styles import Style
 from prompt_toolkit.output.defaults import create_output
 from rich.console import Console
-from rich.markup import escape
 from rich.live import Live
 from rich.text import Text
 from rich.theme import Theme
-from rich.tree import Tree
 
 from azext_iot.adr.providers.base import console as provider_console
 from azext_iot.adr.workflows.input import BackRequested, WorkflowCancelled
-from azext_iot.adr.workflows.models import SetupRequest
 from azext_iot.constants import VERSION
 
 
@@ -76,6 +73,7 @@ class RenderedWorkflowError(AzCLIError):
         result: Optional[Dict[str, Any]] = None,
     ):
         super().__init__(str(error) or error.__class__.__name__)
+        self.error = error
         self.renderer = renderer
         self.result = result
 
@@ -107,22 +105,29 @@ class WorkflowRenderer:
         self._phase = None
         self._stages = ()
         self._subscription_id = None
-        self._resource_group_name = None
-        self._namespace_name = None
-        self._statuses = {}
         self._body = []
-        self._request = None
-        self._plan = None
         self._tasks = []
         self._account = {}
         self._hold_live = None
         self._alert = None
         self._busy = None
+        self._header_printed = False
+        self._printed_statuses = {}
+        self._printed_phase = None
+        self._phase_pending = False
+        self._plan_actions = 0
+        self._execution_started = None
+        self._execution_completed = 0
+        self._execution_total = 0
+        self._failure: Optional[Dict[str, Any]] = None
+        self._mutated_scopes = set()
+        self._search_context = None
         self._footer = ":back previous · :help commands · :quit cancel"
         bindings = KeyBindings()
         bindings.add("escape")(self._back_key)
         bindings.add("up")(self._up_key)
         bindings.add("down")(self._down_key)
+        self._base_bindings = bindings
 
         self._prompt_style = Style.from_dict(
             {
@@ -135,21 +140,21 @@ class WorkflowRenderer:
             }
         )
         self._prompt_session = (
-            PromptSession(
-                erase_when_done=True,
-                reserve_space_for_menu=8,
-                output=create_output(stdout=sys.stderr),
-                key_bindings=bindings,
-                style=self._prompt_style,
-            )
-            if self.rich
-            else None
+            self._create_prompt_session() if self.rich else None
+        )
+
+    def _create_prompt_session(self):
+        return PromptSession(
+            erase_when_done=True,
+            reserve_space_for_menu=8,
+            output=create_output(stdout=sys.stderr),
+            key_bindings=self._base_bindings,
+            style=self._prompt_style,
         )
 
     @staticmethod
     def _back_key(event):
-        event.current_buffer.text = ":back"
-        event.current_buffer.validate_and_handle()
+        event.app.exit(result=":back")
 
     @staticmethod
     def _up_key(event):
@@ -178,9 +183,12 @@ class WorkflowRenderer:
         allow_custom: bool = False,
         show_options: bool = True,
     ) -> str:
+        self._ensure_phase()
         lookup = {}
         self._body.clear()
         self._show(title)
+        if self._search_context:
+            self._show(f"searched         {self._search_context}")
         if guidance:
             self._show(guidance)
         words = []
@@ -200,20 +208,35 @@ class WorkflowRenderer:
             )
         )
         self._footer = (
-            "↑↓ choose · enter select · type to filter · esc back · q quit"
+            "number choose · enter select · [esc] back · "
+            "[?] help · [ctrl-c] cancel"
+            if show_options
+            else
+            "↑↓ choose · enter select · type to filter · "
+            "[esc] back · [?] help · [ctrl-c] cancel"
         )
         while True:
             raw_choice = self._prompt(
                 "❯ ",
                 completer=completer,
+                action_keys=(
+                    {
+                        key: value
+                        for key, value in lookup.items()
+                        if len(key) == 1 and len(options) <= 9
+                    }
+                    if show_options
+                    else None
+                ),
             ).strip()
             choice = raw_choice.casefold()
-            if choice in {"q", "quit"}:
+            if show_options and choice in {"q", "quit"}:
                 raise WorkflowCancelled()
             selected = lookup.get(choice)
             if selected is not None:
                 self._body.clear()
                 self._alert = None
+                self._search_context = None
                 self._footer = (
                     ":back previous · :help commands · :quit cancel"
                 )
@@ -222,17 +245,95 @@ class WorkflowRenderer:
             if allow_custom and choice:
                 self._body.clear()
                 self._alert = None
+                self._search_context = None
                 self._refresh_hold()
                 return raw_choice
-            self._body[:] = [
-                title,
-                "! Choose a listed number or name.",
-            ]
+            if self.rich:
+                self._body[:] = [
+                    title,
+                    "! Choose a listed number or name.",
+                ]
+            else:
+                self.console.print(
+                    "! Choose a listed number or name.",
+                    markup=False,
+                )
 
-    def _prompt(self, label: str, completer=None) -> str:
+    def action(
+        self,
+        title: str,
+        actions: Dict[str, str],
+        default: Optional[str] = None,
+    ) -> str:
+        self._ensure_phase()
+        self._body.clear()
+        lookup = {
+            alias: key
+            for index, (key, label) in enumerate(
+                actions.items(), start=1
+            )
+            for alias in (
+                key,
+                label.casefold(),
+                label.casefold().split()[0],
+                str(index),
+            )
+        }
+        self._footer = " · ".join(
+            [
+                *(f"[{key}] {label}" for key, label in actions.items()),
+                "[esc] back",
+                "[?] help",
+                "[ctrl-c] cancel",
+            ]
+        )
+        if not self.rich:
+            self.console.print(self._footer, style="muted", markup=False)
+        while True:
+            value = self._prompt(
+                f"❯ {title} ",
+                action_keys={
+                    key: key
+                    for key in actions
+                    if key != "enter"
+                },
+            ).casefold()
+            if not value and default:
+                self._body.clear()
+                self._alert = None
+                self._footer = (
+                    ":back previous · :help commands · :quit cancel"
+                )
+                return default
+            selected = lookup.get(value)
+            if selected:
+                self._body.clear()
+                self._alert = None
+                self._footer = (
+                    ":back previous · :help commands · :quit cancel"
+                )
+                return selected
+            if self.rich:
+                self._body[:] = [
+                    "! Choose one of the highlighted keys.",
+                ]
+            else:
+                self.console.print(
+                    "! Choose one of the highlighted keys.",
+                    markup=False,
+                )
+
+    def _prompt(
+        self,
+        label: str,
+        completer=None,
+        action_keys: Optional[Dict[str, str]] = None,
+    ) -> str:
+        self._ensure_phase()
         while True:
             if self.rich:
                 self._stop_hold()
+                self._prompt_session.default_buffer.reset()
                 value = self._prompt_session.prompt(
                     ANSI(self._workspace_ansi(label)),
                     completer=completer,
@@ -240,7 +341,14 @@ class WorkflowRenderer:
                     complete_while_typing=bool(completer),
                     style=self._prompt_style,
                     bottom_toolbar=ANSI(self._footer_ansi()),
+                    key_bindings=(
+                        self._action_bindings(action_keys)
+                        if action_keys
+                        else None
+                    ),
                 ).strip()
+                if action_keys:
+                    self._prompt_session = self._create_prompt_session()
             else:
                 self.console.print(
                     label, style="active", end="", markup=False
@@ -253,7 +361,7 @@ class WorkflowRenderer:
             if command == ":quit":
                 self._body.clear()
                 raise WorkflowCancelled()
-            if command == ":help":
+            if command in {":help", "?"}:
                 help_text = (
                     ":back previous input  ·  :help commands  ·  :quit cancel"
                 )
@@ -263,16 +371,27 @@ class WorkflowRenderer:
             self._start_hold()
             return value
 
+    def _action_bindings(self, actions):
+        bindings = KeyBindings()
+        bindings.add("escape")(self._back_key)
+        bindings.add("up")(self._up_key)
+        bindings.add("down")(self._down_key)
+
+        def help_key(event):
+            event.app.exit(result="?")
+
+        bindings.add("?")(help_key)
+
+        for key, value in actions.items():
+            def accept(event, selected=value):
+                event.app.exit(result=selected)
+
+            bindings.add(key)(accept)
+        return bindings
+
     def write(self, message: str):
-        if message.startswith("Selected:"):
-            if self.rich:
-                self._body.clear()
-                self._refresh_hold()
-            return
-        if message.startswith("Validation failed:"):
-            self._busy = None
-            self._alert = message
-            self._refresh_hold()
+        if not self.rich:
+            self.console.print(message, markup=False)
             return
         if message.startswith("!"):
             self._alert = message
@@ -281,6 +400,12 @@ class WorkflowRenderer:
         self._show(message)
 
     def busy(self, message: str):
+        self._ensure_phase()
+        if not self.rich:
+            self.console.print(
+                f"[working] {message}", markup=False, style="active"
+            )
+            return
         self._alert = None
         self._busy = message
         self._start_hold()
@@ -290,6 +415,26 @@ class WorkflowRenderer:
         self._busy = None
         self._refresh_hold()
 
+    def search_context(self, resource_group=None):
+        subscription = (
+            self._account.get("subscriptionName")
+            or self._subscription_id
+        )
+        self._search_context = " · ".join(
+            str(value)
+            for value in (resource_group, subscription)
+            if value
+        )
+
+    def clear_search_context(self):
+        self._search_context = None
+
+    def notice(self, message):
+        self._stop_hold()
+        line = Text("✔ ", style="satisfied")
+        line.append(message, style="body")
+        self.console.print(line)
+
     def header(
         self,
         subscription_id: str,
@@ -297,18 +442,29 @@ class WorkflowRenderer:
         namespace_name: Optional[str],
     ):
         self._subscription_id = subscription_id
-        self._resource_group_name = resource_group_name
-        self._namespace_name = namespace_name
-        if self.rich:
-            self._refresh_hold()
+        if self._header_printed:
             return
-        self.console.print(
-            f"Azure Device Registry - {self.command_name}\n"
-            f"Subscription: {subscription_id or 'not resolved'}\n"
-            f"Resource group: {resource_group_name or 'not provided'}\n"
-            f"Namespace: {namespace_name or 'not provided'}",
-            markup=False,
+        self._header_printed = True
+        launch = Text()
+        launch.append(
+            f"$ az iot adr ns {self.command_name.split()[-1].lower()}",
+            style="satisfied",
         )
+        launch.append(
+            f"\npreview command · v{VERSION} · reference and support: "
+            "aka.ms/CLI_refstatus",
+            style="muted",
+        )
+        launch.append(
+            f"\n\nAzure IoT · Device Registry {self.command_name.lower()}",
+            style="brand",
+        )
+        launch.append(
+            "\nNothing is applied until you review and confirm the plan. "
+            "ctrl-c aborts.",
+            style="muted",
+        )
+        self.console.print(launch)
 
     def account(self, value: Dict[str, Any]):
         self._account = dict(value or {})
@@ -316,36 +472,31 @@ class WorkflowRenderer:
             self._account.get("subscriptionId")
             or self._subscription_id
         )
-        self._refresh_hold()
-        if not self.rich and self._account.get("userName"):
-            self.console.print(
-                "Signed in: "
-                f"{self._account['userName']}"
-                + (
-                    f" · tenant {self._account['tenantId']}"
-                    if self._account.get("tenantId")
-                    else ""
-                ),
-                markup=False,
+        if self._account.get("userName"):
+            tenant = (
+                f"tenant {self._account['tenantId']}"
+                if self._account.get("tenantId")
+                else ""
+            )
+            self._print_summary(
+                "Account",
+                str(self._account["userName"]),
+                tenant,
             )
 
     def journey(self, *stages: str):
         self._stages = stages
-        if self.rich:
-            self._refresh_hold()
-            return
-        self.console.print(" > ".join(stages), markup=False)
+        self._phase_pending = True
 
     def phase(self, name: str):
         if self._phase == name:
             return
+        self._stop_hold()
         self._phase = name
         self._body.clear()
         self._alert = None
         self._busy = None
-        self._refresh_hold()
-        if not self.rich:
-            self.console.print(f">> {name}", markup=False)
+        self._phase_pending = True
 
     def input_status(
         self,
@@ -354,77 +505,24 @@ class WorkflowRenderer:
         state: str,
         message: str = "",
     ):
-        item = {
-            "state": state,
-            "target": f"{label}: {value}",
-            "label": label,
-            "value": value,
-            "message": message,
-        }
-        self._statuses[label] = item
         self._alert = None
         self._busy = None
-        if label == "Resource group":
-            self._resource_group_name = value
-        elif label == "Namespace":
-            self._namespace_name = value
-        if self.rich:
-            self._refresh_hold()
-            return
-        self._status_line(item)
-
-    def resolved_setup(self, request: SetupRequest):
-        self._request = request
-        self._resource_group_name = request.resource_group_name
-        self._namespace_name = request.namespace_name
-        if self.rich:
-            self._refresh_hold()
-            return
-        tree = Tree("[brand]Resolved setup[/brand]")
-        namespace = tree.add(
-            f"[bold]Namespace[/bold]  {escape(request.namespace_name)}"
-        )
-        namespace.add(
-            f"Resource group  {escape(request.resource_group_name)}"
-        )
-        namespace.add(
-            f"Outbound identity  "
-            f"{escape(request.outbound_identity_type or 'unchanged')}"
-        )
-        if request.dps:
-            self._endpoint_branch(tree, "DPS", request.dps)
-        for hub in request.hubs:
-            self._endpoint_branch(tree, "IoT Hub", hub)
-        if request.software_updates:
-            self._endpoint_branch(
-                tree, "Software Updates", request.software_updates
+        self._stop_hold()
+        detail = message
+        if state == "Planned" and "nothing" not in detail.casefold():
+            detail = (
+                f"{detail} · nothing written yet"
+                if detail
+                else "nothing written yet"
             )
-        tree.add(
-            "Role assignments  "
-            + ("create missing" if request.assign_roles else "detect only")
-        )
-        self.console.print(tree)
-
-    @staticmethod
-    def _endpoint_branch(tree: Tree, label: str, endpoint):
-        branch = tree.add(
-            f"[bold]{label}[/bold]  {escape(endpoint.endpoint_name)}"
-        )
-        branch.add(f"Resource  {escape(endpoint.resource_id)}")
-        branch.add(
-            "Identity  "
-            + escape(
-                "SystemAssigned"
-                if endpoint.identity_type == "system-assigned"
-                else endpoint.user_assigned_identity
-            )
-        )
+        self._print_summary(label, value, detail, state)
 
     def validation(
         self,
         plan: Dict[str, Any],
         item_filter: Optional[Callable[[Dict[str, Any]], bool]] = None,
     ):
+        self._ensure_phase()
         items = [
             item
             for item in plan["items"]
@@ -433,15 +531,13 @@ class WorkflowRenderer:
         ]
         if not items:
             return
-        if self.rich:
-            self._plan = plan
-            self._refresh_hold()
-            return
-        self.console.print("[brand]Validation[/brand]")
+        self._stop_hold()
+        self.console.print("\nValidation", style="brand")
         for item in items:
             self._status_line(item)
 
     def trust(self, plan: Dict[str, Any]):
+        self._ensure_phase()
         roles = [
             item
             for item in plan["items"]
@@ -449,11 +545,8 @@ class WorkflowRenderer:
         ]
         if not roles:
             return
-        if self.rich:
-            self._plan = plan
-            self._refresh_hold()
-            return
-        self.console.print("[brand]Identity and permissions[/brand]")
+        self._stop_hold()
+        self.console.print("\nIdentity and permissions", style="brand")
         for item in roles:
             details = item.get("details") or {}
             principal = str(details.get("principalId") or "resolved at apply")
@@ -469,33 +562,18 @@ class WorkflowRenderer:
             self._status_line(item, indent="    ")
 
     def plan(self, plan: Dict[str, Any]):
-        self._plan = plan
-        if self.rich:
-            self._refresh_hold()
-            return
-        self.console.print("[brand]Plan[/brand]")
-        for item in plan["items"]:
-            self._status_line(
-                {
-                    "state": item["state"],
-                    "target": self._plan_label(item),
-                }
-            )
-            for label, value in self._plan_details(item):
-                self.console.print(
-                    f"    {label}: {value}",
-                    markup=False,
-                    soft_wrap=True,
-                )
-        summary = " · ".join(
-            f"{count} {state.lower()}"
-            for state, count in plan.get("summary", {}).items()
+        self._ensure_phase()
+        self._plan_actions = sum(
+            item.get("state") in {"Planned", "Manual"}
+            for item in plan.get("items", [])
         )
-        if summary:
-            self.console.print(summary, style="muted")
+        self._stop_hold()
+        self.console.print()
+        self._print_plan_header("awaiting confirmation")
+        for item in plan.get("items", []):
+            self.console.print(self._plan_row(item), soft_wrap=True)
 
     def confirmation(self, plan: Dict[str, Any]):
-        self._plan = plan
         changes = sum(
             count
             for state, count in plan.get("summary", {}).items()
@@ -511,21 +589,94 @@ class WorkflowRenderer:
             if role_changes
             else "No missing role assignments will be created."
         )
-        if self.rich:
-            self._body[:] = [
-                f"Apply namespace setup?  {changes} change(s)",
-                role_message,
-                "Successful operations are preserved if a later step fails.",
-            ]
-            self._refresh_hold()
-            return
-        self.console.print(
-            "Apply namespace setup?\n"
-            f"Changes: {changes}\n"
-            f"{role_message}\n"
+        self._body[:] = [
+            f"{changes} change(s) · {role_message}",
             "Successful operations are preserved if a later step fails.",
-            markup=False,
+        ]
+        if not self.rich:
+            self.console.print("\n".join(self._body), markup=False)
+        self._refresh_hold()
+
+    def confirmed(self):
+        self._body.clear()
+        self._stop_hold()
+        self.console.print()
+        self._print_plan_header("confirmed")
+
+    def recovery(self, can_continue=False):
+        actions = {"r": "retry this step"}
+        if can_continue:
+            actions["c"] = "continue without it"
+        actions["q"] = "quit"
+        return self.action("Apply could not finish.", actions)
+
+    @property
+    def failure(self):
+        return self._failure
+
+    @property
+    def mutated_scopes(self):
+        return frozenset(self._mutated_scopes)
+
+    def _print_plan_header(self, state):
+        line = Text("Plan", style="brand")
+        line.append(
+            f"{'':<32}{self._plan_actions} actions · {state}",
+            style="muted",
         )
+        self.console.print(line)
+
+    @classmethod
+    def _plan_row(cls, item):
+        symbol, _, style = _SYMBOLS.get(
+            item.get("state"), ("·", "", "muted")
+        )
+        action, subject, value = cls._plan_columns(item)
+        row = Text()
+        row.append(symbol, style=style)
+        row.append(f" {action:<12}", style=style)
+        row.append(f"{subject:<28}", style="muted")
+        row.append(value, style="body")
+        for label, detail in cls._plan_details(item):
+            row.append(f"\n  {'':<12}{label.lower():<28}", style="muted")
+            row.append(detail, style="body")
+        return row
+
+    @staticmethod
+    def _plan_columns(item):
+        item_id = str(item.get("id") or "")
+        action = str(item.get("action") or "update")
+        target = str(item.get("target") or "")
+        if item_id == "namespace":
+            return action, "namespace", target
+        if item_id == "namespace-tags":
+            return action, "namespace tags", target
+        if item_id == "namespace-outbound-identity":
+            identity = (item.get("details") or {}).get(
+                "identityType", target
+            )
+            return action, "outbound identity", str(identity)
+        if item_id.startswith("resource-"):
+            return action, "target resource", target
+        if item_id.startswith("link-"):
+            kind = item_id.split("-", 2)[1]
+            return action, f"{kind} link", target
+        if item_id.startswith(("role-", "roles-")):
+            role = (item.get("details") or {}).get("role")
+            return action, "access", str(role or target)
+        if item_id.startswith("skip-"):
+            return "skip", target, "not configured in this run"
+        if item_id == "namespace-status":
+            return action, "namespace status", target
+        return action, target, ""
+
+    @staticmethod
+    def _execution_row(state, label, elapsed):
+        symbol, _, style = _SYMBOLS[state]
+        row = Text(symbol, style=style)
+        row.append(f" {label:<56}", style="body")
+        row.append(f"{elapsed:>7.1f}s", style="muted")
+        return row
 
     def receipt(self, result: Dict[str, Any]):
         summary = result.get("summary", {})
@@ -541,10 +692,17 @@ class WorkflowRenderer:
         self._stop_hold()
         self._body.clear()
         self._tasks.clear()
-        self._plan = None
         self._body.extend(
             [
                 f"State: {result.get('state')}",
+                *(
+                    [
+                        "Elapsed: "
+                        f"{time.monotonic() - self._execution_started:.1f}s"
+                    ]
+                    if self._execution_started is not None
+                    else []
+                ),
                 *(
                     f"{state}: {count}"
                     for state, count in summary.items()
@@ -628,38 +786,41 @@ class WorkflowRenderer:
         )
 
     def error(self, error: Exception, result: Optional[Dict[str, Any]] = None):
-        if not self.rich:
-            lines = [
-                f"{self.command_name} failed",
-                str(error) or error.__class__.__name__,
-            ]
-            for item in (result or {}).get("items", []):
-                if item["state"] not in {"Manual", "Blocked", "Failed"}:
-                    continue
-                lines.append(
-                    f"{item['target']}: "
-                    f"{item.get('message') or item['state']}"
-                )
-                if item.get("command"):
-                    lines.append(f"Fix: {item['command']}")
-            self.console.print("\n".join(lines), markup=False)
-            return
         self._stop_hold()
         self._body.clear()
         self._tasks.clear()
-        self._plan = None
-        self._body.append(str(error) or error.__class__.__name__)
+        original = getattr(error, "error", error)
+        original = getattr(original, "__cause__", None) or original
+        kept = sum(
+            item.get("state") == "Succeeded"
+            for item in (result or {}).get("items", [])
+        )
+        kept = max(kept, int((result or {}).get("keptActions", 0)))
+        failed = max(
+            1,
+            sum(
+                item.get("state") == "Failed"
+                for item in (result or {}).get("items", [])
+            ),
+        )
+        total = max(self._plan_actions, kept + failed)
+        self._body.append(str(original) or original.__class__.__name__)
+        failure = self._failure
+        if failure:
+            failure_label = failure.get("label")
+            failure_elapsed = failure.get("elapsed")
+            self._body.append(
+                f"{'step':<14}{failure_label}"
+            )
+            self._body.append(
+                f"{'elapsed':<14}{float(failure_elapsed):.1f}s"
+            )
+        self._body.extend(self._failure_metadata(original))
         self._body.append("Exit: nonzero")
         if result:
-            succeeded = sum(
-                item.get("state") in {"Succeeded", "Satisfied"}
-                for item in result.get("items", [])
+            self._body.append(
+                f"{kept} of {total} kept · rerunning setup is safe."
             )
-            if succeeded:
-                self._body.append(
-                    f"{succeeded} successful action(s) were kept; "
-                    "rerunning setup is safe."
-                )
             for item in result.get("items", []):
                 if item["state"] not in {"Manual", "Blocked", "Failed"}:
                     continue
@@ -678,9 +839,34 @@ class WorkflowRenderer:
                 )
         self.console.print(
             self._final_view(
-                f"✖ {self.command_name} failed", "blocked"
+                f"! {failed} of {total} actions failed · "
+                f"{kept} of {total} kept",
+                "blocked",
             )
         )
+
+    @staticmethod
+    def _failure_metadata(error):
+        code = (
+            getattr(error, "error_code", None)
+            or getattr(error, "code", None)
+        )
+        response = getattr(error, "response", None)
+        status = (
+            getattr(error, "status_code", None)
+            or getattr(response, "status_code", None)
+        )
+        retries = getattr(error, "retry_count", None)
+        values = (
+            ("code", code),
+            ("status", status),
+            ("retries", retries),
+        )
+        return [
+            f"{label:<14}{value}"
+            for label, value in values
+            if value is not None
+        ]
 
     def cancelled(self):
         self._stop_hold()
@@ -696,19 +882,60 @@ class WorkflowRenderer:
 
     def reset_setup(self):
         self._stop_hold()
-        self._statuses = {
-            label: item
-            for label, item in self._statuses.items()
-            if label in {"Subscription", "Resource group", "Namespace"}
-        }
         self._body.clear()
         self._alert = None
         self._busy = None
-        self._request = None
-        self._plan = None
         self._tasks.clear()
         self._phase = None
         self.phase("Configuration")
+
+    def _print_summary(
+        self,
+        label: str,
+        value: str,
+        detail: str = "",
+        state: str = "Satisfied",
+    ):
+        self._ensure_phase()
+        signature = (value, detail, state)
+        if self._printed_statuses.get(label) == signature:
+            return
+        self._printed_statuses[label] = signature
+        symbol, _, style = _SYMBOLS.get(
+            state, ("·", "", "muted")
+        )
+        line = Text()
+        line.append(symbol, style=style)
+        line.append(f" {label.lower():<18}", style="muted")
+        line.append(str(value), style="body")
+        if detail:
+            line.append(f" · {detail}", style="muted")
+        self.console.print(line, soft_wrap=True)
+
+    def _ensure_phase(self):
+        if not self._phase_pending or not self._stages:
+            return
+        active = self._active_stage()
+        signature = (active, self._stages)
+        self._phase_pending = False
+        if self._printed_phase == signature:
+            return
+        self._printed_phase = signature
+        current = self._stages.index(active) + 1
+        line = Text(f"\nstep {current}/{len(self._stages)}  ", style="muted")
+        for index, stage in enumerate(self._stages):
+            if index:
+                line.append(" ── ", style="muted")
+            if index < current - 1:
+                line.append("✔ ", style="satisfied")
+                line.append(stage.lower(), style="satisfied")
+            elif index == current - 1:
+                line.append("● ", style="active")
+                line.append(stage.lower(), style="active")
+            else:
+                line.append("○ ", style="muted")
+                line.append(stage.lower(), style="muted")
+        self.console.print(line)
 
     def _show(self, message: str):
         if self.rich:
@@ -777,189 +1004,47 @@ class WorkflowRenderer:
 
     def _workspace(self, include_footer=True):
         content = Text()
-        content.append(
-            f"$ az iot adr ns {self.command_name.split()[-1].lower()}",
-            style="satisfied",
-        )
-        content.append("\n")
-        content.append(
-            f"Azure IoT · Device Registry {self.command_name.lower()} "
-            f"· v{VERSION}",
-            style="muted",
-        )
-        content.append(
-            " · ctrl-c aborts, nothing is applied before confirmation",
-            style="muted",
-        )
-        content.append("\n\n")
-        if self._account.get("userName"):
-            content.append(f"✓ {'signed in':<18}", style="muted")
-            content.append(str(self._account["userName"]))
-            if self._account.get("tenantId"):
-                content.append(
-                    f" · tenant {self._account['tenantId']}",
-                    style="muted",
-                )
-            content.append("\n")
-        self._append_scope(content, "Subscription", self._subscription_id)
-        content.append("\n")
-        self._append_scope(
-            content, "Resource group", self._resource_group_name
-        )
-        content.append("\n")
-        self._append_scope(content, "Namespace", self._namespace_name)
-
-        if self._stages:
-            active_stage = self._active_stage()
-            current = self._stages.index(active_stage) + 1
-            content.append("\n\n")
-            content.append(
-                f"step {current}/{len(self._stages)}  ",
-                style="muted",
-            )
-            content.append(
-                active_stage,
-                style="active",
-            )
-            content.append("\n")
-            for index, stage in enumerate(self._stages):
-                if index:
-                    content.append("  →  ", style="muted")
-                content.append(
-                    stage,
-                    style=(
-                        "active"
-                        if stage == active_stage
-                        else "muted"
-                    ),
-                )
-            content.append("\n\n")
-            content.append("Workflow", style="brand")
-            content.append("  ", style="muted")
-            content.append(
-                "─" * max(4, self.content_width - 10),
-                style="muted",
-            )
-
-        extra_statuses = [
-            item
-            for label, item in self._statuses.items()
-            if label not in {"Subscription", "Resource group", "Namespace"}
-        ]
-        for item in extra_statuses[-6:]:
-            content.append("\n")
-            self._append_item(content, item)
-
-        if self._request and self._phase in {
-            "Resources",
-            "Access",
-            "Review",
-            "Apply",
-        }:
-            content.append("\n\n")
-            content.append("Setup", style="brand")
-            content.append(
-                f"\nOutbound identity: "
-                f"{self._request.outbound_identity_type or 'unchanged'}"
-            )
-            if self._request.dps:
-                content.append(
-                    f"\nDPS: {self._request.dps.endpoint_name}"
-                )
-            for hub in self._request.hubs:
-                content.append(f"\nIoT Hub: {hub.endpoint_name}")
-            if self._request.software_updates:
-                content.append(
-                    "\nSoftware Updates: "
-                    f"{self._request.software_updates.endpoint_name}"
-                )
-            content.append(
-                "\nRole assignments: "
-                + (
-                    "create missing"
-                    if self._request.assign_roles
-                    else "detect only"
-                )
-            )
-
-        if self._plan and self._phase in {"Review", "Apply"}:
-            content.append("\n\n")
-            content.append("Plan", style="brand")
-            plan_items = self._plan.get("items", [])
-            actionable = sum(
-                item.get("state") in {"Planned", "Manual"}
-                for item in plan_items
-            )
-            content.append(
-                f"  nothing has been changed yet · "
-                f"{actionable} action(s)",
-                style="muted",
-            )
-            for item in plan_items[:8]:
-                content.append("\n")
-                self._append_plan_item(content, item)
-            if len(plan_items) > 8:
-                content.append(
-                    f"\n… {len(plan_items) - 8} more plan item(s)",
-                    style="muted",
-                )
-            summary = " · ".join(
-                f"{count} {state.lower()}"
-                for state, count in self._plan.get("summary", {}).items()
-            )
-            if summary:
-                content.append(f"\n{summary}", style="muted")
-
         if self._tasks:
-            content.append("\n\n")
-            content.append("Tasks", style="brand")
-            completed = sum(
-                item["state"] in {"Succeeded", "Failed"}
-                for item in self._tasks
-            )
+            active = self._tasks[-1]
             total = max(
-                completed,
-                sum(
-                    count
-                    for state, count in (
-                        self._plan or {}
-                    ).get("summary", {}).items()
-                    if state == "Planned"
-                ),
-                len(self._tasks),
+                self._execution_total,
+                self._execution_completed + 1,
             )
-            if total:
-                width = 24
-                filled = int(width * completed / total)
-                content.append("\n")
-                content.append("█" * filled, style="satisfied")
-                content.append("█" * (width - filled), style="#2a3138")
+            content.append("Applying", style="brand")
+            content.append(
+                f"  {self._execution_completed}/{total}",
+                style="muted",
+            )
+            if self._execution_started is not None:
                 content.append(
-                    f"  {completed}/{total}  "
-                    f"{int(100 * completed / total)}%",
+                    f" · {time.monotonic() - self._execution_started:.1f}s",
                     style="muted",
                 )
-            for item in self._tasks[-7:]:
-                content.append("\n")
-                self._append_item(content, item)
+            content.append("\n")
+            content.append("⠋ ", style="active")
+            content.append(str(active["target"]), style="body")
 
         if self._body:
-            content.append("\n\n")
+            if content:
+                content.append("\n\n")
             for index, line in enumerate(self._body):
                 if index:
                     content.append("\n")
                 content.append(str(line))
 
         if self._busy:
-            content.append("\n\n")
+            if content:
+                content.append("\n\n")
             content.append("⠋ ", style="active")
             content.append(self._busy, style="body")
         if self._alert:
-            content.append("\n\n")
+            if content:
+                content.append("\n\n")
             content.append(self._alert, style="blocked")
 
         if include_footer and not self._tasks:
-            content.append("\n\n")
+            if content:
+                content.append("\n\n")
             self._append_footer(content)
         return content
 
@@ -997,44 +1082,6 @@ class WorkflowRenderer:
                 content.append(f"\n{line}")
         return content
 
-    def _append_scope(self, content: Text, label: str, value: Optional[str]):
-        item = self._statuses.get(label)
-        if item:
-            symbol, _, _ = _SYMBOLS.get(
-                item["state"], ("○", "[pending]", "muted")
-            )
-            content.append(symbol, style="muted")
-            content.append(f" {label.lower():<18}", style="muted")
-            content.append(str(item.get("value") or value or "not provided"))
-            if item.get("message"):
-                content.append(f" · {item['message']}", style="muted")
-            return
-        content.append(f"○ {label.lower():<18}", style="muted")
-        content.append(value or "not provided")
-
-    @staticmethod
-    def _append_item(content: Text, item: Dict[str, Any]):
-        symbol, fallback, style = _SYMBOLS.get(
-            item["state"], ("…", "[pending]", "muted")
-        )
-        content.append(symbol or fallback, style=style)
-        action = f" {item['action']}" if item.get("action") else ""
-        content.append(f"{action} {item['target']}")
-        if item.get("message"):
-            content.append(f" · {item['message']}", style="muted")
-
-    @classmethod
-    def _append_plan_item(cls, content: Text, item: Dict[str, Any]):
-        symbol, _, style = _SYMBOLS.get(
-            item["state"], ("…", "[pending]", "muted")
-        )
-        content.append(symbol, style=style)
-        content.append(f" {cls._plan_label(item)}")
-
-        for label, value in cls._plan_details(item):
-            content.append(f"\n    {label}: ", style="muted")
-            content.append(value)
-
     @staticmethod
     def _plan_details(item: Dict[str, Any]):
         details = item.get("details") or {}
@@ -1057,6 +1104,18 @@ class WorkflowRenderer:
             )
         if details.get("location"):
             result.append(("Location", str(details["location"])))
+        if details.get("tags"):
+            result.append(
+                (
+                    "Tags",
+                    ", ".join(
+                        f"{key}={value}"
+                        for key, value in sorted(
+                            details["tags"].items()
+                        )
+                    ),
+                )
+            )
         if item.get("message"):
             result.append(("Reason", str(item["message"])))
         return result
@@ -1095,16 +1154,19 @@ class WorkflowRenderer:
         return f"{action.capitalize()} {target}"
 
     def _status_line(self, item: Dict[str, Any], indent: str = ""):
-        _, fallback, _ = _SYMBOLS.get(
+        symbol, fallback, style = _SYMBOLS.get(
             item["state"], ("…", "[pending]", "muted")
         )
-        message = f" - {item['message']}" if item.get("message") else ""
-        action = f"{item['action']} " if item.get("action") else ""
-        self.console.print(
-            f"{indent}{fallback} {action}{item['target']}{message}",
-            markup=False,
-            soft_wrap=True,
+        line = Text(indent)
+        line.append(symbol or fallback, style=style)
+        line.append(
+            f" {str(item.get('action') or ''):<12}",
+            style=style,
         )
+        line.append(str(item["target"]), style="body")
+        if item.get("message"):
+            line.append(f" · {item['message']}", style="muted")
+        self.console.print(line, soft_wrap=True)
 
 
 class WorkflowExecution(AbstractContextManager):
@@ -1117,22 +1179,23 @@ class WorkflowExecution(AbstractContextManager):
 
     def __enter__(self):
         provider_console.quiet = True
+        if self.renderer._execution_started is None:
+            self.renderer._execution_started = time.monotonic()
+        self.renderer._execution_completed = 0
+        self.renderer._execution_total = max(
+            1, self.renderer._plan_actions
+        )
+        self.renderer._failure = None
         if self.rich:
             self.renderer.close()
             self.renderer._body.clear()
             self.renderer._tasks.clear()
-            self.live = Live(
-                self.renderer._workspace(),
-                console=self.console,
-                transient=True,
-                auto_refresh=False,
-            )
-            self.live.start(refresh=True)
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if self.rich:
+        if self.live:
             self.live.stop()
+            self.live = None
         provider_console.quiet = self._provider_quiet
         return False
 
@@ -1141,6 +1204,9 @@ class WorkflowExecution(AbstractContextManager):
         label: str,
         operation: Callable,
         *args,
+        workflow_scope=None,
+        mutation=False,
+        handled_error=None,
         **kwargs,
     ):
         if not self.rich:
@@ -1154,42 +1220,64 @@ class WorkflowExecution(AbstractContextManager):
             "startedAt": time.monotonic(),
         }
         if self.rich:
-            self.renderer._tasks.append(task)
-            self.live.update(
-                self.renderer._workspace(), refresh=True
+            self.renderer._tasks[:] = [task]
+            self.live = Live(
+                self.renderer._workspace(include_footer=False),
+                console=self.console,
+                transient=True,
+                auto_refresh=False,
             )
+            self.live.start(refresh=True)
         try:
             result = operation(*args, **kwargs)
-        except Exception:
+        except Exception as error:
+            elapsed = time.monotonic() - task["startedAt"]
+            if handled_error and handled_error(error):
+                if self.rich:
+                    self.live.stop()
+                    self.live = None
+                self.renderer._tasks.clear()
+                raise
+            self.renderer._failure = {
+                "label": label,
+                "elapsed": elapsed,
+                "error": error,
+                "scope": workflow_scope,
+                "mutationAttempted": mutation,
+            }
             if self.rich:
-                task.update(
-                    state="Failed",
-                    message=(
-                        f"failed · "
-                        f"{time.monotonic() - task['startedAt']:.1f}s"
-                    ),
-                )
-                self.live.update(
-                    self.renderer._workspace(), refresh=True
+                self.live.stop()
+                self.live = None
+                self.console.print(
+                    self.renderer._execution_row(
+                        "Failed", label, elapsed
+                    )
                 )
             else:
                 self.console.print(
-                    f"[failed] {label}", markup=False, style="blocked"
+                    f"[failed] {label} · {elapsed:.1f}s",
+                    markup=False,
+                    style="blocked",
                 )
+            self.renderer._tasks.clear()
             raise
+        elapsed = time.monotonic() - task["startedAt"]
+        self.renderer._execution_completed += 1
+        if mutation and workflow_scope:
+            self.renderer._mutated_scopes.add(workflow_scope)
         if self.rich:
-            task.update(
-                state="Succeeded",
-                message=(
-                    f"done · "
-                    f"{time.monotonic() - task['startedAt']:.1f}s"
-                ),
+            self.live.stop()
+            self.live = None
+            self.console.print(
+                self.renderer._execution_row(
+                    "Succeeded", label, elapsed
+                )
             )
-            self.live.update(
-                self.renderer._workspace(), refresh=True
-            )
+            self.renderer._tasks.clear()
         else:
             self.console.print(
-                f"[done] {label}", markup=False, style="satisfied"
+                f"[done] {label} · {elapsed:.1f}s",
+                markup=False,
+                style="satisfied",
             )
         return result

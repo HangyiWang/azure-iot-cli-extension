@@ -20,6 +20,7 @@ Release History
 
   - Added ``az iot adr ns check`` for read-only namespace, configured-link, linked-resource, identity, and RBAC readiness diagnostics with actionable remediation.
   - Added ``az iot adr ns setup`` for idempotent namespace creation/adoption, outbound identity configuration, DPS-first Hub linking, optional Software Updates linking, plan-only review, config input, script export, and explicitly approved scoped role assignments.
+  - Refined guided setup with append-only aligned history, single-line glyph progress, context-specific hotkeys, compact plan rows, interactive plan JSON export, namespace tags, elapsed execution, and safe in-session retry or optional Software Updates continuation.
   - Added an unframed hybrid terminal history with browse-or-exact resource selection, staged/skipped/revisitable configuration, default confirmed RBAC planning with manual resume guidance, measurable progress, persisted setup receipts, and append-only plain/automation output.
 
 * **Registry Devices and child resources**

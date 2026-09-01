@@ -103,6 +103,44 @@ def select_value(
     )
 
 
+def _action(
+    title: str,
+    actions: Dict[str, str],
+    prompt: Callable[[str], str],
+    write: Callable[[str], None],
+    default: Optional[str] = None,
+) -> str:
+    renderer = getattr(prompt, "__self__", None)
+    if renderer and hasattr(renderer, "action"):
+        return renderer.action(title, actions, default=default)
+    write(title)
+    write(
+        " · ".join(
+            f"[{key}] {label}" for key, label in actions.items()
+        )
+    )
+    lookup = {
+        alias: key
+        for index, (key, label) in enumerate(
+            actions.items(), start=1
+        )
+        for alias in (
+            key,
+            label.casefold(),
+            label.casefold().split()[0],
+            str(index),
+        )
+    }
+    while True:
+        value = prompt("Action: ").strip().casefold()
+        if not value and default:
+            return default
+        selected = lookup.get(value)
+        if selected:
+            return selected
+        write("Choose one of the highlighted keys.")
+
+
 def _set_prompt_phase(prompt, phase):
     renderer = getattr(prompt, "__self__", None)
     if renderer and hasattr(renderer, "phase"):
@@ -114,15 +152,26 @@ def _validation_action(
     prompt: Callable[[str], str],
     write: Callable[[str], None],
 ) -> str:
+    if isinstance(error, (BackRequested, WorkflowCancelled)):
+        raise error
     detail = str(error) or error.__class__.__name__
-    write(f"Validation failed: {detail}")
-    options = {
-        "retry": ("retry", "Retry", "r"),
-        "edit": ("edit", "Edit input", "e"),
-        "quit": ("quit", "Quit", "q"),
-    }
+    write(f"! {detail}")
     try:
-        selected = _select("Next action", options, prompt, write)
+        selected_key = _action(
+            "What would you like to do?",
+            {
+                "r": "retry",
+                "e": "edit input",
+                "q": "quit",
+            },
+            prompt,
+            write,
+        )
+        selected = {
+            "r": "retry",
+            "e": "edit",
+            "q": "quit",
+        }[selected_key]
     except BackRequested:
         return "edit"
     if selected == "quit":
@@ -543,6 +592,20 @@ def _resource_choice_label(item: Dict[str, Any]) -> str:
     ):
         if value:
             parts.append(str(value))
+    tags = item.get("tags")
+    if isinstance(tags, dict) and tags:
+        rendered_tags = ", ".join(
+            f"{key}={value}"
+            for key, value in sorted(tags.items())
+        )
+        parts.append(
+            "tags "
+            + (
+                rendered_tags
+                if len(rendered_tags) <= 64
+                else f"{rendered_tags[:61]}..."
+            )
+        )
     if item.get("linkedHubs"):
         parts.append(f"{len(item['linkedHubs'])} linked hub(s)")
     return " · ".join(parts)
@@ -846,25 +909,68 @@ def _guided_values(
     return result
 
 
-def _configuration_summary(result, skipped, checked):
-    states = {
+def _configured_resource(value):
+    if not value:
+        return "pending"
+    values = value[-1] if isinstance(value, list) and value and isinstance(
+        value[0], list
+    ) else value
+    pairs = _parse_pairs(values, "configuration")
+    name = (
+        pairs.get("resource-name")
+        or pairs.get("resource-id", "").rstrip("/").rsplit("/", 1)[-1]
+    )
+    return f"{name} · staged" if name else "staged"
+
+
+def _configuration_display(result, skipped, checked):
+    identity = result.get("outbound_identity")
+    values = {
         "identity": (
-            "staged" if result.get("outbound_identity") else "pending"
+            (
+                "SystemAssigned"
+                if str(identity).casefold() == _SYSTEM_ASSIGNED
+                else str(identity).rstrip("/").rsplit("/", 1)[-1]
+            )
+            + " · staged"
+            if identity
+            else "pending"
         ),
         "hub": (
-            f"{len(result.get('hubs', []))} staged"
+            f"{len(result['hubs'])} Hub(s) · "
+            f"{_configured_resource(result['hubs'])}"
             if result.get("hubs")
             else "pending"
         ),
-        "dps": "staged" if result.get("dps") else "pending",
-        "updates": (
-            "staged" if result.get("software_updates") else "pending"
+        "dps": _configured_resource(result.get("dps")),
+        "updates": _configured_resource(
+            result.get("software_updates")
         ),
-        "status": "done" if checked else "optional",
+        "status": "checked" if checked else "optional",
     }
     for key in skipped:
-        states[key] = "skipped"
-    return states
+        values[key] = "skipped"
+    return values
+
+
+def _configuration_totals(result, skipped, checked):
+    staged = sum(
+        bool(result.get(key))
+        for key in (
+            "outbound_identity",
+            "hubs",
+            "dps",
+            "software_updates",
+        )
+    )
+    parts = []
+    if staged:
+        parts.append(f"{staged} staged")
+    if skipped:
+        parts.append(f"{len(skipped)} skipped")
+    if checked:
+        parts.append("1 checked")
+    return " · ".join(parts) or "nothing staged"
 
 
 def _guided_configuration(
@@ -891,11 +997,14 @@ def _guided_configuration(
         "status": "Check namespace status",
     }
     while True:
-        states = _configuration_summary(result, skipped, checked)
+        display = _configuration_display(result, skipped, checked)
         options = {
             key: (
                 key,
-                f"{label:<26} {states[key]}",
+                (
+                    f"{'✔' if display[key] not in {'pending', 'optional', 'skipped'} else '–'} "
+                    f"{label:<26} {display[key]}"
+                ),
                 str(index),
             )
             for index, (key, label) in enumerate(
@@ -908,7 +1017,9 @@ def _guided_configuration(
             "d",
         )
         key = _select(
-            "Configuration — every item is optional",
+            "Configuration"
+            f"{'':<28}{_configuration_totals(result, skipped, checked)}"
+            "\nEvery item is optional · nothing applied yet",
             options,
             prompt,
             write,
@@ -917,25 +1028,25 @@ def _guided_configuration(
         if key == "done":
             break
         try:
-            action = _select(
-                f"{labels[key]} action",
+            action_key = _action(
+                f"configuration › {list(labels).index(key) + 1} "
+                f"{labels[key]}",
                 {
-                    "configure": (
-                        "configure",
-                        "Configure or revisit",
-                        "open",
-                    ),
-                    "skip": ("skip", "Skip this item", "s"),
-                    "reset": ("reset", "Reset this item", "r"),
-                    "back": ("back", "Back to configuration", "b"),
+                    "enter": "configure",
+                    "s": "skip",
+                    "r": "reset",
                 },
                 prompt,
                 write,
+                default="enter",
             )
         except BackRequested:
             continue
-        if action == "back":
-            continue
+        action = {
+            "enter": "configure",
+            "s": "skip",
+            "r": "reset",
+        }[action_key]
         if action == "skip":
             skipped.add(key)
             if key == "identity":
@@ -999,6 +1110,7 @@ def build_setup_request(
     resource_group_name: str,
     subscription_id: str,
     location: Optional[str] = None,
+    tags: Optional[Dict[str, str]] = None,
     namespace_outbound_identity: Optional[str] = None,
     dps: Optional[List[str]] = None,
     hubs: Optional[List[List[str]]] = None,
@@ -1062,6 +1174,12 @@ def build_setup_request(
             resource_group_name or ns.get("resourceGroup")
         )
         location = location or ns.get("location")
+        if tags is None:
+            tags = ns.get("tags")
+        if tags is not None and not isinstance(tags, dict):
+            raise InvalidArgumentValueError(
+                "Workflow config namespace.tags must be an object."
+            )
         identity = ns.get("outboundIdentity") or {}
         namespace_outbound_identity = (
             identity.get("userAssignedResourceId")
@@ -1277,6 +1395,7 @@ def build_setup_request(
         resource_group_name=resource_group_name,
         subscription_id=subscription_id,
         location=location,
+        tags=(dict(tags) if tags is not None else None),
         outbound_identity_type=outbound_type,
         outbound_user_assigned_identity=outbound_uami,
         dps=dps_spec,

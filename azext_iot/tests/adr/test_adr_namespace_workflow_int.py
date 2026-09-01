@@ -21,6 +21,24 @@ _HUB_ID = os.getenv("azext_iot_adr_workflow_hub_id", "").strip()
 
 @pytest.mark.usefixtures("set_cwd")
 class TestADRNamespaceWorkflow(CaptureOutputLiveScenarioTest):
+    def test_namespace_setup_tagged_plan_is_read_only(self):
+        namespace_name = generate_adr_namespace_name()
+        plan = self.cmd(
+            "iot adr ns setup "
+            f"-n {namespace_name} -g {TEST_RG} -l {TEST_LOCATION} "
+            "--tags env=integration owner=adr-workflow "
+            "--namespace-outbound-identity system-assigned "
+            "--plan-only"
+        ).get_output_in_json()
+        namespace = next(
+            item for item in plan["items"] if item["id"] == "namespace"
+        )
+        assert namespace["state"] == "Planned"
+        assert namespace["details"]["tags"] == {
+            "env": "integration",
+            "owner": "adr-workflow",
+        }
+
     def test_namespace_setup_check_and_resume(self):
         namespace_name = generate_adr_namespace_name()
         setup = (

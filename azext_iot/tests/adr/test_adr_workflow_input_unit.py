@@ -130,6 +130,20 @@ def test_resource_browse_and_exact_fallback():
     ) == "resource-name=manual"
 
 
+def test_resource_group_metadata_includes_compact_tags():
+    label = subject._resource_choice_label({
+        "name": "rg",
+        "location": "eastus",
+        "tags": {
+            "environment": "production",
+            "owner": "device-platform",
+        },
+    })
+    assert "eastus" in label
+    assert "environment=production" in label
+    assert "owner=device-platform" in label
+
+
 def test_scope_browse_and_denied_fallback():
     messages = []
     assert subject._browse_or_exact(
@@ -390,6 +404,35 @@ def test_config_pairs_supports_boolean_and_rejects_invalid_identity():
         subject._config_pairs({"identity": {"type": "Invalid"}})
 
 
+def test_config_rejects_non_object_namespace_tags(tmp_path):
+    config = tmp_path / "setup.yaml"
+    config.write_text(
+        "namespace:\n"
+        "  name: ns\n"
+        f"  resourceGroup: {RG}\n"
+        "  tags: invalid\n"
+        "  outboundIdentity:\n"
+        "    type: SystemAssigned\n"
+        "links: {}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(InvalidArgumentValueError, match="namespace.tags"):
+        subject.build_setup_request(
+            None, None, SUB, config=str(config), no_input=True
+        )
+
+
+def test_explicit_empty_tags_are_preserved():
+    request = subject.build_setup_request(
+        "ns",
+        RG,
+        SUB,
+        tags={},
+        namespace_outbound_identity="system-assigned",
+    )
+    assert request.tags == {}
+
+
 def test_build_setup_request_uses_guided_values(mocker):
     mocker.patch.object(subject.sys.stdin, "isatty", return_value=True)
     mocker.patch.object(subject.sys.stderr, "isatty", return_value=True)
@@ -588,9 +631,11 @@ def test_build_setup_request_routes_scope_recovery_to_workspace():
     )
     assert request.resource_group_name == "good-rg"
     assert request.namespace_name == "new-ns"
-    assert "Validation failed: missing resource group" in messages
-    assert "Next action" in messages
-    assert "Selected: Edit input" in messages
+    assert "! missing resource group" in messages
+    assert "What would you like to do?" in messages
+    assert not any(
+        message.startswith("Selected:") for message in messages
+    )
 
 
 def test_build_setup_request_software_updates_creation():
@@ -836,6 +881,30 @@ def test_request_guided_values_preserves_staged_configuration():
     assert system["outbound_identity"] == "system-assigned"
 
 
+def test_configuration_summary_is_meaningful():
+    result = {
+        "outbound_identity": "system-assigned",
+        "hubs": [[
+            "resource-name=hub-one",
+            "identity=system-assigned",
+        ]],
+        "dps": [
+            "resource-name=dps-one",
+            "identity=system-assigned",
+        ],
+    }
+    display = subject._configuration_display(
+        result, {"updates"}, True
+    )
+    assert display["identity"] == "SystemAssigned · staged"
+    assert "hub-one" in display["hub"]
+    assert display["dps"] == "dps-one · staged"
+    assert display["updates"] == "skipped"
+    assert subject._configuration_totals(
+        result, {"updates"}, True
+    ) == "3 staged · 1 skipped · 1 checked"
+
+
 def test_resource_group_back_can_return_to_subscription():
     with pytest.raises(subject.BackRequested):
         subject.resolve_scope_inputs(
@@ -907,9 +976,16 @@ def test_guided_configuration_skip_and_reset_branches(index):
 
 
 def test_guided_configuration_back_action():
-    answers = iter(["1", "4", "6"])
+    answers = iter(["1", subject.BackRequested(), "6"])
+
+    def prompt(_):
+        value = next(answers)
+        if isinstance(value, Exception):
+            raise value
+        return value
+
     result = subject._guided_configuration(
-        prompt=lambda _: next(answers),
+        prompt=prompt,
         write=lambda _: None,
         validate_resource=None,
         validate_endpoint_identity=None,
@@ -921,20 +997,12 @@ def test_guided_configuration_back_action():
 
 
 def test_guided_configuration_escape_preserves_staged_state(mocker):
-    calls = {"count": 0}
-
-    def select(title, options, prompt, write, **kwargs):
-        del options, prompt, write, kwargs
-        calls["count"] += 1
-        if calls["count"] == 1:
-            return "identity"
-        if calls["count"] == 2:
-            return "configure"
-        if calls["count"] == 3:
-            raise subject.BackRequested()
-        return "done"
-
-    mocker.patch.object(subject, "_select", side_effect=select)
+    mocker.patch.object(
+        subject, "_select", side_effect=["identity", "done"]
+    )
+    mocker.patch.object(
+        subject, "_action", side_effect=subject.BackRequested()
+    )
     result = subject._guided_configuration(
         prompt=lambda _: "",
         write=lambda _: None,
@@ -1011,12 +1079,12 @@ def test_namespace_identity_edit_path(mocker):
 def test_configuration_skip_and_reset_all_items(key, result_key):
     result = {
         "outbound_identity": "system-assigned",
-        "hubs": [["hub"]],
-        "dps": ["dps"],
-        "software_updates": ["su"],
+        "hubs": [["resource-name=hub"]],
+        "dps": ["resource-name=dps"],
+        "software_updates": ["resource-name=su"],
     }
     skipped = {key}
-    summary = subject._configuration_summary(result, skipped, False)
+    summary = subject._configuration_display(result, skipped, False)
     assert summary[key] == "skipped"
     assert result_key in result
 
@@ -1045,6 +1113,27 @@ def test_select_delegates_to_renderer():
         renderer.select,
         lambda _: None,
     ) == "value"
+
+
+def test_action_delegates_to_renderer():
+    class Renderer:
+        def prompt(self, _):
+            return ""
+
+        def action(self, title, actions, default=None):
+            assert title == "Recover?"
+            assert actions == {"r": "retry"}
+            assert default == "r"
+            return "r"
+
+    renderer = Renderer()
+    assert subject._action(
+        "Recover?",
+        {"r": "retry"},
+        renderer.prompt,
+        lambda _: None,
+        default="r",
+    ) == "r"
 
 
 def test_prompt_phase_follows_scope_and_configuration(mocker):
@@ -1146,6 +1235,12 @@ def test_validation_actions_retry_edit_and_quit():
         subject._validation_action(
             RuntimeError("missing"),
             lambda _: "q",
+            messages.append,
+        )
+    with pytest.raises(subject.BackRequested):
+        subject._validation_action(
+            subject.BackRequested(),
+            lambda _: "r",
             messages.append,
         )
 

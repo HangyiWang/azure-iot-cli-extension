@@ -38,6 +38,8 @@ def load_adr_workflow_help():
     and resume guidance instead.
     When link inputs omit --outbound-identity, the current namespace outbound
     identity is reused and never replaced implicitly.
+    Namespace tags can be supplied with --tags key=value and are included in
+    the review plan before a missing namespace is created.
     Guided prompts accept :back, :help, and :quit and retry invalid resources
     without exiting the command. Accessible resources can be browsed and filtered;
     when listing is denied, exact names and ARM IDs remain available.

@@ -264,12 +264,14 @@ class WorkflowServices:
         location: Optional[str],
         outbound_identity_type: Optional[str],
         outbound_user_assigned_identity: Optional[str],
+        tags: Optional[Dict[str, str]] = None,
     ):
         return as_dict(
             self.namespace.create(
                 namespace_name=namespace_name,
                 resource_group_name=resource_group_name,
                 location=location,
+                tags=tags,
                 outbound_mi_system_assigned=outbound_identity_type == "SystemAssigned",
                 outbound_mi_user_assigned=outbound_user_assigned_identity,
             )

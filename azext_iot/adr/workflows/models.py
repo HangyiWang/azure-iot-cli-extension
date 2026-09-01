@@ -46,6 +46,7 @@ class SetupRequest:
     skipped: Tuple[str, ...] = ()
     check_status: bool = False
     subscription_id: Optional[str] = None
+    tags: Optional[Dict[str, str]] = None
 
     @property
     def requests_links(self) -> bool:

@@ -8,6 +8,7 @@ from azure.cli.core.commands.parameters import (
     get_location_type,
     get_three_state_flag,
     resource_group_name_type,
+    tags_type,
 )
 
 
@@ -38,6 +39,7 @@ def load_adr_workflow_arguments(self, _):
 
     with self.argument_context("iot adr ns setup") as context:
         context.argument("location", arg_type=get_location_type(self.cli_ctx))
+        context.argument("tags", arg_type=tags_type)
         context.argument(
             "namespace_outbound_identity",
             options_list=[

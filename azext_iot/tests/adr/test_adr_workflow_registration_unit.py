@@ -19,6 +19,11 @@ from knack.help_files import helps
 from azext_iot.adr.workflows import commands as command_subject
 from azext_iot.adr.workflows.command_map import load_adr_workflow_commands
 from azext_iot.adr.workflows.help import load_adr_workflow_help
+from azext_iot.adr.workflows.models import (
+    EndpointSpec,
+    SetupRequest,
+    WorkflowExecutionError,
+)
 from azext_iot.adr.workflows.params import load_adr_workflow_arguments
 
 
@@ -90,6 +95,7 @@ def test_workflow_arguments_are_registered():
     assert {"no_input", "plain"} <= set(
         loader.records["iot adr ns check"]
     )
+    assert "tags" in loader.records["iot adr ns setup"]
     setup = loader.records["iot adr ns setup"]
     assert {
         "namespace_outbound_identity",
@@ -151,6 +157,7 @@ def _workflow_mocks(mocker):
     renderer = mocker.patch.object(
         command_subject, "WorkflowRenderer"
     ).return_value
+    renderer.action.return_value = "y"
     renderer.execution.return_value.__enter__.return_value = MagicMock()
     return workflow, renderer
 
@@ -166,6 +173,12 @@ def test_resource_choice_loading_clears_busy_state():
     )
     renderer.idle.assert_called_once_with()
 
+    renderer.reset_mock()
+    assert command_subject._load_resource_choices(
+        renderer, "namespaces", lambda: []
+    ) == []
+    renderer.clear_search_context.assert_called_once_with()
+
 
 def test_resource_choice_loading_clears_busy_state_on_error():
     renderer = MagicMock()
@@ -177,6 +190,7 @@ def test_resource_choice_loading_clears_busy_state_on_error():
             lambda: (_ for _ in ()).throw(RuntimeError("denied")),
         )
     renderer.idle.assert_called_once_with()
+    renderer.clear_search_context.assert_called_once_with()
 
 
 def test_progressive_resource_validators(mocker):
@@ -838,12 +852,12 @@ def test_setup_command_prompt_paths(mocker):
     mocker.patch.object(command_subject.sys.stdin, "isatty", return_value=True)
     mocker.patch.object(command_subject.sys.stderr, "isatty", return_value=True)
 
-    renderer.prompt.return_value = "n"
+    renderer.action.return_value = "n"
     assert command_subject.adr_namespace_setup(
         _cmd(), "ns", "rg"
     ) is None
     renderer.cancelled.assert_called_once_with()
-    renderer.prompt.return_value = "y"
+    renderer.action.return_value = "y"
     workflow.setup.return_value = {"state": "Succeeded"}
     assert command_subject.adr_namespace_setup(
         _cmd(), "ns", "rg"
@@ -894,29 +908,21 @@ def test_setup_quit_after_resource_group_back_is_graceful(mocker):
 
 def test_setup_confirmation_back_returns_to_plan(mocker):
     renderer = MagicMock()
-    renderer.prompt.side_effect = [
-        command_subject.BackRequested(),
-        "",
-        "yes",
-    ]
-    command_subject._confirm_setup(
-        renderer, {"items": [], "summary": {}}, "ns"
-    )
-    renderer.plan.assert_called_once()
-    assert renderer.confirmation.call_count == 2
-
-
-def test_setup_confirmation_can_remain_in_review(mocker):
-    renderer = MagicMock()
-    renderer.prompt.side_effect = [
-        command_subject.BackRequested(),
-        command_subject.BackRequested(),
-    ]
+    renderer.action.side_effect = command_subject.BackRequested()
     with pytest.raises(command_subject.ReconfigureRequested):
         command_subject._confirm_setup(
             renderer, {"items": [], "summary": {}}, "ns"
         )
-    renderer.plan.assert_called_once()
+    renderer.confirmation.assert_called_once()
+
+
+def test_setup_confirmation_can_remain_in_review(mocker):
+    renderer = MagicMock()
+    renderer.action.return_value = "e"
+    with pytest.raises(command_subject.ReconfigureRequested):
+        command_subject._confirm_setup(
+            renderer, {"items": [], "summary": {}}, "ns"
+        )
     renderer.confirmation.assert_called_once()
 
 
@@ -942,11 +948,7 @@ def test_setup_command_back_reconfigures_and_replans(mocker):
     plan = {"state": "Planned", "items": [], "summary": {}}
     workflow.plan_setup.side_effect = [(plan, []), (plan, [])]
     workflow.setup.return_value = {"state": "Succeeded"}
-    renderer.prompt.side_effect = [
-        command_subject.BackRequested(),
-        command_subject.BackRequested(),
-        "yes",
-    ]
+    renderer.action.side_effect = ["e", "y"]
     mocker.patch.object(
         command_subject.sys.stdin, "isatty", return_value=True
     )
@@ -999,11 +1001,421 @@ def test_setup_resource_group_back_returns_to_subscription(mocker):
 
 def test_setup_confirmation_reprompts_invalid_answer():
     renderer = MagicMock()
-    renderer.prompt.side_effect = ["maybe", "yes"]
+    renderer.action.return_value = "y"
     command_subject._confirm_setup(
         renderer, {"items": [], "summary": {}}, "ns"
     )
-    renderer.write.assert_called_once()
+    renderer.confirmed.assert_called_once_with()
+
+
+def test_setup_review_can_save_plan_json(tmp_path):
+    renderer = MagicMock()
+    renderer.action.side_effect = ["p", "y"]
+    path = tmp_path / "plan.json"
+    renderer.prompt.return_value = str(path)
+    plan = {"state": "Planned", "items": []}
+
+    command_subject._confirm_setup(renderer, plan, "ns")
+
+    assert path.exists()
+    assert path.read_text(encoding="utf-8").endswith("\n")
+    renderer.notice.assert_called_with(f"Plan saved: {path}")
+    renderer.confirmed.assert_called_once_with()
+
+
+def test_setup_review_save_back_and_write_error(mocker):
+    renderer = MagicMock()
+    renderer.action.side_effect = ["p", "p", "y"]
+    renderer.prompt.side_effect = [
+        command_subject.BackRequested(),
+        "plan.json",
+    ]
+    writer = mocker.patch.object(
+        command_subject,
+        "write_json_file",
+        side_effect=OSError("read only"),
+    )
+
+    command_subject._confirm_setup(
+        renderer, {"items": []}, "ns"
+    )
+
+    writer.assert_called_once_with("plan.json", {"items": []})
+    renderer.write.assert_called_with(
+        "! Plan not saved: read only"
+    )
+    renderer.confirmed.assert_called_once_with()
+
+
+def test_optional_failure_can_continue_without_updates():
+    request = SetupRequest(
+        "ns",
+        "rg",
+        software_updates=EndpointSpec(
+            "software-updates",
+            "updates",
+            "/subscriptions/sub/resourceGroups/rg/providers/"
+            "Microsoft.DeviceUpdate/accounts/a/instances/updates",
+            "system-assigned",
+        ),
+        create_update_instance=True,
+    )
+    updated = command_subject._without_failed_optional(
+        request, {"scope": "software-updates"}
+    )
+    assert updated.software_updates is None
+    assert not updated.create_update_instance
+    assert "software-updates" in updated.skipped
+    assert command_subject._without_failed_optional(
+        request, {"scope": None}
+    ) is None
+
+
+def test_setup_retries_failed_apply_in_session(mocker):
+    workflow, renderer = _workflow_mocks(mocker)
+    request = SetupRequest("ns", "rg")
+    mocker.patch.object(
+        command_subject, "build_setup_request", return_value=request
+    )
+    workflow.plan_setup.return_value = (
+        {"state": "Planned", "items": [], "summary": {}},
+        [],
+    )
+    workflow.setup.side_effect = [
+        RuntimeError("temporary"),
+        {"state": "Succeeded"},
+    ]
+    renderer.recovery.return_value = "r"
+    mocker.patch.object(
+        command_subject.sys.stdin, "isatty", return_value=True
+    )
+    mocker.patch.object(
+        command_subject.sys.stderr, "isatty", return_value=True
+    )
+
+    result = command_subject.adr_namespace_setup(_cmd(), "ns", "rg")
+
+    assert result["state"] == "Succeeded"
+    assert workflow.setup.call_count == 2
+    renderer.recovery.assert_called_once_with(can_continue=False)
+
+
+def test_successful_retry_preserves_prior_succeeded_items(mocker):
+    workflow, renderer = _workflow_mocks(mocker)
+    request = SetupRequest("ns", "rg")
+    mocker.patch.object(
+        command_subject, "build_setup_request", return_value=request
+    )
+    workflow.plan_setup.return_value = (
+        {"state": "Planned", "items": [], "summary": {}},
+        [],
+    )
+    partial = {
+        "state": "Failed",
+        "items": [{
+            "id": "namespace",
+            "state": "Succeeded",
+            "action": "create",
+            "target": "ns",
+        }],
+        "summary": {"Succeeded": 1},
+    }
+    workflow.setup.side_effect = [
+        WorkflowExecutionError(RuntimeError("temporary"), partial),
+        {
+            "state": "Succeeded",
+            "items": [{
+                "id": "namespace",
+                "state": "Satisfied",
+                "action": "reuse",
+                "target": "ns",
+            }],
+            "summary": {"Satisfied": 1},
+        },
+    ]
+    renderer.recovery.return_value = "r"
+    mocker.patch.object(
+        command_subject.sys.stdin, "isatty", return_value=True
+    )
+    mocker.patch.object(
+        command_subject.sys.stderr, "isatty", return_value=True
+    )
+
+    result = command_subject.adr_namespace_setup(_cmd(), "ns", "rg")
+
+    assert result["items"][0]["state"] == "Succeeded"
+    assert result["summary"] == {"Succeeded": 1}
+
+
+def test_setup_recovery_escape_preserves_original_failure(mocker):
+    workflow, renderer = _workflow_mocks(mocker)
+    request = SetupRequest("ns", "rg")
+    mocker.patch.object(
+        command_subject, "build_setup_request", return_value=request
+    )
+    workflow.plan_setup.return_value = (
+        {"state": "Planned", "items": [], "summary": {}},
+        [],
+    )
+    workflow.setup.side_effect = RuntimeError("apply failed")
+    renderer.recovery.side_effect = command_subject.BackRequested()
+    mocker.patch.object(
+        command_subject.sys.stdin, "isatty", return_value=True
+    )
+    mocker.patch.object(
+        command_subject.sys.stderr, "isatty", return_value=True
+    )
+
+    with pytest.raises(
+        command_subject.RenderedWorkflowError,
+        match="apply failed",
+    ):
+        command_subject.adr_namespace_setup(_cmd(), "ns", "rg")
+
+
+def test_setup_recovery_interrupt_persists_partial_receipt(mocker):
+    workflow, renderer = _workflow_mocks(mocker)
+    request = SetupRequest("ns", "rg")
+    mocker.patch.object(
+        command_subject, "build_setup_request", return_value=request
+    )
+    workflow.plan_setup.return_value = (
+        {"state": "Planned", "items": [], "summary": {}},
+        [],
+    )
+    partial = {
+        "state": "Failed",
+        "items": [{
+            "id": "namespace",
+            "state": "Succeeded",
+            "target": "ns",
+        }],
+        "summary": {"Succeeded": 1},
+    }
+    workflow.setup.side_effect = WorkflowExecutionError(
+        RuntimeError("apply failed"), partial
+    )
+    renderer.recovery.side_effect = KeyboardInterrupt()
+    mocker.patch.object(
+        command_subject.sys.stdin, "isatty", return_value=True
+    )
+    mocker.patch.object(
+        command_subject.sys.stderr, "isatty", return_value=True
+    )
+
+    with pytest.raises(command_subject.RenderedWorkflowError):
+        command_subject.adr_namespace_setup(_cmd(), "ns", "rg")
+    command_subject.write_receipt_file.assert_called_once()
+    assert partial["keptActions"] == 1
+
+
+def test_setup_interrupt_does_not_open_recovery(mocker):
+    workflow, renderer = _workflow_mocks(mocker)
+    request = SetupRequest("ns", "rg")
+    mocker.patch.object(
+        command_subject, "build_setup_request", return_value=request
+    )
+    workflow.plan_setup.return_value = (
+        {"state": "Planned", "items": [], "summary": {}},
+        [],
+    )
+    error = RuntimeError("interrupted")
+    error.__cause__ = KeyboardInterrupt()
+    workflow.setup.side_effect = error
+    mocker.patch.object(
+        command_subject.sys.stdin, "isatty", return_value=True
+    )
+    mocker.patch.object(
+        command_subject.sys.stderr, "isatty", return_value=True
+    )
+
+    with pytest.raises(command_subject.RenderedWorkflowError):
+        command_subject.adr_namespace_setup(_cmd(), "ns", "rg")
+    renderer.recovery.assert_not_called()
+
+
+def test_setup_continues_without_failed_optional_updates(mocker):
+    workflow, renderer = _workflow_mocks(mocker)
+    request = SetupRequest(
+        "ns",
+        "rg",
+        software_updates=EndpointSpec(
+            "software-updates",
+            "updates",
+            "/subscriptions/sub/resourceGroups/rg/providers/"
+            "Microsoft.DeviceUpdate/accounts/a/instances/updates",
+            "system-assigned",
+        ),
+    )
+    mocker.patch.object(
+        command_subject, "build_setup_request", return_value=request
+    )
+    workflow.plan_setup.return_value = (
+        {"state": "Planned", "items": [], "summary": {}},
+        [],
+    )
+    workflow.setup.side_effect = [
+        RuntimeError("optional failed"),
+        {"state": "Succeeded"},
+    ]
+    renderer.failure = {
+        "scope": "software-updates"
+    }
+    renderer.recovery.return_value = "c"
+    mocker.patch.object(
+        command_subject.sys.stdin, "isatty", return_value=True
+    )
+    mocker.patch.object(
+        command_subject.sys.stderr, "isatty", return_value=True
+    )
+
+    result = command_subject.adr_namespace_setup(_cmd(), "ns", "rg")
+
+    assert result["state"] == "Succeeded"
+    second_request = workflow.setup.call_args_list[1].args[0]
+    assert second_request.software_updates is None
+    assert "software-updates" in second_request.skipped
+    renderer.recovery.assert_called_once_with(can_continue=True)
+
+
+def test_setup_continue_replan_failure_keeps_partial_receipt(mocker):
+    workflow, renderer = _workflow_mocks(mocker)
+    request = SetupRequest(
+        "ns",
+        "rg",
+        software_updates=EndpointSpec(
+            "software-updates",
+            "updates",
+            "/subscriptions/sub/resourceGroups/rg/providers/"
+            "Microsoft.DeviceUpdate/accounts/a/instances/updates",
+            "system-assigned",
+        ),
+    )
+    mocker.patch.object(
+        command_subject, "build_setup_request", return_value=request
+    )
+    plan = {"state": "Planned", "items": [], "summary": {}}
+    workflow.plan_setup.side_effect = [
+        (plan, []),
+        RuntimeError("replan failed"),
+    ]
+    partial = {
+        "state": "Failed",
+        "items": [{
+            "id": "namespace",
+            "state": "Succeeded",
+            "target": "ns",
+        }],
+        "summary": {"Succeeded": 1},
+    }
+    workflow.setup.side_effect = WorkflowExecutionError(
+        RuntimeError("optional failed"), partial
+    )
+    renderer.failure = {"scope": "software-updates"}
+    renderer.recovery.return_value = "c"
+    mocker.patch.object(
+        command_subject.sys.stdin, "isatty", return_value=True
+    )
+    mocker.patch.object(
+        command_subject.sys.stderr, "isatty", return_value=True
+    )
+
+    with pytest.raises(
+        command_subject.RenderedWorkflowError,
+        match="replan failed",
+    ):
+        command_subject.adr_namespace_setup(_cmd(), "ns", "rg")
+    command_subject.write_receipt_file.assert_called_once()
+    assert partial["keptActions"] == 1
+
+
+def test_setup_cannot_skip_updates_after_mutation(mocker):
+    workflow, renderer = _workflow_mocks(mocker)
+    request = SetupRequest(
+        "ns",
+        "rg",
+        software_updates=EndpointSpec(
+            "software-updates",
+            "updates",
+            "/subscriptions/sub/resourceGroups/rg/providers/"
+            "Microsoft.DeviceUpdate/accounts/a/instances/updates",
+            "system-assigned",
+        ),
+    )
+    mocker.patch.object(
+        command_subject, "build_setup_request", return_value=request
+    )
+    workflow.plan_setup.return_value = (
+        {"state": "Planned", "items": [], "summary": {}},
+        [],
+    )
+    partial = {
+        "state": "Failed",
+        "items": [{
+            "id": "link-software-updates-updates",
+            "state": "Succeeded",
+            "action": "link",
+            "target": "updates",
+        }],
+        "summary": {"Succeeded": 1},
+    }
+    workflow.setup.side_effect = WorkflowExecutionError(
+        RuntimeError("wait failed"), partial
+    )
+    renderer.failure = {"scope": "software-updates"}
+    renderer.recovery.return_value = "q"
+    mocker.patch.object(
+        command_subject.sys.stdin, "isatty", return_value=True
+    )
+    mocker.patch.object(
+        command_subject.sys.stderr, "isatty", return_value=True
+    )
+
+    with pytest.raises(command_subject.RenderedWorkflowError):
+        command_subject.adr_namespace_setup(_cmd(), "ns", "rg")
+    renderer.recovery.assert_called_once_with(can_continue=False)
+
+
+def test_setup_cannot_skip_after_prior_scoped_mutation(mocker):
+    workflow, renderer = _workflow_mocks(mocker)
+    request = SetupRequest(
+        "ns",
+        "rg",
+        software_updates=EndpointSpec(
+            "software-updates",
+            "updates",
+            "/subscriptions/sub/resourceGroups/rg/providers/"
+            "Microsoft.DeviceUpdate/accounts/a/instances/updates",
+            "system-assigned",
+        ),
+    )
+    mocker.patch.object(
+        command_subject, "build_setup_request", return_value=request
+    )
+    workflow.plan_setup.return_value = (
+        {"state": "Planned", "items": [], "summary": {}},
+        [],
+    )
+    workflow.setup.side_effect = WorkflowExecutionError(
+        RuntimeError("role check failed"),
+        {"state": "Failed", "items": [], "summary": {}},
+    )
+    renderer.failure = {
+        "scope": "software-updates",
+        "mutationAttempted": False,
+    }
+    renderer.mutated_scopes = frozenset({"software-updates"})
+    renderer.recovery.return_value = "q"
+    mocker.patch.object(
+        command_subject.sys.stdin, "isatty", return_value=True
+    )
+    mocker.patch.object(
+        command_subject.sys.stderr, "isatty", return_value=True
+    )
+
+    with pytest.raises(command_subject.RenderedWorkflowError):
+        command_subject.adr_namespace_setup(_cmd(), "ns", "rg")
+    renderer.recovery.assert_called_once_with(can_continue=False)
 
 
 def test_setup_command_noninteractive_requires_yes(mocker):
@@ -1067,7 +1479,7 @@ def test_setup_command_records_receipt_write_failure(mocker):
         command_subject.adr_namespace_setup(
             _cmd(), "ns", "rg", yes=True
         )
-    assert raised.value.result["receiptError"] == "disk full"
+    assert "receiptError" not in raised.value.result
 
 
 def test_setup_command_raises_for_blocked_verification(mocker):

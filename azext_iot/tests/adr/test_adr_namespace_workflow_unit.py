@@ -246,6 +246,7 @@ def test_plan_setup_missing_namespace_and_manual_roles(services):
         "ns",
         RG,
         location="eastus",
+        tags={"env": "prod"},
         outbound_identity_type="SystemAssigned",
         hubs=(_endpoint("hub", HUB_ID),),
     )
@@ -253,7 +254,9 @@ def test_plan_setup_missing_namespace_and_manual_roles(services):
     assert result["state"] == STATE_BLOCKED
     assert any(item.item_id == "namespace" and item.state == STATE_PLANNED for item in items)
     assert "--location eastus" in items[0].command
+    assert "--tags env=prod" in items[0].command
     assert items[0].details["location"] == "eastus"
+    assert items[0].details["tags"] == {"env": "prod"}
     identity = next(
         item
         for item in items
@@ -317,6 +320,55 @@ def test_plan_setup_records_skipped_and_status_items(services):
         item.item_id for item in items if item.action == "skip"
     } == {"skip-dps", "skip-software-updates"}
     assert any(item.item_id == "namespace-status" for item in items)
+
+
+def test_existing_namespace_tags_must_match(services):
+    namespace = _namespace()
+    namespace["tags"] = {"env": "prod"}
+    services.show_namespace.return_value = namespace
+    matching, items = subject.NamespaceWorkflow(
+        services
+    ).plan_setup(
+        SetupRequest("ns", RG, tags={"env": "prod"})
+    )
+    assert matching["state"] == STATE_SUCCEEDED
+    assert sum(item.item_id == "namespace" for item in items) == 1
+    assert next(
+        item for item in items if item.item_id == "namespace-tags"
+    ).state == STATE_SATISFIED
+
+    blocked, items = subject.NamespaceWorkflow(
+        services
+    ).plan_setup(
+        SetupRequest("ns", RG, tags={"env": "test"})
+    )
+    assert blocked["state"] == STATE_SUCCEEDED
+    assert "only applied when setup creates" in next(
+        item for item in items if item.item_id == "namespace-tags"
+    ).message
+    assert next(
+        item for item in items if item.item_id == "namespace-tags"
+    ).state == STATE_WARNING
+    assert sum(item.item_id == "namespace" for item in items) == 1
+
+    _, items = subject.NamespaceWorkflow(services).plan_setup(
+        SetupRequest("ns", RG, tags={})
+    )
+    assert next(
+        item for item in items if item.item_id == "namespace-tags"
+    ).state == STATE_WARNING
+
+
+def test_setup_receipt_preserves_skipped_capabilities(services):
+    services.show_namespace.return_value = _namespace()
+    result = subject.NamespaceWorkflow(services).setup(
+        SetupRequest("ns", RG, skipped=("software-updates",))
+    )
+    skipped = next(
+        item for item in result["items"]
+        if item["id"] == "skip-software-updates"
+    )
+    assert skipped["state"] == STATE_NOT_CONFIGURED
 
 
 def test_plan_warns_for_dps_hubs_not_linked_in_run(services):
@@ -686,6 +738,7 @@ def test_resume_command_preserves_all_setup_inputs():
         RG,
         subscription_id=SUB,
         location="eastus",
+        tags={"env": "prod", "team": "devices"},
         outbound_identity_type="UserAssigned",
         outbound_user_assigned_identity="/uami",
         dps=_endpoint("dps", DPS_ID),
@@ -705,6 +758,7 @@ def test_resume_command_preserves_all_setup_inputs():
     )
     command = subject.NamespaceWorkflow._resume_command(request)
     assert "--location eastus" in command
+    assert "--tags env=prod team=devices" in command
     assert f"--subscription {SUB}" in command
     assert "--outbound-identity /uami" in command
     assert "--dps" in command and "--hub" in command and "--su" in command
@@ -792,6 +846,43 @@ def test_setup_creates_missing_update_instance(services):
     result = subject.NamespaceWorkflow(services).setup(request)
     assert result["state"] == STATE_MANUAL
     services.create_update_instance.assert_called_once()
+
+
+def test_update_instance_creation_is_scoped_as_mutation(services):
+    progress = MagicMock()
+
+    def run(_, operation, *args, **kwargs):
+        kwargs.pop("workflow_scope", None)
+        kwargs.pop("mutation", None)
+        kwargs.pop("handled_error", None)
+        return operation(*args, **kwargs)
+
+    progress.run.side_effect = run
+    services.resolve_resource.side_effect = ResourceNotFoundError(
+        "missing"
+    )
+    services.create_update_instance.return_value = {
+        "identity": {"principalId": "su"}
+    }
+    request = SetupRequest(
+        "ns",
+        RG,
+        software_updates=_endpoint("software-updates", SU_ID),
+        create_update_instance=True,
+    )
+    subject.NamespaceWorkflow(
+        services, progress=progress
+    )._resolve_or_create_resources(request, _namespace(), [])
+
+    create_call = next(
+        call
+        for call in progress.run.call_args_list
+        if call.args[0].startswith("Create Update Instance")
+    )
+    assert create_call.kwargs == {
+        "workflow_scope": "software-updates",
+        "mutation": True,
+    }
 
 
 def test_setup_propagates_non_su_resource_failure(services):

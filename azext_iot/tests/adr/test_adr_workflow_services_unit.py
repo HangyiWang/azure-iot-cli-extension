@@ -219,10 +219,16 @@ def test_subscription_and_namespace_operations(service_fixture, mocker):
     namespace.show.side_effect = None
     namespace.create.return_value = {"name": "ns"}
     result = service.create_namespace(
-        "ns", RG, "eastus", "SystemAssigned", None
+        "ns",
+        RG,
+        "eastus",
+        "SystemAssigned",
+        None,
+        tags={"env": "test"},
     )
     assert result["name"] == "ns"
     assert namespace.create.call_args.kwargs["outbound_mi_system_assigned"]
+    assert namespace.create.call_args.kwargs["tags"] == {"env": "test"}
 
     namespace.update.return_value = {"name": "ns"}
     service.configure_outbound_identity(

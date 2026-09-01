@@ -4,6 +4,7 @@
 # Licensed under the MIT License. See License.txt in the project root for license information.
 # --------------------------------------------------------------------------------------------
 
+from dataclasses import replace
 import sys
 from typing import List, Optional
 
@@ -20,6 +21,7 @@ from azext_iot.adr.workflows.input import (
     build_setup_request,
     resolve_scope_inputs,
     select_value,
+    write_json_file,
     write_receipt_file,
     write_script_file,
 )
@@ -35,10 +37,19 @@ class ReconfigureRequested(Exception):
     pass
 
 
-def _load_resource_choices(renderer, label, loader):
+def _load_resource_choices(
+    renderer, label, loader, resource_group=None
+):
+    renderer.search_context(resource_group)
     renderer.busy(f"loading accessible {label}…")
     try:
-        return loader()
+        choices = loader()
+        if not choices:
+            renderer.clear_search_context()
+        return choices
+    except Exception:
+        renderer.clear_search_context()
+        raise
     finally:
         renderer.idle()
 
@@ -397,27 +408,38 @@ def _confirm_setup(renderer, plan, namespace_name):
     while True:
         renderer.confirmation(plan)
         try:
-            answer = renderer.prompt(
-                f"Apply namespace setup for '{namespace_name}'? "
-                "[y/n]: "
-            ).casefold()
+            action = renderer.action(
+                f"Apply namespace setup for '{namespace_name}'?",
+                {
+                    "y": "apply",
+                    "n": "cancel",
+                    "e": "edit",
+                    "p": "save plan JSON",
+                    "q": "quit",
+                },
+            )
         except BackRequested:
-            renderer.phase("Review")
-            renderer.plan(plan)
-            try:
-                renderer.prompt(
-                    "Press Enter to return to Apply, or :back to edit "
-                    "Resources and Access: "
-                )
-            except BackRequested:
-                raise ReconfigureRequested() from None
-            renderer.phase("Apply")
-            continue
-        if answer in {"y", "yes"}:
+            raise ReconfigureRequested() from None
+        if action == "y":
+            renderer.confirmed()
             return
-        if answer in {"", "n", "no"}:
+        if action in {"n", "q"}:
             raise WorkflowCancelled()
-        renderer.write("Enter y or n. Use :back, :help, or :quit.")
+        if action == "e":
+            raise ReconfigureRequested()
+        try:
+            path = renderer.prompt(
+                "Save plan JSON path [namespace-setup-plan.json]: "
+            )
+        except BackRequested:
+            continue
+        path = path or "namespace-setup-plan.json"
+        try:
+            write_json_file(path, plan)
+        except OSError as error:
+            renderer.write(f"! Plan not saved: {error}")
+            continue
+        renderer.notice(f"Plan saved: {path}")
 
 
 def _prepare_namespace_setup(
@@ -432,6 +454,7 @@ def _prepare_namespace_setup(
         resource_group_name=arguments["resource_group_name"],
         subscription_id=subscription_id,
         location=arguments["location"],
+        tags=arguments.get("tags"),
         namespace_outbound_identity=arguments[
             "namespace_outbound_identity"
         ],
@@ -501,6 +524,7 @@ def _prepare_namespace_setup(
                 "software-updates": "Software Updates instances",
             }.get(kind, f"{kind} resources"),
             lambda: services.list_link_targets(kind, group),
+            group,
         ),
         browse_resource_groups=lambda: _load_resource_choices(
             renderer,
@@ -511,6 +535,7 @@ def _prepare_namespace_setup(
             renderer,
             "namespaces",
             lambda: services.list_namespaces(group),
+            group,
         ),
         probe_status=lambda name, group: _probe_namespace_status(
             services,
@@ -522,12 +547,104 @@ def _prepare_namespace_setup(
         back_from_resource_group=True,
     )
     renderer.phase("Configuration")
-    renderer.resolved_setup(request)
     workflow = NamespaceWorkflow(services)
     plan, items = workflow.plan_setup(request)
-    renderer.trust(plan)
     renderer.plan(plan)
     return request, plan, items
+
+
+def _without_failed_optional(request, failure):
+    if (
+        getattr(request, "software_updates", None)
+        and (failure or {}).get("scope") == "software-updates"
+    ):
+        return replace(
+            request,
+            software_updates=None,
+            create_update_instance=False,
+            update_instance_name=None,
+            skipped=tuple(
+                sorted(
+                    set(request.skipped) | {"software-updates"}
+                )
+            ),
+        )
+    return None
+
+
+def _caused_by(error, error_type):
+    current = error
+    while current:
+        if isinstance(current, error_type):
+            return True
+        current = (
+            getattr(current, "__cause__", None)
+            or getattr(current, "__context__", None)
+        )
+    return False
+
+
+def _remember_succeeded(items, result):
+    for item in result.get("items", []):
+        if item.get("state") == "Succeeded" and item.get("id"):
+            items[item["id"]] = item
+
+
+def _merge_recovered_result(result, succeeded):
+    if not succeeded:
+        return result
+    final = {
+        item.get("id"): item
+        for item in result.get("items", [])
+        if item.get("id")
+    }
+    merged = []
+    for item_id, item in succeeded.items():
+        current = final.pop(item_id, None)
+        merged.append(
+            item
+            if current is None
+            or current.get("state") == "Satisfied"
+            else current
+        )
+    merged.extend(final.values())
+    result["items"] = merged
+    summary = {}
+    for item in merged:
+        state = item.get("state")
+        summary[state] = summary.get(state, 0) + 1
+    result["summary"] = summary
+    return result
+
+
+def _software_updates_changed(items):
+    return any(
+        item.get("state") == "Succeeded"
+        and "software-updates" in str(item.get("id") or "")
+        for item in items.values()
+    )
+
+
+def _terminal_failure_result(
+    request,
+    error,
+    fallback,
+    succeeded,
+):
+    if hasattr(error, "result"):
+        result = error.result
+    elif succeeded:
+        result = {
+            "command": "az iot adr ns setup",
+            "state": "Failed",
+            "namespace": request.namespace_name,
+            "resourceGroup": request.resource_group_name,
+            "items": [],
+            "summary": {},
+        }
+    else:
+        return fallback
+    return _merge_recovered_result(result, succeeded)
 
 
 def _probe_namespace_status(
@@ -611,6 +728,7 @@ def adr_namespace_check(
                 renderer,
                 "namespaces",
                 lambda: services.list_namespaces(group),
+                group,
             ),
         )
     except WorkflowCancelled:
@@ -671,6 +789,7 @@ def adr_namespace_setup(
     namespace_name: Optional[str] = None,
     resource_group_name: Optional[str] = None,
     location: Optional[str] = None,
+    tags: Optional[dict] = None,
     namespace_outbound_identity: Optional[str] = None,
     dps: Optional[List[str]] = None,
     hubs: Optional[List[List[str]]] = None,
@@ -715,6 +834,7 @@ def adr_namespace_setup(
         "namespace_name": namespace_name,
         "resource_group_name": resource_group_name,
         "location": location,
+        "tags": tags,
         "namespace_outbound_identity": namespace_outbound_identity,
         "dps": dps,
         "hubs": hubs,
@@ -748,6 +868,7 @@ def adr_namespace_setup(
         return None
     except Exception as error:
         raise RenderedWorkflowError(error, renderer) from error
+    kept_items = {}
     while True:
         try:
             request, plan, items = _prepare_namespace_setup(
@@ -832,6 +953,7 @@ def adr_namespace_setup(
                     "namespace_name": request.namespace_name,
                     "resource_group_name": request.resource_group_name,
                     "location": request.location,
+                    "tags": getattr(request, "tags", None),
                     "namespace_outbound_identity": None,
                     "dps": None,
                     "hubs": None,
@@ -843,20 +965,87 @@ def adr_namespace_setup(
                     "initial_request": request,
                 }
                 continue
+        else:
+            renderer.confirmed()
         break
-    try:
-        with renderer.execution() as progress:
-            result = NamespaceWorkflow(
-                services, progress=progress
-            ).setup(request)
-    except Exception as error:
-        failure_result = getattr(error, "result", plan)
-        _persist_receipt(failure_result)
-        raise RenderedWorkflowError(
-            error,
-            renderer,
-            failure_result,
-        ) from error
+    while True:
+        try:
+            with renderer.execution() as progress:
+                result = NamespaceWorkflow(
+                    services, progress=progress
+                ).setup(request)
+            result = _merge_recovered_result(result, kept_items)
+            break
+        except Exception as error:
+            failure_result = getattr(error, "result", plan)
+            _remember_succeeded(kept_items, failure_result)
+            optional_request = _without_failed_optional(
+                request, renderer.failure
+            )
+            if (
+                _software_updates_changed(kept_items)
+                or "software-updates" in renderer.mutated_scopes
+                or (renderer.failure or {}).get(
+                    "mutationAttempted"
+                )
+            ):
+                optional_request = None
+            interrupted = _caused_by(error, KeyboardInterrupt)
+            if interactive and not yes and not interrupted:
+                try:
+                    action = renderer.recovery(
+                        can_continue=optional_request is not None
+                    )
+                except (
+                    BackRequested,
+                    WorkflowCancelled,
+                    KeyboardInterrupt,
+                ):
+                    action = "q"
+                if action == "r":
+                    continue
+                if action == "c":
+                    request = optional_request
+                    try:
+                        plan, _ = NamespaceWorkflow(
+                            services
+                        ).plan_setup(request)
+                    except Exception as recovery_error:
+                        failure_result = _terminal_failure_result(
+                            request,
+                            error,
+                            failure_result,
+                            kept_items,
+                        )
+                        if hasattr(error, "result") or kept_items:
+                            failure_result["keptActions"] = len(
+                                kept_items
+                            )
+                            _persist_receipt(failure_result)
+                        raise RenderedWorkflowError(
+                            recovery_error,
+                            renderer,
+                            failure_result,
+                        ) from recovery_error
+                    renderer.plan(plan)
+                    renderer.confirmed()
+                    continue
+            failure_result = _terminal_failure_result(
+                request,
+                error,
+                failure_result,
+                kept_items,
+            )
+            if hasattr(error, "result") or kept_items:
+                failure_result["keptActions"] = len(
+                    kept_items
+                )
+                _persist_receipt(failure_result)
+            raise RenderedWorkflowError(
+                error,
+                renderer,
+                failure_result,
+            ) from error
     if result["state"] in {"Blocked", "Failed"}:
         _persist_receipt(result)
         error = CLIError(
